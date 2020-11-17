@@ -4,10 +4,10 @@ Repository for the Paleoanalytics project.
 # Installation
 
 PalaeoAnPy requires Python 3.6 or greater. To install, start by creating a fresh conda environment.
-
+```
 conda create -n paleo python=3.7
 conda activate paleo
-
+```
 
 Get the source.
 ```
