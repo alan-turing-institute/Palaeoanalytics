@@ -21,5 +21,5 @@ git checkout develop
 ```
 Install the package using `pip`.
 ```
-pip install .
+pip install -r requirements.txt
 ```
