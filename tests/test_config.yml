@@ -1,0 +1,5 @@
+lithic:
+  threshold: 0.55
+
+scale:
+  threshold: 0.3
