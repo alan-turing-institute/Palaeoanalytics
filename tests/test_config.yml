@@ -1,5 +1,8 @@
 lithic:
-  threshold: 0.55
+  threshold: 0.7
+  contour_parameter: 0.35
+  contour_fully_connected: 'high'
+
 
 scale:
   threshold: 0.3
