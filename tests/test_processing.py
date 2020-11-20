@@ -83,7 +83,7 @@ def test_find_lithic_contours():
 
     print('Numer of contours:', len(contours))
 
-    assert len(contours)== 0
+    assert len(contours)!= 0
 
 
 
