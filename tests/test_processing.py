@@ -4,7 +4,7 @@ Test the functions in read_and_process.py
 import pytest
 import os
 import yaml
-from src.read_and_process import read_image, detect_lithic, find_lithic_contours
+from pylithics.src.read_and_process import read_image, detect_lithic, find_lithic_contours
 
 import matplotlib.pyplot as plt
 
@@ -79,7 +79,7 @@ def test_find_lithic_contours():
     ax.axis('image')
     ax.set_xticks([])
     ax.set_yticks([])
-    plt.show()
+    plt.savefig(os.path.join('tests', 'contour_detection_lithic.png'))
 
     print('Numer of contours:', len(contours))
 

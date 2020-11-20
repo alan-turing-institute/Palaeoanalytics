@@ -66,7 +66,7 @@ def find_lithic_contours(image_array, config_file):
 
     new_contours = []
     for cont in contours:
-        if cont.shape[0] < 700:
+        if cont.shape[0] < config_file['minimum_pixels_contour']:
             continue
         else:
             new_contours.append(cont)
