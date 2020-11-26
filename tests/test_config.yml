@@ -6,4 +6,4 @@ lithic:
 
 
 scale:
-  threshold: 0.3
+  threshold: 1.0
