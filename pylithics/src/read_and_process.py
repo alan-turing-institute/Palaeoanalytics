@@ -1,7 +1,7 @@
 import skimage
 import skimage.feature
 import skimage.viewer
-from skimage.filters import threshold_minimum
+from skimage.filters import threshold_minimum, threshold_mean
 from skimage import filters
 from skimage.measure import find_contours
 import numpy as np
@@ -75,6 +75,27 @@ def find_lithic_contours(image_array, config_file):
 
     return new_contours
 
+def detect_scale(image_array, config_file):
+    """
+    Function that given an input image array and configuration options
+    applies thresholding
+    and edge detection to find the scale for the lithic object
 
+    Parameters
+    ==========
+    image_array: array, of the image read by skimage
+    config_file: dict, with information of thresholding values
+    Returns
+    =======
+    an array
 
+    """
 
+    thresh = threshold_mean(image_array)
+    thresh = thresh*config_file['threshold']
+
+    binary = image_array < thresh
+
+    binary_edge_sobel = filters.sobel_h(binary)
+
+    return binary_edge_sobel
