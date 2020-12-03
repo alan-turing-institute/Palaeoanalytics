@@ -99,3 +99,23 @@ def detect_scale(image_array, config_file):
     binary_edge_sobel = filters.sobel_h(binary)
 
     return binary_edge_sobel
+
+def find_scale_contours(image_array, config_file):
+    """
+    Function that given an input image array and configuration options
+     finds contours on the scale object
+
+    Parameters
+    ==========
+    image_array: array, of the image read by skimage
+    config_file: dict, with information of thresholding values
+    Returns
+    =======
+    an array
+
+    """
+
+    contours = find_contours(image_array, config_file['contour_parameter'], fully_connected=config_file['contour_fully_connected'])
+
+    lrg_contour = sorted(contours, key = len)[-1]
+    return lrg_contour
