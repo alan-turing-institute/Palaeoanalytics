@@ -35,6 +35,7 @@ def detect_lithic(image_array, config_file):
     Returns
     =======
     an array
+    a float with the threshold value
 
     """
 
@@ -45,7 +46,7 @@ def detect_lithic(image_array, config_file):
 
     binary_edge_sobel = filters.sobel(binary)
 
-    return binary_edge_sobel
+    return binary_edge_sobel, thresh
 
 def find_lithic_contours(image_array, config_file):
     """
@@ -98,7 +99,7 @@ def detect_scale(image_array, config_file):
 
     binary_edge_sobel = filters.sobel_h(binary)
 
-    return binary_edge_sobel
+    return binary_edge_sobel, thresh
 
 def find_scale_contours(image_array, config_file):
     """
