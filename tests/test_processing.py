@@ -33,7 +33,7 @@ def test_detect_lithic():
     with open(filename_config, 'r') as config_file:
         config_file = yaml.load(config_file)
 
-    binary_edge_sobel = detect_lithic(image_array, config_file['lithic'])
+    binary_edge_sobel, _ = detect_lithic(image_array, config_file['lithic'])
 
     fig, axes = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True,
                              figsize=(8, 8))
@@ -65,7 +65,7 @@ def test_find_lithic_contours():
     with open(filename_config, 'r') as config_file:
         config_file = yaml.load(config_file)
 
-    binary_edge_sobel = detect_lithic(image_array, config_file['lithic'])
+    binary_edge_sobel, _ = detect_lithic(image_array, config_file['lithic'])
 
     contours = find_lithic_contours(binary_edge_sobel, config_file['lithic'])
 
@@ -97,7 +97,7 @@ def test_detect_scale():
     with open(filename_config, 'r') as config_file:
         config_file = yaml.load(config_file)
 
-    binary_edge_sobel = detect_scale(image_array, config_file['scale'])
+    binary_edge_sobel, _ = detect_scale(image_array, config_file['scale'])
 
     fig, axes = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True,
                              figsize=(8, 8))
@@ -129,7 +129,7 @@ def test_find_scale_contours():
     with open(filename_config, 'r') as config_file:
         config_file = yaml.load(config_file)
 
-    binary_edge_sobel = detect_scale(image_array, config_file['scale'])
+    binary_edge_sobel, _ = detect_scale(image_array, config_file['scale'])
 
     contours = find_scale_contours(binary_edge_sobel, config_file['scale'])
 

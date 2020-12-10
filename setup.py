@@ -12,11 +12,12 @@ setup(
     license="MIT",
     include_package_data=True,
     packages=["pylithics",
-              "pylithics.src"],
+              "pylithics.src",
+               "pylithics.scripts"],
     install_requires=REQUIRED_PACKAGES,
     # we will need this later, i'll leave it commented as a reminder.
-    #entry_points={"console_scripts": [
-     #   "pyveg_calc_EC=pyveg.scripts.calc_euler_characteristic:main",
+    entry_points={"console_scripts": [
+      "pylithics_run=pylithics.scripts.run:main",
 
-    #]},
+    ]},
 )
