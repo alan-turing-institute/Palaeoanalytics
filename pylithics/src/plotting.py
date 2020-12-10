@@ -32,6 +32,8 @@ def plot_contours(image_array, contours, output_path):
     ax.set_xticks([])
     ax.set_yticks([])
     plt.savefig(output_path)
+    plt.close(fig)
+
 
 def plot_thresholding(image_array, threshold, binary_array, output_file):
     """
@@ -69,3 +71,4 @@ def plot_thresholding(image_array, threshold, binary_array, output_file):
     ax[2].axis('off')
 
     plt.savefig(output_file)
+    plt.close(fig)
