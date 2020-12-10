@@ -72,7 +72,7 @@ def find_lithic_contours(image_array, config_file):
         else:
             new_contours.append(cont)
 
-    new_contours = np.array(new_contours)
+    new_contours = np.array(new_contours, dtype="object")
 
     return new_contours
 
