@@ -47,6 +47,8 @@ def run_characterisation(id, input_dir, output_dir, config_file):
         """
 
     # start with lithic
+    print('=============================')
+    print('Processing figure: ', id)
 
     lithic_name = os.path.join(input_dir, id + "_lithic.png")
 
@@ -79,9 +81,7 @@ def run_characterisation(id, input_dir, output_dir, config_file):
     output_scale = os.path.join(output_dir, id + "_scale_contours.png")
     plot_contours(scale_image_array, scale_contour, output_scale)
 
-
-
-
+    print('Done.')
 
 
 def main():
@@ -97,7 +97,7 @@ def main():
 
     # Read YAML file
     with open(filename_config, 'r') as config_file:
-        config_file = yaml.load(config_file)
+        config_file = yaml.safe_load(config_file)
 
     # id_scale.png
     # id_lithic.png
