@@ -286,6 +286,6 @@ def denoise(noisy):
 
     #plt.show()
 
-    array = denoise_tv_chambolle(noisy, weight=0.03, multichannel=False)
+    array = denoise_tv_chambolle(noisy, weight=0.05, multichannel=False)
 
     return array

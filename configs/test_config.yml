@@ -1,6 +1,6 @@
 lithic:
   threshold: 0.01
-  contour_parameter: 0.5
+  contour_parameter: 0.1
   contour_fully_connected: 'low'
   minimum_pixels_contour: 300
 
