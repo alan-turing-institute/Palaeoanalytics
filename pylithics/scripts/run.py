@@ -3,7 +3,7 @@ import argparse
 import yaml
 import os
 from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, \
-    detect_scale, find_scale_contours
+    detect_scale, find_scale_contours, detect_lithic_
 from pylithics.src.plotting import plot_contours, plot_thresholding
 
 
@@ -54,10 +54,11 @@ def run_characterisation(id, input_dir, output_dir, config_file):
 
     lithic_image_array = read_image(lithic_name)
 
-    binary_lithic_array, threshold_lithic = detect_lithic(lithic_image_array, config_file['lithic'])
+    binary_lithic_array, threshold_lithic, image_array = detect_lithic_(lithic_image_array, config_file['lithic'])
 
     output_lithic_thres = os.path.join(output_dir, id + "_lithic_threshold.png")
-    plot_thresholding(lithic_image_array, threshold_lithic, binary_lithic_array, output_lithic_thres)
+    plot_thresholding(image_array, threshold_lithic, binary_lithic_array, output_lithic_thres)
+    #plot_thresholding(lithic_image_array, threshold_lithic, binary_lithic_array, output_lithic_thres)
 
 
     lithic_contours = find_lithic_contours(binary_lithic_array, config_file['lithic'])
