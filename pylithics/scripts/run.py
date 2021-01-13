@@ -2,8 +2,8 @@
 import argparse
 import yaml
 import os
-from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, \
-    detect_scale, find_scale_contours
+from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic
+
 from pylithics.src.plotting import plot_contours, plot_thresholding
 
 
