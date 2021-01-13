@@ -6,7 +6,7 @@ from skimage import filters
 from skimage.measure import find_contours
 import numpy as np
 from skimage.filters.rank import median
-
+from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
 
 import matplotlib.pyplot as plt
@@ -26,31 +26,6 @@ def read_image(filename):
 
     return image
 
-def detect_lithic(image_array, config_file):
-    """
-    Function that given an input image array and configuration options
-    applies thresholding
-    and edge detection to find the general shape of the lithic object
-
-    Parameters
-    ==========
-    image_array: array, of the image read by skimage
-    config_file: dict, with information of thresholding values
-    Returns
-    =======
-    an array
-    a float with the threshold value
-
-    """
-
-    thresh = threshold_minimum(image_array)
-    thresh = thresh*config_file['threshold']
-
-    binary = image_array < thresh
-
-    binary_edge_sobel = filters.sobel(binary)
-
-    return binary_edge_sobel, thresh
 
 def find_lithic_contours(image_array, config_file):
     """
@@ -126,7 +101,7 @@ def find_scale_contours(image_array, config_file):
     return lrg_contour
 
 
-def detect_lithic_(image_array, config_file):
+def detect_lithic(image_array, config_file):
     """
     Function that given an input image array and configuration options
     applies thresholding
@@ -144,20 +119,23 @@ def detect_lithic_(image_array, config_file):
     """
 
 
-    # Load an example image
+    # noise removal
+    img_denoise = denoise_tv_chambolle(image_array, weight=config_file['denoise_weight'], multichannel=False)
 
-    img_denoise = denoise(image_array)
-    img_eq = equialisation(img_denoise)
+    # Contrast stretching
+    p2, p98 = np.percentile(img_denoise, config_file['contrast_stretch'])
+    img_rescale = exposure.rescale_intensity(img_denoise, in_range=(p2, p98))
 
-    image_array = img_eq
-    thresh = threshold_mean(image_array)
+
+    # thresholding
+    thresh = threshold_mean(img_rescale)
     thresh = thresh+thresh*config_file['threshold']
+    binary = img_rescale < thresh
 
-    binary = image_array < thresh
-
+    # edge detection
     binary_edge_sobel = filters.sobel(binary)
 
-    return binary_edge_sobel, thresh, image_array
+    return binary_edge_sobel, thresh
 
 def equialisation(img):
 

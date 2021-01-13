@@ -3,6 +3,8 @@ lithic:
   contour_parameter: 0.1
   contour_fully_connected: 'low'
   minimum_pixels_contour: 300
+  denoise_weight: 0.05
+  contrast_stretch: [4, 96]
 
 
 scale:
