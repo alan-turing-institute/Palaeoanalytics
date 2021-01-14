@@ -44,9 +44,12 @@ def find_lithic_contours(image_array, config_file):
 
     contours = find_contours(image_array, config_file['contour_parameter'], fully_connected=config_file['contour_fully_connected'])
 
+    image_total_shape = len(image_array[0])*len(image_array[1])
+
     new_contours = []
     for cont in contours:
-        if cont.shape[0] < config_file['minimum_pixels_contour']:
+
+        if cont.shape[0]/image_total_shape*100 < config_file['minimum_pixels_contour']:
             continue
         else:
             new_contours.append(cont)
