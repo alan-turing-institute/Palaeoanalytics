@@ -2,8 +2,8 @@
 import argparse
 import yaml
 import os
-from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, \
-    detect_scale, find_scale_contours
+from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic
+
 from pylithics.src.plotting import plot_contours, plot_thresholding
 
 
@@ -50,14 +50,14 @@ def run_characterisation(id, input_dir, output_dir, config_file):
     print('=============================')
     print('Processing figure: ', id)
 
-    lithic_name = os.path.join(input_dir, id + "_lithic.png")
+    lithic_name = os.path.join(input_dir, id)
 
     lithic_image_array = read_image(lithic_name)
 
     binary_lithic_array, threshold_lithic = detect_lithic(lithic_image_array, config_file['lithic'])
 
     output_lithic_thres = os.path.join(output_dir, id + "_lithic_threshold.png")
-    plot_thresholding(lithic_image_array, threshold_lithic, binary_lithic_array, output_lithic_thres)
+    plot_thresholding(binary_lithic_array, threshold_lithic, binary_lithic_array, output_lithic_thres)
 
 
     lithic_contours = find_lithic_contours(binary_lithic_array, config_file['lithic'])
@@ -65,21 +65,6 @@ def run_characterisation(id, input_dir, output_dir, config_file):
     output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
     plot_contours(lithic_image_array, lithic_contours, output_lithic)
 
-    #scale
-    scale_name = os.path.join(input_dir, id + "_scale.png")
-    scale_image_array = read_image(scale_name)
-
-    binary_scale, threshold_scale = detect_scale(scale_image_array, config_file['scale'])
-
-
-    output_scale_thres = os.path.join(output_dir, id + "_scale_threshold.png")
-    plot_thresholding(scale_image_array, threshold_scale, binary_scale, output_scale_thres)
-
-    scale_contour = find_scale_contours(binary_scale, config_file['scale'])
-
-
-    output_scale = os.path.join(output_dir, id + "_scale_contours.png")
-    plot_contours(scale_image_array, scale_contour, output_scale)
 
     print('Done.')
 
@@ -103,7 +88,7 @@ def main():
     # id_lithic.png
 
     # path to the simulation files
-    id_list = [i.split('_')[0] for i in os.listdir(args.input_dir) if i.endswith('_scale.png')]
+    id_list = [i for i in os.listdir(args.input_dir) if i.endswith('.png')]
 
     run_pipeline(id_list, args.input_dir, args.output_dir, config_file)
 

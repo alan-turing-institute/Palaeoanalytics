@@ -1,8 +1,11 @@
 lithic:
-  threshold: 0.8
-  contour_parameter: 0.35
-  contour_fully_connected: 'high'
-  minimum_pixels_contour: 1000
+  threshold: 0.01
+  contour_parameter: 0.1
+  contour_fully_connected: 'low'
+  minimum_pixels_contour: 0.01
+  denoise_weight: 0.05
+  contrast_stretch: [4, 96]
+
 
 
 scale:

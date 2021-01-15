@@ -5,6 +5,10 @@ from skimage.filters import threshold_minimum, threshold_mean
 from skimage import filters
 from skimage.measure import find_contours
 import numpy as np
+from skimage.filters.rank import median
+from skimage.restoration import denoise_tv_chambolle
+from skimage import exposure
+
 import matplotlib.pyplot as plt
 
 def read_image(filename):
@@ -22,31 +26,6 @@ def read_image(filename):
 
     return image
 
-def detect_lithic(image_array, config_file):
-    """
-    Function that given an input image array and configuration options
-    applies thresholding
-    and edge detection to find the general shape of the lithic object
-
-    Parameters
-    ==========
-    image_array: array, of the image read by skimage
-    config_file: dict, with information of thresholding values
-    Returns
-    =======
-    an array
-    a float with the threshold value
-
-    """
-
-    thresh = threshold_minimum(image_array)
-    thresh = thresh*config_file['threshold']
-
-    binary = image_array < thresh
-
-    binary_edge_sobel = filters.sobel(binary)
-
-    return binary_edge_sobel, thresh
 
 def find_lithic_contours(image_array, config_file):
     """
@@ -65,9 +44,12 @@ def find_lithic_contours(image_array, config_file):
 
     contours = find_contours(image_array, config_file['contour_parameter'], fully_connected=config_file['contour_fully_connected'])
 
+    image_total_shape = len(image_array[0])*len(image_array[1])
+
     new_contours = []
     for cont in contours:
-        if cont.shape[0] < config_file['minimum_pixels_contour']:
+
+        if cont.shape[0]/image_total_shape*100 < config_file['minimum_pixels_contour']:
             continue
         else:
             new_contours.append(cont)
@@ -120,3 +102,40 @@ def find_scale_contours(image_array, config_file):
 
     lrg_contour = sorted(contours, key = len)[-1]
     return lrg_contour
+
+
+def detect_lithic(image_array, config_file):
+    """
+    Function that given an input image array and configuration options
+    applies thresholding
+    and edge detection to find the general shape of the lithic object
+
+    Parameters
+    ==========
+    image_array: array, of the image read by skimage
+    config_file: dict, with information of thresholding values
+    Returns
+    =======
+    an array
+    a float with the threshold value
+
+    """
+
+    # noise removal
+    img_denoise = denoise_tv_chambolle(image_array, weight=config_file['denoise_weight'], multichannel=False)
+
+    # Contrast stretching
+    p2, p98 = np.percentile(img_denoise, config_file['contrast_stretch'])
+    img_rescale = exposure.rescale_intensity(img_denoise, in_range=(p2, p98))
+
+
+    # thresholding
+    thresh = threshold_mean(img_rescale)
+    thresh = thresh+thresh*config_file['threshold']
+    binary = img_rescale < thresh
+
+    # edge detection
+    binary_edge_sobel = filters.sobel(binary)
+
+    return binary_edge_sobel, thresh
+
