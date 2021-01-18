@@ -49,7 +49,17 @@ def find_lithic_contours(image_array, config_file):
     new_contours = []
     for cont in contours:
 
+        shape = cont.shape[0]
+        a = cont[0]
+        b = cont[-1]
+        # check minimum contour size
         if cont.shape[0]/image_total_shape*100 < config_file['minimum_pixels_contour']:
+            continue
+        # check that the contour is closed.
+        elif any((cont[0] == cont[-1])==False):
+            print ('Open contour')
+            print(cont[0], cont[-1])
+
             continue
         else:
             new_contours.append(cont)
