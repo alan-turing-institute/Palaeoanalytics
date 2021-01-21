@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import os
 
-
 def plot_contours(image_array, contours, output_path):
     """
 
@@ -28,6 +27,7 @@ def plot_contours(image_array, contours, output_path):
         except:
             continue
 
+    plt.text(2, 0.95, str(len(contours))+' contours')
     ax.axis('image')
     ax.set_xticks([])
     ax.set_yticks([])
