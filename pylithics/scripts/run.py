@@ -2,19 +2,19 @@
 import argparse
 import yaml
 import os
-from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic
+from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, process_image
 
 from pylithics.src.plotting import plot_contours, plot_thresholding
 
 
 def run_pipeline(id_list, input_dir, output_dir, config_file):
     """
-    Script that runs the process of lithic characterisation on a number of images.
+    Script that runs the process of lithic characterisation on cont number of images.
 
     Parameters
     ----------
     id_list: list
-        List of names identifying object present in a directory
+        List of names identifying object present in cont directory
     input_dir: str
         path to input directory where images are found
     output_dir: str
@@ -54,11 +54,12 @@ def run_characterisation(id, input_dir, output_dir, config_file):
 
     lithic_image_array = read_image(lithic_name)
 
-    binary_lithic_array, threshold_lithic = detect_lithic(lithic_image_array, config_file['lithic'])
+    image_processed = process_image(lithic_image_array, config_file['lithic'])
+
+    binary_lithic_array, threshold_lithic = detect_lithic(image_processed, config_file['lithic'])
 
     output_lithic_thres = os.path.join(output_dir, id + "_lithic_threshold.png")
-    plot_thresholding(binary_lithic_array, threshold_lithic, binary_lithic_array, output_lithic_thres)
-
+    plot_thresholding(image_processed, threshold_lithic, binary_lithic_array, output_lithic_thres)
 
     lithic_contours = find_lithic_contours(binary_lithic_array, config_file['lithic'])
 

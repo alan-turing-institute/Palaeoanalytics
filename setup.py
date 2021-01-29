@@ -15,7 +15,7 @@ setup(
               "pylithics.src",
                "pylithics.scripts"],
     install_requires=REQUIRED_PACKAGES,
-    # we will need this later, i'll leave it commented as a reminder.
+    # we will need this later, i'll leave it commented as cont reminder.
     entry_points={"console_scripts": [
       "pylithics_run=pylithics.scripts.run:main",
 
