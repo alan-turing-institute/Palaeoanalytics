@@ -23,7 +23,7 @@ def plot_contours(image_array, contours, output_path):
 
     for contour in contours:
         try:
-            ax.plot(contour[:, 1], contour[:, 0], linewidth=2)
+            ax.plot(contour[:, 0], contour[:, 1], linewidth=2)
         except:
             continue
 

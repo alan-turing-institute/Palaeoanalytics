@@ -11,6 +11,8 @@ from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
 from skimage.segmentation import morphological_chan_vese, checkerboard_level_set
 from pylithics.src.utils import area_contour, contour_characterisation, contour_desambiguiation, mask_image, classify_distributions
+from skimage import img_as_ubyte
+import cv2
 
 def read_image(filename):
     """
@@ -80,8 +82,14 @@ def find_lithic_contours(image_array, config_file):
 
     """
 
-    contours = find_contours(image_array, config_file['contour_parameter'],
-                             fully_connected=config_file['contour_fully_connected'])
+
+    cv_image = img_as_ubyte(image_array)
+    contours_cv, hierarchy = cv2.findContours(cv_image,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+
+
+
+    #contours = find_contours(image_array, config_file['contour_parameter'],
+    #                         fully_connected=config_file['contour_fully_connected'])
 
     image_total_shape = len(image_array[0]) * len(image_array[1])
 
@@ -89,14 +97,17 @@ def find_lithic_contours(image_array, config_file):
     cont_info_list = []
 
     index = 0
-    for cont in contours:
+    for cont in list(contours_cv):
+
+        cont = np.asarray([i[0] for i in cont])
+
 
         # check minimum contour size
         if cont.shape[0] / image_total_shape * 100 < config_file['minimum_pixels_contour']:
             continue
         # check that the contour is closed.
-        elif any((cont[0] == cont[-1]) == False):
-            continue
+        #elif any((cont[0] == cont[-1]) == False):
+        #    continue
         else:
 
             # calculate characteristings of the contour.
@@ -104,6 +115,7 @@ def find_lithic_contours(image_array, config_file):
 
             cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
             cont_info['index'] = index
+            cont_info['hierarchy'] = list(hierarchy)[0][index]
 
             new_contours.append(cont)
             cont_info_list.append(cont_info)
