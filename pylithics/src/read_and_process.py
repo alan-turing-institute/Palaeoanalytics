@@ -4,7 +4,7 @@ import skimage.viewer
 from skimage.filters import threshold_minimum, threshold_mean
 import scipy.ndimage as ndi
 from skimage import filters
-from skimage.measure import find_contours, regionprops, label
+from skimage.measure import find_contours
 import numpy as np
 import pandas as pd
 from skimage.restoration import denoise_tv_chambolle
