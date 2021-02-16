@@ -61,6 +61,9 @@ def detect_lithic(image_array, config_file):
         init_ls = checkerboard_level_set(image_array.shape, 6)
 
         binary_image = morphological_chan_vese(binary, 35, init_level_set=init_ls, smoothing=3)
+
+        if binary_image.sum() > binary_image.shape[0]*binary_image.shape[1]*0.5:
+            binary_image = (binary_image-1)*-1
     else:
         binary_image = filters.sobel(binary)
 
@@ -78,7 +81,7 @@ def find_lithic_contours(image_array, config_file):
     config_file: dict, with information of thresholding values
     Returns
     =======
-    an array
+    an dataframe with contours and its characteristics.
 
     """
 
@@ -88,16 +91,12 @@ def find_lithic_contours(image_array, config_file):
 
 
 
-    #contours = find_contours(image_array, config_file['contour_parameter'],
-    #                         fully_connected=config_file['contour_fully_connected'])
-
     image_total_shape = len(image_array[0]) * len(image_array[1])
 
     new_contours = []
     cont_info_list = []
 
-    index = 0
-    for cont in list(contours_cv):
+    for index, cont in enumerate(list(contours_cv), start=0):
 
         cont = np.asarray([i[0] for i in cont])
 
@@ -105,9 +104,6 @@ def find_lithic_contours(image_array, config_file):
         # check minimum contour size
         if cont.shape[0] / image_total_shape * 100 < config_file['minimum_pixels_contour']:
             continue
-        # check that the contour is closed.
-        #elif any((cont[0] == cont[-1]) == False):
-        #    continue
         else:
 
             # calculate characteristings of the contour.
@@ -120,7 +116,7 @@ def find_lithic_contours(image_array, config_file):
             new_contours.append(cont)
             cont_info_list.append(cont_info)
 
-            index = index + 1
+        index = index + 1
 
     if len(new_contours) != 0:
         df_cont_info = pd.DataFrame.from_dict(cont_info_list)
@@ -129,9 +125,12 @@ def find_lithic_contours(image_array, config_file):
 
         new_contours = [i for j, i in enumerate(new_contours) if j not in indexes]
 
-    new_contours = np.array(new_contours, dtype="object")
+        df_contours = df_cont_info.drop(index=indexes)
 
-    return new_contours
+        df_contours['contour'] = np.array(new_contours, dtype="object")
+
+
+    return df_contours
 
 
 def process_image(image_array, config_file):
