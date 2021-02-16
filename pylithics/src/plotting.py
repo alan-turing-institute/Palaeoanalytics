@@ -18,17 +18,32 @@ def plot_contours(image_array, contours, output_path):
 
     """
     # Display the image and plot all contours found
-    fig, ax = plt.subplots()
+    from matplotlib.font_manager import FontProperties
+    fontP = FontProperties()
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax = plt.subplot(111)
     ax.imshow(image_array, cmap=plt.cm.gray)
 
-    for contour in contours:
+    for contour, hierarchy, index in contours[['contour', 'hierarchy', 'index']].itertuples(index=False):
         try:
-            ax.plot(contour[:, 0], contour[:, 1], linewidth=2)
+            if hierarchy[-1]==-1:
+                linewidth = 3
+                linestyle = 'solid'
+                text = "Lithic"
+            else:
+                linewidth = 2
+                linestyle = 'dashed'
+                text = "Scar"
+
+            ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
         except:
             continue
 
-    plt.text(2, 0.95, str(len(contours))+' contours')
-    ax.axis('image')
+    fontP.set_size('xx-small')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='xx-small')
+
+    plt.figtext(0.02, 0.5, str(len(contours))+' contours')
     ax.set_xticks([])
     ax.set_yticks([])
     plt.savefig(output_path)
