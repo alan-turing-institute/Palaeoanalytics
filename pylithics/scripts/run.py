@@ -50,21 +50,21 @@ def run_characterisation(id, input_dir, output_dir, config_file):
     print('=============================')
     print('Processing figure: ', id)
 
-    lithic_name = os.path.join(input_dir, id)
+    name = os.path.join(input_dir, id)
 
-    lithic_image_array = read_image(lithic_name)
+    image_array, image_pdi = read_image(name)
 
-    image_processed = process_image(lithic_image_array, config_file['lithic'])
+    image_processed = process_image(image_array, config_file)
 
-    binary_lithic_array, threshold_lithic = detect_lithic(image_processed, config_file['lithic'])
+    binary_array, threshold_value = detect_lithic(image_processed, config_file)
 
-    output_lithic_thres = os.path.join(output_dir, id + "_lithic_threshold.png")
-    plot_thresholding(image_processed, threshold_lithic, binary_lithic_array, output_lithic_thres)
+    output_threshold = os.path.join(output_dir, id + "_lithic_threshold.png")
+    plot_thresholding(image_processed, threshold_value, binary_array, output_threshold)
 
-    lithic_contours = find_lithic_contours(binary_lithic_array, config_file['lithic'])
+    contours = find_lithic_contours(binary_array, config_file)
 
     output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
-    plot_contours(lithic_image_array, lithic_contours, output_lithic)
+    plot_contours(image_array, contours, output_lithic)
 
 
     print('Done.')
