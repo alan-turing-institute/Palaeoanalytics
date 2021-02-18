@@ -7,3 +7,4 @@ scikit-image
 scipy
 PyYAML
 opencv-python
+Pillow
