@@ -33,7 +33,7 @@ def test_detect_lithic():
     with open(filename_config, 'r') as config_file:
         config_file = yaml.load(config_file)
 
-    binary_edge_sobel, _ = detect_lithic(image_array, config_file['lithic'])
+    binary_edge_sobel, _ = detect_lithic(image_array, config_file)
 
     fig, axes = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True,
                              figsize=(8, 8))
@@ -68,9 +68,9 @@ def test_find_lithic_contours():
     from matplotlib.font_manager import FontProperties
     fontP = FontProperties()
 
-    binary_edge_sobel, _ = detect_lithic(image_array, config_file['lithic'])
+    binary_edge_sobel, _ = detect_lithic(image_array, config_file)
 
-    contours = find_lithic_contours(binary_edge_sobel, config_file['lithic'])
+    contours = find_lithic_contours(binary_edge_sobel, config_file)
 
     fig, ax = plt.subplots(figsize=(10, 5))
     ax = plt.subplot(111)
