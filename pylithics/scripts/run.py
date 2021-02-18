@@ -46,13 +46,14 @@ def run_characterisation(id, input_dir, output_dir, config_file):
             dictionary with information of thresholding values
         """
 
-    # start with lithic
     print('=============================')
     print('Processing figure: ', id)
 
     name = os.path.join(input_dir, id)
 
     image_array, image_pdi = read_image(name)
+
+    config_file['dpi'] = image_pdi
 
     image_processed = process_image(image_array, config_file)
 

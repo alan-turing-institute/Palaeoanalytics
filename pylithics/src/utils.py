@@ -36,18 +36,18 @@ def contour_desambiguiation(df_contours):
 
     """
 
-    norm = max(df_contours['area'])
+    norm = max(df_contours['area_px'])
     index_to_drop = []
 
     for i in range(df_contours.shape[0]):
-        area = df_contours['area'].iloc[i]
+        area = df_contours['area_px'].iloc[i]
         percentage = area / norm * 100
 
         if percentage < 1:
             index_to_drop.append(i)
 
 
-    cent_df = df_contours[['area', 'centroid']]
+    cent_df = df_contours[['area_px', 'centroid']]
 
     import itertools
 
@@ -56,12 +56,12 @@ def contour_desambiguiation(df_contours):
         if ((i in index_to_drop) or (j in index_to_drop)):
             continue
 
-        d_ij_area = np.linalg.norm(cent_df.loc[i]['area'] - cent_df.loc[j]['area'])
+        d_ij_area = np.linalg.norm(cent_df.loc[i]['area_px'] - cent_df.loc[j]['area_px'])
         d_ij_centroid = np.linalg.norm(np.asarray(cent_df.loc[i]['centroid']) - np.asarray(cent_df.loc[j]['centroid']))
 
         if d_ij_centroid<300:
             if d_ij_area/norm<0.1:
-                if cent_df.loc[i]['area'] < cent_df.loc[j]['area']:
+                if cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']:
                     index_to_drop.append(i)
                 else:
                     index_to_drop.append(j)
@@ -98,7 +98,7 @@ def mask_image(image_array, contour, innermask = False):
     return new_image
 
 
-def contour_characterisation(cont):
+def contour_characterisation(cont, inch_conversion = 96):
     """
 
     For cont given contour calculate characteristics (area, lenght, etc.)
@@ -108,6 +108,7 @@ def contour_characterisation(cont):
     cont: array
         Array of pairs of pixel coordinates
 
+
     Returns
     -------
     A dictionary
@@ -115,11 +116,15 @@ def contour_characterisation(cont):
     """
     cont_info = {}
 
+    #inch_conversion = 96
+
     # Expand numpy dimensions and convert it to UMat object
     area = area_contour(cont)
 
     cont_info['lenght'] = len(cont)
-    cont_info['area'] = area
+    cont_info['area_px'] = area
+    cont_info['area_in'] = round(area/inch_conversion,1) # 1 inch = 96px for web or css. This is actually the PPI or pixels per inch if your working with print media.
+    cont_info['area_cm'] = round(cont_info['area_in']/2.54,1) # to cm based on centimeters: 1cm = 96px/2.54
 
     return cont_info
 

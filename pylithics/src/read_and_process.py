@@ -112,7 +112,7 @@ def find_lithic_contours(image_array, config_file):
         else:
 
             # calculate characteristings of the contour.
-            cont_info = contour_characterisation(cont)
+            cont_info = contour_characterisation(cont,config_file['dpi'][0])
 
             cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
             cont_info['index'] = index

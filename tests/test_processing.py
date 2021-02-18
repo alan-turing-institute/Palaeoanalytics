@@ -12,10 +12,10 @@ import matplotlib.pyplot as plt
 def test_read_image():
 
     filename = os.path.join('tests','test_images','RDK2_17_Dc_Pc_Lc.png')
-    image_array = read_image(filename)
+    image_array, _ = read_image(filename)
 
     filename_tif = os.path.join('tests','test_images','2005_Erps-Kwerps-Villershof.tif')
-    image_array_tif = read_image(filename_tif)
+    image_array_tif, _ = read_image(filename_tif)
 
     assert image_array.shape==(1595,1465)
     assert image_array_tif.shape==(445,1548)
@@ -25,7 +25,7 @@ def test_detect_lithic():
 
     filename = os.path.join('tests', 'test_images', 'RDK2_17_Dc_Pc_Lc.png')
 
-    image_array = read_image(filename)
+    image_array, dpi = read_image(filename)
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
@@ -57,7 +57,7 @@ def test_find_lithic_contours():
 
     filename = os.path.join('tests', 'test_images', 'RDK2_17_Dc_Pc_Lc_A.png')
 
-    image_array = read_image(filename)
+    image_array, dpi = read_image(filename)
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
