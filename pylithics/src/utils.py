@@ -86,7 +86,7 @@ def mask_image(image_array, contour, innermask = False):
     import scipy.ndimage as ndimage
 
     r_mask = np.zeros_like(image_array, dtype='bool')
-    r_mask[np.round(contour[:, 0]).astype('int'), np.round(contour[:, 1]).astype('int')] = 1
+    r_mask[np.round(contour[:, 1]).astype('int'), np.round(contour[:, 0]).astype('int')] = 1
 
     r_mask = ndimage.binary_fill_holes(r_mask)
 

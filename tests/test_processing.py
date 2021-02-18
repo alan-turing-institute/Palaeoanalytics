@@ -65,24 +65,43 @@ def test_find_lithic_contours():
     with open(filename_config, 'r') as config_file:
         config_file = yaml.load(config_file)
 
+    from matplotlib.font_manager import FontProperties
+    fontP = FontProperties()
+
     binary_edge_sobel, _ = detect_lithic(image_array, config_file['lithic'])
 
     contours = find_lithic_contours(binary_edge_sobel, config_file['lithic'])
 
-    # Display the image and plot all contours found
-    fig, ax = plt.subplots()
-    ax.imshow(binary_edge_sobel, cmap=plt.cm.gray)
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax = plt.subplot(111)
+    ax.imshow(image_array, cmap=plt.cm.gray)
 
-    for contour in contours:
-        ax.plot(contour[:, 1], contour[:, 0], linewidth=2)
+    for contour, hierarchy, index in contours[['contour', 'hierarchy', 'index']].itertuples(index=False):
+        try:
+            if hierarchy[-1] == -1:
+                linewidth = 3
+                linestyle = 'solid'
+                text = "Lithic"
+            else:
+                linewidth = 2
+                linestyle = 'dashed'
+                text = "Scar"
 
-    ax.axis('image')
+            ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
+        except:
+            continue
+
+    fontP.set_size('xx-small')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='xx-small')
+
+    plt.figtext(0.02, 0.5, str(len(contours)) + ' contours')
     ax.set_xticks([])
     ax.set_yticks([])
     plt.savefig(os.path.join('tests', 'contour_detection_lithic.png'))
+    plt.close(fig)
 
-    print('Numer of contours:', len(contours))
+    print('Numer of contours:', contours[['contour']].shape[0])
 
-    assert len(contours)!= 0
+    assert contours[['contour']].shape[0]!= 0
 
 
