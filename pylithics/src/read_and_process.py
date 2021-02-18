@@ -13,10 +13,11 @@ from skimage.segmentation import morphological_chan_vese, checkerboard_level_set
 from pylithics.src.utils import area_contour, contour_characterisation, contour_desambiguiation, mask_image, classify_distributions
 from skimage import img_as_ubyte
 import cv2
+from PIL import Image
 
 def read_image(filename):
     """
-    Function that read an image into the skimage library
+    Function that read an image into the Pillow library and returing an array and the pdi information of the image.
 
     Parameters
     ==========
@@ -24,10 +25,14 @@ def read_image(filename):
     Returns
     =======
     an array
+    a tuple
     """
-    image = skimage.io.imread(fname=filename, as_gray=True)
+    #image = skimage.io.imread(fname=filename, as_gray=True)
+    im = Image.open(filename)
+    image = np.asarray(im)
+    pdi = im.info['dpi']
 
-    return image
+    return image, pdi
 
 
 
