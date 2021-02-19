@@ -98,7 +98,7 @@ def mask_image(image_array, contour, innermask = False):
     return new_image
 
 
-def contour_characterisation(cont, inch_conversion = 96):
+def contour_characterisation(cont, conversion = 96):
     """
 
     For cont given contour calculate characteristics (area, lenght, etc.)
@@ -107,7 +107,8 @@ def contour_characterisation(cont, inch_conversion = 96):
     ----------
     cont: array
         Array of pairs of pixel coordinates
-
+    conversion: float
+        Value to convert pixels to inches
 
     Returns
     -------
@@ -116,19 +117,31 @@ def contour_characterisation(cont, inch_conversion = 96):
     """
     cont_info = {}
 
-    #inch_conversion = 96
 
     # Expand numpy dimensions and convert it to UMat object
     area = area_contour(cont)
 
     cont_info['lenght'] = len(cont)
     cont_info['area_px'] = area
-    cont_info['area_in'] = round(area/inch_conversion,1) # 1 inch = 96px for web or css. This is actually the PPI or pixels per inch if your working with print media.
+    cont_info['area_in'] = round(area / conversion, 1) # 1 inch = 96px for web or css. This is actually the PPI or pixels per inch if your working with print media.
     cont_info['area_cm'] = round(cont_info['area_in']/2.54,1) # to cm based on centimeters: 1cm = 96px/2.54
 
     return cont_info
 
 def classify_distributions(image_array):
+    """
+    Given an input image array classify it by their distribution of pixel intensities.
+    Returns True is the ditribution is narrow and skewed to values of 1.
+
+    Parameters
+    ----------
+    image_array: array
+
+    Returns
+    -------
+    a boolean
+
+    """
 
     is_narrow = False
 

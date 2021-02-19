@@ -1,16 +1,12 @@
-import skimage
-import skimage.feature
-import skimage.viewer
-from skimage.filters import threshold_minimum, threshold_mean
+from skimage.filters import threshold_mean
 import scipy.ndimage as ndi
 from skimage import filters
-from skimage.measure import find_contours
 import numpy as np
 import pandas as pd
 from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
 from skimage.segmentation import morphological_chan_vese, checkerboard_level_set
-from pylithics.src.utils import area_contour, contour_characterisation, contour_desambiguiation, mask_image, classify_distributions
+from pylithics.src.utils import contour_characterisation, contour_desambiguiation, mask_image, classify_distributions, add_highest_level_parent
 from skimage import img_as_ubyte
 import cv2
 from PIL import Image
