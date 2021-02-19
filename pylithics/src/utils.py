@@ -162,4 +162,50 @@ def classify_distributions(image_array):
 
     return is_narrow
 
+def add_highest_level_parent(hierarchies):
+
+    """ For a list of contour hierarchies find the index of the
+    highest level parent for each contour.
+
+     Parameters
+    ----------
+    hierarchies: list
+        List of hierarchies
+
+    Returns
+    -------
+    A list
+    """
+
+    parent_index = []
+
+    for index, hierarchy in enumerate(hierarchies, start=0):
+
+        parent = hierarchy[-1]
+        if parent == -1:
+            parent_index.append(parent)
+
+        else:
+
+            while (parent!=-1):
+                index = parent
+                parent = hierarchies[index][-1]
+
+            parent_index.append(index)
+
+    return parent_index
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

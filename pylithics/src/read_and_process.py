@@ -91,9 +91,6 @@ def find_lithic_contours(image_array, config_file):
     contours_cv, hierarchy = cv2.findContours(cv_image,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
 
 
-
-    image_total_shape = len(image_array[0]) * len(image_array[1])
-
     new_contours = []
     cont_info_list = []
 
@@ -101,26 +98,22 @@ def find_lithic_contours(image_array, config_file):
 
         cont = np.asarray([i[0] for i in cont])
 
-
-        # check minimum contour size
-        if cont.shape[0] / image_total_shape * 100 < config_file['minimum_pixels_contour']:
-            continue
-        else:
-
             # calculate characteristings of the contour.
-            cont_info = contour_characterisation(cont,config_file['dpi'][0])
+        cont_info = contour_characterisation(cont,config_file['dpi'][0])
 
-            cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
-            cont_info['index'] = index
-            cont_info['hierarchy'] = list(hierarchy)[0][index]
+        cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
+        cont_info['index'] = index
+        cont_info['hierarchy'] = list(hierarchy)[0][index]
 
-            new_contours.append(cont)
-            cont_info_list.append(cont_info)
+        new_contours.append(cont)
+        cont_info_list.append(cont_info)
 
-        index = index + 1
 
     if len(new_contours) != 0:
+
         df_cont_info = pd.DataFrame.from_dict(cont_info_list)
+
+        df_cont_info['parent_index'] = add_highest_level_parent(df_cont_info['hierarchy'].values)
 
         indexes = contour_desambiguiation(df_cont_info)
 
@@ -130,6 +123,8 @@ def find_lithic_contours(image_array, config_file):
 
         df_contours['contour'] = np.array(new_contours, dtype="object")
 
+    else:
+        raise RuntimeError("No contours found in this image")
 
     return df_contours
 
