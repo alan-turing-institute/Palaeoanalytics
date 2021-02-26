@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import Image
 
 def area_contour(contour):
     """
@@ -124,7 +125,7 @@ def contour_characterisation(cont, conversion = 96):
     cont_info['lenght'] = len(cont)
     cont_info['area_px'] = area
     cont_info['area_in'] = round(area / conversion, 1) # 1 inch = 96px for web or css. This is actually the PPI or pixels per inch if your working with print media.
-    cont_info['area_cm'] = round(cont_info['area_in']/2.54,1) # to cm based on centimeters: 1cm = 96px/2.54
+    cont_info['area_cm'] = round(area / conversion, 1) # to cm based on centimeters: 1cm = 96px/2.54
 
     return cont_info
 
@@ -195,10 +196,28 @@ def add_highest_level_parent(hierarchies):
 
     return parent_index
 
+def pixulator (image_scale_array, scale_size):
+
+    """
+    Converts image/scale dpi and pixel count to cm conversion rate.
+    :param image_scale_array:
+    :param cm:
+    :return: Image dpi conversion to centimeters.
+    """
 
 
+    # dimension information in pixels
+    px_width = image_scale_array.shape[0]
+    px_height = image_scale_array.shape[1]
 
+    if px_width > px_height:
+        orientation = px_width
+    else:
+        orientation = px_height
 
+    px_conversion = orientation/scale_size
+    print(f"1 cm will equate to {px_conversion} pixels.")
+    return(px_conversion)
 
 
 

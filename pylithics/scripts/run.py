@@ -6,6 +6,7 @@ from pylithics.src.read_and_process import read_image, find_lithic_contours, det
 
 from pylithics.src.plotting import plot_contours, plot_thresholding
 
+from pylithics.src.utils import pixulator
 
 def run_pipeline(id_list, input_dir, output_dir, config_file):
     """
@@ -50,10 +51,16 @@ def run_characterisation(id, input_dir, output_dir, config_file):
     print('Processing figure: ', id)
 
     name = os.path.join(input_dir, id)
+    name_scale = os.path.join(input_dir, "scale", "sc_7.png")
 
     image_array, image_pdi = read_image(name)
+    image_scale_array, image_scale_dpi = read_image(name_scale)
 
-    config_file['dpi'] = image_pdi
+    cm = 10
+    conversion = pixulator(image_scale_array, cm)
+
+
+    config_file['conversion'] = conversion
 
     image_processed = process_image(image_array, config_file)
 
