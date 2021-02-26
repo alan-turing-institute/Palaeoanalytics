@@ -124,7 +124,6 @@ def contour_characterisation(cont, conversion = 96):
 
     cont_info['lenght'] = len(cont)
     cont_info['area_px'] = area
-    cont_info['area_in'] = round(area / conversion, 1) # 1 inch = 96px for web or css. This is actually the PPI or pixels per inch if your working with print media.
     cont_info['area_cm'] = round(area / conversion, 1) # to cm based on centimeters: 1cm = 96px/2.54
 
     return cont_info
