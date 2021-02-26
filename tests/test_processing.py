@@ -70,7 +70,7 @@ def test_find_lithic_contours():
 
     image_processed = process_image(image_array, config_file)
 
-    config_file['dpi'] = dpi
+    config_file['conversion'] = 0.1 #hardcoded for now
     binary_edge_sobel, _ = detect_lithic(image_processed, config_file)
 
     contours = find_lithic_contours(binary_edge_sobel, config_file)
