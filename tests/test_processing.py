@@ -4,7 +4,7 @@ Test the functions in read_and_process.py
 import pytest
 import os
 import yaml
-from pylithics.src.read_and_process import read_image, detect_lithic, find_lithic_contours
+from pylithics.src.read_and_process import read_image, detect_lithic, find_lithic_contours, process_image
 
 import matplotlib.pyplot as plt
 
@@ -12,20 +12,20 @@ import matplotlib.pyplot as plt
 def test_read_image():
 
     filename = os.path.join('tests','test_images','RDK2_17_Dc_Pc_Lc.png')
-    image_array = read_image(filename)
+    image_array, _ = read_image(filename)
 
     filename_tif = os.path.join('tests','test_images','2005_Erps-Kwerps-Villershof.tif')
-    image_array_tif = read_image(filename_tif)
+    image_array_tif, _ = read_image(filename_tif)
 
-    assert image_array.shape==(1595,1465)
-    assert image_array_tif.shape==(445,1548)
+    assert image_array.shape==(1595, 1465, 4)
+    assert image_array_tif.shape==(445, 1548, 3)
 
 
 def test_detect_lithic():
 
     filename = os.path.join('tests', 'test_images', 'RDK2_17_Dc_Pc_Lc.png')
 
-    image_array = read_image(filename)
+    image_array, dpi = read_image(filename)
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
@@ -33,7 +33,7 @@ def test_detect_lithic():
     with open(filename_config, 'r') as config_file:
         config_file = yaml.load(config_file)
 
-    binary_edge_sobel, _ = detect_lithic(image_array, config_file['lithic'])
+    binary_edge_sobel, _ = detect_lithic(image_array, config_file)
 
     fig, axes = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True,
                              figsize=(8, 8))
@@ -51,13 +51,13 @@ def test_detect_lithic():
     plt.tight_layout()
     plt.savefig(os.path.join('tests', 'edge_detection_lithic.png'))
 
-    assert binary_edge_sobel.shape==(1595,1465)
+    assert binary_edge_sobel.shape==(1595,1465,4)
 
 def test_find_lithic_contours():
 
-    filename = os.path.join('tests', 'test_images', 'RDK2_17_Dc_Pc_Lc_A.png')
+    filename = os.path.join('tests', 'test_images', '8_test.png')
 
-    image_array = read_image(filename)
+    image_array, dpi = read_image(filename)
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
@@ -68,9 +68,12 @@ def test_find_lithic_contours():
     from matplotlib.font_manager import FontProperties
     fontP = FontProperties()
 
-    binary_edge_sobel, _ = detect_lithic(image_array, config_file['lithic'])
+    image_processed = process_image(image_array, config_file)
 
-    contours = find_lithic_contours(binary_edge_sobel, config_file['lithic'])
+    config_file['dpi'] = dpi
+    binary_edge_sobel, _ = detect_lithic(image_processed, config_file)
+
+    contours = find_lithic_contours(binary_edge_sobel, config_file)
 
     fig, ax = plt.subplots(figsize=(10, 5))
     ax = plt.subplot(111)

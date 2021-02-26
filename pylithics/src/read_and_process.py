@@ -1,22 +1,19 @@
-import skimage
-import skimage.feature
-import skimage.viewer
-from skimage.filters import threshold_minimum, threshold_mean
+from skimage.filters import threshold_mean
 import scipy.ndimage as ndi
 from skimage import filters
-from skimage.measure import find_contours
 import numpy as np
 import pandas as pd
 from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
 from skimage.segmentation import morphological_chan_vese, checkerboard_level_set
-from pylithics.src.utils import area_contour, contour_characterisation, contour_desambiguiation, mask_image, classify_distributions
+from pylithics.src.utils import contour_characterisation, contour_desambiguiation, mask_image, classify_distributions, add_highest_level_parent
 from skimage import img_as_ubyte
 import cv2
+from PIL import Image
 
 def read_image(filename):
     """
-    Function that read an image into the skimage library
+    Function that read an image into the Pillow library and returing an array and the pdi information of the image.
 
     Parameters
     ==========
@@ -24,10 +21,14 @@ def read_image(filename):
     Returns
     =======
     an array
+    a tuple
     """
-    image = skimage.io.imread(fname=filename, as_gray=True)
+    #image = skimage.io.imread(fname=filename, as_gray=True)
+    im = Image.open(filename)
+    image = np.asarray(im)
+    pdi = im.info['dpi']
 
-    return image
+    return image, pdi
 
 
 
@@ -90,9 +91,6 @@ def find_lithic_contours(image_array, config_file):
     contours_cv, hierarchy = cv2.findContours(cv_image,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
 
 
-
-    image_total_shape = len(image_array[0]) * len(image_array[1])
-
     new_contours = []
     cont_info_list = []
 
@@ -100,26 +98,22 @@ def find_lithic_contours(image_array, config_file):
 
         cont = np.asarray([i[0] for i in cont])
 
-
-        # check minimum contour size
-        if cont.shape[0] / image_total_shape * 100 < config_file['minimum_pixels_contour']:
-            continue
-        else:
-
             # calculate characteristings of the contour.
-            cont_info = contour_characterisation(cont)
+        cont_info = contour_characterisation(cont,config_file['dpi'][0])
 
-            cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
-            cont_info['index'] = index
-            cont_info['hierarchy'] = list(hierarchy)[0][index]
+        cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
+        cont_info['index'] = index
+        cont_info['hierarchy'] = list(hierarchy)[0][index]
 
-            new_contours.append(cont)
-            cont_info_list.append(cont_info)
+        new_contours.append(cont)
+        cont_info_list.append(cont_info)
 
-        index = index + 1
 
     if len(new_contours) != 0:
+
         df_cont_info = pd.DataFrame.from_dict(cont_info_list)
+
+        df_cont_info['parent_index'] = add_highest_level_parent(df_cont_info['hierarchy'].values)
 
         indexes = contour_desambiguiation(df_cont_info)
 
@@ -129,6 +123,8 @@ def find_lithic_contours(image_array, config_file):
 
         df_contours['contour'] = np.array(new_contours, dtype="object")
 
+    else:
+        raise RuntimeError("No contours found in this image")
 
     return df_contours
 

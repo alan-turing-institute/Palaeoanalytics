@@ -25,16 +25,17 @@ def plot_contours(image_array, contours, output_path):
     ax = plt.subplot(111)
     ax.imshow(image_array, cmap=plt.cm.gray)
 
-    for contour, hierarchy, index in contours[['contour', 'hierarchy', 'index']].itertuples(index=False):
+    for contour, parent_index, index, area_cm in contours[['contour', 'parent_index', 'index','area_cm']].itertuples(index=False):
         try:
-            if hierarchy[-1]==-1:
+            if parent_index==-1:
                 linewidth = 3
                 linestyle = 'solid'
-                text = "Lithic"
+                text = "Lithic, index: "+str(index)
             else:
                 linewidth = 2
                 linestyle = 'dashed'
-                text = "Scar"
+                text = "Scar, parent_index: "+str(parent_index)
+
 
             ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
         except:
