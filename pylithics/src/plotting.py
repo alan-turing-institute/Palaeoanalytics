@@ -30,7 +30,7 @@ def plot_contours(image_array, contours, output_path):
             if parent_index==-1:
                 linewidth = 3
                 linestyle = 'solid'
-                text = "Lithic, index: "+str(index)
+                text = "Lithic, index: "+str(index)+ ", area in cm2: "+str(area_cm)
             else:
                 linewidth = 2
                 linestyle = 'dashed'

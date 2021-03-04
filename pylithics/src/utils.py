@@ -99,7 +99,7 @@ def mask_image(image_array, contour, innermask = False):
     return new_image
 
 
-def contour_characterisation(cont, conversion = 96):
+def contour_characterisation(cont, conversion = 1):
     """
 
     For cont given contour calculate characteristics (area, lenght, etc.)
@@ -122,9 +122,9 @@ def contour_characterisation(cont, conversion = 96):
     # Expand numpy dimensions and convert it to UMat object
     area = area_contour(cont)
 
-    cont_info['lenght'] = len(cont)
+    cont_info['lenght'] = len(cont*conversion)
     cont_info['area_px'] = area
-    cont_info['area_cm'] = round(area / conversion, 1) # to cm based on centimeters: 1cm = 96px/2.54
+    cont_info['area_cm'] = round(area*(conversion*conversion), 1)
 
     return cont_info
 
@@ -214,8 +214,11 @@ def pixulator (image_scale_array, scale_size):
     else:
         orientation = px_height
 
-    px_conversion = orientation/scale_size
-    print(f"1 cm will equate to {px_conversion} pixels.")
+    px_conversion = 1/(orientation/scale_size)
+
+
+    print(f"1 cm will equate to {1/px_conversion} pixels width.")
+
     return(px_conversion)
 
 

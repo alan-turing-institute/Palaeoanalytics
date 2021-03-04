@@ -26,9 +26,12 @@ def read_image(filename):
     #image = skimage.io.imread(fname=filename, as_gray=True)
     im = Image.open(filename)
     image = np.asarray(im)
-    pdi = im.info['dpi']
+    try:
+        dpi = im.info['dpi']
+    except:
+        dpi = 0
 
-    return image, pdi
+    return image, dpi
 
 
 
@@ -99,7 +102,7 @@ def find_lithic_contours(image_array, config_file):
         cont = np.asarray([i[0] for i in cont])
 
             # calculate characteristings of the contour.
-        cont_info = contour_characterisation(cont,config_file['conversion'])
+        cont_info = contour_characterisation(cont,config_file['conversion_px'])
 
         cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
         cont_info['index'] = index
