@@ -84,23 +84,21 @@ The images found in ```<path_to_input_dir>``` should follow the this directory s
 input_directory
    ├── metatada_file.csv
    ├── images 
-        ├── id1_lithics.png
-        ├── id2_lithics.png
-        ├── id2_scale.png
-        ├── id3_lithics.png
-        └── id3_scale.png
+        ├── lithic_id1.png
+        ├── lithic_id2.png
+        └── lithic_id3.png
             .
             .
             .
-        ├── idn_lithics.png
+        ├── lithic_idn.png
    └──  scales
-        ├── id1_scale.png
-        ├── id2_scale.png
-        ├── id3_scale.png
+        ├── scale_id1.png
+        ├── scale_id2.png
+        ├── scale_id3.png
             .
             .
             .
-        └── idn_scale.png
+        └── scale_id4.png
 
 
 
@@ -115,14 +113,13 @@ This CSV file should have as a minimum the following 3 variables:
 - *scale_ID*: The scale id (name of the scale image file)
 - *PA_scale*: The scale measurement (how many centimeters this scale represents).
 
-An example of this table is the following:
+An example of this table, where one scale correspond to several images is the following:
 
 |PA_ID | scale_ID  | PA_scale  | 
 |------|-----------|-----------|
 | 1    | sc1       | 5         | 
 | 2    | sc1       | 5         |
 | 3    | sc1       | 5         |   
-|------|-----------|-----------|
 
 ## Note:
 
