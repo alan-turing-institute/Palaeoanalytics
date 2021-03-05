@@ -30,15 +30,20 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file):
     for id in id_list:
 
         config_file['id'] = id
-        scale_id = metadata_df[metadata_df['PA_ID'] == id]['scale_ID'].values[0]
-
-        if scale_id=="":
-            continue
-
-        scale_size = metadata_df[metadata_df['PA_ID'] ==id]['PA_scale'].values[0]
-
-        config_file['scale_id'] = str(scale_id)
-        config_file["scale_cm"] = scale_size
+        try:
+            scale_id = metadata_df[metadata_df['PA_ID'] == id]['scale_ID'].values[0]
+            if pd.isna(scale_id):
+                print(
+                    "Scale for Object " + id + " not available. No area measurement will be calculated in this image.")
+                config_file['scale_id'] = "no scale"
+            else:
+                scale_size = metadata_df[metadata_df['PA_ID'] == id]['PA_scale'].values[0]
+                config_file['scale_id'] = str(scale_id)
+                config_file["scale_cm"] = scale_size
+        except (TypeError, IndexError):
+            print("Information of scale and measurement for image "+id+" no found in metadata")
+            print("No area measurement will be calculated in this image")
+            config_file['scale_id'] = "no scale"
 
         run_characterisation(input_dir, output_dir, config_file)
 
@@ -62,13 +67,19 @@ def run_characterisation(input_dir, output_dir, config_file):
     print('=============================')
     print('Processing figure: ', id)
 
-    name = os.path.join(input_dir,"images", id + '.png')
-    name_scale = os.path.join(input_dir, "scales", config_file["scale_id"]+ '.png')
-
+    name = os.path.join(input_dir, "images", id + '.png')
     image_array, image_pdi = read_image(name)
-    image_scale_array, image_scale_dpi = read_image(name_scale)
 
-    config_file['conversion_px']= pixulator(image_scale_array, config_file["scale_cm"])
+    name_scale = os.path.join(input_dir, "scales", config_file["scale_id"] + '.png')
+
+    try:
+        image_scale_array, image_scale_dpi = read_image(name_scale)
+        config_file['conversion_px'] = pixulator(image_scale_array, config_file["scale_cm"])
+    except (FileNotFoundError):
+        config_file['conversion_px'] = 1
+        if name_scale != "no scale":
+            print(
+                "Scale " + name_scale + " for object " + id + " not found. No area measurement will be calculated.")
 
     image_processed = process_image(image_array, config_file)
 
@@ -93,7 +104,7 @@ def main():
     parser.add_argument('--input_dir', help='directory where the input images are', default=None)
     parser.add_argument('--output_dir', type=str, help='directory where the output data is saved', default=None)
     parser.add_argument('--metadata_filename', type=str, help='CSV file with information on the images and scale',
-                        default="PA_DB.csv")
+                        default=None)
 
     args = parser.parse_args()
     filename_config = args.config
@@ -107,8 +118,11 @@ def main():
     # path to the simulation files
     id_list = [i[:-4] for i in os.listdir(images_input_dir) if i.endswith('.png')]
 
-    metadata_df = pd.read_csv(os.path.join(args.input_dir, args.metadata_filename), header = 0,
-                              dtype = {'PA_ID': str,'scale_ID': str,'PA_scale': float}, engine = 'c')
+    if args.metadata_filename==None:
+        metadata_df = None
+    else:
+        metadata_df = pd.read_csv(os.path.join(args.input_dir, args.metadata_filename), header=0,
+                              dtype={'PA_ID': str, 'scale_ID': str, 'PA_scale': float}, engine='c')
     run_pipeline(id_list, metadata_df, args.input_dir, args.output_dir, config_file)
 
 

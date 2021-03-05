@@ -124,7 +124,12 @@ def contour_characterisation(cont, conversion = 1):
 
     cont_info['lenght'] = len(cont*conversion)
     cont_info['area_px'] = area
-    cont_info['area_cm'] = round(area*(conversion*conversion), 1)
+
+    if conversion == 1:
+        area_cm = np.nan
+    else:
+        area_cm = round(area*(conversion*conversion), 1)
+    cont_info['area_cm'] = area_cm
 
     return cont_info
 
