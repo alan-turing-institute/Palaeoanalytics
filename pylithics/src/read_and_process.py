@@ -52,7 +52,7 @@ def detect_lithic(image_array, config_file):
 
     """
 
-    do_morfological = classify_distributions(image_array)
+    do_morfological = False #classify_distributions(image_array)
 
     # thresholding
     thresh = threshold_mean(image_array)
