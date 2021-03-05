@@ -60,8 +60,8 @@ def contour_desambiguiation(df_contours):
         d_ij_area = np.linalg.norm(cent_df.loc[i]['area_px'] - cent_df.loc[j]['area_px'])
         d_ij_centroid = np.linalg.norm(np.asarray(cent_df.loc[i]['centroid']) - np.asarray(cent_df.loc[j]['centroid']))
 
-        if d_ij_centroid<300:
-            if d_ij_area/norm<0.1:
+        if d_ij_centroid<50:
+            if d_ij_area/norm<0.15:
                 if cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']:
                     index_to_drop.append(i)
                 else:
@@ -162,7 +162,7 @@ def classify_distributions(image_array):
 
     return is_narrow
 
-def add_highest_level_parent(hierarchies):
+def get_high_level_parent_and_hirarchy(hierarchies):
 
     """ For a list of contour hierarchies find the index of the
     highest level parent for each contour.
@@ -178,22 +178,27 @@ def add_highest_level_parent(hierarchies):
     """
 
     parent_index = []
+    hirarchy_level = []
 
     for index, hierarchy in enumerate(hierarchies, start=0):
 
         parent = hierarchy[-1]
+        count = 0
+
         if parent == -1:
             parent_index.append(parent)
+            hirarchy_level.append(count)
 
         else:
-
             while (parent!=-1):
                 index = parent
                 parent = hierarchies[index][-1]
+                count = count +1
 
             parent_index.append(index)
+            hirarchy_level.append(count)
 
-    return parent_index
+    return parent_index, hirarchy_level
 
 def pixulator (image_scale_array, scale_size):
 
