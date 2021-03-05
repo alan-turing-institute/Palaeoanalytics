@@ -58,7 +58,7 @@ For example, given that you have a set of lithics images (and it respective scal
 following:
 
 ```
-pylithics_run -c configs/test_config.yml --input_dir <path_to_input_images_dir> --output_dir <path_to_output_directory> --metadata_filename metatada_file.csv
+pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --output_dir <path_to_output_directory> --metadata_filename metatada_file.csv
 ```
 
 This ```test_config.yml``` config file contains the following options:
@@ -78,7 +78,7 @@ contrast_stretch: [4, 96]
 
 You can modify or create your on config file and provide it to the CLI. 
 
-The images found in ```<path_to_input_images_dir>``` should follow the this directory structure:
+The images found in ```<path_to_input_dir>``` should follow the this directory structure:
 
 ```bash
 input_directory
@@ -113,28 +113,26 @@ This CSV file should have as a minimum the following 3 variables:
 - *PA_ID*:  corresponding the the lithics image id
 (the name of the image file), 
 - *scale_ID*: The scale id (name of the scale image file)
-- *PA_scale*: The scale measurement (how many centemeters this scale represents).
+- *PA_scale*: The scale measurement (how many centimeters this scale represents).
 
 An example of this table is the following:
 
 |PA_ID | scale_ID  | PA_scale  | 
 |------|-----------|-----------|
 | 1    | sc1       | 5         | 
-|------|-----------|-----------|
 | 2    | sc1       | 5         |
-|------|-----------|-----------|
 | 3    | sc1       | 5         |   
 |------|-----------|-----------|
 
 ## Note:
 
-In the scenario that the scale and csv file are not avalaible, it is possible to run the analysis only using the images
+In the scenario that the scale and csv file are not available, it is possible to run the analysis only using the images
 with the command:
 
 ```
-pylithics_run -c configs/test_config.yml --input_dir <path_to_input_images_dir> --output_dir <path_to_output_directory> 
+pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --output_dir <path_to_output_directory> 
 ```
-lithics image files must still be inside  the '<path_to_input_images_dir>/images/' directory). However all the measurements will only be
+lithics image files must still be inside  the '<path_to_input_dir>/images/' directory). However all the measurements will only be
 provided as number of pixels. 
 
 
