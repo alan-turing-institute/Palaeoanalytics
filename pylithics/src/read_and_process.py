@@ -6,7 +6,7 @@ import pandas as pd
 from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
 from skimage.segmentation import morphological_chan_vese, checkerboard_level_set
-from pylithics.src.utils import contour_characterisation, contour_desambiguiation, mask_image, classify_distributions, add_highest_level_parent
+from pylithics.src.utils import contour_characterisation, contour_desambiguiation, mask_image, classify_distributions, get_high_level_parent_and_hirarchy
 from skimage import img_as_ubyte
 import cv2
 from PIL import Image
@@ -52,7 +52,7 @@ def detect_lithic(image_array, config_file):
 
     """
 
-    do_morfological = False #classify_distributions(image_array)
+    do_morfological = False#classify_distributions(image_array)
 
     # thresholding
     thresh = threshold_mean(image_array)
@@ -116,7 +116,7 @@ def find_lithic_contours(image_array, config_file):
 
         df_cont_info = pd.DataFrame.from_dict(cont_info_list)
 
-        df_cont_info['parent_index'] = add_highest_level_parent(df_cont_info['hierarchy'].values)
+        df_cont_info['parent_index'], df_cont_info['hierarchy_level'] = get_high_level_parent_and_hirarchy(df_cont_info['hierarchy'].values)
 
         indexes = contour_desambiguiation(df_cont_info)
 
