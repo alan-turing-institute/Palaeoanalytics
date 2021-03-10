@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
+import scipy.ndimage as ndi
 
 def area_contour(contour):
     """
@@ -84,12 +84,11 @@ def mask_image(image_array, contour, innermask = False):
 
     """
 
-    import scipy.ndimage as ndimage
 
     r_mask = np.zeros_like(image_array, dtype='bool')
     r_mask[np.round(contour[:, 1]).astype('int'), np.round(contour[:, 0]).astype('int')] = 1
 
-    r_mask = ndimage.binary_fill_holes(r_mask)
+    r_mask = ndi.binary_fill_holes(r_mask)
 
     if innermask:
         new_image = r_mask
@@ -99,7 +98,7 @@ def mask_image(image_array, contour, innermask = False):
     return new_image
 
 
-def contour_characterisation(cont, conversion = 1):
+def contour_characterisation(image_array ,cont, conversion = 1):
     """
 
     For cont given contour calculate characteristics (area, lenght, etc.)
@@ -122,14 +121,44 @@ def contour_characterisation(cont, conversion = 1):
     # Expand numpy dimensions and convert it to UMat object
     area = area_contour(cont)
 
+    masked_image = mask_image(image_array, cont, True)
+
     cont_info['lenght'] = len(cont*conversion)
     cont_info['area_px'] = area
 
+
+    # Check rows in which all values are equal
+    rows = []
+    for i in range(masked_image.shape[0]):
+        if np.all(masked_image[i]==False):
+            rows.append(i)
+    # Check Columns in which all values are equal
+    colums = []
+    trans_masked_image = masked_image.T
+    for i in range(trans_masked_image.shape[0]):
+        if np.all(trans_masked_image[i] == False):
+            colums.append(i)
+
+    cont_info['width_px'] = masked_image.shape[0] - len(rows)
+    cont_info['height_px'] = masked_image.shape[1] - len(colums)
+
+
+    cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
+
+
+
     if conversion == 1:
-        area_cm = np.nan
+        area_mm = np.nan
+        width_mm = np.nan
+        height_mm = np.nan
     else:
-        area_cm = round(area*(conversion*conversion), 1)
-    cont_info['area_cm'] = area_cm
+        area_mm = round(area*(conversion*conversion), 1)
+        width_mm = round(cont_info['width_px']*conversion,1)
+        height_mm = round(cont_info['height_px']*conversion,1)
+
+    cont_info['area_mm'] = area_mm
+    cont_info['width_mm'] = width_mm
+    cont_info['height_mm'] = height_mm
 
     return cont_info
 

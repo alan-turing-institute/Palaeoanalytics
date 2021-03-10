@@ -1,5 +1,4 @@
 from skimage.filters import threshold_mean
-import scipy.ndimage as ndi
 from skimage import filters
 import numpy as np
 import pandas as pd
@@ -102,9 +101,8 @@ def find_lithic_contours(image_array, config_file):
         cont = np.asarray([i[0] for i in cont])
 
             # calculate characteristings of the contour.
-        cont_info = contour_characterisation(cont,config_file['conversion_px'])
+        cont_info = contour_characterisation(image_array, cont,config_file['conversion_px'])
 
-        cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
         cont_info['index'] = index
         cont_info['hierarchy'] = list(hierarchy)[0][index]
 
