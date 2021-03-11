@@ -155,3 +155,73 @@ def process_image(image_array, config_file):
 
 
 
+def data_output(cont, config_file):
+
+    lithic_output = {}
+
+    lithic_output['id'] = config_file['id']
+    lithic_output['conversion_px'] = config_file['conversion_px']
+    lithic_output["n_outer_objects"] = cont[cont['hierarchy_level']==0].shape[0]
+
+    cont.sort_values(by=["area_px"], inplace = True, ascending=False)
+
+    outer_objects_list = []
+    id = 0
+    for hierarchy_level, index, area_px, area_mm, width_mm,height_mm in cont[['hierarchy_level', 'index','area_px','area_mm','width_mm','height_mm']].itertuples(index=False):
+
+        outer_objects = {}
+
+        if hierarchy_level==0:
+            outer_objects['outer_object_id'] = id
+            outer_objects['classification'] = None
+            outer_objects['area_px'] = area_px
+            outer_objects['area_mm'] = area_mm
+            outer_objects['width_mm'] = width_mm
+            outer_objects['height_mm'] = height_mm
+
+            scars_df = cont[cont['parent_index'] == index]
+
+            outer_objects["n_detected_scars"] = scars_df.shape[0]
+            outer_objects["percentage_detected_scars"] = scars_df['area_px'].sum()/outer_objects['area_px']
+
+            scars_objects_list = []
+            scar_id = 0
+            for index, area_px, area_mm, width_mm, height_mm in scars_df[
+                ['index', 'area_px', 'area_mm', 'width_mm', 'height_mm']].itertuples(index=False):
+
+                scars_objects = {}
+
+                scars_objects['scar_id'] = scar_id
+                scars_objects['area_px'] = area_px
+                scars_objects['area_mm'] = area_mm
+                scars_objects['width_mm'] = width_mm
+                scars_objects['height_mm'] = height_mm
+                scars_objects['percentage_of_outer_lithic'] = scars_objects['area_px']/outer_objects['area_px']
+
+                scars_objects_list.append(scars_objects)
+                scar_id = scar_id +1
+
+            outer_objects['scar_contours'] = scars_objects_list
+
+
+
+            id = id + 1
+
+            outer_objects_list.append(outer_objects)
+
+        else:
+            continue
+
+    lithic_output['lithic_contours'] = outer_objects_list
+
+
+    return lithic_output
+
+
+
+
+
+
+
+
+
