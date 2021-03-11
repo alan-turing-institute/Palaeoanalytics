@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.ndimage as ndi
 
 def area_contour(contour):
     """
@@ -59,8 +60,8 @@ def contour_desambiguiation(df_contours):
         d_ij_area = np.linalg.norm(cent_df.loc[i]['area_px'] - cent_df.loc[j]['area_px'])
         d_ij_centroid = np.linalg.norm(np.asarray(cent_df.loc[i]['centroid']) - np.asarray(cent_df.loc[j]['centroid']))
 
-        if d_ij_centroid<300:
-            if d_ij_area/norm<0.1:
+        if d_ij_centroid<50:
+            if d_ij_area/norm<0.15:
                 if cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']:
                     index_to_drop.append(i)
                 else:
@@ -83,12 +84,11 @@ def mask_image(image_array, contour, innermask = False):
 
     """
 
-    import scipy.ndimage as ndimage
 
     r_mask = np.zeros_like(image_array, dtype='bool')
     r_mask[np.round(contour[:, 1]).astype('int'), np.round(contour[:, 0]).astype('int')] = 1
 
-    r_mask = ndimage.binary_fill_holes(r_mask)
+    r_mask = ndi.binary_fill_holes(r_mask)
 
     if innermask:
         new_image = r_mask
@@ -98,7 +98,7 @@ def mask_image(image_array, contour, innermask = False):
     return new_image
 
 
-def contour_characterisation(cont, conversion = 96):
+def contour_characterisation(image_array ,cont, conversion = 1):
     """
 
     For cont given contour calculate characteristics (area, lenght, etc.)
@@ -121,10 +121,44 @@ def contour_characterisation(cont, conversion = 96):
     # Expand numpy dimensions and convert it to UMat object
     area = area_contour(cont)
 
-    cont_info['lenght'] = len(cont)
+    masked_image = mask_image(image_array, cont, True)
+
+    cont_info['lenght'] = len(cont*conversion)
     cont_info['area_px'] = area
-    cont_info['area_in'] = round(area / conversion, 1) # 1 inch = 96px for web or css. This is actually the PPI or pixels per inch if your working with print media.
-    cont_info['area_cm'] = round(cont_info['area_in']/2.54,1) # to cm based on centimeters: 1cm = 96px/2.54
+
+
+    # Check rows in which all values are equal
+    rows = []
+    for i in range(masked_image.shape[0]):
+        if np.all(masked_image[i]==False):
+            rows.append(i)
+    # Check Columns in which all values are equal
+    colums = []
+    trans_masked_image = masked_image.T
+    for i in range(trans_masked_image.shape[0]):
+        if np.all(trans_masked_image[i] == False):
+            colums.append(i)
+
+    cont_info['width_px'] = masked_image.shape[0] - len(rows)
+    cont_info['height_px'] = masked_image.shape[1] - len(colums)
+
+
+    cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
+
+
+
+    if conversion == 1:
+        area_mm = np.nan
+        width_mm = np.nan
+        height_mm = np.nan
+    else:
+        area_mm = round(area*(conversion*conversion), 1)
+        width_mm = round(cont_info['width_px']*conversion,1)
+        height_mm = round(cont_info['height_px']*conversion,1)
+
+    cont_info['area_mm'] = area_mm
+    cont_info['width_mm'] = width_mm
+    cont_info['height_mm'] = height_mm
 
     return cont_info
 
@@ -162,7 +196,7 @@ def classify_distributions(image_array):
 
     return is_narrow
 
-def add_highest_level_parent(hierarchies):
+def get_high_level_parent_and_hirarchy(hierarchies):
 
     """ For a list of contour hierarchies find the index of the
     highest level parent for each contour.
@@ -178,27 +212,53 @@ def add_highest_level_parent(hierarchies):
     """
 
     parent_index = []
+    hirarchy_level = []
 
     for index, hierarchy in enumerate(hierarchies, start=0):
 
         parent = hierarchy[-1]
+        count = 0
+
         if parent == -1:
             parent_index.append(parent)
+            hirarchy_level.append(count)
 
         else:
-
             while (parent!=-1):
                 index = parent
                 parent = hierarchies[index][-1]
+                count = count +1
 
             parent_index.append(index)
+            hirarchy_level.append(count)
 
-    return parent_index
+    return parent_index, hirarchy_level
+
+def pixulator (image_scale_array, scale_size):
+
+    """
+    Converts image/scale dpi and pixel count to cm conversion rate.
+    :param image_scale_array:
+    :param cm:
+    :return: Image dpi conversion to centimeters.
+    """
 
 
+    # dimension information in pixels
+    px_width = image_scale_array.shape[0]
+    px_height = image_scale_array.shape[1]
+
+    if px_width > px_height:
+        orientation = px_width
+    else:
+        orientation = px_height
+
+    px_conversion = 1/(orientation/scale_size)
 
 
+    print(f"1 cm will equate to {1/px_conversion} pixels width.")
 
+    return(px_conversion)
 
 
 

@@ -1,12 +1,11 @@
 from skimage.filters import threshold_mean
-import scipy.ndimage as ndi
 from skimage import filters
 import numpy as np
 import pandas as pd
 from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
 from skimage.segmentation import morphological_chan_vese, checkerboard_level_set
-from pylithics.src.utils import contour_characterisation, contour_desambiguiation, mask_image, classify_distributions, add_highest_level_parent
+from pylithics.src.utils import contour_characterisation, contour_desambiguiation, mask_image, classify_distributions, get_high_level_parent_and_hirarchy
 from skimage import img_as_ubyte
 import cv2
 from PIL import Image
@@ -26,9 +25,12 @@ def read_image(filename):
     #image = skimage.io.imread(fname=filename, as_gray=True)
     im = Image.open(filename)
     image = np.asarray(im)
-    pdi = im.info['dpi']
+    try:
+        dpi = im.info['dpi']
+    except:
+        dpi = 0
 
-    return image, pdi
+    return image, dpi
 
 
 
@@ -49,7 +51,7 @@ def detect_lithic(image_array, config_file):
 
     """
 
-    do_morfological = classify_distributions(image_array)
+    do_morfological = False#classify_distributions(image_array)
 
     # thresholding
     thresh = threshold_mean(image_array)
@@ -99,9 +101,8 @@ def find_lithic_contours(image_array, config_file):
         cont = np.asarray([i[0] for i in cont])
 
             # calculate characteristings of the contour.
-        cont_info = contour_characterisation(cont,config_file['dpi'][0])
+        cont_info = contour_characterisation(image_array, cont,config_file['conversion_px'])
 
-        cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
         cont_info['index'] = index
         cont_info['hierarchy'] = list(hierarchy)[0][index]
 
@@ -113,7 +114,7 @@ def find_lithic_contours(image_array, config_file):
 
         df_cont_info = pd.DataFrame.from_dict(cont_info_list)
 
-        df_cont_info['parent_index'] = add_highest_level_parent(df_cont_info['hierarchy'].values)
+        df_cont_info['parent_index'], df_cont_info['hierarchy_level'] = get_high_level_parent_and_hirarchy(df_cont_info['hierarchy'].values)
 
         indexes = contour_desambiguiation(df_cont_info)
 
