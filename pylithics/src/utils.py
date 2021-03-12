@@ -139,8 +139,8 @@ def contour_characterisation(image_array ,cont, conversion = 1):
         if np.all(trans_masked_image[i] == False):
             colums.append(i)
 
-    cont_info['width_px'] = masked_image.shape[0] - len(rows)
-    cont_info['height_px'] = masked_image.shape[1] - len(colums)
+    cont_info['height_px'] = masked_image.shape[0] - len(rows)
+    cont_info['width_px'] = masked_image.shape[1] - len(colums)
 
 
     cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
