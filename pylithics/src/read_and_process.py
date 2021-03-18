@@ -5,7 +5,7 @@ import pandas as pd
 from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
 from skimage.segmentation import morphological_chan_vese, checkerboard_level_set
-from pylithics.src.utils import contour_characterisation, contour_desambiguiation, mask_image, classify_distributions, get_high_level_parent_and_hirarchy
+from pylithics.src.utils import contour_characterisation, contour_desambiguiation, mask_image, classify_surfaces, get_high_level_parent_and_hirarchy
 from skimage import img_as_ubyte
 import cv2
 from PIL import Image
@@ -161,9 +161,11 @@ def data_output(cont, config_file):
 
     lithic_output['id'] = config_file['id']
     lithic_output['conversion_px'] = config_file['conversion_px']
-    lithic_output["n_outer_objects"] = cont[cont['hierarchy_level']==0].shape[0]
+    lithic_output["n_surfaces"] = cont[cont['hierarchy_level']==0].shape[0]
 
     cont.sort_values(by=["area_px"], inplace = True, ascending=False)
+
+    surfaces_classification = classify_surfaces(cont)
 
     outer_objects_list = []
     id = 0
@@ -172,17 +174,17 @@ def data_output(cont, config_file):
         outer_objects = {}
 
         if hierarchy_level==0:
-            outer_objects['outer_object_id'] = id
-            outer_objects['classification'] = None
-            outer_objects['area_px'] = area_px
-            outer_objects['area_mm'] = area_mm
-            outer_objects['width_mm'] = width_mm
-            outer_objects['height_mm'] = height_mm
+            outer_objects['surface_id'] = id
+            outer_objects['classification'] = surfaces_classification[id]
+            outer_objects['total_area_px'] = area_px
+            outer_objects['total_area'] = area_mm
+            outer_objects['max_breadth'] = width_mm
+            outer_objects['max_length'] = height_mm
 
             scars_df = cont[cont['parent_index'] == index]
 
-            outer_objects["n_detected_scars"] = scars_df.shape[0]
-            outer_objects["percentage_detected_scars"] = scars_df['area_px'].sum()/outer_objects['area_px']
+            outer_objects["scar_count"] = scars_df.shape[0]
+            outer_objects["percentage_detected_scars"] = scars_df['area_px'].sum()/outer_objects['total_area_px']
 
             scars_objects_list = []
             scar_id = 0
@@ -192,11 +194,11 @@ def data_output(cont, config_file):
                 scars_objects = {}
 
                 scars_objects['scar_id'] = scar_id
-                scars_objects['area_px'] = area_px
-                scars_objects['area_mm'] = area_mm
-                scars_objects['width_mm'] = width_mm
-                scars_objects['height_mm'] = height_mm
-                scars_objects['percentage_of_outer_lithic'] = scars_objects['area_px']/outer_objects['area_px']
+                scars_objects['total_area_px'] = area_px
+                scars_objects['total_area'] = area_mm
+                scars_objects['max_breadth'] = width_mm
+                scars_objects['max_length'] = height_mm
+                scars_objects['percentage_of_lithic'] = scars_objects['total_area_px']/outer_objects['total_area_px']
 
                 scars_objects_list.append(scars_objects)
                 scar_id = scar_id +1

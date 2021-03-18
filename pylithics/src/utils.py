@@ -44,7 +44,7 @@ def contour_desambiguiation(df_contours):
         area = df_contours['area_px'].iloc[i]
         percentage = area / norm * 100
 
-        if percentage < 1:
+        if percentage < 0.1:
             index_to_drop.append(i)
 
 
@@ -234,7 +234,7 @@ def get_high_level_parent_and_hirarchy(hierarchies):
 
     return parent_index, hirarchy_level
 
-def pixulator (image_scale_array, scale_size):
+def pixulator(image_scale_array, scale_size):
 
     """
     Converts image/scale dpi and pixel count to cm conversion rate.
@@ -259,6 +259,78 @@ def pixulator (image_scale_array, scale_size):
     print(f"1 cm will equate to {1/px_conversion} pixels width.")
 
     return(px_conversion)
+
+
+def classify_surfaces(cont):
+
+    """ Rule based classification of contours based on their size"""
+
+    def dorsal_ventral(cont,contours):
+
+        output = [None]*2
+        if (cont[cont['parent_index'] == contours['index'].iloc[0]].shape[0] >
+                cont[cont['parent_index'] == contours['index'].iloc[1]].shape[0]):
+
+                output[0] = 'Dorsal'
+                output[1] = 'Ventral'
+        else:
+            output[0] = 'Ventral'
+            output[1] = 'Dorsal'
+
+        return output
+
+    surfaces = cont[cont['hierarchy_level']==0].copy()#.sort_values(by=["area_px"], ascending=False)
+
+    names = {}
+    # Dorsal, lateral, platform, ventral.
+    if surfaces.shape[0]==1:
+        names[0] = 'Dorsal'
+
+    elif surfaces.shape[0]>1:
+        ratio = surfaces["area_px"].iloc[1]/surfaces["area_px"].iloc[0]
+
+        if ratio > 0.9:
+            names[0], names[1] = dorsal_ventral(cont, surfaces)
+
+        if surfaces.shape[0] ==2 and ratio <=0.9:
+
+            if ratio > 0.3:
+                names[0] = 'Dorsal'
+                names[1] = 'Lateral'
+            else:
+                names[0] = 'Dorsal'
+                names[1] = 'Platform'
+
+        elif surfaces.shape[0] == 3:
+            if ratio > 0.9:
+
+                ratio2 = surfaces["area_px"].iloc[2] / surfaces["area_px"].iloc[0]
+
+                if ratio2 > 0.3:
+                    names[2] = 'Lateral'
+                else:
+                    names[2] = 'Platform'
+            else:
+                names[0] = 'Dorsal'
+                names[1] = 'Lateral'
+                names[2] = 'Platform'
+
+        elif surfaces.shape[0] == 4:
+                names[2] = 'Lateral'
+                names[3] = 'Platform'
+
+        else:
+            for i in range(surfaces.shape[0]):
+                names[i] = np.nan
+
+
+    return names
+
+
+
+
+
+
 
 
 

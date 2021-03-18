@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from pylithics.src.utils import classify_surfaces
 
 def plot_contours(image_array, contours, output_path):
     """
@@ -25,16 +26,23 @@ def plot_contours(image_array, contours, output_path):
     ax = plt.subplot(111)
     ax.imshow(image_array, cmap=plt.cm.gray)
 
+    contours.sort_values(by=["area_px"], inplace = True, ascending=False)
+    surfaces_classification = classify_surfaces(contours)
+
+
+    id = 0
     for contour, parent_index, index, area_mm, width_mm, height_mm  in contours[['contour', 'parent_index', 'index','area_mm','width_mm','height_mm']].itertuples(index=False):
         try:
             if parent_index==-1:
                 linewidth = 3
                 linestyle = 'solid'
-                text = "L, index: "+str(index)+ ", a: "+str(area_mm)+", w: "+str(width_mm)+", h: "+str(height_mm)
+                classification = surfaces_classification[id]
+                text = classification+", index: "+str(index)+ ", surface_id: "+str(id)+", w: "+str(width_mm)+", h: "+str(height_mm)
+                id = id + 1
             else:
                 linewidth = 2
                 linestyle = 'dashed'
-                text = "S, p_index: "+str(parent_index)
+                text = "S, Parent Surface: "+str(parent_index)
 
 
             ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
