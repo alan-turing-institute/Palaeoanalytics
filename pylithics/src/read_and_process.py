@@ -157,6 +157,25 @@ def process_image(image_array, config_file):
 
 def data_output(cont, config_file):
 
+    """
+
+    Create a nested dictionary with output data from surfaces and scars
+    that could be easily saved into a json file
+
+    Parameters
+    ----------
+    cont: dataframe
+        dataframe with all the contour information and measurements for an image
+    config_file: dictionary
+        config file with relevant information for the image
+
+    Returns
+    -------
+
+        A dictionary
+    """
+
+    # record high level information of surfaces detected
     lithic_output = {}
 
     lithic_output['id'] = config_file['id']
@@ -165,17 +184,21 @@ def data_output(cont, config_file):
 
     cont.sort_values(by=["area_px"], inplace = True, ascending=False)
 
+    # classify surfaces
     surfaces_classification = classify_surfaces(cont)
 
-    outer_objects_list = []
     id = 0
+    outer_objects_list = []
+
+    # loop through the contours
     for hierarchy_level, index, area_px, area_mm, width_mm,height_mm in cont[['hierarchy_level', 'index','area_px','area_mm','width_mm','height_mm']].itertuples(index=False):
 
         outer_objects = {}
 
+        # high levels contours are surfaces
         if hierarchy_level==0:
             outer_objects['surface_id'] = id
-            outer_objects['classification'] = surfaces_classification[id]
+            outer_objects['classification'] = surfaces_classification[id] if len(surfaces_classification)>id else np.nan
             outer_objects['total_area_px'] = area_px
             outer_objects['total_area'] = area_mm
             outer_objects['max_breadth'] = width_mm
@@ -184,7 +207,9 @@ def data_output(cont, config_file):
             scars_df = cont[cont['parent_index'] == index]
 
             outer_objects["scar_count"] = scars_df.shape[0]
-            outer_objects["percentage_detected_scars"] = scars_df['area_px'].sum()/outer_objects['total_area_px']
+            outer_objects["percentage_detected_scars"] = round(scars_df['area_px'].sum()/outer_objects['total_area_px'],2)
+
+            # low levels contours are scars
 
             scars_objects_list = []
             scar_id = 0
@@ -198,7 +223,7 @@ def data_output(cont, config_file):
                 scars_objects['total_area'] = area_mm
                 scars_objects['max_breadth'] = width_mm
                 scars_objects['max_length'] = height_mm
-                scars_objects['percentage_of_lithic'] = scars_objects['total_area_px']/outer_objects['total_area_px']
+                scars_objects['percentage_of_lithic'] = round(scars_objects['total_area_px']/outer_objects['total_area_px'],2)
 
                 scars_objects_list.append(scars_objects)
                 scar_id = scar_id +1
@@ -206,9 +231,7 @@ def data_output(cont, config_file):
             outer_objects['scar_contours'] = scars_objects_list
 
 
-
             id = id + 1
-
             outer_objects_list.append(outer_objects)
 
         else:
@@ -216,7 +239,7 @@ def data_output(cont, config_file):
 
     lithic_output['lithic_contours'] = outer_objects_list
 
-
+    # return nested dictionary
     return lithic_output
 
 

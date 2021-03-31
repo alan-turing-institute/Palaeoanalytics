@@ -82,26 +82,26 @@ def plot_thresholding(image_array, threshold, binary_array, output_file=''):
     mean = round(np.mean(image_array[image_array_nonzero]),2)
     std = round(np.std(image_array[image_array_nonzero]),2)
 
-    if mean > 0.9 and std < 0.15:
-        text = 'segmentation'
-    else:
-        text = 'edge detection'
-
-    fig, axes = plt.subplots(ncols=3, figsize=(8, 2.5))
+    # if mean > 0.9 and std < 0.15:
+    #     text = 'segmentation'
+    # else:
+    #     text = 'edge detection'
+    text = 'edge detection'
+    fig, axes = plt.subplots(ncols=3, figsize=(10, 2.5))
     ax = axes.ravel()
     ax[0] = plt.subplot(1, 3, 1)
     ax[1] = plt.subplot(1, 3, 2)
     ax[2] = plt.subplot(1, 3, 3, sharex=ax[0], sharey=ax[0])
 
     ax[0].imshow(image_array, cmap=plt.cm.gray)
-    ax[0].set_title('Original')
+    ax[0].set_title('Processed original')
     ax[0].axis('off')
 
     ax[1].hist(image_array.ravel(), bins=256)
     ax[1].set_title('Histogram')
     ax[1].axvline(threshold, color='r')
-    ax[1].text(2, 0.65,"mean: "+str(mean))
-    ax[1].text(1, 0.55,"std: "+ str(std))
+ #   ax[1].text(2, 0.65,"mean: "+str(mean))
+ #   ax[1].text(1, 0.55,"std: "+ str(std))
 
     ax[2].imshow(binary_array, cmap=plt.cm.gray)
     ax[2].set_title('Thresholded and '+text)

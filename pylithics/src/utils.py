@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndi
 
+
 def area_contour(contour):
     """
     Function that calculates the area within cont contour using the open-cv library.
@@ -22,6 +23,7 @@ def area_contour(contour):
 
     return area
 
+
 def contour_desambiguiation(df_contours):
     """
 
@@ -37,18 +39,23 @@ def contour_desambiguiation(df_contours):
 
     """
 
-    norm = max(df_contours['area_px'])
     index_to_drop = []
 
-    for i in range(df_contours.shape[0]):
-        area = df_contours['area_px'].iloc[i]
+    for hierarchy_level, index, parent_index, area_px in df_contours[
+        ['hierarchy_level', 'index', 'parent_index', 'area_px']].itertuples(index=False):
+        if hierarchy_level == 0:
+            continue
+        else:
+            # get the total area of the parent figure
+            norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
+        area = area_px
         percentage = area / norm * 100
+        if percentage < 0.5:
+            index_to_drop.append(index)
+        # elif hierarchy_level>1:
+        # index_to_drop.append(index)
 
-        if percentage < 0.1:
-            index_to_drop.append(i)
-
-
-    cent_df = df_contours[['area_px', 'centroid']]
+    cent_df = df_contours[['area_px', 'centroid','hierarchy_level']]
 
     import itertools
 
@@ -60,16 +67,24 @@ def contour_desambiguiation(df_contours):
         d_ij_area = np.linalg.norm(cent_df.loc[i]['area_px'] - cent_df.loc[j]['area_px'])
         d_ij_centroid = np.linalg.norm(np.asarray(cent_df.loc[i]['centroid']) - np.asarray(cent_df.loc[j]['centroid']))
 
-        if d_ij_centroid<50:
-            if d_ij_area/norm<0.15:
-                if cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']:
+        if cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']:
+            norm = cent_df.loc[i]['area_px']
+        else:
+            norm = cent_df.loc[j]['area_px']
+
+        if d_ij_centroid < 50:
+            if d_ij_area / norm < 0.05:
+                if (cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']) and (cent_df.loc[i]['hierarchy_level']!=0):
                     index_to_drop.append(i)
-                else:
+                    print (cent_df.loc[i])
+                elif ((cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']) and (cent_df.loc[j]['hierarchy_level']!=0)):
                     index_to_drop.append(j)
+
 
     return index_to_drop
 
-def mask_image(image_array, contour, innermask = False):
+
+def mask_image(image_array, contour, innermask=False):
     """
 
     Function that masks an image for cont given contour.
@@ -84,7 +99,6 @@ def mask_image(image_array, contour, innermask = False):
 
     """
 
-
     r_mask = np.zeros_like(image_array, dtype='bool')
     r_mask[np.round(contour[:, 1]).astype('int'), np.round(contour[:, 0]).astype('int')] = 1
 
@@ -93,12 +107,12 @@ def mask_image(image_array, contour, innermask = False):
     if innermask:
         new_image = r_mask
     else:
-        new_image = np.multiply(r_mask,image_array)
+        new_image = np.multiply(r_mask, image_array)
 
     return new_image
 
 
-def contour_characterisation(image_array ,cont, conversion = 1):
+def contour_characterisation(image_array, cont, conversion=1):
     """
 
     For cont given contour calculate characteristics (area, lenght, etc.)
@@ -117,20 +131,18 @@ def contour_characterisation(image_array ,cont, conversion = 1):
     """
     cont_info = {}
 
-
     # Expand numpy dimensions and convert it to UMat object
     area = area_contour(cont)
 
     masked_image = mask_image(image_array, cont, True)
 
-    cont_info['lenght'] = len(cont*conversion)
+    cont_info['lenght'] = len(cont * conversion)
     cont_info['area_px'] = area
-
 
     # Check rows in which all values are equal
     rows = []
     for i in range(masked_image.shape[0]):
-        if np.all(masked_image[i]==False):
+        if np.all(masked_image[i] == False):
             rows.append(i)
     # Check Columns in which all values are equal
     colums = []
@@ -142,25 +154,23 @@ def contour_characterisation(image_array ,cont, conversion = 1):
     cont_info['height_px'] = masked_image.shape[0] - len(rows)
     cont_info['width_px'] = masked_image.shape[1] - len(colums)
 
-
     cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
-
-
 
     if conversion == 1:
         area_mm = np.nan
         width_mm = np.nan
         height_mm = np.nan
     else:
-        area_mm = round(area*(conversion*conversion), 1)
-        width_mm = round(cont_info['width_px']*conversion,1)
-        height_mm = round(cont_info['height_px']*conversion,1)
+        area_mm = round(area * (conversion * conversion), 1)
+        width_mm = round(cont_info['width_px'] * conversion, 1)
+        height_mm = round(cont_info['height_px'] * conversion, 1)
 
     cont_info['area_mm'] = area_mm
     cont_info['width_mm'] = width_mm
     cont_info['height_mm'] = height_mm
 
     return cont_info
+
 
 def classify_distributions(image_array):
     """
@@ -191,13 +201,13 @@ def classify_distributions(image_array):
 
     std = np.std(image_array[image_array_nonzero])
 
-    if mean>0.9 and std<0.15:
+    if mean > 0.9 and std < 0.15:
         is_narrow = True
 
     return is_narrow
 
-def get_high_level_parent_and_hirarchy(hierarchies):
 
+def get_high_level_parent_and_hirarchy(hierarchies):
     """ For a list of contour hierarchies find the index of the
     highest level parent for each contour.
 
@@ -222,27 +232,34 @@ def get_high_level_parent_and_hirarchy(hierarchies):
         if parent == -1:
             parent_index.append(parent)
             hirarchy_level.append(count)
-
         else:
-            while (parent!=-1):
+            while (parent != -1):
                 index = parent
                 parent = hierarchies[index][-1]
-                count = count +1
+                count = count + 1
 
             parent_index.append(index)
             hirarchy_level.append(count)
 
     return parent_index, hirarchy_level
 
-def pixulator(image_scale_array, scale_size):
 
+def pixulator(image_scale_array, scale_size):
     """
     Converts image/scale dpi and pixel count to cm conversion rate.
-    :param image_scale_array:
-    :param cm:
-    :return: Image dpi conversion to centimeters.
-    """
 
+
+    Parameters
+    ----------
+    image_scale_array: array
+        Image array
+    scale_size:
+        Lenght in mm of the scale
+
+    Returns
+    -------
+        Image conversion pixel to centimeters.
+    """
 
     # dimension information in pixels
     px_width = image_scale_array.shape[0]
@@ -253,46 +270,57 @@ def pixulator(image_scale_array, scale_size):
     else:
         orientation = px_height
 
-    px_conversion = 1/(orientation/scale_size)
+    px_conversion = 1 / (orientation / scale_size)
 
+    print(f"1 cm will equate to {1 / px_conversion} pixels width.")
 
-    print(f"1 cm will equate to {1/px_conversion} pixels width.")
-
-    return(px_conversion)
+    return (px_conversion)
 
 
 def classify_surfaces(cont):
+    """ Rule based classification of contours based on their size
 
-    """ Rule based classification of contours based on their size"""
+    Parameters
+    ----------
+    cont: dataframe
+        dataframe with all the contour information and measurements for an image
 
-    def dorsal_ventral(cont,contours):
+    Returns
+    -------
 
-        output = [None]*2
+        A dictionary
+
+
+    """
+
+    def dorsal_ventral(cont, contours):
+
+        output = [None] * 2
         if (cont[cont['parent_index'] == contours['index'].iloc[0]].shape[0] >
                 cont[cont['parent_index'] == contours['index'].iloc[1]].shape[0]):
 
-                output[0] = 'Dorsal'
-                output[1] = 'Ventral'
+            output[0] = 'Dorsal'
+            output[1] = 'Ventral'
         else:
             output[0] = 'Ventral'
             output[1] = 'Dorsal'
 
         return output
 
-    surfaces = cont[cont['hierarchy_level']==0].copy()#.sort_values(by=["area_px"], ascending=False)
+    surfaces = cont[cont['hierarchy_level'] == 0].copy()  # .sort_values(by=["area_px"], ascending=False)
 
     names = {}
     # Dorsal, lateral, platform, ventral.
-    if surfaces.shape[0]==1:
+    if surfaces.shape[0] == 1:
         names[0] = 'Dorsal'
 
-    elif surfaces.shape[0]>1:
-        ratio = surfaces["area_px"].iloc[1]/surfaces["area_px"].iloc[0]
+    elif surfaces.shape[0] > 1:
+        ratio = surfaces["area_px"].iloc[1] / surfaces["area_px"].iloc[0]
 
         if ratio > 0.9:
             names[0], names[1] = dorsal_ventral(cont, surfaces)
 
-        if surfaces.shape[0] ==2 and ratio <=0.9:
+        if surfaces.shape[0] == 2 and ratio <= 0.9:
 
             if ratio > 0.3:
                 names[0] = 'Dorsal'
@@ -316,28 +344,12 @@ def classify_surfaces(cont):
                 names[2] = 'Platform'
 
         elif surfaces.shape[0] == 4:
-                names[2] = 'Lateral'
-                names[3] = 'Platform'
+            names[0], names[1] = dorsal_ventral(cont, surfaces)
+            names[2] = 'Lateral'
+            names[3] = 'Platform'
 
         else:
             for i in range(surfaces.shape[0]):
                 names[i] = np.nan
 
-
     return names
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

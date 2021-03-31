@@ -51,7 +51,7 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file):
     return 0
 
 
-def run_characterisation(input_dir, output_dir, config_file, debug=False):
+def run_characterisation(input_dir, output_dir, config_file, debug=True):
     """
         Lithic characterisation of an image.
 
