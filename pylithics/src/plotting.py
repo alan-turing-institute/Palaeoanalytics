@@ -31,21 +31,24 @@ def plot_contours(image_array, contours, output_path):
 
 
     id = 0
-    for contour, parent_index, index, area_mm, width_mm, height_mm  in contours[['contour', 'parent_index', 'index','area_mm','width_mm','height_mm']].itertuples(index=False):
+    for contour, parent_index, index, area_mm, width_mm, height_mm  in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm']].itertuples(index=False):
         try:
             if parent_index==-1:
                 linewidth = 3
                 linestyle = 'solid'
                 classification = surfaces_classification[id]
-                text = classification+", index: "+str(index)+ ", surface_id: "+str(id)+", w: "+str(width_mm)+", h: "+str(height_mm)
+                text = str(classification)+", index: "+str(index)+ ", surface_id: "+str(id)+", w: "+str(width_mm)+", h: "+str(height_mm)
                 id = id + 1
+                ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
+
             else:
                 linewidth = 2
                 linestyle = 'dashed'
-                text = "S, Parent Surface: "+str(parent_index)
+                #text = "S, Parent Surface: "+str(parent_index)
+                ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle)
 
 
-            ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
+
         except:
             continue
 

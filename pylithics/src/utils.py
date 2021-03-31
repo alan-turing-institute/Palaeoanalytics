@@ -44,7 +44,10 @@ def contour_desambiguiation(df_contours):
     for hierarchy_level, index, parent_index, area_px in df_contours[
         ['hierarchy_level', 'index', 'parent_index', 'area_px']].itertuples(index=False):
         if hierarchy_level == 0:
-            continue
+            if area_px / max(df_contours['area_px']) < 0.05:
+                index_to_drop.append(index)
+            else:
+                continue
         else:
             # get the total area of the parent figure
             norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
@@ -52,6 +55,9 @@ def contour_desambiguiation(df_contours):
         percentage = area / norm * 100
         if percentage < 0.5:
             index_to_drop.append(index)
+
+
+
         # elif hierarchy_level>1:
         # index_to_drop.append(index)
 
@@ -73,7 +79,7 @@ def contour_desambiguiation(df_contours):
             norm = cent_df.loc[j]['area_px']
 
         if d_ij_centroid < 50:
-            if d_ij_area / norm < 0.05:
+            if d_ij_area / norm < 0.1:
                 if (cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']) and (cent_df.loc[i]['hierarchy_level']!=0):
                     index_to_drop.append(i)
                     print (cent_df.loc[i])
