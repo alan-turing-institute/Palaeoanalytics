@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import argparse
 import yaml
+import json
 import os
 import pandas as pd
-from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, process_image
+from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, process_image, data_output
 from pylithics.src.plotting import plot_contours, plot_thresholding
 from pylithics.src.utils import pixulator
 
@@ -50,7 +51,7 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file):
     return 0
 
 
-def run_characterisation(input_dir, output_dir, config_file):
+def run_characterisation(input_dir, output_dir, config_file, debug=True):
     """
         Lithic characterisation of an image.
 
@@ -85,13 +86,22 @@ def run_characterisation(input_dir, output_dir, config_file):
 
     binary_array, threshold_value = detect_lithic(image_processed, config_file)
 
-    output_threshold = os.path.join(output_dir, id + "_lithic_threshold.png")
-    plot_thresholding(image_processed, threshold_value, binary_array, output_threshold)
+    if debug == True:
+        output_threshold = os.path.join(output_dir, id + "_lithic_threshold.png")
+        plot_thresholding(image_processed, threshold_value, binary_array, output_threshold)
 
     contours = find_lithic_contours(binary_array, config_file)
 
     output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
     plot_contours(image_array, contours, output_lithic)
+
+    json_output = data_output(contours, config_file)
+
+    data_output_file = os.path.join(output_dir, id + ".json")
+    print('Saving data to file: ', data_output_file)
+
+    with open(data_output_file, 'w') as f:
+        json.dump(json_output, f)
 
     print('Done.')
 
