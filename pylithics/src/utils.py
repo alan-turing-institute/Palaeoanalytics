@@ -37,12 +37,16 @@ def contour_desambiguiation(df_contours):
     Returns
     -------
 
+    list of indexes
+
     """
 
     index_to_drop = []
 
-    for hierarchy_level, index, parent_index, area_px in df_contours[
-        ['hierarchy_level', 'index', 'parent_index', 'area_px']].itertuples(index=False):
+    for hierarchy_level, index, parent_index, area_px, is_arrow, in df_contours[
+        ['hierarchy_level', 'index', 'parent_index', 'area_px','arrow']].itertuples(index=False):
+        if is_arrow:
+            continue
         if hierarchy_level == 0:
             if area_px / max(df_contours['area_px']) < 0.05:
                 index_to_drop.append(index)
@@ -51,10 +55,10 @@ def contour_desambiguiation(df_contours):
         else:
             # get the total area of the parent figure
             norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
-        area = area_px
-        percentage = area / norm * 100
-        if percentage < 0.5:
-            index_to_drop.append(index)
+            area = area_px
+            percentage = area / norm * 100
+            if percentage < 0.5:
+                index_to_drop.append(index)
 
 
 
@@ -174,6 +178,7 @@ def contour_characterisation(image_array, cont, conversion=1):
     cont_info['area_mm'] = area_mm
     cont_info['width_mm'] = width_mm
     cont_info['height_mm'] = height_mm
+    #cont_info['contour'] = cont
 
     return cont_info
 
@@ -359,3 +364,63 @@ def classify_surfaces(cont):
                 names[i] = np.nan
 
     return names
+
+
+def contour_arrow_classification(image_array, cont, contour_info, quantiles):
+    """
+
+    Function that finds contours that correspond to an arrow.
+
+    Parameters
+    ----------
+    df_contours: dataframe
+        Dataframe with contour information.
+
+    Returns
+    -------
+
+    a boolean, stating if the contour is likely to be an arrow
+
+    """
+    from shapedetector import ShapeDetector
+
+
+
+    if len(cont)<50 or len(cont)>150 or contour_info['hierarchy'][-1]<quantiles:
+        return False
+    else:
+
+
+        sd = ShapeDetector()
+
+        ratio = 1
+        # loop over the contours
+
+        # shape using only the contour
+        M = cv2.moments(cont)
+        cX = int((M["m10"] / M["m00"]) * ratio)
+        cY = int((M["m01"] / M["m00"]) * ratio)
+
+        ratio = cX/cY
+        shape, vertices = sd.detect(cont)
+        # multiply the contour (x, y)-coordinates by the resize ratio,
+        # then draw the contours and the name of the shape on the image
+        if shape == 'arrow':
+
+            masked_image = mask_image(image_array, cont, False)
+
+            fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
+            ax[0].imshow(masked_image, cmap=plt.cm.gray)
+            ax[1].imshow(image_array, cmap=plt.cm.gray)
+            ax[1].plot(cont[:, 0], cont[:, 1], label=shape)
+            #plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='xx-small')
+            ax[1].set_xticks([])
+            ax[1].set_yticks([])
+            plt.show()
+            plt.close(fig)
+
+
+            return True
+        else:
+            return False
+

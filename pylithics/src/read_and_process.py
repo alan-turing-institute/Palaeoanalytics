@@ -5,7 +5,7 @@ import pandas as pd
 from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
 from skimage.segmentation import morphological_chan_vese, checkerboard_level_set
-from pylithics.src.utils import contour_characterisation, contour_desambiguiation, mask_image, classify_surfaces, \
+from pylithics.src.utils import contour_characterisation, contour_desambiguiation, contour_arrow_classification, classify_surfaces, \
     get_high_level_parent_and_hirarchy
 from skimage import img_as_ubyte
 import cv2
@@ -104,6 +104,12 @@ def find_lithic_contours(image_array, config_file):
         cont_info['index'] = index
         cont_info['hierarchy'] = list(hierarchy)[0][index]
 
+        quantiles = np.quantile( [item[-1] for item in hierarchy], 0.2)
+
+        is_arrow = contour_arrow_classification(image_array,cont,cont_info, quantiles)
+
+        cont_info['arrow'] = is_arrow
+
         new_contours.append(cont)
         cont_info_list.append(cont_info)
 
@@ -113,6 +119,7 @@ def find_lithic_contours(image_array, config_file):
 
         df_cont_info['parent_index'], df_cont_info['hierarchy_level'] = get_high_level_parent_and_hirarchy(
             df_cont_info['hierarchy'].values)
+
 
         indexes = contour_desambiguiation(df_cont_info)
 
