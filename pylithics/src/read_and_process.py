@@ -5,10 +5,12 @@ import pandas as pd
 from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
 from skimage.segmentation import morphological_chan_vese, checkerboard_level_set
-from pylithics.src.utils import contour_characterisation, contour_desambiguiation, mask_image, classify_surfaces, get_high_level_parent_and_hirarchy
+from pylithics.src.utils import contour_characterisation, contour_desambiguiation, mask_image, classify_surfaces, \
+    get_high_level_parent_and_hirarchy
 from skimage import img_as_ubyte
 import cv2
 from PIL import Image
+
 
 def read_image(filename):
     """
@@ -22,7 +24,7 @@ def read_image(filename):
     an array
     a tuple
     """
-    #image = skimage.io.imread(fname=filename, as_gray=True)
+    # image = skimage.io.imread(fname=filename, as_gray=True)
     im = Image.open(filename)
     image = np.asarray(im)
     try:
@@ -31,7 +33,6 @@ def read_image(filename):
         dpi = 0
 
     return image, dpi
-
 
 
 def detect_lithic(image_array, config_file):
@@ -51,11 +52,11 @@ def detect_lithic(image_array, config_file):
 
     """
 
-    do_morfological = False#classify_distributions(image_array)
+    do_morfological = False  # classify_distributions(image_array)
 
     # thresholding
     thresh = threshold_mean(image_array)
-    thresh = thresh+thresh*config_file['threshold']
+    thresh = thresh + thresh * config_file['threshold']
     binary = image_array < thresh
 
     # edge detection
@@ -65,8 +66,8 @@ def detect_lithic(image_array, config_file):
 
         binary_image = morphological_chan_vese(binary, 35, init_level_set=init_ls, smoothing=3)
 
-        if binary_image.sum() > binary_image.shape[0]*binary_image.shape[1]*0.5:
-            binary_image = (binary_image-1)*-1
+        if binary_image.sum() > binary_image.shape[0] * binary_image.shape[1] * 0.5:
+            binary_image = (binary_image - 1) * -1
     else:
         binary_image = filters.sobel(binary)
 
@@ -88,20 +89,17 @@ def find_lithic_contours(image_array, config_file):
 
     """
 
-
     cv_image = img_as_ubyte(image_array)
-    contours_cv, hierarchy = cv2.findContours(cv_image,cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
-
+    contours_cv, hierarchy = cv2.findContours(cv_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     new_contours = []
     cont_info_list = []
 
     for index, cont in enumerate(list(contours_cv), start=0):
-
         cont = np.asarray([i[0] for i in cont])
 
-            # calculate characteristings of the contour.
-        cont_info = contour_characterisation(image_array, cont,config_file['conversion_px'])
+        # calculate characteristings of the contour.
+        cont_info = contour_characterisation(image_array, cont, config_file['conversion_px'])
 
         cont_info['index'] = index
         cont_info['hierarchy'] = list(hierarchy)[0][index]
@@ -109,12 +107,12 @@ def find_lithic_contours(image_array, config_file):
         new_contours.append(cont)
         cont_info_list.append(cont_info)
 
-
     if len(new_contours) != 0:
 
         df_cont_info = pd.DataFrame.from_dict(cont_info_list)
 
-        df_cont_info['parent_index'], df_cont_info['hierarchy_level'] = get_high_level_parent_and_hirarchy(df_cont_info['hierarchy'].values)
+        df_cont_info['parent_index'], df_cont_info['hierarchy_level'] = get_high_level_parent_and_hirarchy(
+            df_cont_info['hierarchy'].values)
 
         indexes = contour_desambiguiation(df_cont_info)
 
@@ -154,9 +152,7 @@ def process_image(image_array, config_file):
     return img_rescale
 
 
-
 def data_output(cont, config_file):
-
     """
 
     Create a nested dictionary with output data from surfaces and scars
@@ -180,9 +176,9 @@ def data_output(cont, config_file):
 
     lithic_output['id'] = config_file['id']
     lithic_output['conversion_px'] = config_file['conversion_px']
-    lithic_output["n_surfaces"] = cont[cont['hierarchy_level']==0].shape[0]
+    lithic_output["n_surfaces"] = cont[cont['hierarchy_level'] == 0].shape[0]
 
-    cont.sort_values(by=["area_px"], inplace = True, ascending=False)
+    cont.sort_values(by=["area_px"], inplace=True, ascending=False)
 
     # classify surfaces
     surfaces_classification = classify_surfaces(cont)
@@ -191,14 +187,16 @@ def data_output(cont, config_file):
     outer_objects_list = []
 
     # loop through the contours
-    for hierarchy_level, index, area_px, area_mm, width_mm,height_mm in cont[['hierarchy_level', 'index','area_px','area_mm','width_mm','height_mm']].itertuples(index=False):
+    for hierarchy_level, index, area_px, area_mm, width_mm, height_mm in cont[
+        ['hierarchy_level', 'index', 'area_px', 'area_mm', 'width_mm', 'height_mm']].itertuples(index=False):
 
         outer_objects = {}
 
         # high levels contours are surfaces
-        if hierarchy_level==0:
+        if hierarchy_level == 0:
             outer_objects['surface_id'] = id
-            outer_objects['classification'] = surfaces_classification[id] if len(surfaces_classification)>id else np.nan
+            outer_objects['classification'] = surfaces_classification[id] if len(
+                surfaces_classification) > id else np.nan
             outer_objects['total_area_px'] = area_px
             outer_objects['total_area'] = area_mm
             outer_objects['max_breadth'] = width_mm
@@ -207,7 +205,8 @@ def data_output(cont, config_file):
             scars_df = cont[cont['parent_index'] == index]
 
             outer_objects["scar_count"] = scars_df.shape[0]
-            outer_objects["percentage_detected_scars"] = round(scars_df['area_px'].sum()/outer_objects['total_area_px'],2)
+            outer_objects["percentage_detected_scars"] = round(
+                scars_df['area_px'].sum() / outer_objects['total_area_px'], 2)
 
             # low levels contours are scars
 
@@ -215,7 +214,6 @@ def data_output(cont, config_file):
             scar_id = 0
             for index, area_px, area_mm, width_mm, height_mm in scars_df[
                 ['index', 'area_px', 'area_mm', 'width_mm', 'height_mm']].itertuples(index=False):
-
                 scars_objects = {}
 
                 scars_objects['scar_id'] = scar_id
@@ -223,13 +221,13 @@ def data_output(cont, config_file):
                 scars_objects['total_area'] = area_mm
                 scars_objects['max_breadth'] = width_mm
                 scars_objects['max_length'] = height_mm
-                scars_objects['percentage_of_lithic'] = round(scars_objects['total_area_px']/outer_objects['total_area_px'],2)
+                scars_objects['percentage_of_lithic'] = round(
+                    scars_objects['total_area_px'] / outer_objects['total_area_px'], 2)
 
                 scars_objects_list.append(scars_objects)
-                scar_id = scar_id +1
+                scar_id = scar_id + 1
 
             outer_objects['scar_contours'] = scars_objects_list
-
 
             id = id + 1
             outer_objects_list.append(outer_objects)
@@ -241,12 +239,3 @@ def data_output(cont, config_file):
 
     # return nested dictionary
     return lithic_output
-
-
-
-
-
-
-
-
-
