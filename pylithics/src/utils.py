@@ -366,7 +366,7 @@ def classify_surfaces(cont):
     return names
 
 
-def contour_arrow_classification(image_array, cont, contour_info, quantiles):
+def contour_arrow_classification(cont, contour_info, quantiles):
     """
 
     Function that finds contours that correspond to an arrow.
@@ -407,20 +407,45 @@ def contour_arrow_classification(image_array, cont, contour_info, quantiles):
         # then draw the contours and the name of the shape on the image
         if shape == 'arrow':
 
-            masked_image = mask_image(image_array, cont, False)
-
-            fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
-            ax[0].imshow(masked_image, cmap=plt.cm.gray)
-            ax[1].imshow(image_array, cmap=plt.cm.gray)
-            ax[1].plot(cont[:, 0], cont[:, 1], label=shape)
-            #plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='xx-small')
-            ax[1].set_xticks([])
-            ax[1].set_yticks([])
-            plt.show()
-            plt.close(fig)
 
 
             return True
         else:
             return False
+
+def find_arrow_templates(image_array, df_contours):
+    """
+
+    Decide if a contour is really an arrow and make it into a template
+
+    Parameters
+    ----------
+    image_array: array
+        Array of input image
+
+    df_contours: dataframe
+        dataframe with all the contour information and measurements for an image
+
+
+    Returns
+    -------
+
+    """
+
+    for cont, index in df_contours[['contour','index']].itertuples(index=False):
+
+
+        masked_image = mask_image(image_array, cont, False)
+
+
+        ratio = len(masked_image[(masked_image>0.9)])/len(masked_image[(masked_image!=0)] )
+
+        fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
+        ax[0].imshow(masked_image, cmap=plt.cm.gray)
+        ax[1].imshow(image_array, cmap=plt.cm.gray)
+        ax[1].plot(cont[:, 0], cont[:, 1], label='arrow')
+        ax[1].set_xticks([])
+        ax[1].set_yticks([])
+        plt.show()
+        plt.close(fig)
 

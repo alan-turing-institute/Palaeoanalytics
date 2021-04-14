@@ -106,7 +106,7 @@ def find_lithic_contours(image_array, config_file):
 
         quantiles = np.quantile( [item[-1] for item in hierarchy], 0.2)
 
-        is_arrow = contour_arrow_classification(image_array,cont,cont_info, quantiles)
+        is_arrow = contour_arrow_classification(cont,cont_info, quantiles)
 
         cont_info['arrow'] = is_arrow
 

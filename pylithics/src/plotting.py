@@ -31,7 +31,7 @@ def plot_contours(image_array, contours, output_path):
 
 
     id = 0
-    for contour, parent_index, index, area_mm, width_mm, height_mm  in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm']].itertuples(index=False):
+    for contour, parent_index, index, area_mm, width_mm, height_mm, arrow  in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm', 'arrow']].itertuples(index=False):
         try:
             if parent_index==-1:
                 linewidth = 3
@@ -42,10 +42,13 @@ def plot_contours(image_array, contours, output_path):
                 ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
 
             else:
-                linewidth = 2
-                linestyle = 'dashed'
-                #text = "S, Parent Surface: "+str(parent_index)
-                ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle)
+                if arrow == True:
+                    linestyle = 'solid'
+                    ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, color='k')
+                else:
+                    linewidth = 2
+                    linestyle = 'dashed'
+                    ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle)
 
 
 

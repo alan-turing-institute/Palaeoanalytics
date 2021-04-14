@@ -6,7 +6,7 @@ import os
 import pandas as pd
 from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, process_image, data_output
 from pylithics.src.plotting import plot_contours, plot_thresholding
-from pylithics.src.utils import pixulator
+from pylithics.src.utils import pixulator, find_arrow_templates
 
 
 def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file):
@@ -42,7 +42,7 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file):
                 config_file['scale_id'] = str(scale_id)
                 config_file["scale_cm"] = scale_size
         except (TypeError, IndexError):
-            print("Information of scale and measurement for image "+id+" no found in metadata")
+            print("Information of scale and measurement for image " + id + " no found in metadata")
             print("No area measurement will be calculated in this image")
             config_file['scale_id'] = "no scale"
 
@@ -92,6 +92,8 @@ def run_characterisation(input_dir, output_dir, config_file, debug=True):
 
     contours = find_lithic_contours(binary_array, config_file)
 
+    arrows = find_arrow_templates(image_processed, contours[contours['arrow'] == True])
+
     output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
     plot_contours(image_array, contours, output_lithic)
 
@@ -128,11 +130,11 @@ def main():
     # path to the simulation files
     id_list = [i[:-4] for i in os.listdir(images_input_dir) if i.endswith('.png')]
 
-    if args.metadata_filename==None:
+    if args.metadata_filename == None:
         metadata_df = None
     else:
         metadata_df = pd.read_csv(os.path.join(args.input_dir, args.metadata_filename), header=0,
-                              dtype={'PA_ID': str, 'scale_ID': str, 'PA_scale': float}, engine='c')
+                                  dtype={'PA_ID': str, 'scale_ID': str, 'PA_scale': float}, engine='c')
     run_pipeline(id_list, metadata_df, args.input_dir, args.output_dir, config_file)
 
 
