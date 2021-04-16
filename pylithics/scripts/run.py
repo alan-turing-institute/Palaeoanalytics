@@ -6,7 +6,7 @@ import os
 import pandas as pd
 from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, process_image, data_output
 from pylithics.src.plotting import plot_contours, plot_thresholding
-from pylithics.src.utils import pixulator, find_arrow_templates
+from pylithics.src.utils import pixulator, find_arrow_templates, template_matching
 
 
 def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file):
@@ -92,7 +92,10 @@ def run_characterisation(input_dir, output_dir, config_file, debug=True):
 
     contours = find_lithic_contours(binary_array, config_file)
 
-    arrows = find_arrow_templates(image_processed, contours[contours['arrow'] == True])
+    # TODO: Write function to associate arrows to scars. It could run the next two functions and return contour
+    #  give an extra column for the contourdf with associated scar if is arrow
+    contours, templates = find_arrow_templates(image_processed, contours[contours['arrow'] == True])
+    template_index = template_matching(templates,image_processed)
 
     output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
     plot_contours(image_array, contours, output_lithic)

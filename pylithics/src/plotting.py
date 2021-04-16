@@ -50,8 +50,6 @@ def plot_contours(image_array, contours, output_path):
                     linestyle = 'dashed'
                     ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle)
 
-
-
         except:
             continue
 
