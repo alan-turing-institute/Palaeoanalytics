@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndi
 import matplotlib
+from pylithics.src.shapedetector import ShapeDetector
 
 
 def area_contour(contour):
@@ -371,7 +372,6 @@ def contour_arrow_classification(cont, contour_info, quantiles):
     a boolean, stating if the contour is likely to be an arrow
 
     """
-    from shapedetector import ShapeDetector
 
     if len(cont) < 50 or len(cont) > 150 or contour_info['hierarchy'][-1] < quantiles:
         return False

@@ -1,7 +1,6 @@
 import cv2
 import glob
 import numpy as np
-from imutils.object_detection import non_max_suppression
 
 
 def template_matching(templates, image):
