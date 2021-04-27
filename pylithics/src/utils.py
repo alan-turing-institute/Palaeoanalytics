@@ -452,7 +452,7 @@ def find_arrow_templates(image_array, df_contours):
 
     df_contours = df_contours[~df_contours['index'].isin(index_drop)]
 
-    return df_contours, templates
+    return index_drop, templates
 
 
 def subtract_masked_image(masked_image):
@@ -471,7 +471,8 @@ def subtract_masked_image(masked_image):
     return rows, columns
 
 
-def template_matching(templates, image, only_best):
+def template_matching(templates, image, only_best=True):
+
     location_index = []
     bboxes = []
 
@@ -492,14 +493,15 @@ def template_matching(templates, image, only_best):
                 bboxes.append([j[0], j[1], tW, tH])
                 cv2.rectangle(image, j, (j[0] + tW, j[1] + tH), (0, 0, 255), 2)  # draw templates
 
-    if only_best:
+    if only_best and avg_match>0:
         location_index.append(index)
 
     # apply non-maxima suppression (NMS) to the rectangles
     # NMS_boxes = non_max_suppression(np.array(bboxes))
     # show the output image
-    cv2.imshow("Before NMS", image)
-    cv2.waitKey(0)
+    cv2.imshow("Before NMS", image.astype(np.float32))
+
+    cv2.destroyAllWindows()
 
     return location_index
 

@@ -10,6 +10,7 @@ from pylithics.src.utils import contour_characterisation, contour_desambiguiatio
 from skimage import img_as_ubyte
 import cv2
 from PIL import Image
+from pylithics.src.utils import find_arrow_templates, template_matching, mask_image, subtract_masked_image
 
 
 def read_image(filename):
@@ -246,3 +247,36 @@ def data_output(cont, config_file):
 
     # return nested dictionary
     return lithic_output
+
+def get_arrows(image_processed, contours):
+
+    index_drop, templates = find_arrow_templates(image_processed, contours[contours['arrow'] == True])
+
+    cont = contours[~contours['index'].isin(index_drop)]
+
+    max_size = 1.5*max(cont[cont['arrow']==True]['area_px'])
+
+
+    templates_indexes = []
+    for hierarchy_level, index, arrow, contour, area_px in cont[
+        ['hierarchy_level', 'index','arrow', 'contour', 'area_px']].itertuples(index=False):
+
+
+        # high levels contours are surfaces
+        if hierarchy_level != 0 and arrow==False:
+
+            if area_px< max_size:
+                continue
+
+            masked_image = mask_image(image_processed, contour, True)
+
+            rows, columns = subtract_masked_image(masked_image)
+
+            new_masked_image = np.delete(image_processed, rows[:-5], 0)
+            new_masked_image = np.delete(new_masked_image, columns[:-5], 1)
+
+            template_index = template_matching(templates,new_masked_image)
+
+            templates_indexes.append(template_index)
+
+    return cont
