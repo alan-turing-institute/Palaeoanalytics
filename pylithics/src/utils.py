@@ -26,7 +26,7 @@ def area_contour(contour):
     return area
 
 
-def contour_desambiguiation(df_contours):
+def contour_desambiguiation(df_contours, image_array):
     """
 
     Funtion that selects contours by their size and removes duplicates.
@@ -43,12 +43,14 @@ def contour_desambiguiation(df_contours):
 
     """
 
+
+
     index_to_drop = []
 
-    for hierarchy_level, index, parent_index, area_px, is_arrow, in df_contours[
-        ['hierarchy_level', 'index', 'parent_index', 'area_px', 'arrow']].itertuples(index=False):
-        if is_arrow:
-            continue
+    for hierarchy_level, index, parent_index, area_px, contour, in df_contours[
+        ['hierarchy_level', 'index', 'parent_index', 'area_px', 'contour']].itertuples(index=False):
+
+
         if hierarchy_level == 0:
             if area_px / max(df_contours['area_px']) < 0.05:
                 index_to_drop.append(index)
@@ -59,13 +61,13 @@ def contour_desambiguiation(df_contours):
             norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
             area = area_px
             percentage = area / norm * 100
-            if percentage < 0.5:
+            if percentage < 0.2:
+                index_to_drop.append(index)
+            if percentage > 60:
                 index_to_drop.append(index)
 
-        # elif hierarchy_level>1:
-        # index_to_drop.append(index)
 
-    cent_df = df_contours[['area_px', 'centroid', 'hierarchy_level']]
+    cent_df = df_contours[['area_px', 'centroid', 'hierarchy_level','contour']]
 
     import itertools
 
@@ -74,22 +76,26 @@ def contour_desambiguiation(df_contours):
         if ((i in index_to_drop) or (j in index_to_drop)):
             continue
 
-        d_ij_area = np.linalg.norm(cent_df.loc[i]['area_px'] - cent_df.loc[j]['area_px'])
+
         d_ij_centroid = np.linalg.norm(np.asarray(cent_df.loc[i]['centroid']) - np.asarray(cent_df.loc[j]['centroid']))
 
         if cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']:
-            norm = cent_df.loc[i]['area_px']
+            ratio = cent_df.loc[j]['area_px'] / cent_df.loc[i]['area_px']
         else:
-            norm = cent_df.loc[j]['area_px']
+            ratio = cent_df.loc[i]['area_px'] / cent_df.loc[j]['area_px']
 
-        if d_ij_centroid < 50:
-            if d_ij_area / norm < 0.1:
-                if (cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']) and (cent_df.loc[i]['hierarchy_level'] != 0):
+
+        if d_ij_centroid < 15 and ratio > 0.5:
+            if (cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']):
+                if d_ij_centroid<1:
                     index_to_drop.append(i)
-                    print(cent_df.loc[i])
-                elif ((cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']) and (
-                        cent_df.loc[j]['hierarchy_level'] != 0)):
+                else:
                     index_to_drop.append(j)
+            elif (cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']):
+                if d_ij_centroid < 1:
+                    index_to_drop.append(j)
+                else:
+                    index_to_drop.append(i)
 
     return index_to_drop
 
@@ -356,7 +362,7 @@ def classify_surfaces(cont):
     return names
 
 
-def contour_arrow_classification(cont, contour_info, quantiles):
+def contour_arrow_classification(cont, hierarchy, quantiles, image_array):
     """
 
     Function that finds contours that correspond to an arrow.
@@ -373,7 +379,8 @@ def contour_arrow_classification(cont, contour_info, quantiles):
 
     """
 
-    if len(cont) < 50 or len(cont) > 150 or contour_info['hierarchy'][-1] < quantiles:
+
+    if len(cont) < 50 or len(cont) > 150 or hierarchy < quantiles:
         return False
     else:
 
@@ -387,7 +394,6 @@ def contour_arrow_classification(cont, contour_info, quantiles):
         cX = int((M["m10"] / M["m00"]) * ratio)
         cY = int((M["m01"] / M["m00"]) * ratio)
 
-        ratio = cX / cY
         shape, vertices = sd.detect(cont)
         # multiply the contour (x, y)-coordinates by the resize ratio,
         # then draw the contours and the name of the shape on the image
@@ -420,22 +426,35 @@ def find_arrow_templates(image_array, df_contours):
     templates = []
     index_drop = []
 
-    for cont, index in df_contours[['contour', 'index']].itertuples(index=False):
-        masked_image = mask_image(image_array, cont, False)
+    quantiles = np.quantile([item[-1] for item in df_contours['hierarchy']], 0.2)
 
-        ratio = len(masked_image[(masked_image > 0.9)]) / len(masked_image[(masked_image != 0)])
+    df_contours['arrow'] = False
 
-        if ratio > 0.6:
-            df_contours.loc[df_contours.index == index, 'arrow'] = False
+    for cont, index, hierarchy in df_contours[['contour', 'index','hierarchy']].itertuples(index=False):
+
+
+        is_arrow = contour_arrow_classification(cont, hierarchy[-1], quantiles, image_array)
+
+        if is_arrow == False:
             continue
-        if ratio < 0.3:
-            index_drop.append(index)
-            continue
+        else:
 
-        rows, columns = subtract_masked_image(masked_image)
+            masked_image = mask_image(image_array, cont, False)
 
-        new_masked_image = np.delete(image_array, rows[:-5], 0)
-        new_masked_image = np.delete(new_masked_image, columns[:-5], 1)
+            ratio = len(masked_image[(masked_image > 0.9)]) / len(masked_image[(masked_image != 0)])
+
+            if ratio > 0.6:
+                continue
+            if ratio < 0.3:
+                index_drop.append(index)
+                continue
+
+            df_contours.loc[df_contours.index == index, 'arrow'] = True
+
+            rows, columns = subtract_masked_image(masked_image)
+
+            new_masked_image = np.delete(image_array, rows[:-5], 0)
+            new_masked_image = np.delete(new_masked_image, columns[:-5], 1)
 
         # fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
         # ax[0].imshow(new_masked_image, cmap=plt.cm.gray)
@@ -446,11 +465,9 @@ def find_arrow_templates(image_array, df_contours):
         # plt.show()
         # plt.close(fig)
 
-        templates.append(new_masked_image)
+            templates.append(new_masked_image)
 
-        matplotlib.image.imsave('template'+str(index)+'.png', new_masked_image)
-
-    df_contours = df_contours[~df_contours['index'].isin(index_drop)]
+            matplotlib.image.imsave('template'+str(index)+'.png', new_masked_image)
 
     return index_drop, templates
 
@@ -471,37 +488,37 @@ def subtract_masked_image(masked_image):
     return rows, columns
 
 
-def template_matching(templates, image, only_best=True):
+def template_matching(image, templates):
 
-    location_index = []
-    bboxes = []
+    image = image.astype(np.float32)
+
+    location_index = -1
 
     avg_match = 0
     for i, template in enumerate(templates):
         (tW, tH) = template.shape[::-1]
-        result = cv2.matchTemplate(image.astype(np.float32), template.astype(np.float32), cv2.TM_CCOEFF_NORMED)  # template matching
-        threshold = 0.8
+        (sW, sH) = image.shape[::-1]
+        if tW > sW or tH>sH:
+            continue
+        result = cv2.matchTemplate(image, template.astype(np.float32), cv2.TM_CCOEFF_NORMED)  # template matching
+        threshold = 0.9
         location = np.where(result >= threshold)  # areas where results are >= than threshold value
         if len(location[0]) > 0:
-            if only_best:
-                if result[location].mean() > avg_match:
-                    index = i
-                    avg_match = result[location].mean()
-            else:
-                location_index.append(i)
-            for j in zip(*location[::-1]):
-                bboxes.append([j[0], j[1], tW, tH])
-                cv2.rectangle(image, j, (j[0] + tW, j[1] + tH), (0, 0, 255), 2)  # draw templates
+            if result[location].mean() > avg_match:
+                index = i
+                avg_match = result[location].mean()
 
-    if only_best and avg_match>0:
-        location_index.append(index)
+    if avg_match>0:
+        location_index = index
 
-    # apply non-maxima suppression (NMS) to the rectangles
-    # NMS_boxes = non_max_suppression(np.array(bboxes))
-    # show the output image
-    cv2.imshow("Before NMS", image.astype(np.float32))
-
-    cv2.destroyAllWindows()
+    fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
+    ax[0].imshow(image, cmap=plt.cm.gray)
+    if location_index!= -1:
+        ax[1].imshow(templates[location_index], cmap=plt.cm.gray)
+    ax[1].set_xticks([])
+    ax[1].set_yticks([])
+    plt.show()
+    plt.close(fig)
 
     return location_index
 

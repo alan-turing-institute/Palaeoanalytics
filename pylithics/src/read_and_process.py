@@ -5,13 +5,11 @@ import pandas as pd
 from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
 from skimage.segmentation import morphological_chan_vese, checkerboard_level_set
-from pylithics.src.utils import contour_characterisation, contour_desambiguiation, contour_arrow_classification, classify_surfaces, \
-    get_high_level_parent_and_hirarchy
+from pylithics.src.utils import contour_characterisation, contour_desambiguiation, classify_surfaces, get_high_level_parent_and_hirarchy
 from skimage import img_as_ubyte
 import cv2
 from PIL import Image
 from pylithics.src.utils import find_arrow_templates, template_matching, mask_image, subtract_masked_image
-
 
 def read_image(filename):
     """
@@ -93,6 +91,8 @@ def find_lithic_contours(image_array, config_file):
     cv_image = img_as_ubyte(image_array)
     contours_cv, hierarchy = cv2.findContours(cv_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
+
+
     new_contours = []
     cont_info_list = []
 
@@ -105,11 +105,8 @@ def find_lithic_contours(image_array, config_file):
         cont_info['index'] = index
         cont_info['hierarchy'] = list(hierarchy)[0][index]
 
-        quantiles = np.quantile( [item[-1] for item in hierarchy], 0.2)
+        cont_info['contour'] = cont
 
-        is_arrow = contour_arrow_classification(cont,cont_info, quantiles)
-
-        cont_info['arrow'] = is_arrow
 
         new_contours.append(cont)
         cont_info_list.append(cont_info)
@@ -122,16 +119,16 @@ def find_lithic_contours(image_array, config_file):
             df_cont_info['hierarchy'].values)
 
 
-        indexes = contour_desambiguiation(df_cont_info)
-
-        new_contours = [i for j, i in enumerate(new_contours) if j not in indexes]
+        indexes = contour_desambiguiation(df_cont_info,image_array)
 
         df_contours = df_cont_info.drop(index=indexes)
 
-        df_contours['contour'] = np.array(new_contours, dtype="object")
+
+
 
     else:
         raise RuntimeError("No contours found in this image")
+
 
     return df_contours
 
@@ -250,7 +247,7 @@ def data_output(cont, config_file):
 
 def get_arrows(image_processed, contours):
 
-    index_drop, templates = find_arrow_templates(image_processed, contours[contours['arrow'] == True])
+    index_drop, templates = find_arrow_templates(image_processed, contours)
 
     cont = contours[~contours['index'].isin(index_drop)]
 
@@ -260,7 +257,6 @@ def get_arrows(image_processed, contours):
     templates_indexes = []
     for hierarchy_level, index, arrow, contour, area_px in cont[
         ['hierarchy_level', 'index','arrow', 'contour', 'area_px']].itertuples(index=False):
-
 
         # high levels contours are surfaces
         if hierarchy_level != 0 and arrow==False:
@@ -272,11 +268,16 @@ def get_arrows(image_processed, contours):
 
             rows, columns = subtract_masked_image(masked_image)
 
-            new_masked_image = np.delete(image_processed, rows[:-5], 0)
-            new_masked_image = np.delete(new_masked_image, columns[:-5], 1)
+            new_masked_image = np.delete(image_processed, rows[:-1], 0)
+            new_masked_image = np.delete(new_masked_image, columns[:-1], 1)
 
-            template_index = template_matching(templates,new_masked_image)
+            template_index = template_matching(new_masked_image,templates)
 
-            templates_indexes.append(template_index)
+        else:
+            template_index = -1
+
+        templates_indexes.append(template_index)
+
+    cont['arrow_index'] = pd.Series(templates_indexes)
 
     return cont
