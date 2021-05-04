@@ -31,7 +31,7 @@ def plot_contours(image_array, contours, output_path):
 
 
     id = 0
-    for contour, parent_index, index, area_mm, width_mm, height_mm, arrow  in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm', 'arrow']].itertuples(index=False):
+    for contour, parent_index, index, area_mm, width_mm, height_mm, arrow in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm', 'arrow']].itertuples(index=False):
         try:
             if parent_index==-1:
                 linewidth = 3

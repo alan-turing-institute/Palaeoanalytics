@@ -245,39 +245,63 @@ def data_output(cont, config_file):
     # return nested dictionary
     return lithic_output
 
-def get_arrows(image_processed, contours):
+def get_arrows(image_array, contours):
+    """
 
-    index_drop, templates = find_arrow_templates(image_processed, contours)
+    Function that classifies contours that correspond to arrows,
+    turns them to templates and then uses template matching to
+    match the arrows to a given scar.
+
+
+    Parameters
+    ----------
+    image_array: array,
+        2D array of the masked_image_array
+    contours: dataframe
+        dataframe with all the contour information and measurements for an masked_image_array
+
+    Returns
+    -------
+
+    A contour dataframe with arrow information
+
+    """
+
+    index_drop, templates = find_arrow_templates(image_array, contours)
 
     cont = contours[~contours['index'].isin(index_drop)]
 
-    max_size = 1.5*max(cont[cont['arrow']==True]['area_px'])
+    if len(templates)==0:
+        cont['arrow_index'] = -1
 
+    else:
 
-    templates_indexes = []
-    for hierarchy_level, index, arrow, contour, area_px in cont[
-        ['hierarchy_level', 'index','arrow', 'contour', 'area_px']].itertuples(index=False):
+        max_size = 1.5*max(cont[cont['arrow']==True]['area_px'])
 
-        # high levels contours are surfaces
-        if hierarchy_level != 0 and arrow==False:
+        templates_indexes = []
+        for hierarchy_level, index, arrow, contour, area_px in cont[
+            ['hierarchy_level', 'index','arrow', 'contour', 'area_px']].itertuples(index=False):
 
-            if area_px< max_size:
-                continue
+            # high levels contours are surfaces
+            if hierarchy_level != 0 and arrow==False:
 
-            masked_image = mask_image(image_processed, contour, True)
+                if area_px< max_size:
+                    continue
 
-            rows, columns = subtract_masked_image(masked_image)
+                masked_image = mask_image(image_array, contour, True)
 
-            new_masked_image = np.delete(image_processed, rows[:-1], 0)
-            new_masked_image = np.delete(new_masked_image, columns[:-1], 1)
+                rows, columns = subtract_masked_image(masked_image)
 
-            template_index = template_matching(new_masked_image,templates)
+                new_masked_image = np.delete(image_array, rows[:-1], 0)
+                new_masked_image = np.delete(new_masked_image, columns[:-1], 1)
 
-        else:
-            template_index = -1
+                template_index = template_matching(new_masked_image,templates)
 
-        templates_indexes.append(template_index)
+            else:
+                template_index = -1
 
-    cont['arrow_index'] = pd.Series(templates_indexes)
+            templates_indexes.append(template_index)
+
+        cont['arrow_index'] = pd.Series(templates_indexes)
 
     return cont

@@ -50,10 +50,10 @@ def contour_desambiguiation(df_contours, image_array):
     for hierarchy_level, index, parent_index, area_px, contour, in df_contours[
         ['hierarchy_level', 'index', 'parent_index', 'area_px', 'contour']].itertuples(index=False):
 
-
+        pass_selection = True
         if hierarchy_level == 0:
-            if area_px / max(df_contours['area_px']) < 0.05:
-                index_to_drop.append(index)
+            if area_px / max(df_contours['area_px']) < 0.07:
+                pass_selection = False
             else:
                 continue
         else:
@@ -62,10 +62,18 @@ def contour_desambiguiation(df_contours, image_array):
             area = area_px
             percentage = area / norm * 100
             if percentage < 0.2:
-                index_to_drop.append(index)
+                pass_selection = False
             if percentage > 60:
-                index_to_drop.append(index)
+                pass_selection = False
 
+
+        # fig, ax = plt.subplots(figsize=(10, 5))
+        # ax = plt.subplot(111)
+        # ax.imshow(image_array, cmap=plt.cm.gray)
+        # ax.plot(contour[:, 0], contour[:, 1])
+
+        if pass_selection == False:
+            index_to_drop.append(index)
 
     cent_df = df_contours[['area_px', 'centroid', 'hierarchy_level','contour']]
 
@@ -453,12 +461,12 @@ def find_arrow_templates(image_array, df_contours):
 
             rows, columns = subtract_masked_image(masked_image)
 
-            new_masked_image = np.delete(image_array, rows[:-5], 0)
-            new_masked_image = np.delete(new_masked_image, columns[:-5], 1)
+            new_masked_image = np.delete(image_array, rows[:-3], 0)
+            new_masked_image = np.delete(new_masked_image, columns[:-3], 1)
 
         # fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
         # ax[0].imshow(new_masked_image, cmap=plt.cm.gray)
-        # ax[1].imshow(image_array, cmap=plt.cm.gray)
+        # ax[1].imshow(masked_image_array, cmap=plt.cm.gray)
         # ax[1].plot(cont[:, 0], cont[:, 1], label='arrow')
         # ax[1].set_xticks([])
         # ax[1].set_yticks([])
@@ -467,20 +475,35 @@ def find_arrow_templates(image_array, df_contours):
 
             templates.append(new_masked_image)
 
-            matplotlib.image.imsave('template'+str(index)+'.png', new_masked_image)
-
     return index_drop, templates
 
 
-def subtract_masked_image(masked_image):
+def subtract_masked_image(masked_image_array):
+    """
+
+    Given an input masked image, return all rows and columns where
+    an image is all masked.
+
+
+    Parameters
+    ----------
+    masked_image_array: array
+        2D array of an image
+
+    Returns
+    -------
+
+    List of columns and rows that have been masked.
+
+    """
     # Check rows in which all values are equal
     rows = []
-    for i in range(masked_image.shape[0]):
-        if np.all(masked_image[i] == False):
+    for i in range(masked_image_array.shape[0]):
+        if np.all(masked_image_array[i] == False):
             rows.append(i)
     # Check Columns in which all values are equal
     columns = []
-    trans_masked_image = masked_image.T
+    trans_masked_image = masked_image_array.T
     for i in range(trans_masked_image.shape[0]):
         if np.all(trans_masked_image[i] == False):
             columns.append(i)
@@ -488,19 +511,36 @@ def subtract_masked_image(masked_image):
     return rows, columns
 
 
-def template_matching(image, templates):
+def template_matching(image_array, templates):
+    """
 
-    image = image.astype(np.float32)
+    Find best template match in an image
+
+    Parameters
+    ----------
+    image_array: array
+        Array of input masked_image_array
+    templates: array
+        Array of template images
+
+    Returns
+    -------
+
+    Index of best matching template
+
+    """
+
+    image_array = image_array.astype(np.float32)
 
     location_index = -1
 
     avg_match = 0
     for i, template in enumerate(templates):
         (tW, tH) = template.shape[::-1]
-        (sW, sH) = image.shape[::-1]
+        (sW, sH) = image_array.shape[::-1]
         if tW > sW or tH>sH:
             continue
-        result = cv2.matchTemplate(image, template.astype(np.float32), cv2.TM_CCOEFF_NORMED)  # template matching
+        result = cv2.matchTemplate(image_array, template.astype(np.float32), cv2.TM_CCOEFF_NORMED)  # template matching
         threshold = 0.9
         location = np.where(result >= threshold)  # areas where results are >= than threshold value
         if len(location[0]) > 0:
@@ -511,14 +551,14 @@ def template_matching(image, templates):
     if avg_match>0:
         location_index = index
 
-    fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
-    ax[0].imshow(image, cmap=plt.cm.gray)
-    if location_index!= -1:
-        ax[1].imshow(templates[location_index], cmap=plt.cm.gray)
-    ax[1].set_xticks([])
-    ax[1].set_yticks([])
-    plt.show()
-    plt.close(fig)
+    # fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
+    # ax[0].imshow(masked_image_array, cmap=plt.cm.gray)
+    # if location_index!= -1:
+    #     ax[1].imshow(templates[location_index], cmap=plt.cm.gray)
+    # ax[1].set_xticks([])
+    # ax[1].set_yticks([])
+    # plt.show()
+    # plt.close(fig)
 
     return location_index
 
