@@ -9,7 +9,8 @@ from pylithics.src.utils import contour_characterisation, contour_desambiguiatio
 from skimage import img_as_ubyte
 import cv2
 from PIL import Image
-from pylithics.src.utils import find_arrow_templates, template_matching, mask_image, subtract_masked_image
+from pylithics.src.utils import template_matching, mask_image, subtract_masked_image, contour_arrow_selection
+import os
 
 def read_image(filename):
     """
@@ -73,7 +74,7 @@ def detect_lithic(image_array, config_file):
     return binary_image, thresh
 
 
-def find_lithic_contours(image_array, config_file):
+def find_lithic_contours(image_array, config_file, arrows = False):
     """
     Function that given an input image array and configuration options
      finds contours on cont the lithic object
@@ -119,7 +120,11 @@ def find_lithic_contours(image_array, config_file):
             df_cont_info['hierarchy'].values)
 
 
-        indexes = contour_desambiguiation(df_cont_info,image_array)
+        if arrows==False:
+            indexes = contour_desambiguiation(df_cont_info,image_array)
+        else:
+            indexes = contour_arrow_selection(df_cont_info)
+
 
         df_contours = df_cont_info.drop(index=indexes)
 
@@ -245,7 +250,7 @@ def data_output(cont, config_file):
     # return nested dictionary
     return lithic_output
 
-def get_arrows(image_array, contours):
+def get_arrows(image_array, cont, templates):
     """
 
     Function that classifies contours that correspond to arrows,
@@ -267,26 +272,21 @@ def get_arrows(image_array, contours):
 
     """
 
-    index_drop, templates = find_arrow_templates(image_array, contours)
 
-    cont = contours[~contours['index'].isin(index_drop)]
-
-    if len(templates)==0:
+    if templates.shape[0]==0:
         cont['arrow_index'] = -1
 
     else:
 
-        max_size = 1.5*max(cont[cont['arrow']==True]['area_px'])
 
-        templates_indexes = []
-        for hierarchy_level, index, arrow, contour, area_px in cont[
-            ['hierarchy_level', 'index','arrow', 'contour', 'area_px']].itertuples(index=False):
+        templates_id = []
+        templates_angle = []
+
+        for hierarchy_level, index, contour, area_px in cont[
+            ['hierarchy_level', 'index', 'contour', 'area_px']].itertuples(index=False):
 
             # high levels contours are surfaces
-            if hierarchy_level != 0 and arrow==False:
-
-                if area_px< max_size:
-                    continue
+            if hierarchy_level != 0:
 
                 masked_image = mask_image(image_array, contour, True)
 
@@ -297,11 +297,34 @@ def get_arrows(image_array, contours):
 
                 template_index = template_matching(new_masked_image,templates)
 
+                id = templates.iloc[template_index]['id']
+                angle = templates.iloc[template_index]['angle']
+
             else:
-                template_index = -1
+                id = np.nan
+                angle = np.nan
 
-            templates_indexes.append(template_index)
+            templates_id.append(id)
+            templates_angle.append(angle)
 
-        cont['arrow_index'] = pd.Series(templates_indexes)
+        cont['arrow_template_id'] = pd.Series(templates_id)
+        cont['arrow_angle'] = pd.Series(templates_angle)
 
     return cont
+
+
+def read_arrow_data(input_dir):
+
+    id_list = [os.path.join(input_dir,i) for i in os.listdir(input_dir) if i.endswith('.json')]
+
+    df_list = []
+    for i in id_list:
+
+        df_list.append(pd.read_csv(i))
+
+
+    return pd.concat(df_list)
+
+
+
+

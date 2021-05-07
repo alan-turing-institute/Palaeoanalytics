@@ -1,9 +1,10 @@
 import cv2
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndi
-import matplotlib
 from pylithics.src.shapedetector import ShapeDetector
+#from pylithics.src.plotting import plot_contour_figure
 
 
 def area_contour(contour):
@@ -29,7 +30,7 @@ def area_contour(contour):
 def contour_desambiguiation(df_contours, image_array):
     """
 
-    Funtion that selects contours by their size and removes duplicates.
+    Function that selects contours by their size and removes duplicates.
 
     Parameters
     ----------
@@ -52,7 +53,7 @@ def contour_desambiguiation(df_contours, image_array):
 
         pass_selection = True
         if hierarchy_level == 0:
-            if area_px / max(df_contours['area_px']) < 0.07:
+            if area_px / max(df_contours['area_px']) < 0.1:
                 pass_selection = False
             else:
                 continue
@@ -387,8 +388,7 @@ def contour_arrow_classification(cont, hierarchy, quantiles, image_array):
 
     """
 
-
-    if len(cont) < 50 or len(cont) > 150 or hierarchy < quantiles:
+    if len(cont) < 50 or len(cont) > 300 or hierarchy < quantiles:
         return False
     else:
 
@@ -405,6 +405,8 @@ def contour_arrow_classification(cont, hierarchy, quantiles, image_array):
         shape, vertices = sd.detect(cont)
         # multiply the contour (x, y)-coordinates by the resize ratio,
         # then draw the contours and the name of the shape on the image
+
+
         if shape == 'arrow':
 
             return True
@@ -451,11 +453,14 @@ def find_arrow_templates(image_array, df_contours):
 
             ratio = len(masked_image[(masked_image > 0.9)]) / len(masked_image[(masked_image != 0)])
 
-            if ratio > 0.6:
+            #plot_contour_figure(masked_image, cont)
+
+            if ratio > 0.7:
                 continue
             if ratio < 0.3:
                 index_drop.append(index)
                 continue
+
 
             df_contours.loc[df_contours.index == index, 'arrow'] = True
 
@@ -463,15 +468,6 @@ def find_arrow_templates(image_array, df_contours):
 
             new_masked_image = np.delete(image_array, rows[:-3], 0)
             new_masked_image = np.delete(new_masked_image, columns[:-3], 1)
-
-        # fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
-        # ax[0].imshow(new_masked_image, cmap=plt.cm.gray)
-        # ax[1].imshow(masked_image_array, cmap=plt.cm.gray)
-        # ax[1].plot(cont[:, 0], cont[:, 1], label='arrow')
-        # ax[1].set_xticks([])
-        # ax[1].set_yticks([])
-        # plt.show()
-        # plt.close(fig)
 
             templates.append(new_masked_image)
 
@@ -511,7 +507,7 @@ def subtract_masked_image(masked_image_array):
     return rows, columns
 
 
-def template_matching(image_array, templates):
+def template_matching(image_array, templates_df):
     """
 
     Find best template match in an image
@@ -529,6 +525,8 @@ def template_matching(image_array, templates):
     Index of best matching template
 
     """
+
+    templates = templates_df['template_array'].values
 
     image_array = image_array.astype(np.float32)
 
@@ -561,4 +559,119 @@ def template_matching(image_array, templates):
     # plt.close(fig)
 
     return location_index
+
+
+def measure_arrow_angle(templates, id):
+
+    template_dict_list = []
+
+    for index, template in enumerate(templates):
+
+        template_dict = {}
+
+        template_dict['id'] = id+"_"+str(index)
+
+        template_dict['template_array'] = template
+        template_dict['angle'] = 0
+
+        template_dict_list.append(template_dict)
+
+    templates_df = pd.DataFrame.from_records(template_dict_list)
+
+    return templates_df
+
+
+
+def contour_arrow_selection(df_contours):
+    """
+
+    Function that selects contours by their size and removes duplicates.
+
+    Parameters
+    ----------
+    df_contours: dataframe
+        Dataframe with contour information.
+
+    Returns
+    -------
+
+    list of indexes
+
+    """
+
+
+
+    index_to_drop = []
+
+    for hierarchy_level, index, parent_index, area_px, contour, in df_contours[
+        ['hierarchy_level', 'index', 'parent_index', 'area_px', 'contour']].itertuples(index=False):
+
+        pass_selection = True
+        if hierarchy_level == 0:
+            if area_px / max(df_contours['area_px']) < 0.01:
+                pass_selection = False
+            if area_px / max(df_contours['area_px']) > 0.4:
+                pass_selection = False
+
+        else:
+            if area_px / max(df_contours['area_px']) > 0.3:
+                pass_selection = False
+
+            # get the total area of the parent figure
+            norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
+            area = area_px
+            percentage = area / norm * 100
+            if percentage < 0.2:
+                pass_selection = False
+            if percentage > 60:
+                pass_selection = False
+
+
+        # fig, ax = plt.subplots(figsize=(10, 5))
+        # ax = plt.subplot(111)
+        # ax.imshow(image_array, cmap=plt.cm.gray)
+        # ax.plot(contour[:, 0], contour[:, 1])
+
+        if pass_selection == False:
+            index_to_drop.append(index)
+
+    cent_df = df_contours[['area_px', 'centroid', 'hierarchy_level','contour']]
+
+    import itertools
+
+    for i, j in itertools.combinations(cent_df.index, 2):
+
+        if ((i in index_to_drop) or (j in index_to_drop)):
+            continue
+
+
+        d_ij_centroid = np.linalg.norm(np.asarray(cent_df.loc[i]['centroid']) - np.asarray(cent_df.loc[j]['centroid']))
+
+        if cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']:
+            ratio = cent_df.loc[j]['area_px'] / cent_df.loc[i]['area_px']
+        else:
+            ratio = cent_df.loc[i]['area_px'] / cent_df.loc[j]['area_px']
+
+
+        if d_ij_centroid < 15 and ratio > 0.5:
+            if (cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']):
+                if d_ij_centroid<1:
+                    index_to_drop.append(i)
+                else:
+                    index_to_drop.append(j)
+            elif (cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']):
+                if d_ij_centroid < 1:
+                    index_to_drop.append(j)
+                else:
+                    index_to_drop.append(i)
+
+    return index_to_drop
+
+
+
+
+
+
+
+
 
