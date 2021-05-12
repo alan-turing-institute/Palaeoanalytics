@@ -62,7 +62,7 @@ def contour_desambiguiation(df_contours, image_array):
             norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
             area = area_px
             percentage = area / norm * 100
-            if percentage < 0.2:
+            if percentage < 3:
                 pass_selection = False
             if percentage > 60:
                 pass_selection = False
@@ -549,14 +549,15 @@ def template_matching(image_array, templates_df):
     if avg_match>0:
         location_index = index
 
-    # fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
-    # ax[0].imshow(masked_image_array, cmap=plt.cm.gray)
     # if location_index!= -1:
+    #
+    #     fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
+    #     ax[0].imshow(image_array, cmap=plt.cm.gray)
     #     ax[1].imshow(templates[location_index], cmap=plt.cm.gray)
-    # ax[1].set_xticks([])
-    # ax[1].set_yticks([])
-    # plt.show()
-    # plt.close(fig)
+    #     ax[1].set_xticks([])
+    #     ax[1].set_yticks([])
+    #     plt.show()
+    #     plt.close(fig)
 
     return location_index
 
