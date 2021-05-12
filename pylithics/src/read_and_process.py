@@ -315,12 +315,12 @@ def get_arrows(image_array, cont, templates):
 
 def read_arrow_data(input_dir):
 
-    id_list = [os.path.join(input_dir,i) for i in os.listdir(input_dir) if i.endswith('.json')]
+    id_list = [os.path.join(input_dir,i) for i in os.listdir(input_dir) if i.endswith('.pkl')]
 
     df_list = []
     for i in id_list:
 
-        df_list.append(pd.read_csv(i))
+        df_list.append(pd.read_pickle(i))
 
 
     return pd.concat(df_list)

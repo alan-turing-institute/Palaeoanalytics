@@ -99,9 +99,9 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
 
         arrow_data_df = measure_arrow_angle(templates, id)
 
-        data_arrows_file = os.path.join('pylithics', "arrow_template_data","arrows" + id + ".json")
+        data_arrows_file = os.path.join('pylithics', "arrow_template_data","arrows" + id + ".pkl")
 
-        arrow_data_df.to_csv(data_arrows_file)
+        arrow_data_df.to_pickle(data_arrows_file)
 
         output_lithic = os.path.join(output_dir, id + "_lithic_arrow_contours.png")
         plot_arrow_contours(image_array, contours, output_lithic)
