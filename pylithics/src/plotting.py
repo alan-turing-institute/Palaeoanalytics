@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import math
 from pylithics.src.utils import classify_surfaces
 
 def plot_contours(image_array, contours, output_path):
@@ -31,7 +32,7 @@ def plot_contours(image_array, contours, output_path):
 
 
     id = 0
-    for contour, parent_index, index, area_mm, width_mm, height_mm, arrow in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm', 'arrow']].itertuples(index=False):
+    for contour, parent_index, index, area_mm, width_mm, height_mm, arrow, arrow_angle in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm', 'arrow_template_id','arrow_angle']].itertuples(index=False):
         try:
             if parent_index==-1:
                 linewidth = 3
@@ -42,9 +43,10 @@ def plot_contours(image_array, contours, output_path):
                 ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
 
             else:
-                if arrow == True:
+                if math.isnan(arrow_angle)==False:
                     linestyle = 'solid'
-                    ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, color='k')
+                    text = "arrow angle: "+str(arrow_angle)
+                    ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
                 else:
                     linewidth = 2
                     linestyle = 'dashed'

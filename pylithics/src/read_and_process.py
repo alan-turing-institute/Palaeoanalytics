@@ -285,6 +285,9 @@ def get_arrows(image_array, cont, templates):
         for hierarchy_level, index, contour, area_px in cont[
             ['hierarchy_level', 'index', 'contour', 'area_px']].itertuples(index=False):
 
+            id = np.nan
+            angle = np.nan
+
             # high levels contours are surfaces
             if hierarchy_level != 0:
 
@@ -297,18 +300,15 @@ def get_arrows(image_array, cont, templates):
 
                 template_index = template_matching(new_masked_image,templates)
 
-                id = templates.iloc[template_index]['id']
-                angle = templates.iloc[template_index]['angle']
-
-            else:
-                id = np.nan
-                angle = np.nan
+                if template_index!=-1:
+                    id = templates.iloc[template_index]['id']
+                    angle = templates.iloc[template_index]['angle']
 
             templates_id.append(id)
             templates_angle.append(angle)
 
-        cont['arrow_template_id'] = pd.Series(templates_id)
-        cont['arrow_angle'] = pd.Series(templates_angle)
+        cont['arrow_template_id'] = templates_id
+        cont['arrow_angle'] = templates_angle
 
     return cont
 
