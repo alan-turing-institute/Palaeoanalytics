@@ -1,7 +1,6 @@
 import cv2
 import glob
 import numpy as np
-from imutils.object_detection import non_max_suppression
 
 
 def template_matching(templates, image):
@@ -10,7 +9,7 @@ def template_matching(templates, image):
 	for i, template in enumerate(templates):
 		(tW,tH) = template.shape[::-1]
 		result = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)  # template matching
-		threshold = 0.8
+		threshold = 0.7
 		location = np.where(result >= threshold)  # areas where results are >= than threshold value
 		if len(location[0]) > 0:
 			location_index.append(i)
@@ -28,8 +27,8 @@ def template_matching(templates, image):
 
 def main():
 	template_list = []
-	templates = glob.glob("templates/*.png")
-	image = cv2.imread("../../220.png")
+	templates = glob.glob("*.png")
+	image = cv2.imread("image_and_scales_march_1/images/149.png")
 	image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 	for template_path in templates:
 		template_list.append(cv2.imread(template_path, 0)) # load templates

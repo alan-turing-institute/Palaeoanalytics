@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import math
 from pylithics.src.utils import classify_surfaces
 
 def plot_contours(image_array, contours, output_path):
@@ -31,7 +32,7 @@ def plot_contours(image_array, contours, output_path):
 
 
     id = 0
-    for contour, parent_index, index, area_mm, width_mm, height_mm  in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm']].itertuples(index=False):
+    for contour, parent_index, index, area_mm, width_mm, height_mm, arrow, arrow_angle in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm', 'arrow_template_id','arrow_angle']].itertuples(index=False):
         try:
             if parent_index==-1:
                 linewidth = 3
@@ -42,12 +43,14 @@ def plot_contours(image_array, contours, output_path):
                 ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
 
             else:
-                linewidth = 2
-                linestyle = 'dashed'
-                #text = "S, Parent Surface: "+str(parent_index)
-                ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle)
-
-
+                if math.isnan(arrow_angle)==False:
+                    linestyle = 'solid'
+                    text = "arrow angle: "+str(arrow_angle)
+                    ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
+                else:
+                    linewidth = 2
+                    linestyle = 'dashed'
+                    ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle)
 
         except:
             continue
@@ -113,3 +116,59 @@ def plot_thresholding(image_array, threshold, binary_array, output_file=''):
     if output_file!="":
         plt.savefig(output_file)
     plt.close(fig)
+
+
+def plot_contour_figure(image_array, cont):
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax = plt.subplot(111)
+    ax.imshow(image_array, cmap=plt.cm.gray)
+    ax.plot(cont[:, 0], cont[:, 1])
+    plt.close(fig)
+
+def plot_arrow_contours(image_array, contours, output_path):
+    """
+
+    Plot the result of the object characterisation
+
+    Parameters
+    ----------
+    image_array: array
+        Image
+    contours
+    output_path
+
+    Returns
+    -------
+
+    """
+    # Display the image and plot all contours found
+    from matplotlib.font_manager import FontProperties
+    fontP = FontProperties()
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax = plt.subplot(111)
+    ax.imshow(image_array, cmap=plt.cm.gray)
+
+    contours.sort_values(by=["area_px"], inplace = True, ascending=False)
+
+    for contour, parent_index, index, area_mm, width_mm, height_mm, arrow in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm', 'arrow']].itertuples(index=False):
+        try:
+            if arrow == True:
+                linestyle = 'solid'
+                ax.plot(contour[:, 0], contour[:, 1], linewidth=1, linestyle=linestyle)
+            else:
+                continue
+
+        except:
+            continue
+
+    fontP.set_size('xx-small')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='xx-small')
+
+    plt.figtext(0.02, 0.5, str(len(contours))+' contours')
+    ax.set_xticks([])
+    ax.set_yticks([])
+    plt.savefig(output_path)
+    plt.close(fig)
+
+

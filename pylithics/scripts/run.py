@@ -4,12 +4,12 @@ import yaml
 import json
 import os
 import pandas as pd
-from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, process_image, data_output
-from pylithics.src.plotting import plot_contours, plot_thresholding
-from pylithics.src.utils import pixulator
+from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, process_image, data_output, get_arrows, read_arrow_data
+from pylithics.src.plotting import plot_contours, plot_thresholding, plot_arrow_contours
+from pylithics.src.utils import pixulator, find_arrow_templates, measure_arrow_angle
 
 
-def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file):
+def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_arrows):
     """
     Script that runs the process of lithic characterisation on cont number of images.
 
@@ -42,16 +42,16 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file):
                 config_file['scale_id'] = str(scale_id)
                 config_file["scale_cm"] = scale_size
         except (TypeError, IndexError):
-            print("Information of scale and measurement for image "+id+" no found in metadata")
+            print("Information of scale and measurement for image " + id + " no found in metadata")
             print("No area measurement will be calculated in this image")
             config_file['scale_id'] = "no scale"
 
-        run_characterisation(input_dir, output_dir, config_file)
+        run_characterisation(input_dir, output_dir, config_file, get_arrows)
 
     return 0
 
 
-def run_characterisation(input_dir, output_dir, config_file, debug=True):
+def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True):
     """
         Lithic characterisation of an image.
 
@@ -90,20 +90,42 @@ def run_characterisation(input_dir, output_dir, config_file, debug=True):
         output_threshold = os.path.join(output_dir, id + "_lithic_threshold.png")
         plot_thresholding(image_processed, threshold_value, binary_array, output_threshold)
 
-    contours = find_lithic_contours(binary_array, config_file)
+    contours = find_lithic_contours(binary_array, config_file, arrows)
 
-    output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
-    plot_contours(image_array, contours, output_lithic)
+    if arrows:
 
-    json_output = data_output(contours, config_file)
+        index_drop, templates = find_arrow_templates(image_processed, contours)
+        contours = contours[~contours['index'].isin(index_drop)]
 
-    data_output_file = os.path.join(output_dir, id + ".json")
-    print('Saving data to file: ', data_output_file)
+        arrow_data_df = measure_arrow_angle(templates, id)
 
-    with open(data_output_file, 'w') as f:
-        json.dump(json_output, f)
+        data_arrows_file = os.path.join('pylithics', "arrow_template_data","arrows" + id + ".pkl")
 
-    print('Done.')
+        arrow_data_df.to_pickle(data_arrows_file)
+
+        output_lithic = os.path.join(output_dir, id + "_lithic_arrow_contours.png")
+        plot_arrow_contours(image_array, contours, output_lithic)
+
+        print('Arrow extraction for lithic '+id+' is done.')
+
+
+    else:
+
+        templates = read_arrow_data(os.path.join('pylithics', "arrow_template_data"))
+        contours = get_arrows(image_processed, contours, templates)
+
+        output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
+        plot_contours(image_array, contours, output_lithic)
+
+        json_output = data_output(contours, config_file)
+
+        data_output_file = os.path.join(output_dir, id + ".json")
+        print('Saving data to file: ', data_output_file)
+
+        with open(data_output_file, 'w') as f:
+            json.dump(json_output, f)
+
+        print('Done.')
 
 
 def main():
@@ -115,6 +137,9 @@ def main():
     parser.add_argument('--output_dir', type=str, help='directory where the output data is saved', default=None)
     parser.add_argument('--metadata_filename', type=str, help='CSV file with information on the images and scale',
                         default=None)
+    parser.add_argument('--get_arrows', action="store_true", help='CSV file with information on the images and scale',
+                        default=False)
+
 
     args = parser.parse_args()
     filename_config = args.config
@@ -128,12 +153,12 @@ def main():
     # path to the simulation files
     id_list = [i[:-4] for i in os.listdir(images_input_dir) if i.endswith('.png')]
 
-    if args.metadata_filename==None:
+    if args.metadata_filename == None:
         metadata_df = None
     else:
         metadata_df = pd.read_csv(os.path.join(args.input_dir, args.metadata_filename), header=0,
-                              dtype={'PA_ID': str, 'scale_ID': str, 'PA_scale': float}, engine='c')
-    run_pipeline(id_list, metadata_df, args.input_dir, args.output_dir, config_file)
+                                  dtype={'PA_ID': str, 'scale_ID': str, 'PA_scale': float}, engine='c')
+    run_pipeline(id_list, metadata_df, args.input_dir, args.output_dir, config_file, args.get_arrows)
 
 
 if __name__ == "__main__":
