@@ -507,7 +507,7 @@ def subtract_masked_image(masked_image_array):
     return rows, columns
 
 
-def template_matching(image_array, templates_df):
+def template_matching(image_array, templates_df, debug = True):
     """
 
     Find best template match in an image
@@ -530,6 +530,10 @@ def template_matching(image_array, templates_df):
 
     image_array = image_array.astype(np.float32)
 
+    #TODO: Can we use the intersection of this to only  search inside the contour?
+    (y, x) = np.where(image_array == True)
+
+
     location_index = -1
 
     avg_match = 0
@@ -549,15 +553,15 @@ def template_matching(image_array, templates_df):
     if avg_match>0:
         location_index = index
 
-    # if location_index!= -1:
-    #
-    #     fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
-    #     ax[0].imshow(image_array, cmap=plt.cm.gray)
-    #     ax[1].imshow(templates[location_index], cmap=plt.cm.gray)
-    #     ax[1].set_xticks([])
-    #     ax[1].set_yticks([])
-    #     plt.show()
-    #     plt.close(fig)
+    if location_index!= -1 and debug:
+
+        fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
+        ax[0].imshow(image_array, cmap=plt.cm.gray)
+        ax[1].imshow(templates[location_index], cmap=plt.cm.gray)
+        ax[1].set_xticks([])
+        ax[1].set_yticks([])
+        plt.show()
+        plt.close(fig)
 
     return location_index
 
