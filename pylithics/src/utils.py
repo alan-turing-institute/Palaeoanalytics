@@ -562,7 +562,7 @@ def template_matching(image_array, templates_df):
     return location_index
 
 
-def measure_arrow_angle(templates, id):
+def get_angles(templates, id):
 
     template_dict_list = []
 
@@ -573,7 +573,7 @@ def measure_arrow_angle(templates, id):
         template_dict['id'] = id+"_"+str(index)
 
         template_dict['template_array'] = template
-        template_dict['angle'] = 0
+        template_dict['angle'] = measure_arrow_angle(templates)
 
         template_dict_list.append(template_dict)
 
@@ -667,6 +667,11 @@ def contour_arrow_selection(df_contours):
                     index_to_drop.append(i)
 
     return index_to_drop
+
+
+def measure_arrow_angle(template):
+
+    return 0
 
 
 
