@@ -222,8 +222,8 @@ def data_output(cont, config_file):
 
             scars_objects_list = []
             scar_id = 0
-            for index, area_px, area_mm, width_mm, height_mm in scars_df[
-                ['index', 'area_px', 'area_mm', 'width_mm', 'height_mm']].itertuples(index=False):
+            for index, area_px, area_mm, width_mm, height_mm, arrow_angle in scars_df[
+                ['index', 'area_px', 'area_mm', 'width_mm', 'height_mm','arrow_angle']].itertuples(index=False):
                 scars_objects = {}
 
                 scars_objects['scar_id'] = scar_id
@@ -233,6 +233,7 @@ def data_output(cont, config_file):
                 scars_objects['max_length'] = height_mm
                 scars_objects['percentage_of_lithic'] = round(
                     scars_objects['total_area_px'] / outer_objects['total_area_px'], 2)
+                scars_objects['arrow_angle'] = arrow_angle
 
                 scars_objects_list.append(scars_objects)
                 scar_id = scar_id + 1
