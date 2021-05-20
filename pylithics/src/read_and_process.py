@@ -90,7 +90,7 @@ def find_lithic_contours(image_array, config_file, arrows = False):
     """
 
     cv_image = img_as_ubyte(image_array)
-    _, contours_cv, hierarchy = cv2.findContours(cv_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    contours_cv, hierarchy = cv2.findContours(cv_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
 
 
