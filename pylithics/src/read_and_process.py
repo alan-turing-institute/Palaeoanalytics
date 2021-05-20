@@ -292,11 +292,13 @@ def get_arrows(image_array, cont, templates):
             # high levels contours are surfaces
             if hierarchy_level != 0:
 
-                masked_image = mask_image(image_array, contour, True)
+                masked_image = mask_image(image_array, contour, False)
+
+
 
                 rows, columns = subtract_masked_image(masked_image)
 
-                new_masked_image = np.delete(image_array, rows[:-1], 0)
+                new_masked_image = np.delete(masked_image, rows[:-1], 0)
                 new_masked_image = np.delete(new_masked_image, columns[:-1], 1)
 
                 template_index = template_matching(new_masked_image,templates)
