@@ -6,7 +6,7 @@ import os
 import pandas as pd
 from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, process_image, data_output, get_arrows, read_arrow_data
 from pylithics.src.plotting import plot_contours, plot_thresholding, plot_arrow_contours
-from pylithics.src.utils import pixulator, find_arrow_templates, measure_arrow_angle
+from pylithics.src.utils import pixulator, find_arrow_templates, get_angles
 
 
 def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_arrows):
@@ -97,7 +97,7 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
         index_drop, templates = find_arrow_templates(image_processed, contours)
         contours = contours[~contours['index'].isin(index_drop)]
 
-        arrow_data_df = measure_arrow_angle(templates, id)
+        arrow_data_df = get_angles(templates, id)
 
         data_arrows_file = os.path.join('pylithics', "arrow_template_data","arrows" + id + ".pkl")
 
