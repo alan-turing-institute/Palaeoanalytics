@@ -23,7 +23,7 @@ def plot_contours(image_array, contours, output_path):
     from matplotlib.font_manager import FontProperties
     fontP = FontProperties()
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(14, 8))
     ax = plt.subplot(111)
     ax.imshow(image_array, cmap=plt.cm.gray)
 
