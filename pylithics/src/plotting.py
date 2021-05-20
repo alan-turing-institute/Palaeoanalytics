@@ -44,6 +44,7 @@ def plot_contours(image_array, contours, output_path):
 
             else:
                 if math.isnan(arrow_angle)==False:
+                    linewidth = 2
                     linestyle = 'solid'
                     text = "arrow angle: "+str(arrow_angle)
                     ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
