@@ -531,8 +531,7 @@ def template_matching(image_array, templates_df, debug = True):
     image_array = image_array.astype(np.float32)
 
     #TODO: Can we use the intersection of this to only  search inside the contour?
-    (y, x) = np.where(image_array == True)
-
+    inner_contour = np.where(image_array != 0)
 
     location_index = -1
 
@@ -545,7 +544,16 @@ def template_matching(image_array, templates_df, debug = True):
         result = cv2.matchTemplate(image_array, template.astype(np.float32), cv2.TM_CCOEFF_NORMED)  # template matching
         threshold = 0.9
         location = np.where(result >= threshold)  # areas where results are >= than threshold value
-        if len(location[0]) > 0:
+
+        #TODO: Invert the loop.
+        match = False
+        for n1, _ in enumerate(inner_contour[0]):
+            (item1,item2) = (inner_contour[0][n1], inner_contour[1][n1])
+            for n2, _ in enumerate(location[0]):
+                if (location[0][n2], location[1][n2]) == (item1,item2):
+                    match = True
+
+        if len(location[0]) > 0 and match==True:
             if result[location].mean() > avg_match:
                 index = i
                 avg_match = result[location].mean()
