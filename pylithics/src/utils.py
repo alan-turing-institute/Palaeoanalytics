@@ -697,12 +697,6 @@ def measure_arrow_angle(template):
     # # Create a copy of the crop for results:
     gray_copy = cv2.cvtColor(extended, cv2.COLOR_GRAY2BGR)
     #
-    fig, ax = plt.subplots(figsize=(14, 8))
-    ax = plt.subplot(111)
-    ax.imshow(gray, cmap=plt.cm.gray)
-    plt.show()
-
-
     # Create skeleton of the image
     skeleton = cv2.ximgproc.thinning(extended, None, 1)
 
@@ -829,6 +823,7 @@ def measure_arrow_angle(template):
 
     cv2.waitKey(0)
 
+    # returning arrow one for now
     return angle_1
 
 
