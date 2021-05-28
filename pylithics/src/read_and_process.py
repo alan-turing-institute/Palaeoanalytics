@@ -90,7 +90,7 @@ def find_lithic_contours(image_array, config_file, arrows = False):
     """
 
     cv_image = img_as_ubyte(image_array)
-    contours_cv, hierarchy = cv2.findContours(cv_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    _, contours_cv, hierarchy = cv2.findContours(cv_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
 
 
@@ -291,6 +291,8 @@ def get_arrows(image_array, cont, templates):
 
             # high levels contours are surfaces
             if hierarchy_level != 0:
+
+                #TODO: Make a scar selection to not search in empty scars.
 
                 masked_image = mask_image(image_array, contour, False)
 
