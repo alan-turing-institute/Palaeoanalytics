@@ -18,6 +18,7 @@ setup(
     # we will need this later, i'll leave it commented as cont reminder.
     entry_points={"console_scripts": [
       "pylithics_run=pylithics.scripts.run:main",
+      "pylithics_get_arrows=pylithics.scripts.run_arrows:main",
 
     ]},
 )

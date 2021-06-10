@@ -94,36 +94,19 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
 
     if arrows:
 
-        index_drop, templates = find_arrow_templates(image_processed, contours)
-        contours = contours[~contours['index'].isin(index_drop)]
-
-        arrow_data_df = get_angles(templates, id)
-
-        data_arrows_file = os.path.join('pylithics', "arrow_template_data","arrows" + id + ".pkl")
-
-        arrow_data_df.to_pickle(data_arrows_file)
-
-        output_lithic = os.path.join(output_dir, id + "_lithic_arrow_contours.png")
-        plot_arrow_contours(image_array, contours, output_lithic)
-
-        print('Arrow extraction for lithic '+id+' is done.')
-
-
-    else:
-
         templates = read_arrow_data(os.path.join('pylithics', "arrow_template_data"))
         contours = get_arrows(image_processed, contours, templates)
 
-        output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
-        plot_contours(image_array, contours, output_lithic)
+    output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
+    plot_contours(image_array, contours, output_lithic)
 
-        json_output = data_output(contours, config_file)
+    json_output = data_output(contours, config_file)
 
-        data_output_file = os.path.join(output_dir, id + ".json")
-        print('Saving data to file: ', data_output_file)
+    data_output_file = os.path.join(output_dir, id + ".json")
+    print('Saving data to file: ', data_output_file)
 
-        with open(data_output_file, 'w') as f:
-            json.dump(json_output, f)
+    with open(data_output_file, 'w') as f:
+        json.dump(json_output, f)
 
         print('Done.')
 
@@ -137,7 +120,7 @@ def main():
     parser.add_argument('--output_dir', type=str, help='directory where the output data is saved', default=None)
     parser.add_argument('--metadata_filename', type=str, help='CSV file with information on the images and scale',
                         default=None)
-    parser.add_argument('--get_arrows', action="store_true", help='CSV file with information on the images and scale',
+    parser.add_argument('--get_arrows', action="store_true", help='If the lithic contains arrow find them and add them to the data',
                         default=False)
 
 

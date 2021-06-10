@@ -164,8 +164,6 @@ def plot_arrow_contours(image_array, contours, output_path):
             continue
 
     fontP.set_size('xx-small')
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='xx-small')
-
     plt.figtext(0.02, 0.5, str(len(contours))+' contours')
     ax.set_xticks([])
     ax.set_yticks([])
