@@ -93,9 +93,17 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
     contours = find_lithic_contours(binary_array, config_file, arrows)
 
     if arrows:
+        contours_arrows = find_lithic_contours(binary_array, config_file, arrows)
 
-        templates = read_arrow_data(os.path.join('pylithics', "arrow_template_data"))
-        contours = get_arrows(image_processed, contours, templates)
+        index_drop, templates = find_arrow_templates(image_processed, contours_arrows)
+        contours_arrows = contours_arrows[~contours_arrows['index'].isin(index_drop)]
+
+        output_lithic = os.path.join(output_dir, id + "_lithic_arrow_contours.png")
+        plot_arrow_contours(image_array, contours_arrows, output_lithic)
+
+        arrow_data_df = get_angles(templates, id)
+
+        contours = get_arrows(image_processed, contours, arrow_data_df)
 
     output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
     plot_contours(image_array, contours, output_lithic)
