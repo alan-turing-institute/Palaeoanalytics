@@ -296,14 +296,7 @@ def get_arrows(image_array, cont, templates):
 
                 masked_image = mask_image(image_array, contour, False)
 
-
-
-                rows, columns = subtract_masked_image(masked_image)
-
-                new_masked_image = np.delete(masked_image, rows[:-1], 0)
-                new_masked_image = np.delete(new_masked_image, columns[:-1], 1)
-
-                template_index = template_matching(new_masked_image,templates)
+                template_index = template_matching(masked_image,templates, contour)
 
                 if template_index!=-1:
                     id = templates.iloc[template_index]['id']

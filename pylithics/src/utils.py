@@ -508,7 +508,7 @@ def subtract_masked_image(masked_image_array):
     return rows, columns
 
 
-def template_matching(image_array, templates_df, debug = True):
+def template_matching(image_array, templates_df, contour, debug = True):
     """
 
     Find best template match in an image
@@ -547,31 +547,56 @@ def template_matching(image_array, templates_df, debug = True):
         threshold = 0.9
         location = np.where(result >= threshold)  # areas where results are >= than threshold value
 
-        #TODO: Invert the loop.
-        match = False
-        for n1, _ in enumerate(inner_contour[0]):
-            (item1,item2) = (inner_contour[0][n1], inner_contour[1][n1])
-            for n2, _ in enumerate(location[0]):
-                if (location[0][n2], location[1][n2]) == (item1,item2):
-                    match = True
 
-        if len(location[0]) > 0 and match==True:
-            if result[location].mean() > avg_match:
+
+
+        location_new_x = []
+        location_new_y = []
+
+        for j in range(len(location[0])):
+            X = location[1][j]
+            Y = location[0][j]
+            inside = cv2.pointPolygonTest(contour, (X,Y), False)
+            if inside == 1.0:
+                location_new_x.append(location[1][j])
+                location_new_y.append(location[0][j])
+
+        location_new = (location_new_y,location_new_x)
+
+
+        if len(location_new[0]) > 0:
+            if result[location_new].max() > avg_match:
                 index = i
-                avg_match = result[location].mean()
+                avg_match = result[location_new].max()
+
+
+                (startX, startY) = (location_new[1][0], location_new[0][0])
+                endX = startX + template.shape[0]
+                endY = startY + template.shape[1]
+
 
     if avg_match>0:
         location_index = index
 
     if location_index!= -1 and debug:
 
-        fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
-        ax[0].imshow(image_array, cmap=plt.cm.gray)
+        rows, columns = subtract_masked_image(image_array)
+
+        new_masked_image = np.delete(image_array, rows[:-1], 0)
+        new_masked_image = np.delete(new_masked_image, columns[:-1], 1)
+
+        fig, ax = plt.subplots(ncols=3, nrows=1, figsize=(10, 5))
+        ax[0].imshow(new_masked_image, cmap=plt.cm.gray)
         ax[1].imshow(templates[location_index], cmap=plt.cm.gray)
         ax[1].set_xticks([])
         ax[1].set_yticks([])
+        image = image_array.copy()
+        ax[2].imshow(image, cmap=plt.cm.gray)
+        # Change
+        cv2.rectangle(image, (startX, startY), (endX, endY), 3)
+        # show the output image
+        ax[2].imshow(image, cmap=plt.cm.gray)
         plt.show()
-        plt.close(fig)
 
     return location_index
 
@@ -812,16 +837,16 @@ def measure_arrow_angle(template):
     # line_angle = (180/math.pi)*math.atan(y2/y1)
     # print(print(f"Line angle: {line_angle}"))
 
-    # Show it all
-    cv2.imshow("End-Points", gray_copy)
-    # cv2.imshow("Extend borders", extended)
-    # cv2.imshow("Threshold", thresh)
-    cv2.imshow("Skeleton", skeleton)
-    # cv2.imshow("Gray", gray)
-    cv2.imshow("Binary", binary_image)
-    cv2.imshow("Detected Line", detected_line)
-
-    cv2.waitKey(0)
+    # # Show it all
+    # cv2.imshow("End-Points", gray_copy)
+    # # cv2.imshow("Extend borders", extended)
+    # # cv2.imshow("Threshold", thresh)
+    # cv2.imshow("Skeleton", skeleton)
+    # # cv2.imshow("Gray", gray)
+    # cv2.imshow("Binary", binary_image)
+    # cv2.imshow("Detected Line", detected_line)
+    #
+    # cv2.waitKey(0)
 
     # returning arrow one for now
     return angle_1
