@@ -4,7 +4,7 @@ import yaml
 import json
 import os
 import pandas as pd
-from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, process_image, data_output, get_arrows, read_arrow_data
+from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, process_image, data_output, get_scars_angles
 from pylithics.src.plotting import plot_contours, plot_thresholding, plot_arrow_contours
 from pylithics.src.utils import pixulator, find_arrow_templates, get_angles
 
@@ -69,10 +69,12 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
     print('Processing figure: ', id)
 
     name = os.path.join(input_dir, "images", id + '.png')
+
+    # read image
     image_array, image_pdi = read_image(name)
 
+    # get name of scale and if found read it
     name_scale = os.path.join(input_dir, "scales", config_file["scale_id"] + '.png')
-
     try:
         image_scale_array, image_scale_dpi = read_image(name_scale)
         config_file['conversion_px'] = pixulator(image_scale_array, config_file["scale_cm"])
@@ -82,32 +84,45 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
             print(
                 "Scale " + name_scale + " for object " + id + " not found. No area measurement will be calculated.")
 
+    # initial processing of the image
     image_processed = process_image(image_array, config_file)
 
+    # procesing to detect lithic and scars
     binary_array, threshold_value = detect_lithic(image_processed, config_file)
 
+    # show output of lithic detection for debugging
     if debug == True:
         output_threshold = os.path.join(output_dir, id + "_lithic_threshold.png")
         plot_thresholding(image_processed, threshold_value, binary_array, output_threshold)
 
-    contours = find_lithic_contours(binary_array, config_file, arrows)
+    # find contours
+    contours = find_lithic_contours(binary_array, config_file)
 
+    # if this lithic has arrows do processing to detect and measure arrow angle
     if arrows:
+
+        # find arrows
         contours_arrows = find_lithic_contours(binary_array, config_file, arrows)
 
+        # create arrow templates
         index_drop, templates = find_arrow_templates(image_processed, contours_arrows)
         contours_arrows = contours_arrows[~contours_arrows['index'].isin(index_drop)]
 
-        output_lithic = os.path.join(output_dir, id + "_lithic_arrow_contours.png")
-        plot_arrow_contours(image_array, contours_arrows, output_lithic)
+        # show output of arrow detection for debugging
+        if debug == True:
+            output_lithic = os.path.join(output_dir, id + "_lithic_arrow_contours.png")
+            plot_arrow_contours(image_array, contours_arrows, output_lithic)
 
+        # measure angles for existing arrows
         arrow_data_df = get_angles(templates, id)
 
-        contours = get_arrows(image_processed, contours, arrow_data_df)
+        # associate arrows to scars, add that info into the contour
+        contours = get_scars_angles(image_processed, contours, arrow_data_df)
 
     output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
     plot_contours(image_array, contours, output_lithic)
 
+    # save data into a json file
     json_output = data_output(contours, config_file)
 
     data_output_file = os.path.join(output_dir, id + ".json")

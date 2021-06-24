@@ -222,8 +222,8 @@ def data_output(cont, config_file):
 
             scars_objects_list = []
             scar_id = 0
-            for index, area_px, area_mm, width_mm, height_mm, arrow_angle in scars_df[
-                ['index', 'area_px', 'area_mm', 'width_mm', 'height_mm','arrow_angle']].itertuples(index=False):
+            for index, area_px, area_mm, width_mm, height_mm, angle in scars_df[
+                ['index', 'area_px', 'area_mm', 'width_mm', 'height_mm','angle']].itertuples(index=False):
                 scars_objects = {}
 
                 scars_objects['scar_id'] = scar_id
@@ -233,7 +233,7 @@ def data_output(cont, config_file):
                 scars_objects['max_length'] = height_mm
                 scars_objects['percentage_of_lithic'] = round(
                     scars_objects['total_area_px'] / outer_objects['total_area_px'], 2)
-                scars_objects['arrow_angle'] = arrow_angle
+                scars_objects['scar_angle'] = angle
 
                 scars_objects_list.append(scars_objects)
                 scar_id = scar_id + 1
@@ -274,39 +274,68 @@ def get_arrows(image_array, cont, templates):
     """
 
 
+    templates_id = []
+    templates_angle = []
+
+    for hierarchy_level, index, contour, area_px in cont[
+        ['hierarchy_level', 'index', 'contour', 'area_px']].itertuples(index=False):
+
+        id = np.nan
+        angle = np.nan
+
+        # high levels contours are surfaces
+        if hierarchy_level != 0:
+
+            #TODO: Make a scar selection to not search in empty scars.
+
+            masked_image = mask_image(image_array, contour, False)
+
+            template_index = template_matching(masked_image,templates, contour)
+
+            if template_index!=-1:
+                id = templates.iloc[template_index]['id']
+                angle = templates.iloc[template_index]['angle']
+
+        templates_id.append(id)
+        templates_angle.append(angle)
+
+    cont['arrow_template_id'] = templates_id
+    cont['angle'] = templates_angle
+
+    return cont
+
+def get_scars_angles(image_array, cont, templates = None):
+    """
+
+    Function that classifies contours that correspond to arrows, or ripples and
+    returns the angle measurement of that scar.
+
+
+    Parameters
+    ----------
+    image_array: array,
+        2D array of the masked_image_array
+    contours: dataframe
+        dataframe with all the contour information and measurements for an masked_image_array
+    templates: array
+        list of arrays with templates
+
+    Returns
+    -------
+
+    A contour dataframe with angle information
+
+    """
+
+
     if templates.shape[0]==0:
         cont['arrow_index'] = -1
+        cont['angle'] = np.nan
+
+        #TODO: DO SOMETHING WITH RIPPLES
 
     else:
-
-
-        templates_id = []
-        templates_angle = []
-
-        for hierarchy_level, index, contour, area_px in cont[
-            ['hierarchy_level', 'index', 'contour', 'area_px']].itertuples(index=False):
-
-            id = np.nan
-            angle = np.nan
-
-            # high levels contours are surfaces
-            if hierarchy_level != 0:
-
-                #TODO: Make a scar selection to not search in empty scars.
-
-                masked_image = mask_image(image_array, contour, False)
-
-                template_index = template_matching(masked_image,templates, contour)
-
-                if template_index!=-1:
-                    id = templates.iloc[template_index]['id']
-                    angle = templates.iloc[template_index]['angle']
-
-            templates_id.append(id)
-            templates_angle.append(angle)
-
-        cont['arrow_template_id'] = templates_id
-        cont['arrow_angle'] = templates_angle
+        cont = get_arrows(image_array, cont, templates)
 
     return cont
 
@@ -319,7 +348,6 @@ def read_arrow_data(input_dir):
     for i in id_list:
 
         df_list.append(pd.read_pickle(i))
-
 
     return pd.concat(df_list)
 
