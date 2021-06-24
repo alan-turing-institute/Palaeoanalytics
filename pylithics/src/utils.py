@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndi
 from pylithics.src.shapedetector import ShapeDetector
-
+import pylithics.src.plotting as plot
 
 def area_contour(contour):
     """
@@ -530,10 +530,12 @@ def template_matching(image_array, templates_df, contour, debug = True):
 
     templates = templates_df['template_array'].values
 
-    image_array = image_array.astype(np.float32)
+    rows, columns = subtract_masked_image(image_array)
 
-    #TODO: Can we use the intersection of this to only  search inside the contour?
-    inner_contour = np.where(image_array != 0)
+    masked_image = np.delete(image_array, rows[:-1], 0)
+    masked_image = np.delete(masked_image, columns[:-1], 1)
+
+    image_array = image_array.astype(np.float32)
 
     location_index = -1
 
@@ -543,12 +545,9 @@ def template_matching(image_array, templates_df, contour, debug = True):
         (sW, sH) = image_array.shape[::-1]
         if tW > sW or tH>sH:
             continue
-        result = cv2.matchTemplate(image_array, template.astype(np.float32), cv2.TM_CCOEFF_NORMED)  # template matching
-        threshold = 0.9
-        location = np.where(result >= threshold)  # areas where results are >= than threshold value
-
-
-
+        result = cv2.matchTemplate(image_array, template.astype(np.float32), cv2.TM_CCORR_NORMED)  # template matching
+        threshold = 0.93
+        location = np.where( (result >= threshold) & (result <1.0))  # areas where results are >= than threshold value
 
         location_new_x = []
         location_new_y = []
@@ -561,18 +560,13 @@ def template_matching(image_array, templates_df, contour, debug = True):
                 location_new_x.append(location[1][j])
                 location_new_y.append(location[0][j])
 
-        location_new = (location_new_y,location_new_x)
+        location_new = (np.array(location_new_y),np.array(location_new_x))
 
 
         if len(location_new[0]) > 0:
-            if result[location_new].max() > avg_match:
+            if result[location_new].mean() > avg_match:
                 index = i
-                avg_match = result[location_new].max()
-
-
-                (startX, startY) = (location_new[1][0], location_new[0][0])
-                endX = startX + template.shape[0]
-                endY = startY + template.shape[1]
+                avg_match = result[location_new].mean()
 
 
     if avg_match>0:
@@ -580,28 +574,29 @@ def template_matching(image_array, templates_df, contour, debug = True):
 
     if location_index!= -1 and debug:
 
-        rows, columns = subtract_masked_image(image_array)
 
-        new_masked_image = np.delete(image_array, rows[:-1], 0)
-        new_masked_image = np.delete(new_masked_image, columns[:-1], 1)
-
-        fig, ax = plt.subplots(ncols=3, nrows=1, figsize=(10, 5))
-        ax[0].imshow(new_masked_image, cmap=plt.cm.gray)
-        ax[1].imshow(templates[location_index], cmap=plt.cm.gray)
-        ax[1].set_xticks([])
-        ax[1].set_yticks([])
-        image = image_array.copy()
-        ax[2].imshow(image, cmap=plt.cm.gray)
-        # Change
-        cv2.rectangle(image, (startX, startY), (endX, endY), 3)
-        # show the output image
-        ax[2].imshow(image, cmap=plt.cm.gray)
-        plt.show()
+        plot.plot_template_arrow(masked_image, templates[location_index], avg_match)
 
     return location_index
 
 
-def get_angles(templates, id):
+def get_angles(templates):
+
+    """
+
+    For a list of templates of arrows
+
+    Parameters
+    ----------
+    templates: list of arrays
+
+
+    Returns
+    -------
+
+    dataframe with arrays and angles measured
+
+    """
 
     template_dict_list = []
 
@@ -609,10 +604,12 @@ def get_angles(templates, id):
 
         template_dict = {}
 
-        template_dict['id'] = id+"_"+str(index)
-
         template_dict['template_array'] = template
-        template_dict['angle'] = measure_arrow_angle(template)
+        try:
+            template_dict['angle'] = measure_arrow_angle(template)
+        except:
+            template_dict['angle'] = np.nan
+
 
         template_dict_list.append(template_dict)
 
@@ -709,6 +706,21 @@ def contour_arrow_selection(df_contours):
 
 
 def measure_arrow_angle(template):
+    """
+
+    Function that measures the angle of an arrow template
+
+    Parameters
+    ----------
+    template: array
+        2d array representing an arrow.
+
+    Returns
+    -------
+
+    an angle.
+
+    """
 
     import math
 
@@ -716,12 +728,12 @@ def measure_arrow_angle(template):
     uint_img = np.array(template * 255).astype('uint8')
     gray = 255 - uint_img
 
-    # # Extend the borders for the skeleton
+    # Extend the borders for the skeleton
     extended = cv2.copyMakeBorder(gray, 5, 5, 5, 5, cv2.BORDER_CONSTANT)
 
-    # # Create a copy of the crop for results:
+    # Create a copy of the crop for results:
     gray_copy = cv2.cvtColor(extended, cv2.COLOR_GRAY2BGR)
-    #
+
     # Create skeleton of the image
     skeleton = cv2.ximgproc.thinning(extended, None, 1)
 
@@ -732,7 +744,7 @@ def measure_arrow_angle(template):
     # Set the end-points kernel for image convolution
 
     end_points = np.array([[1, 1, 1],
-                           [1, 10, 1],
+                           [1, 9, 1],
                            [1, 1, 1]])
 
     # Convolve the image using the kernel
@@ -766,8 +778,6 @@ def measure_arrow_angle(template):
     cluster_1_count = np.count_nonzero(label)
     cluster_0_count = np.shape(label)[0] - cluster_1_count
     #
-    # print(f"Elements of Cluster 0: {cluster_0_count}")
-    # print(f"Elements of Cluster 1: {cluster_1_count}")
 
     # The cluster of max number of points will be the tip of the arrow
     max_cluster = 0
@@ -788,12 +798,12 @@ def measure_arrow_angle(template):
         # Get the arrow tip
         if b == max_cluster:
             color = (0, 0, 255)
-            ordered_points[0] = (point_X, point_Y)
+            ordered_points[1] = (point_X, point_Y)
             cv2.circle(gray_copy, (point_X, point_Y), 5, color, -1)
         # Find the tail
         else:
             color = (255, 0, 0)
-            ordered_points[1] = (point_X, point_Y)
+            ordered_points[0] = (point_X, point_Y)
             cv2.circle(gray_copy, (point_X, point_Y), 5, color, -1)
 
     # Store the tip and tail points
@@ -813,43 +823,14 @@ def measure_arrow_angle(template):
     cv2.line(detected_line, (x1, y1), (x2, y2), (0, 0, 0), thickness=2)
 
     # Compute x/y distance
-    (dx, dy) = (p1x - p0x, p1y - p0y)
-    rads = math.atan2(-dy, dx)
+    (dx, dy) = (p0y - p1y, p0x - p1x)  # delta(d) x and delta y (distance between points along
+    # x and y axis). Here they have been reversed as angles do not extend from the center
+    # but towards it.
+    rads = math.atan2(-dy, dx)  # convert to radians
     rads %= 2 * math.pi
-    angle_1 = math.degrees(rads)
-    print(f"Arrow angle: {angle_1}")
+    angle = math.degrees(rads)  # convert to degrees.
 
-
-
-    # Compute the angle
-    # angle_2 = math.atan(float(dx)/float(dy))
-    # The angle is now in radians (-pi/2 to +pi/2).
-    # change to degrees
-    # angle_2 *= 180/math.pi
-    # print(f"Hypotenuse/opposite angle: {angle_2*-1}")
-    # Angle is from from -90 to +90
-    # To flip below the line
-    # if dy < 0:
-    #    angle_2 += 180
-    # print(f"Obtuse angle: {angle_2}")
-
-    # # angle derived from endpoints of the line drawn along the arrow
-    # line_angle = (180/math.pi)*math.atan(y2/y1)
-    # print(print(f"Line angle: {line_angle}"))
-
-    # # Show it all
-    # cv2.imshow("End-Points", gray_copy)
-    # # cv2.imshow("Extend borders", extended)
-    # # cv2.imshow("Threshold", thresh)
-    # cv2.imshow("Skeleton", skeleton)
-    # # cv2.imshow("Gray", gray)
-    # cv2.imshow("Binary", binary_image)
-    # cv2.imshow("Detected Line", detected_line)
-    #
-    # cv2.waitKey(0)
-
-    # returning arrow one for now
-    return angle_1
+    return angle
 
 
 
