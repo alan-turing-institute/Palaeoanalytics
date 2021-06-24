@@ -114,10 +114,10 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
             plot_arrow_contours(image_array, contours_arrows, output_lithic)
 
         # measure angles for existing arrows
-        arrow_data_df = get_angles(templates, id)
+        arrow_df = get_angles(templates)
 
         # associate arrows to scars, add that info into the contour
-        contours = get_scars_angles(image_processed, contours, arrow_data_df)
+        contours = get_scars_angles(image_processed, contours, arrow_df)
 
     output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
     plot_contours(image_array, contours, output_lithic)
