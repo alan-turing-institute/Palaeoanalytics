@@ -23,7 +23,7 @@ def plot_contours(image_array, contours, output_path):
     from matplotlib.font_manager import FontProperties
     fontP = FontProperties()
 
-    fig, ax = plt.subplots(figsize=(14, 8))
+    fig, ax = plt.subplots(figsize=(16, 10))
     ax = plt.subplot(111)
     ax.imshow(image_array, cmap=plt.cm.gray)
 
@@ -32,7 +32,7 @@ def plot_contours(image_array, contours, output_path):
 
 
     id = 0
-    for contour, parent_index, index, area_mm, width_mm, height_mm, arrow, arrow_angle in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm', 'arrow_template_id','arrow_angle']].itertuples(index=False):
+    for contour, parent_index, index, area_mm, width_mm, height_mm, arrow, angle in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm', 'arrow_template_id','angle']].itertuples(index=False):
         try:
             if parent_index==-1:
                 linewidth = 3
@@ -43,10 +43,10 @@ def plot_contours(image_array, contours, output_path):
                 ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
 
             else:
-                if math.isnan(arrow_angle)==False:
+                if math.isnan(angle)==False:
                     linewidth = 2
                     linestyle = 'solid'
-                    text = "arrow angle: "+str(arrow_angle)
+                    text = "arrow angle: "+str(angle)
                     ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
                 else:
                     linewidth = 2
