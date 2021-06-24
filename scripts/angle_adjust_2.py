@@ -2,9 +2,18 @@
 import cv2
 import numpy as np
 import math
+import argparse
+
+# construct argument parser
+ap = argparse.ArgumentParser()
+ap.add_argument("-i", "--image", type=str, required=True,
+                help="path to dataset of images")
+ap.add_argument("-c", "--connectivity", type=int, default=4,
+                help="connectivity for component analysis")
+args = vars(ap.parse_args())
 
 # import image and grayscale
-image = cv2.imread("templates/a_210.png")
+image = cv2.imread(args["image"])
 image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 gray = 255 - image
 
@@ -106,27 +115,29 @@ cv2.line(detected_line, (x1, y1), (x2, y2), (0, 0, 0), thickness=2)
 
 
 # Compute x/y distance
-(dx, dy) = (p1x-p0x, p1y-p0y)
-rads = math.atan2(-dy,dx)
+(dx, dy) = (p0y-p1y, p0x-p1x)  # delta(d) x and delta y (distance between points along
+# x and y axis). Here they have been reversed as angles do not extend from the center
+# but towards it.
+rads = math.atan2(-dy,dx)  # convert to radians
 rads %= 2*math.pi
-angle_1 = math.degrees(rads)
-print(f"Arrow angle: {360-angle_1+90}")
+angle = math.degrees(rads)  # convert to degrees.
+print(f"Arrow angle: {angle}")
 
 # Compute the angle
-angle_2 = math.atan(float(dx)/float(dy))
+# angle_2 = math.atan(float(dx)/float(dy))
 # The angle is now in radians (-pi/2 to +pi/2).
 # change to degrees
-angle_2 *= 180/math.pi
-print(f"Hypotenuse/opposite angle: {angle_2*-1}")
+# angle_2 *= 180/math.pi
+# print(f"Hypotenuse/opposite angle: {angle_2*-1}")
 # Angle is from from -90 to +90
 # To flip below the line
-if dy < 0:
-   angle_2 += 180
-print(f"Obtuse angle: {angle_2}")
+# if dy < 0:
+#    angle_2 += 180
+# print(f"Obtuse angle: {angle_2}")
 
 # angle derived from endpoints of the line drawn along the arrow
-line_angle = (180/math.pi)*math.atan(y2/y1)
-print(print(f"Line angle: {line_angle}"))
+# line_angle = (180/math.pi)*math.atan(y2/y1)
+# print(print(f"Line angle: {line_angle}"))
 
 # Show it all
 cv2.imshow("End-Points", gray_copy)
