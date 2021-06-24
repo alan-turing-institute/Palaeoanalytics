@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-from pylithics.src.utils import classify_surfaces
+import pylithics.src.utils as utils
 
 def plot_contours(image_array, contours, output_path):
     """
@@ -23,16 +23,16 @@ def plot_contours(image_array, contours, output_path):
     from matplotlib.font_manager import FontProperties
     fontP = FontProperties()
 
-    fig, ax = plt.subplots(figsize=(16, 10))
+    fig, ax = plt.subplots(figsize=(20, 10))
     ax = plt.subplot(111)
     ax.imshow(image_array, cmap=plt.cm.gray)
 
     contours.sort_values(by=["area_px"], inplace = True, ascending=False)
-    surfaces_classification = classify_surfaces(contours)
+    surfaces_classification = utils.classify_surfaces(contours)
 
 
     id = 0
-    for contour, parent_index, index, area_mm, width_mm, height_mm, arrow, angle in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm', 'arrow_template_id','angle']].itertuples(index=False):
+    for contour, parent_index, index, area_mm, width_mm, height_mm, angle in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm', 'angle']].itertuples(index=False):
         try:
             if parent_index==-1:
                 linewidth = 3
@@ -169,5 +169,15 @@ def plot_arrow_contours(image_array, contours, output_path):
     ax.set_yticks([])
     plt.savefig(output_path)
     plt.close(fig)
+
+def plot_template_arrow(image_array, template, value):
+
+    fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
+    ax[0].imshow(image_array, cmap=plt.cm.gray)
+    ax[1].imshow(template, cmap=plt.cm.gray)
+    ax[1].set_xticks([])
+    ax[1].set_yticks([])
+    plt.figtext(0.4, 0.9, str(value))
+    plt.show()
 
 
