@@ -19,8 +19,9 @@ Enter the repository and check out a relevant branch if necessary (the develop b
 cd Palaeoanalytics
 git checkout develop
 ```
-Install the package using `pip`.
+Install OpenCV using conda and the rest of packages using `pip`.
 ```
+conda install -c conda-forge opencv
 pip install .
 ```
 

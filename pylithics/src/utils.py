@@ -4,8 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndi
 from pylithics.src.shapedetector import ShapeDetector
-#from pylithics.src.plotting import plot_contour_figure
-
+import pylithics.src.plotting as plot
 
 def area_contour(contour):
     """
@@ -161,7 +160,7 @@ def contour_characterisation(image_array, cont, conversion=1):
 
     masked_image = mask_image(image_array, cont, True)
 
-    cont_info['lenght'] = len(cont * conversion)
+    cont_info['length'] = len(cont * conversion)
     cont_info['area_px'] = area
 
     rows, columns = subtract_masked_image(masked_image)
@@ -270,7 +269,7 @@ def pixulator(image_scale_array, scale_size):
     image_scale_array: array
         Image array
     scale_size:
-        Lenght in mm of the scale
+        length in mm of the scale
 
     Returns
     -------
@@ -378,9 +377,10 @@ def contour_arrow_classification(cont, hierarchy, quantiles, image_array):
 
     Parameters
     ----------
-    df_contours: dataframe
+    cont: dataframe
         Dataframe with contour information.
-
+    quantiles
+    hierarchy
     Returns
     -------
 
@@ -464,6 +464,7 @@ def find_arrow_templates(image_array, df_contours):
 
             df_contours.loc[df_contours.index == index, 'arrow'] = True
 
+
             rows, columns = subtract_masked_image(masked_image)
 
             new_masked_image = np.delete(image_array, rows[:-3], 0)
@@ -507,7 +508,7 @@ def subtract_masked_image(masked_image_array):
     return rows, columns
 
 
-def template_matching(image_array, templates_df):
+def template_matching(image_array, templates_df, contour, debug = True):
     """
 
     Find best template match in an image
@@ -516,9 +517,10 @@ def template_matching(image_array, templates_df):
     ----------
     image_array: array
         Array of input masked_image_array
-    templates: array
+    templates_df: array
         Array of template images
-
+    debug: bool
+        Make plot if True
     Returns
     -------
 
@@ -527,6 +529,11 @@ def template_matching(image_array, templates_df):
     """
 
     templates = templates_df['template_array'].values
+
+    rows, columns = subtract_masked_image(image_array)
+
+    masked_image = np.delete(image_array, rows[:-1], 0)
+    masked_image = np.delete(masked_image, columns[:-1], 1)
 
     image_array = image_array.astype(np.float32)
 
@@ -538,31 +545,58 @@ def template_matching(image_array, templates_df):
         (sW, sH) = image_array.shape[::-1]
         if tW > sW or tH>sH:
             continue
-        result = cv2.matchTemplate(image_array, template.astype(np.float32), cv2.TM_CCOEFF_NORMED)  # template matching
-        threshold = 0.9
-        location = np.where(result >= threshold)  # areas where results are >= than threshold value
-        if len(location[0]) > 0:
-            if result[location].mean() > avg_match:
+        result = cv2.matchTemplate(image_array, template.astype(np.float32), cv2.TM_CCORR_NORMED)  # template matching
+        threshold = 0.93
+        location = np.where( (result >= threshold) & (result <1.0))  # areas where results are >= than threshold value
+
+        location_new_x = []
+        location_new_y = []
+
+        for j in range(len(location[0])):
+            X = location[1][j]
+            Y = location[0][j]
+            inside = cv2.pointPolygonTest(contour, (X,Y), False)
+            if inside == 1.0:
+                location_new_x.append(location[1][j])
+                location_new_y.append(location[0][j])
+
+        location_new = (np.array(location_new_y),np.array(location_new_x))
+
+
+        if len(location_new[0]) > 0:
+            if result[location_new].mean() > avg_match:
                 index = i
-                avg_match = result[location].mean()
+                avg_match = result[location_new].mean()
+
 
     if avg_match>0:
         location_index = index
 
-    # if location_index!= -1:
-    #
-    #     fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
-    #     ax[0].imshow(image_array, cmap=plt.cm.gray)
-    #     ax[1].imshow(templates[location_index], cmap=plt.cm.gray)
-    #     ax[1].set_xticks([])
-    #     ax[1].set_yticks([])
-    #     plt.show()
-    #     plt.close(fig)
+    if location_index!= -1 and debug:
+
+
+        plot.plot_template_arrow(masked_image, templates[location_index], avg_match)
 
     return location_index
 
 
-def measure_arrow_angle(templates, id):
+def get_angles(templates):
+
+    """
+
+    For a list of templates of arrows
+
+    Parameters
+    ----------
+    templates: list of arrays
+
+
+    Returns
+    -------
+
+    dataframe with arrays and angles measured
+
+    """
 
     template_dict_list = []
 
@@ -570,10 +604,12 @@ def measure_arrow_angle(templates, id):
 
         template_dict = {}
 
-        template_dict['id'] = id+"_"+str(index)
-
         template_dict['template_array'] = template
-        template_dict['angle'] = 0
+        try:
+            template_dict['angle'] = measure_arrow_angle(template)
+        except:
+            template_dict['angle'] = np.nan
+
 
         template_dict_list.append(template_dict)
 
@@ -667,6 +703,135 @@ def contour_arrow_selection(df_contours):
                     index_to_drop.append(i)
 
     return index_to_drop
+
+
+def measure_arrow_angle(template):
+    """
+
+    Function that measures the angle of an arrow template
+
+    Parameters
+    ----------
+    template: array
+        2d array representing an arrow.
+
+    Returns
+    -------
+
+    an angle.
+
+    """
+
+    import math
+
+    #import image and grayscale
+    uint_img = np.array(template * 255).astype('uint8')
+    gray = 255 - uint_img
+
+    # Extend the borders for the skeleton
+    extended = cv2.copyMakeBorder(gray, 5, 5, 5, 5, cv2.BORDER_CONSTANT)
+
+    # Create a copy of the crop for results:
+    gray_copy = cv2.cvtColor(extended, cv2.COLOR_GRAY2BGR)
+
+    # Create skeleton of the image
+    skeleton = cv2.ximgproc.thinning(extended, None, 1)
+
+    # Threshold the image. White pixels = 0, and black pixels = 10:
+    # ret = value used for thresholding, thresh is the image used for thresholding
+    retval, thresh = cv2.threshold(skeleton, 128, 10, cv2.THRESH_BINARY)
+
+    # Set the end-points kernel for image convolution
+
+    end_points = np.array([[1, 1, 1],
+                           [1, 9, 1],
+                           [1, 1, 1]])
+
+    # Convolve the image using the kernel
+    filtered_image = cv2.filter2D(thresh, -1, end_points)
+
+    # Extract only the end-points pixels with pixel intensity value of 110
+    binary_image = np.where(filtered_image == 110, 255, 0)
+
+    # The above operation converted the image to 32-bit float,
+    # convert back to 8-bit
+    binary_image = binary_image.astype(np.uint8)
+
+    # Find the X, Y location of all the end-points pixels
+    Y, X = binary_image.nonzero()
+
+    # Reshape arrays for K-means
+    Y = Y.reshape(-1, 1)
+    X = X.reshape(-1, 1)
+    Z = np.hstack((X, Y))
+
+    # K-means operates on 32-bit float data
+    float_points = np.float32(Z)
+
+    # Set the convergence criteria and call K-means
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    ret, label, center = cv2.kmeans(float_points, 2, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+
+    # Set the cluster count, find the points belonging
+    # to cluster 0 and cluster 1
+
+    cluster_1_count = np.count_nonzero(label)
+    cluster_0_count = np.shape(label)[0] - cluster_1_count
+    #
+
+    # The cluster of max number of points will be the tip of the arrow
+    max_cluster = 0
+    if cluster_1_count > cluster_0_count:
+        max_cluster = 1
+
+    # Check out the centers of each cluster:
+    mat_rows, mat_cols = center.shape
+
+    # Store the ordered end-points
+    ordered_points = [None] * 2
+
+    # Identify and draw the two end-points of the arrow
+    for b in range(mat_rows):
+        # Find cluster center
+        point_X = int(center[b][0])
+        point_Y = int(center[b][1])
+        # Get the arrow tip
+        if b == max_cluster:
+            color = (0, 0, 255)
+            ordered_points[1] = (point_X, point_Y)
+            cv2.circle(gray_copy, (point_X, point_Y), 5, color, -1)
+        # Find the tail
+        else:
+            color = (255, 0, 0)
+            ordered_points[0] = (point_X, point_Y)
+            cv2.circle(gray_copy, (point_X, point_Y), 5, color, -1)
+
+    # Store the tip and tail points
+    p0x = ordered_points[1][0]
+    p0y = ordered_points[1][1]
+    p1x = ordered_points[0][0]
+    p1y = ordered_points[0][1]
+
+    # Create a new image using the input dimensions
+    image_height, image_width = binary_image.shape[:2]
+    new_image = np.zeros((image_height, image_width), np.uint8)
+    detected_line = 255 - new_image
+
+    # Draw a line using the detected points
+    (x1, y1) = ordered_points[0]
+    (x2, y2) = ordered_points[1]
+    cv2.line(detected_line, (x1, y1), (x2, y2), (0, 0, 0), thickness=2)
+
+    # Compute x/y distance
+    (dx, dy) = (p0y - p1y, p0x - p1x)  # delta(d) x and delta y (distance between points along
+    # x and y axis). Here they have been reversed as angles do not extend from the center
+    # but towards it.
+    rads = math.atan2(-dy, dx)  # convert to radians
+    rads %= 2 * math.pi
+    angle = math.degrees(rads)  # convert to degrees.
+
+    return angle
+
 
 
 
