@@ -853,7 +853,45 @@ def measure_vertices(cont,epsilon=0.04):
 
 
 
+def shape_detection(contour):
+    """
+    Given a contour from a surface or scar, detect an approximate
+    shape to the contour.
 
+    Parameters
+    ----------
+    cont: array
+     array with coordinates defining the contour.
+
+    Returns
+    -------
+
+    A string with the shape classification
+    A number with the number of vertices
+
+
+    """
+    # initialize the shape name and approximate the contour
+    shape = "unidentified"
+    vertices, approx = measure_vertices(contour)
+    # if the shape is a triangle, it will have 3 vertices
+    if vertices == 3:
+        shape = "triangle"
+        # if the shape has 4 vertices, it is either a square or
+        # a rectangle
+    elif vertices == 4:
+        # compute the bounding box of the contour and use the
+        # bounding box to compute the aspect ratio
+        (x, y, w, h) = cv2.boundingRect(approx)
+        ar = w / float(h)
+        # a square will have an aspect ratio that is approximately
+        # equal to one, otherwise, the shape is a rectangle
+        shape = "square" if ar >= 0.95 and ar <= 1.05 else "arrow"
+        # if the shape is a pentagon, it will have 5 vertices
+    elif vertices >= 5:
+        shape = "arrow"
+        # otherwise, we assume the shape is an arrow
+    return shape, vertices
 
 
 
