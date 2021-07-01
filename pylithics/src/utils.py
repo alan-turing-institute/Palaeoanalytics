@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndi
-from pylithics.src.shapedetector import ShapeDetector
 import pylithics.src.plotting as plot
 
 def area_contour(contour):
@@ -182,7 +181,7 @@ def contour_characterisation(image_array, cont, conversion=1):
     cont_info['area_mm'] = area_mm
     cont_info['width_mm'] = width_mm
     cont_info['height_mm'] = height_mm
-    cont_info['n_vertices'], _ = measure_vertices(cont,0.1)
+    cont_info['n_vertices'], _ = measure_vertices(cont,0.02)
 
     return cont_info
 
