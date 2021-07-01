@@ -182,7 +182,7 @@ def contour_characterisation(image_array, cont, conversion=1):
     cont_info['area_mm'] = area_mm
     cont_info['width_mm'] = width_mm
     cont_info['height_mm'] = height_mm
-    # cont_info['contour'] = cont
+    cont_info['n_vertices'], _ = measure_vertices(cont,0.1)
 
     return cont_info
 
@@ -392,20 +392,9 @@ def contour_arrow_classification(cont, hierarchy, quantiles, image_array):
         return False
     else:
 
-        sd = ShapeDetector()
-
-        ratio = 1
-        # loop over the contours
-
-        # shape using only the contour
-        M = cv2.moments(cont)
-        cX = int((M["m10"] / M["m00"]) * ratio)
-        cY = int((M["m01"] / M["m00"]) * ratio)
-
-        shape, vertices = sd.detect(cont)
+        shape, vertices = shape_detection(cont)
         # multiply the contour (x, y)-coordinates by the resize ratio,
         # then draw the contours and the name of the shape on the image
-
 
         if shape == 'arrow':
 
@@ -831,6 +820,37 @@ def measure_arrow_angle(template):
     angle = math.degrees(rads)  # convert to degrees.
 
     return angle
+
+def measure_vertices(cont,epsilon=0.04):
+    """
+
+    Given a contour from a surface or scar, estimate the number of vertices of an approximate
+    shape to the contour.
+
+    Parameters
+    ----------
+    cont: array
+     array with coordinates defining the contour.
+    epsilon: float
+     degree of precition in approximantion
+
+
+    Returns
+    -------
+
+    A number
+    An array with approximate contour
+
+    """
+
+    # get perimeters
+    peri = cv2.arcLength(cont, True)
+    #approximates a curve or a polygon with another curve / polygon with less vertices
+    # so that the distance between them is less or equal to the specified precision
+    approx = cv2.approxPolyDP(cont, epsilon * peri, True)
+
+    return len(approx), approx
+
 
 
 
