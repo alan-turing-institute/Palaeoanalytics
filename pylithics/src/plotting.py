@@ -23,7 +23,7 @@ def plot_contours(image_array, contours, output_path):
     from matplotlib.font_manager import FontProperties
     fontP = FontProperties()
 
-    fig, ax = plt.subplots(figsize=(20, 10))
+    fig, ax = plt.subplots(figsize=(20, 12))
     ax = plt.subplot(111)
     ax.imshow(image_array, cmap=plt.cm.gray)
 
@@ -32,7 +32,8 @@ def plot_contours(image_array, contours, output_path):
 
 
     id = 0
-    for contour, parent_index, index, area_mm, width_mm, height_mm, angle in contours[['contour', 'parent_index', 'index','area_px','width_mm','height_mm', 'angle']].itertuples(index=False):
+    for contour, parent_index, index, area_mm, width_mm, height_mm, angle, n_vertices in \
+            contours[['contour', 'parent_index','index','area_px','width_mm','height_mm', 'angle','n_vertices']].itertuples(index=False):
         try:
             if parent_index==-1:
                 linewidth = 3
@@ -46,18 +47,21 @@ def plot_contours(image_array, contours, output_path):
                 if math.isnan(angle)==False:
                     linewidth = 2
                     linestyle = 'solid'
-                    text = "arrow angle: "+str(angle)
+                    #text = "arrow angle: "+str(angle)
+                    text = "n vertices: "+str(n_vertices)
                     ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
                 else:
                     linewidth = 2
                     linestyle = 'dashed'
-                    ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle)
+                    text = "n vertices: "+str(n_vertices)
+                    ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle,label = text)
 
         except:
             continue
 
     fontP.set_size('xx-small')
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='xx-small')
+    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc='lower left', ncol=2, mode="expand", borderaxespad=0., fontsize='xx-small')
+        #bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='xx-small')
 
     plt.figtext(0.02, 0.5, str(len(contours))+' contours')
     ax.set_xticks([])
