@@ -32,8 +32,8 @@ def plot_contours(image_array, contours, output_path):
 
 
     id = 0
-    for contour, parent_index, index, area_mm, width_mm, height_mm, angle, n_vertices in \
-            contours[['contour', 'parent_index','index','area_px','width_mm','height_mm', 'angle','n_vertices']].itertuples(index=False):
+    for contour, parent_index, index, area_mm, width_mm, height_mm, angle, polygon_count in \
+            contours[['contour', 'parent_index','index','area_px','width_mm','height_mm', 'angle','polygon_count']].itertuples(index=False):
         try:
             if parent_index==-1:
                 linewidth = 3
@@ -48,12 +48,12 @@ def plot_contours(image_array, contours, output_path):
                     linewidth = 2
                     linestyle = 'solid'
                     #text = "arrow angle: "+str(angle)
-                    text = "n vertices: "+str(n_vertices)
+                    text = "n vertices: "+str(polygon_count)
                     ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle, label=text)
                 else:
                     linewidth = 2
                     linestyle = 'dashed'
-                    text = "n vertices: "+str(n_vertices)
+                    text = "n vertices: "+str(polygon_count)
                     ax.plot(contour[:, 0], contour[:, 1], linewidth=linewidth, linestyle=linestyle,label = text)
 
         except:
