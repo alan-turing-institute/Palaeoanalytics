@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndi
-from pylithics.src.shapedetector import ShapeDetector
 import pylithics.src.plotting as plot
 
 def area_contour(contour):
@@ -182,7 +181,7 @@ def contour_characterisation(image_array, cont, conversion=1):
     cont_info['area_mm'] = area_mm
     cont_info['width_mm'] = width_mm
     cont_info['height_mm'] = height_mm
-    # cont_info['contour'] = cont
+    cont_info['polygon_count'], _ = measure_vertices(cont,0.02)
 
     return cont_info
 
@@ -392,20 +391,9 @@ def contour_arrow_classification(cont, hierarchy, quantiles, image_array):
         return False
     else:
 
-        sd = ShapeDetector()
-
-        ratio = 1
-        # loop over the contours
-
-        # shape using only the contour
-        M = cv2.moments(cont)
-        cX = int((M["m10"] / M["m00"]) * ratio)
-        cY = int((M["m01"] / M["m00"]) * ratio)
-
-        shape, vertices = sd.detect(cont)
+        shape, vertices = shape_detection(cont)
         # multiply the contour (x, y)-coordinates by the resize ratio,
         # then draw the contours and the name of the shape on the image
-
 
         if shape == 'arrow':
 
@@ -832,8 +820,77 @@ def measure_arrow_angle(template):
 
     return angle
 
+def measure_vertices(cont,epsilon=0.04):
+    """
+
+    Given a contour from a surface or scar, estimate the number of vertices of an approximate
+    shape to the contour.
+
+    Parameters
+    ----------
+    cont: array
+     array with coordinates defining the contour.
+    epsilon: float
+     degree of precition in approximantion
 
 
+    Returns
+    -------
+
+    A number
+    An array with approximate contour
+
+    """
+
+    # get perimeters
+    peri = cv2.arcLength(cont, True)
+    #approximates a curve or a polygon with another curve / polygon with less vertices
+    # so that the distance between them is less or equal to the specified precision
+    approx = cv2.approxPolyDP(cont, epsilon * peri, True)
+
+    return len(approx), approx
+
+
+
+def shape_detection(contour):
+    """
+    Given a contour from a surface or scar, detect an approximate
+    shape to the contour.
+
+    Parameters
+    ----------
+    cont: array
+     array with coordinates defining the contour.
+
+    Returns
+    -------
+
+    A string with the shape classification
+    A number with the number of vertices
+
+
+    """
+    # initialize the shape name and approximate the contour
+    shape = "unidentified"
+    vertices, approx = measure_vertices(contour)
+    # if the shape is a triangle, it will have 3 vertices
+    if vertices == 3:
+        shape = "triangle"
+        # if the shape has 4 vertices, it is either a square or
+        # a rectangle
+    elif vertices == 4:
+        # compute the bounding box of the contour and use the
+        # bounding box to compute the aspect ratio
+        (x, y, w, h) = cv2.boundingRect(approx)
+        ar = w / float(h)
+        # a square will have an aspect ratio that is approximately
+        # equal to one, otherwise, the shape is a rectangle
+        shape = "square" if ar >= 0.95 and ar <= 1.05 else "arrow"
+        # if the shape is a pentagon, it will have 5 vertices
+    elif vertices >= 5:
+        shape = "arrow"
+        # otherwise, we assume the shape is an arrow
+    return shape, vertices
 
 
 

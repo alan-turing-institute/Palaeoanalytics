@@ -197,8 +197,8 @@ def data_output(cont, config_file):
     outer_objects_list = []
 
     # loop through the contours
-    for hierarchy_level, index, area_px, area_mm, width_mm, height_mm in cont[
-        ['hierarchy_level', 'index', 'area_px', 'area_mm', 'width_mm', 'height_mm']].itertuples(index=False):
+    for hierarchy_level, index, area_px, area_mm, width_mm, height_mm, polygon_count in cont[
+        ['hierarchy_level', 'index', 'area_px', 'area_mm', 'width_mm', 'height_mm','polygon_count']].itertuples(index=False):
 
         outer_objects = {}
 
@@ -211,6 +211,7 @@ def data_output(cont, config_file):
             outer_objects['total_area'] = area_mm
             outer_objects['max_breadth'] = width_mm
             outer_objects['max_length'] = height_mm
+            outer_objects["polygon_count"] = polygon_count
 
             scars_df = cont[cont['parent_index'] == index]
 
@@ -222,8 +223,8 @@ def data_output(cont, config_file):
 
             scars_objects_list = []
             scar_id = 0
-            for index, area_px, area_mm, width_mm, height_mm, angle in scars_df[
-                ['index', 'area_px', 'area_mm', 'width_mm', 'height_mm','angle']].itertuples(index=False):
+            for index, area_px, area_mm, width_mm, height_mm, angle,polygon_count in scars_df[
+                ['index', 'area_px', 'area_mm', 'width_mm', 'height_mm','angle', 'polygon_count']].itertuples(index=False):
                 scars_objects = {}
 
                 scars_objects['scar_id'] = scar_id
@@ -234,6 +235,7 @@ def data_output(cont, config_file):
                 scars_objects['percentage_of_lithic'] = round(
                     scars_objects['total_area_px'] / outer_objects['total_area_px'], 2)
                 scars_objects['scar_angle'] = angle
+                scars_objects["polygon_count"] = polygon_count
 
                 scars_objects_list.append(scars_objects)
                 scar_id = scar_id + 1
