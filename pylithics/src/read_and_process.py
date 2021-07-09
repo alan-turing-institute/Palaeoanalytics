@@ -5,12 +5,15 @@ import pandas as pd
 from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
 from skimage.segmentation import morphological_chan_vese, checkerboard_level_set
-from pylithics.src.utils import contour_characterisation, contour_desambiguiation, classify_surfaces, get_high_level_parent_and_hirarchy
+from pylithics.src.utils import contour_characterisation, contour_desambiguiation, classify_surfaces, \
+    get_high_level_parent_and_hirarchy
 from skimage import img_as_ubyte
 import cv2
 from PIL import Image
 from pylithics.src.utils import template_matching, mask_image, subtract_masked_image, contour_arrow_selection
 import os
+import pylithics.src.plotting as plot
+
 
 def read_image(filename):
     """
@@ -74,7 +77,7 @@ def detect_lithic(image_array, config_file):
     return binary_image, thresh
 
 
-def find_lithic_contours(image_array, config_file, arrows = False):
+def find_lithic_contours(image_array, config_file):
     """
     Function that given an input image array and configuration options
      finds contours on cont the lithic object
@@ -83,6 +86,8 @@ def find_lithic_contours(image_array, config_file, arrows = False):
     ==========
     image_array: array, of the image read by skimage
     config_file: dict, with information of thresholding values
+    arrows: bool
+
     Returns
     =======
     an dataframe with contours and its characteristics.
@@ -91,8 +96,6 @@ def find_lithic_contours(image_array, config_file, arrows = False):
 
     cv_image = img_as_ubyte(image_array)
     _, contours_cv, hierarchy = cv2.findContours(cv_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-
-
 
     new_contours = []
     cont_info_list = []
@@ -108,7 +111,6 @@ def find_lithic_contours(image_array, config_file, arrows = False):
 
         cont_info['contour'] = cont
 
-
         new_contours.append(cont)
         cont_info_list.append(cont_info)
 
@@ -119,12 +121,7 @@ def find_lithic_contours(image_array, config_file, arrows = False):
         df_cont_info['parent_index'], df_cont_info['hierarchy_level'] = get_high_level_parent_and_hirarchy(
             df_cont_info['hierarchy'].values)
 
-
-        if arrows==False:
-            indexes = contour_desambiguiation(df_cont_info,image_array)
-        else:
-            indexes = contour_arrow_selection(df_cont_info)
-
+        indexes = contour_arrow_selection(df_cont_info)
 
         df_contours = df_cont_info.drop(index=indexes)
 
@@ -133,7 +130,6 @@ def find_lithic_contours(image_array, config_file, arrows = False):
 
     else:
         raise RuntimeError("No contours found in this image")
-
 
     return df_contours
 
@@ -198,7 +194,8 @@ def data_output(cont, config_file):
 
     # loop through the contours
     for hierarchy_level, index, area_px, area_mm, width_mm, height_mm, polygon_count in cont[
-        ['hierarchy_level', 'index', 'area_px', 'area_mm', 'width_mm', 'height_mm','polygon_count']].itertuples(index=False):
+        ['hierarchy_level', 'index', 'area_px', 'area_mm', 'width_mm', 'height_mm', 'polygon_count']].itertuples(
+        index=False):
 
         outer_objects = {}
 
@@ -223,8 +220,9 @@ def data_output(cont, config_file):
 
             scars_objects_list = []
             scar_id = 0
-            for index, area_px, area_mm, width_mm, height_mm, angle,polygon_count in scars_df[
-                ['index', 'area_px', 'area_mm', 'width_mm', 'height_mm','angle', 'polygon_count']].itertuples(index=False):
+            for index, area_px, area_mm, width_mm, height_mm, angle, polygon_count in scars_df[
+                ['index', 'area_px', 'area_mm', 'width_mm', 'height_mm', 'angle', 'polygon_count']].itertuples(
+                index=False):
                 scars_objects = {}
 
                 scars_objects['scar_id'] = scar_id
@@ -253,11 +251,11 @@ def data_output(cont, config_file):
     # return nested dictionary
     return lithic_output
 
-def get_arrows(image_array, cont, templates):
+
+def associate_arrows_to_scars(image_array, cont, templates):
     """
 
-    Function that classifies contours that correspond to arrows,
-    turns them to templates and then uses template matching to
+    Function that uses template matching to
     match the arrows to a given scar.
 
 
@@ -265,9 +263,10 @@ def get_arrows(image_array, cont, templates):
     ----------
     image_array: array,
         2D array of the masked_image_array
-    contours: dataframe
+    cont: dataframe
         dataframe with all the contour information and measurements for an masked_image_array
-
+    templates: list of arrays
+        list of arrays with  arrows templates
     Returns
     -------
 
@@ -277,6 +276,7 @@ def get_arrows(image_array, cont, templates):
 
     templates_angle = []
 
+    # iterate on each contour to select only scars
     for hierarchy_level, index, contour, area_px in cont[
         ['hierarchy_level', 'index', 'contour', 'area_px']].itertuples(index=False):
 
@@ -285,13 +285,16 @@ def get_arrows(image_array, cont, templates):
         # high levels contours are surfaces
         if hierarchy_level != 0:
 
-            #TODO: Make a scar selection to not search in empty scars.
+            # TODO: Make a scar selection to not search in empty scars.
 
+            # mask scar contour
             masked_image = mask_image(image_array, contour, False)
 
-            template_index = template_matching(masked_image,templates, contour)
+            # apply template matching to associate arrow to scar
+            template_index = template_matching(masked_image, templates, contour)
 
-            if template_index!=-1:
+            # if we find a macthing template, get the angle.
+            if template_index != -1:
                 angle = templates.iloc[template_index]['angle']
 
         templates_angle.append(angle)
@@ -300,7 +303,8 @@ def get_arrows(image_array, cont, templates):
 
     return cont
 
-def get_scars_angles(image_array, cont, templates = None):
+
+def get_scars_angles(image_array, cont, templates):
     """
 
     Function that classifies contours that correspond to arrows, or ripples and
@@ -323,26 +327,23 @@ def get_scars_angles(image_array, cont, templates = None):
 
     """
 
-
-    if templates.shape[0]==0:
+    if templates.shape[0] == 0:
         cont['arrow_index'] = -1
         cont['angle'] = np.nan
 
-        #TODO: DO SOMETHING WITH RIPPLES
+        # TODO: DO SOMETHING WITH RIPPLES
 
     else:
-        cont = get_arrows(image_array, cont, templates)
+        cont = associate_arrows_to_scars(image_array, cont, templates)
 
     return cont
 
 
 def read_arrow_data(input_dir):
-
-    id_list = [os.path.join(input_dir,i) for i in os.listdir(input_dir) if i.endswith('.pkl')]
+    id_list = [os.path.join(input_dir, i) for i in os.listdir(input_dir) if i.endswith('.pkl')]
 
     df_list = []
     for i in id_list:
-
         df_list.append(pd.read_pickle(i))
 
     return pd.concat(df_list)
@@ -374,4 +375,35 @@ def find_arrows(image_array,image_processed, debug=False):
         thresh, 4, cv2.CV_32S)
     (numLabels, labels, stats, centroids) = output
 
+    templates = []
+    # loop over the number of unique connected component labels
+    for i in range(0, numLabels):
 
+        # extract connected component stats and centroid
+        x = stats[i, cv2.CC_STAT_LEFT]
+        y = stats[i, cv2.CC_STAT_TOP]
+        w = stats[i, cv2.CC_STAT_WIDTH]
+        h = stats[i, cv2.CC_STAT_HEIGHT]
+        area = stats[i, cv2.CC_STAT_AREA]
+
+        # select arrows based on area
+        if area > 1000 or area < 50:
+            continue
+
+        # extract templates from bounding box
+        roi = image_processed[y:y + h, x:x + w]
+
+        # calculate the ratio between black and while pixels
+        ratio = len(roi[(roi > 0.9)]) / len(roi[(roi != 0)])
+
+        # filter templates that are unlikely to be an arrow
+        if ratio > 0.85 or ratio < 0.2:
+            continue
+
+        # plot the template in case we want to debug.
+        if debug:
+            plot.plot_template_arrow(image_array, roi, ratio)
+
+        templates.append(roi)
+
+    return templates

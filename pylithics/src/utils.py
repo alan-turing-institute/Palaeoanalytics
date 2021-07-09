@@ -496,7 +496,7 @@ def subtract_masked_image(masked_image_array):
     return rows, columns
 
 
-def template_matching(image_array, templates_df, contour, debug = True):
+def template_matching(image_array, templates_df, contour, debug = False):
     """
 
     Find best template match in an image
@@ -516,30 +516,38 @@ def template_matching(image_array, templates_df, contour, debug = True):
 
     """
 
+    # get template array from dataframe
     templates = templates_df['template_array'].values
 
+    # reduce image to only the scar
     rows, columns = subtract_masked_image(image_array)
-
     masked_image = np.delete(image_array, rows[:-1], 0)
     masked_image = np.delete(masked_image, columns[:-1], 1)
 
+    # this is to be able to do things with cv2
     image_array = image_array.astype(np.float32)
 
+    # defalut values of the index of best matched template and
     location_index = -1
-
     avg_match = 0
+
+    # go through each template and find the best matching one.
     for i, template in enumerate(templates):
         (tW, tH) = template.shape[::-1]
         (sW, sH) = image_array.shape[::-1]
         if tW > sW or tH>sH:
             continue
-        result = cv2.matchTemplate(image_array, template.astype(np.float32), cv2.TM_CCORR_NORMED)  # template matching
-        threshold = 0.93
-        location = np.where( (result >= threshold) & (result <1.0))  # areas where results are >= than threshold value
+
+        # template matching
+        result = cv2.matchTemplate(image_array, template.astype(np.float32), cv2.TM_CCORR_NORMED)
+
+        # areas where results are >= than threshold value
+        location = np.where( (result >= 0.93) & (result <1.0))
 
         location_new_x = []
         location_new_y = []
 
+        # make sure the matched template is inside the scar contours
         for j in range(len(location[0])):
             X = location[1][j]
             Y = location[0][j]
@@ -547,21 +555,16 @@ def template_matching(image_array, templates_df, contour, debug = True):
             if inside == 1.0:
                 location_new_x.append(location[1][j])
                 location_new_y.append(location[0][j])
-
         location_new = (np.array(location_new_y),np.array(location_new_x))
 
-
+        # save tample index is the average result values is best than previous one
         if len(location_new[0]) > 0:
             if result[location_new].mean() > avg_match:
-                index = i
                 avg_match = result[location_new].mean()
+                location_index = i
 
-
-    if avg_match>0:
-        location_index = index
-
+    # plot the matching scar and arrow
     if location_index!= -1 and debug:
-
 
         plot.plot_template_arrow(masked_image, templates[location_index], avg_match)
 

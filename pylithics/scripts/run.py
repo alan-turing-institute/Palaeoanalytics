@@ -4,7 +4,8 @@ import yaml
 import json
 import os
 import pandas as pd
-from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, process_image, data_output, get_scars_angles
+from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, process_image, data_output, \
+    get_scars_angles, find_arrows
 from pylithics.src.plotting import plot_contours, plot_thresholding, plot_arrow_contours
 from pylithics.src.utils import pixulator, find_arrow_templates, get_angles
 
@@ -101,23 +102,18 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
     # if this lithic has arrows do processing to detect and measure arrow angle
     if arrows:
 
-        # find arrows
-        contours_arrows = find_lithic_contours(binary_array, config_file, arrows)
-
-        # create arrow templates
-        index_drop, templates = find_arrow_templates(image_processed, contours_arrows)
-        contours_arrows = contours_arrows[~contours_arrows['index'].isin(index_drop)]
-
-        # show output of arrow detection for debugging
-        if debug == True:
-            output_lithic = os.path.join(output_dir, id + "_lithic_arrow_contours.png")
-            plot_arrow_contours(image_array, contours_arrows, output_lithic)
+        # get the templates for the arrows
+        templates = find_arrows(image_array,image_processed,debug)
 
         # measure angles for existing arrows
         arrow_df = get_angles(templates)
 
         # associate arrows to scars, add that info into the contour
         contours = get_scars_angles(image_processed, contours, arrow_df)
+
+    else:
+        # in case we dont have arrows
+        contours = get_scars_angles(image_processed, contours, None)
 
     output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
     plot_contours(image_array, contours, output_lithic)
