@@ -348,5 +348,30 @@ def read_arrow_data(input_dir):
     return pd.concat(df_list)
 
 
+def find_arrows(image_array,image_processed, debug=False):
+    """
+    Function that given an input image array and finds the arrows using connected components
+
+    Parameters
+    ==========
+    image_array: array,
+       Original image array (0 to 255)
+    image_processed: array,
+       Processed image array (0 to 1)
+    debug: flag to plot the outputs.
+
+    Returns
+    =======
+    a list of arrays with the arrow templates.
+    """
+
+    # load the image, convert to gray, and threshold
+    thresh = cv2.threshold(image_array, 0, 255,
+                           cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+
+    # apply connected component analysis to the threshold image
+    output = cv2.connectedComponentsWithStats(
+        thresh, 4, cv2.CV_32S)
+    (numLabels, labels, stats, centroids) = output
 
 
