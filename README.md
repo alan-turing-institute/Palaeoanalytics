@@ -1,6 +1,16 @@
 # Palaeoanalytics
 Repository for the Paleoanalytics project.
 
+For over one hundred years, archaeologists have recovered, recorded, photographed and drawn stone tools, and used these to build up strong models of their
+typologies, technologies, distributions and affinities. Much of this information is recorded in publications of greater or lesser accessibility, and large-scale,
+comprehensive databases are few and far between. To improve the scale and quality of these data, the PALAEONALYTICS Project (https://www.turing.ac.uk/research/research-projects/palaeoanalytics) has utilized computer vision methodologies to develop PyLithics, an open-source, free for use, software package to capture rapidly large volumes of these data in usable forms. PyLithics v1.0, processes lithic artefact illustrations scanned from the literature, and has been optimised for feature extraction and measurement using a number of computer vision techniques including pixel intensity thresholding, edge detection and segmentation, and custom template matching and image kernels. 
+ 
+On both conventional and modern drawings, PyLithics v1.0 can identify and measure dorsal surface scar number, shape, size, orientation and diversity. The
+orientation and flaking direction of dorsal scars can also be calculated from either ripples or arrows. Complete size and shape metrics of individual scars and
+whole flakes can be calculated and recorded in a customisable database. The resulting data can be used for metrical analysis, extracting features indicative of
+both typologies and technological processes. Data output has been optimised for machine learning and neural network processing algorithms and can easily be
+employed to explore patterns of variation within and between assemblages.  
+
 # Installation
 
 The `pylithics` package requires Python 3.6 or greater. To install, start by creating a fresh conda environment.
