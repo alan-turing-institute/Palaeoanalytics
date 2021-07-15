@@ -120,8 +120,6 @@ def find_lithic_contours(image_array, config_file):
         df_contours = df_cont_info.drop(index=indexes)
 
 
-
-
     else:
         raise RuntimeError("No contours found in this image")
 
