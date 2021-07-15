@@ -5,25 +5,6 @@ import matplotlib.pyplot as plt
 import scipy.ndimage as ndi
 import pylithics.src.plotting as plot
 
-def area_contour(contour):
-    """
-    Function that calculates the area within cont contour using the open-cv library.
-
-    Parameters
-    ----------
-    contour: array (array with coordinates defining the contour.)
-
-    Returns
-    -------
-    A number
-
-    """
-    # Expand numpy dimensions and convert it to UMat object
-    c = cv2.UMat(np.expand_dims(contour.astype(np.float32), 1))
-    area = cv2.contourArea(c)
-
-    return area
-
 
 def contour_desambiguiation(df_contours, image_array):
     """
