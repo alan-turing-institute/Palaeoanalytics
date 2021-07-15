@@ -1,7 +1,6 @@
 """
 Test the functions in read_and_process.py
 """
-import pytest
 import os
 import yaml
 from pylithics.src.read_and_process import read_image, detect_lithic, find_lithic_contours, process_image
@@ -21,7 +20,7 @@ def test_read_image():
 
 def test_detect_lithic():
 
-    image_array = read_image(os.path.join('tests','test_images'),'RDK2_17_Dc_Pc_Lc')
+    image_array = read_image(os.path.join('tests','test_images'),'236')
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
@@ -47,11 +46,11 @@ def test_detect_lithic():
     plt.tight_layout()
     plt.savefig(os.path.join('tests', 'edge_detection_lithic.png'))
 
-    assert binary_edge_sobel.shape==(1595,1465)
+    assert binary_edge_sobel.shape==(689,1381)
 
 def test_find_lithic_contours():
 
-    image_array = read_image(os.path.join('tests', 'test_images'),'236')
+    image_array = read_image(os.path.join('tests', 'test_images'),'234')
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
