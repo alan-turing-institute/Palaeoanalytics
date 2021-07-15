@@ -610,7 +610,7 @@ def get_angles(templates):
 
 
 
-def contour_arrow_selection(df_contours):
+def contour_selection(df_contours):
     """
 
     Function that selects contours by their size and removes duplicates.
@@ -636,10 +636,9 @@ def contour_arrow_selection(df_contours):
 
         pass_selection = True
         if hierarchy_level == 0:
-            if area_px / max(df_contours['area_px']) < 0.01:
+            if area_px / max(df_contours['area_px']) < 0.05:
                 pass_selection = False
-            if area_px / max(df_contours['area_px']) > 0.4:
-                pass_selection = False
+
 
         else:
             if area_px / max(df_contours['area_px']) > 0.3:
