@@ -542,7 +542,7 @@ def template_matching(image_array, templates_df, contour, debug=False):
                 location_index = i
 
     # plot the matching scar and arrow
-    if location_index != -1 and debug:
+    if location_index!= -1 and debug==True:
 
 
         plot.plot_template_arrow(masked_image, templates[location_index], avg_match)
