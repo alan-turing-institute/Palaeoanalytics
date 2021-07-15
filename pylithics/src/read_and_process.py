@@ -10,7 +10,7 @@ from pylithics.src.utils import contour_characterisation, contour_desambiguiatio
 from skimage import img_as_ubyte
 import cv2
 from PIL import Image
-from pylithics.src.utils import template_matching, mask_image, subtract_masked_image, contour_arrow_selection
+from pylithics.src.utils import template_matching, mask_image, subtract_masked_image, contour_selection
 import os
 import pylithics.src.plotting as plot
 
@@ -54,26 +54,22 @@ def detect_lithic(image_array, config_file):
 
     """
 
-    do_morfological = False  # classify_distributions(image_array)
 
     # thresholding
     thresh = threshold_mean(image_array)
     thresh = thresh + thresh * config_file['threshold']
-    binary = image_array < thresh
+    _ ,binary = cv2.threshold(image_array,thresh,255,cv2.THRESH_BINARY_INV)
 
     # edge detection
 
-    if do_morfological:
-        init_ls = checkerboard_level_set(image_array.shape, 6)
+    x = cv2.Sobel(binary, cv2.CV_64F, 1, 0, ksize=1)
+    y = cv2.Sobel(binary, cv2.CV_64F, 0, 1, ksize=1)
+    absX = cv2.convertScaleAbs(x)  # convert back to uint8
+    absY = cv2.convertScaleAbs(y)
+    sobelXY = cv2.addWeighted(absX, 0.5, absY, 0.5, 0)
 
-        binary_image = morphological_chan_vese(binary, 35, init_level_set=init_ls, smoothing=3)
 
-        if binary_image.sum() > binary_image.shape[0] * binary_image.shape[1] * 0.5:
-            binary_image = (binary_image - 1) * -1
-    else:
-        binary_image = filters.sobel(binary)
-
-    return binary_image, thresh
+    return sobelXY, thresh
 
 
 def find_lithic_contours(image_array, config_file):
@@ -93,8 +89,7 @@ def find_lithic_contours(image_array, config_file):
 
     """
 
-    cv_image = img_as_ubyte(image_array)
-    _, contours_cv, hierarchy = cv2.findContours(cv_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    _, contours_cv, hierarchy = cv2.findContours(image_array, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     new_contours = []
     cont_info_list = []
@@ -120,7 +115,7 @@ def find_lithic_contours(image_array, config_file):
         df_cont_info['parent_index'], df_cont_info['hierarchy_level'] = get_high_level_parent_and_hirarchy(
             df_cont_info['hierarchy'].values)
 
-        indexes = contour_arrow_selection(df_cont_info)
+        indexes = contour_selection(df_cont_info)
 
         df_contours = df_cont_info.drop(index=indexes)
 
