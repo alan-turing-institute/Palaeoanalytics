@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
+
+# install libraries for pylithics pipeline.
 import argparse
 import yaml
 import json
 import os
 import pandas as pd
-from pylithics.src.read_and_process import read_image, find_lithic_contours, detect_lithic, process_image, data_output, \
+from pylithics.src.read_and_process import read_image,\
+    find_lithic_contours, detect_lithic, process_image, data_output, \
     get_scars_angles, find_arrows
 from pylithics.src.plotting import plot_contours, plot_thresholding, plot_arrow_contours
 from pylithics.src.utils import pixulator, find_arrow_templates, get_angles
@@ -12,12 +15,12 @@ from pylithics.src.utils import pixulator, find_arrow_templates, get_angles
 
 def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_arrows):
     """
-    Script that runs the process of lithic characterisation on cont number of images.
+    Script that runs the process of lithic characterisation of imported images.
 
     Parameters
     ----------
     id_list: list
-        List of names identifying object present in cont directory
+        list of uniques identifier codes for images
     metadata_df: dataframe
 
     input_dir: str
@@ -25,8 +28,8 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_a
     output_dir: str
         path to output directory to save outputs
     config_file: dict
-        Dictionary with information of thresholding values
-
+        dictionary with information of thresholding values
+    get_arrows:
     """
 
     for id in id_list:
@@ -52,14 +55,14 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_a
     return 0
 
 
-def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True):
+def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False):
     """
         Lithic characterisation of an image.
 
         Parameters
         ----------
         input_dir: str
-            path to input directory where image is found
+            path to input directory where images are found
         output_dir: str
             path to output directory to save outputs
         config_file: dict
@@ -69,26 +72,20 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
     print('=============================')
     print('Processing figure: ', id)
 
-    name = os.path.join(input_dir, "images", id + '.png')
-
     # read image
-    image_array, image_pdi = read_image(name)
+    image_array = read_image(os.path.join(input_dir,'images'), id)
 
     # get name of scale and if found read it
-    name_scale = os.path.join(input_dir, "scales", config_file["scale_id"] + '.png')
     try:
-        image_scale_array, image_scale_dpi = read_image(name_scale)
+        image_scale_array = read_image(os.path.join(input_dir, "scales"),config_file["scale_id"])
         config_file['conversion_px'] = pixulator(image_scale_array, config_file["scale_cm"])
     except (FileNotFoundError):
         config_file['conversion_px'] = 1
-        if name_scale != "no scale":
-            print(
-                "Scale " + name_scale + " for object " + id + " not found. No area measurement will be calculated.")
 
     # initial processing of the image
     image_processed = process_image(image_array, config_file)
 
-    # procesing to detect lithic and scars
+    # processing to detect lithic and scars
     binary_array, threshold_value = detect_lithic(image_processed, config_file)
 
     # show output of lithic detection for debugging
@@ -103,7 +100,7 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
     if arrows:
 
         # get the templates for the arrows
-        templates = find_arrows(image_array,image_processed,debug)
+        templates = find_arrows(image_array, image_processed, debug)
 
         # measure angles for existing arrows
         arrow_df = get_angles(templates)
@@ -118,7 +115,7 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
     output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
     plot_contours(image_array, contours, output_lithic)
 
-    # save data into a json file
+    # save data into a .json file
     json_output = data_output(contours, config_file)
 
     data_output_file = os.path.join(output_dir, id + ".json")
@@ -131,17 +128,17 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run lithics characterisation pipeline")
+    parser = argparse.ArgumentParser(description="Run lithic characterisation pipeline")
 
     parser.add_argument("-c", "--config", required=True, type=str, metavar="config-file",
                         help="the model config file (YAML)")
-    parser.add_argument('--input_dir', help='directory where the input images are', default=None)
-    parser.add_argument('--output_dir', type=str, help='directory where the output data is saved', default=None)
-    parser.add_argument('--metadata_filename', type=str, help='CSV file with information on the images and scale',
+    parser.add_argument('--input_dir', help='path to input directory where images are found', default=None)
+    parser.add_argument('--output_dir', type=str, help='directory where output data is saved', default=None)
+    parser.add_argument('--metadata_filename', type=str, help='CSV file with information on images and scales',
                         default=None)
-    parser.add_argument('--get_arrows', action="store_true", help='If the lithic contains arrow find them and add them to the data',
+    parser.add_argument('--get_arrows', action="store_true",
+                        help='If a lithic contains arrows, find them and add them to the data',
                         default=False)
-
 
     args = parser.parse_args()
     filename_config = args.config
