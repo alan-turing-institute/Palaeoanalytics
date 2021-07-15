@@ -51,7 +51,7 @@ def test_detect_lithic():
 
 def test_find_lithic_contours():
 
-    image_array = read_image(os.path.join('tests', 'test_images'),'8_test')
+    image_array = read_image(os.path.join('tests', 'test_images'),'236')
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
