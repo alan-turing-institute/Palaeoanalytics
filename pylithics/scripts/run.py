@@ -69,15 +69,12 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
     print('=============================')
     print('Processing figure: ', id)
 
-    name = os.path.join(input_dir, "images", id + '.png')
-
     # read image
-    image_array, image_pdi = read_image(name)
+    image_array = read_image(os.path.join(input_dir,'images'), id)
 
     # get name of scale and if found read it
-    name_scale = os.path.join(input_dir, "scales", config_file["scale_id"] + '.png')
     try:
-        image_scale_array, image_scale_dpi = read_image(name_scale)
+        image_scale_array = read_image(os.path.join(input_dir, "scales"),config_file["scale_id"])
         config_file['conversion_px'] = pixulator(image_scale_array, config_file["scale_cm"])
     except (FileNotFoundError):
         config_file['conversion_px'] = 1
