@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import scipy.ndimage as ndi
 import pylithics.src.plotting as plot
 
+
 def area_contour(contour):
     """
     Function that calculates the area within cont contour using the open-cv library.
@@ -25,7 +26,7 @@ def area_contour(contour):
     return area
 
 
-def contour_desambiguiation(df_contours, image_array):
+def contour_disambiguation(df_contours, image_array):
     """
 
     Function that selects contours by their size and removes duplicates.
@@ -41,8 +42,6 @@ def contour_desambiguiation(df_contours, image_array):
     list of indexes
 
     """
-
-
 
     index_to_drop = []
 
@@ -65,7 +64,6 @@ def contour_desambiguiation(df_contours, image_array):
             if percentage > 60:
                 pass_selection = False
 
-
         # fig, ax = plt.subplots(figsize=(10, 5))
         # ax = plt.subplot(111)
         # ax.imshow(image_array, cmap=plt.cm.gray)
@@ -74,7 +72,7 @@ def contour_desambiguiation(df_contours, image_array):
         if pass_selection == False:
             index_to_drop.append(index)
 
-    cent_df = df_contours[['area_px', 'centroid', 'hierarchy_level','contour']]
+    cent_df = df_contours[['area_px', 'centroid', 'hierarchy_level', 'contour']]
 
     import itertools
 
@@ -83,7 +81,6 @@ def contour_desambiguiation(df_contours, image_array):
         if ((i in index_to_drop) or (j in index_to_drop)):
             continue
 
-
         d_ij_centroid = np.linalg.norm(np.asarray(cent_df.loc[i]['centroid']) - np.asarray(cent_df.loc[j]['centroid']))
 
         if cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']:
@@ -91,10 +88,9 @@ def contour_desambiguiation(df_contours, image_array):
         else:
             ratio = cent_df.loc[i]['area_px'] / cent_df.loc[j]['area_px']
 
-
         if d_ij_centroid < 15 and ratio > 0.5:
             if (cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']):
-                if d_ij_centroid<1:
+                if d_ij_centroid < 1:
                     index_to_drop.append(i)
                 else:
                     index_to_drop.append(j)
@@ -138,7 +134,7 @@ def mask_image(image_array, contour, innermask=False):
 def contour_characterisation(image_array, cont, conversion=1):
     """
 
-    For cont given contour calculate characteristics (area, lenght, etc.)
+    For cont given contour calculate characteristics (area, length, etc.)
 
     Parameters
     ----------
@@ -181,7 +177,7 @@ def contour_characterisation(image_array, cont, conversion=1):
     cont_info['area_mm'] = area_mm
     cont_info['width_mm'] = width_mm
     cont_info['height_mm'] = height_mm
-    cont_info['polygon_count'], _ = measure_vertices(cont,0.02)
+    cont_info['polygon_count'], _ = measure_vertices(cont, 0.02)
 
     return cont_info
 
@@ -189,7 +185,7 @@ def contour_characterisation(image_array, cont, conversion=1):
 def classify_distributions(image_array):
     """
     Given an input image array classify it by their distribution of pixel intensities.
-    Returns True is the ditribution is narrow and skewed to values of 1.
+    Returns True is the distribution is narrow and skewed to values of 1.
 
     Parameters
     ----------
@@ -221,7 +217,7 @@ def classify_distributions(image_array):
     return is_narrow
 
 
-def get_high_level_parent_and_hirarchy(hierarchies):
+def get_high_level_parent_and_hierarchy(hierarchies):
     """ For a list of contour hierarchies find the index of the
     highest level parent for each contour.
 
@@ -236,7 +232,7 @@ def get_high_level_parent_and_hirarchy(hierarchies):
     """
 
     parent_index = []
-    hirarchy_level = []
+    hierarchy_level = []
 
     for index, hierarchy in enumerate(hierarchies, start=0):
 
@@ -245,7 +241,7 @@ def get_high_level_parent_and_hirarchy(hierarchies):
 
         if parent == -1:
             parent_index.append(parent)
-            hirarchy_level.append(count)
+            hierarchy_level.append(count)
         else:
             while (parent != -1):
                 index = parent
@@ -253,15 +249,14 @@ def get_high_level_parent_and_hirarchy(hierarchies):
                 count = count + 1
 
             parent_index.append(index)
-            hirarchy_level.append(count)
+            hierarchy_level.append(count)
 
-    return parent_index, hirarchy_level
+    return parent_index, hierarchy_level
 
 
 def pixulator(image_scale_array, scale_size):
     """
     Converts image/scale dpi and pixel count to cm conversion rate.
-
 
     Parameters
     ----------
@@ -292,7 +287,7 @@ def pixulator(image_scale_array, scale_size):
 
 
 def classify_surfaces(cont):
-    """ Rule based classification of contours based on their size
+    """
 
     Parameters
     ----------
@@ -302,12 +297,20 @@ def classify_surfaces(cont):
     Returns
     -------
 
-        A dictionary
-
-
     """
 
     def dorsal_ventral(cont, contours):
+        """
+
+        Parameters
+        ----------
+        cont
+        contours
+
+        Returns
+        -------
+
+        """
 
         output = [None] * 2
         if (cont[cont['parent_index'] == contours['index'].iloc[0]].shape[0] >
@@ -371,8 +374,7 @@ def classify_surfaces(cont):
 
 def contour_arrow_classification(cont, hierarchy, quantiles, image_array):
     """
-
-    Function that finds contours that correspond to an arrow.
+    Function that finds contours corresponding to arrows.
 
     Parameters
     ----------
@@ -404,7 +406,6 @@ def contour_arrow_classification(cont, hierarchy, quantiles, image_array):
 
 def find_arrow_templates(image_array, df_contours):
     """
-
     Decide if a contour is really an arrow and make it into a template
 
     Parameters
@@ -428,8 +429,7 @@ def find_arrow_templates(image_array, df_contours):
 
     df_contours['arrow'] = False
 
-    for cont, index, hierarchy in df_contours[['contour', 'index','hierarchy']].itertuples(index=False):
-
+    for cont, index, hierarchy in df_contours[['contour', 'index', 'hierarchy']].itertuples(index=False):
 
         is_arrow = contour_arrow_classification(cont, hierarchy[-1], quantiles, image_array)
 
@@ -441,7 +441,7 @@ def find_arrow_templates(image_array, df_contours):
 
             ratio = len(masked_image[(masked_image > 0.9)]) / len(masked_image[(masked_image != 0)])
 
-            #plot_contour_figure(masked_image, cont)
+            # plot_contour_figure(masked_image, cont)
 
             if ratio > 0.7:
                 continue
@@ -449,9 +449,7 @@ def find_arrow_templates(image_array, df_contours):
                 index_drop.append(index)
                 continue
 
-
             df_contours.loc[df_contours.index == index, 'arrow'] = True
-
 
             rows, columns = subtract_masked_image(masked_image)
 
@@ -496,7 +494,7 @@ def subtract_masked_image(masked_image_array):
     return rows, columns
 
 
-def template_matching(image_array, templates_df, contour, debug = False):
+def template_matching(image_array, templates_df, contour, debug=False):
     """
 
     Find best template match in an image
@@ -535,14 +533,14 @@ def template_matching(image_array, templates_df, contour, debug = False):
     for i, template in enumerate(templates):
         (tW, tH) = template.shape[::-1]
         (sW, sH) = image_array.shape[::-1]
-        if tW > sW or tH>sH:
+        if tW > sW or tH > sH:
             continue
 
         # template matching
         result = cv2.matchTemplate(image_array, template.astype(np.float32), cv2.TM_CCORR_NORMED)
 
         # areas where results are >= than threshold value
-        location = np.where( (result >= 0.93) & (result <1.0))
+        location = np.where((result >= 0.93) & (result < 1.0))
 
         location_new_x = []
         location_new_y = []
@@ -551,20 +549,20 @@ def template_matching(image_array, templates_df, contour, debug = False):
         for j in range(len(location[0])):
             X = location[1][j]
             Y = location[0][j]
-            inside = cv2.pointPolygonTest(contour, (X,Y), False)
+            inside = cv2.pointPolygonTest(contour, (X, Y), False)
             if inside == 1.0:
                 location_new_x.append(location[1][j])
                 location_new_y.append(location[0][j])
-        location_new = (np.array(location_new_y),np.array(location_new_x))
+        location_new = (np.array(location_new_y), np.array(location_new_x))
 
-        # save tample index is the average result values is best than previous one
+        # save template index is the average result values is best than previous one
         if len(location_new[0]) > 0:
             if result[location_new].mean() > avg_match:
                 avg_match = result[location_new].mean()
                 location_index = i
 
     # plot the matching scar and arrow
-    if location_index!= -1 and debug:
+    if location_index != -1 and debug:
 
         plot.plot_template_arrow(masked_image, templates[location_index], avg_match)
 
@@ -601,13 +599,11 @@ def get_angles(templates):
         except:
             template_dict['angle'] = np.nan
 
-
         template_dict_list.append(template_dict)
 
     templates_df = pd.DataFrame.from_records(template_dict_list)
 
     return templates_df
-
 
 
 def contour_arrow_selection(df_contours):
@@ -626,8 +622,6 @@ def contour_arrow_selection(df_contours):
     list of indexes
 
     """
-
-
 
     index_to_drop = []
 
@@ -654,7 +648,6 @@ def contour_arrow_selection(df_contours):
             if percentage > 60:
                 pass_selection = False
 
-
         # fig, ax = plt.subplots(figsize=(10, 5))
         # ax = plt.subplot(111)
         # ax.imshow(image_array, cmap=plt.cm.gray)
@@ -663,7 +656,7 @@ def contour_arrow_selection(df_contours):
         if pass_selection == False:
             index_to_drop.append(index)
 
-    cent_df = df_contours[['area_px', 'centroid', 'hierarchy_level','contour']]
+    cent_df = df_contours[['area_px', 'centroid', 'hierarchy_level', 'contour']]
 
     import itertools
 
@@ -672,7 +665,6 @@ def contour_arrow_selection(df_contours):
         if ((i in index_to_drop) or (j in index_to_drop)):
             continue
 
-
         d_ij_centroid = np.linalg.norm(np.asarray(cent_df.loc[i]['centroid']) - np.asarray(cent_df.loc[j]['centroid']))
 
         if cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']:
@@ -680,10 +672,9 @@ def contour_arrow_selection(df_contours):
         else:
             ratio = cent_df.loc[i]['area_px'] / cent_df.loc[j]['area_px']
 
-
         if d_ij_centroid < 15 and ratio > 0.5:
             if (cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']):
-                if d_ij_centroid<1:
+                if d_ij_centroid < 1:
                     index_to_drop.append(i)
                 else:
                     index_to_drop.append(j)
@@ -715,7 +706,7 @@ def measure_arrow_angle(template):
 
     import math
 
-    #import image and grayscale
+    # import image and grayscale
     uint_img = np.array(template * 255).astype('uint8')
     gray = 255 - uint_img
 
@@ -823,7 +814,8 @@ def measure_arrow_angle(template):
 
     return angle
 
-def measure_vertices(cont,epsilon=0.04):
+
+def measure_vertices(cont, epsilon=0.04):
     """
 
     Given a contour from a surface or scar, estimate the number of vertices of an approximate
@@ -834,7 +826,7 @@ def measure_vertices(cont,epsilon=0.04):
     cont: array
      array with coordinates defining the contour.
     epsilon: float
-     degree of precition in approximantion
+     degree of prediction in approximation
 
 
     Returns
@@ -847,12 +839,11 @@ def measure_vertices(cont,epsilon=0.04):
 
     # get perimeters
     peri = cv2.arcLength(cont, True)
-    #approximates a curve or a polygon with another curve / polygon with less vertices
+    # approximates a curve or a polygon with another curve / polygon with less vertices
     # so that the distance between them is less or equal to the specified precision
     approx = cv2.approxPolyDP(cont, epsilon * peri, True)
 
     return len(approx), approx
-
 
 
 def shape_detection(contour):
@@ -894,10 +885,3 @@ def shape_detection(contour):
         shape = "arrow"
         # otherwise, we assume the shape is an arrow
     return shape, vertices
-
-
-
-
-
-
-
