@@ -15,27 +15,26 @@ import os
 import pylithics.src.plotting as plot
 
 
-def read_image(filename):
+def read_image(input_dir, id, im_type = 'png'):
     """
-    Function that read an image into the Pillow library and returing an array and the pdi information of the image.
+    Function that read an image into the cv2 library and returns a grayscale array.
 
     Parameters
     ==========
-    filename: str, path and file name to the directory where the image
+    input_dir: str, path where the image is found
+    id: str, name of the image
+    im_type: str, file extension type, default is png.
+
     Returns
     =======
     an array
-    a tuple
     """
-    # image = skimage.io.imread(fname=filename, as_gray=True)
-    im = Image.open(filename)
-    image = np.asarray(im)
-    try:
-        dpi = im.info['dpi']
-    except:
-        dpi = 0
 
-    return image, dpi
+    filename = os.path.join(input_dir, id +"."+im_type)
+
+    im = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
+
+    return im
 
 
 def detect_lithic(image_array, config_file):
