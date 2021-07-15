@@ -545,7 +545,7 @@ def template_matching(image_array, templates_df, contour, debug = False):
                 location_index = i
 
     # plot the matching scar and arrow
-    if location_index!= -1 and debug:
+    if location_index!= -1 and debug==True:
 
         plot.plot_template_arrow(masked_image, templates[location_index], avg_match)
 
@@ -622,23 +622,22 @@ def contour_selection(df_contours):
 
 
         else:
-            if area_px / max(df_contours['area_px']) > 0.3:
+            if area_px / max(df_contours['area_px']) > 0.4:
                 pass_selection = False
 
-            # get the total area of the parent figure
-            norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
-            area = area_px
-            percentage = area / norm * 100
-            if percentage < 0.2:
+            # only allow
+            if hierarchy_level > 2:
                 pass_selection = False
-            if percentage > 60:
-                pass_selection = False
+            else:
+                # get the total area of the parent figure
+                norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
+                area = area_px
+                percentage = area / norm * 100
+                if percentage < 0.2:
+                    pass_selection = False
+                if percentage > 60:
+                    pass_selection = False
 
-
-        # fig, ax = plt.subplots(figsize=(10, 5))
-        # ax = plt.subplot(111)
-        # ax.imshow(image_array, cmap=plt.cm.gray)
-        # ax.plot(contour[:, 0], contour[:, 1])
 
         if pass_selection == False:
             index_to_drop.append(index)
