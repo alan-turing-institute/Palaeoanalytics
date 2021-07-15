@@ -100,4 +100,19 @@ def test_find_lithic_contours():
 
     assert contours[['contour']].shape[0]!= 0
 
+def test_process_image():
+
+    image_array = read_image(os.path.join('tests', 'test_images'),'234')
+
+    filename_config = os.path.join('tests', 'test_config.yml')
+
+    # Read YAML file
+    with open(filename_config, 'r') as config_file:
+        config_file = yaml.load(config_file)
+
+    image_processed = process_image(image_array, config_file)
+
+
+    assert image_processed.shape[0]!= 0
+    assert image_processed.max()<=1.0
 
