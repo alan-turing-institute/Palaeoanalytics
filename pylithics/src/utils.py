@@ -6,26 +6,6 @@ import scipy.ndimage as ndi
 import pylithics.src.plotting as plot
 
 
-def area_contour(contour):
-    """
-    Function that calculates the area within cont contour using the open-cv library.
-
-    Parameters
-    ----------
-    contour: array (array with coordinates defining the contour.)
-
-    Returns
-    -------
-    A number
-
-    """
-    # Expand numpy dimensions and convert it to UMat object
-    c = cv2.UMat(np.expand_dims(contour.astype(np.float32), 1))
-    area = cv2.contourArea(c)
-
-    return area
-
-
 def contour_disambiguation(df_contours, image_array):
     """
 
@@ -151,7 +131,7 @@ def contour_characterisation(image_array, cont, conversion=1):
     cont_info = {}
 
     # Expand numpy dimensions and convert it to UMat object
-    area = area_contour(cont)
+    area = cv2.contourArea(cont)
 
     masked_image = mask_image(image_array, cont, True)
 
@@ -564,6 +544,7 @@ def template_matching(image_array, templates_df, contour, debug=False):
     # plot the matching scar and arrow
     if location_index != -1 and debug:
 
+
         plot.plot_template_arrow(masked_image, templates[location_index], avg_match)
 
     return location_index
@@ -605,8 +586,8 @@ def get_angles(templates):
 
     return templates_df
 
+def contour_selection(df_contours):
 
-def contour_arrow_selection(df_contours):
     """
 
     Function that selects contours by their size and removes duplicates.
@@ -630,28 +611,27 @@ def contour_arrow_selection(df_contours):
 
         pass_selection = True
         if hierarchy_level == 0:
-            if area_px / max(df_contours['area_px']) < 0.01:
+            if area_px / max(df_contours['area_px']) < 0.05:
                 pass_selection = False
+
+
+        else:
             if area_px / max(df_contours['area_px']) > 0.4:
                 pass_selection = False
 
-        else:
-            if area_px / max(df_contours['area_px']) > 0.3:
+            # only allow
+            if hierarchy_level > 2:
                 pass_selection = False
+            else:
+                # get the total area of the parent figure
+                norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
+                area = area_px
+                percentage = area / norm * 100
+                if percentage < 0.2:
+                    pass_selection = False
+                if percentage > 60:
+                    pass_selection = False
 
-            # get the total area of the parent figure
-            norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
-            area = area_px
-            percentage = area / norm * 100
-            if percentage < 0.2:
-                pass_selection = False
-            if percentage > 60:
-                pass_selection = False
-
-        # fig, ax = plt.subplots(figsize=(10, 5))
-        # ax = plt.subplot(111)
-        # ax.imshow(image_array, cmap=plt.cm.gray)
-        # ax.plot(contour[:, 0], contour[:, 1])
 
         if pass_selection == False:
             index_to_drop.append(index)
