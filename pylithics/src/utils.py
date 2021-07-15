@@ -136,7 +136,7 @@ def contour_characterisation(image_array, cont, conversion=1):
     cont_info = {}
 
     # Expand numpy dimensions and convert it to UMat object
-    area = area_contour(cont)
+    area = cv2.contourArea(cont)
 
     masked_image = mask_image(image_array, cont, True)
 
