@@ -11,21 +11,17 @@ import matplotlib.pyplot as plt
 
 def test_read_image():
 
-    filename = os.path.join('tests','test_images','RDK2_17_Dc_Pc_Lc.png')
-    image_array, _ = read_image(filename)
+    image_array = read_image(os.path.join('tests','test_images'),'RDK2_17_Dc_Pc_Lc')
 
-    filename_tif = os.path.join('tests','test_images','2005_Erps-Kwerps-Villershof.tif')
-    image_array_tif, _ = read_image(filename_tif)
+    image_array_tif = read_image(os.path.join('tests','test_images'),'2005_Erps-Kwerps-Villershof','tif')
 
-    assert image_array.shape==(1595, 1465, 4)
-    assert image_array_tif.shape==(445, 1548, 3)
+    assert image_array.shape==(1595, 1465)
+    assert image_array_tif.shape==(445, 1548)
 
 
 def test_detect_lithic():
 
-    filename = os.path.join('tests', 'test_images', 'RDK2_17_Dc_Pc_Lc.png')
-
-    image_array, dpi = read_image(filename)
+    image_array = read_image(os.path.join('tests','test_images'),'RDK2_17_Dc_Pc_Lc')
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
@@ -51,13 +47,11 @@ def test_detect_lithic():
     plt.tight_layout()
     plt.savefig(os.path.join('tests', 'edge_detection_lithic.png'))
 
-    assert binary_edge_sobel.shape==(1595,1465,4)
+    assert binary_edge_sobel.shape==(1595,1465)
 
 def test_find_lithic_contours():
 
-    filename = os.path.join('tests', 'test_images', '8_test.png')
-
-    image_array, dpi = read_image(filename)
+    image_array = read_image(os.path.join('tests', 'test_images'),'8_test')
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
