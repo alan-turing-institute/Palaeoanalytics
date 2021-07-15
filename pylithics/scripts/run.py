@@ -52,7 +52,7 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_a
     return 0
 
 
-def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True):
+def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False):
     """
         Lithic characterisation of an image.
 
@@ -78,9 +78,6 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=True)
         config_file['conversion_px'] = pixulator(image_scale_array, config_file["scale_cm"])
     except (FileNotFoundError):
         config_file['conversion_px'] = 1
-        if name_scale != "no scale":
-            print(
-                "Scale " + name_scale + " for object " + id + " not found. No area measurement will be calculated.")
 
     # initial processing of the image
     image_processed = process_image(image_array, config_file)
