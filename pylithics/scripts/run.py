@@ -9,8 +9,8 @@ import pandas as pd
 from pylithics.src.read_and_process import read_image,\
     find_lithic_contours, detect_lithic, process_image, data_output, \
     get_scars_angles, find_arrows
-from pylithics.src.plotting import plot_contours, plot_thresholding, plot_arrow_contours
-from pylithics.src.utils import pixulator, find_arrow_templates, get_angles
+from pylithics.src.plotting import plot_contours, plot_thresholding
+from pylithics.src.utils import pixulator, get_angles
 
 
 def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_arrows):

@@ -1,15 +1,11 @@
 from skimage.filters import threshold_mean
-from skimage import filters
 import numpy as np
 import pandas as pd
 from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
-from skimage.segmentation import morphological_chan_vese, checkerboard_level_set
-from pylithics.src.utils import contour_characterisation, contour_disambiguation, classify_surfaces, \
+from pylithics.src.utils import contour_characterisation, classify_surfaces, \
     get_high_level_parent_and_hierarchy
-from skimage import img_as_ubyte
 import cv2
-from PIL import Image
 from pylithics.src.utils import template_matching, mask_image, subtract_masked_image, contour_selection
 import os
 import pylithics.src.plotting as plot
@@ -324,26 +320,6 @@ def get_scars_angles(image_array, cont, templates = pd.DataFrame()):
         cont = associate_arrows_to_scars(image_array, cont, templates)
 
     return cont
-
-
-def read_arrow_data(input_dir):
-    """
-
-    Parameters
-    ----------
-    input_dir
-
-    Returns
-    -------
-
-    """
-    id_list = [os.path.join(input_dir, i) for i in os.listdir(input_dir) if i.endswith('.pkl')]
-
-    df_list = []
-    for i in id_list:
-        df_list.append(pd.read_pickle(i))
-
-    return pd.concat(df_list)
 
 
 def find_arrows(image_array, image_processed, debug=False):
