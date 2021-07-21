@@ -110,7 +110,7 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
 
     else:
         # in case we dont have arrows
-        contours = get_scars_angles(image_processed, contours, None)
+        contours = get_scars_angles(image_processed, contours)
 
     output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
     plot_contours(image_array, contours, output_lithic)
