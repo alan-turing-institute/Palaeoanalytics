@@ -4,7 +4,8 @@ Test the functions in read_and_process.py
 import os
 import yaml
 from pylithics.src.read_and_process import read_image, detect_lithic, \
-    find_lithic_contours, process_image, get_scars_angles, data_output
+    find_lithic_contours, process_image, get_scars_angles, data_output, find_arrows
+from pylithics.src.utils import get_angles
 
 import matplotlib.pyplot as plt
 
@@ -117,36 +118,4 @@ def test_process_image():
     assert image_processed.shape[0]!= 0
     assert image_processed.max()<=1.0
 
-
-def test_pipeline():
-
-    id = '234'
-    image_array = read_image(os.path.join('tests', 'test_images'),id)
-
-    filename_config = os.path.join('tests', 'test_config.yml')
-
-    with open(filename_config, 'r') as config_file:
-        config_file = yaml.load(config_file)
-    config_file['conversion_px'] = 0.1  # hardcoded for now
-    config_file['id'] = id  # hardcoded for now
-
-    # initial processing of the image
-    image_processed = process_image(image_array, config_file)
-
-    # processing to detect lithic and scars
-    binary_array, threshold_value = detect_lithic(image_processed, config_file)
-
-    # find contours
-    contours = find_lithic_contours(binary_array, config_file)
-
-    # in case we dont have arrows
-    contours = get_scars_angles(image_processed, contours)
-
-    # save data into a .json file
-    json_output = data_output(contours, config_file)
-
-    assert len(json_output) == 4
-    assert contours.shape == (49,16)
-    assert binary_array.shape == (495,719)
-    assert len(json_output['lithic_contours'])==3
 
