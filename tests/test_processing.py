@@ -4,8 +4,7 @@ Test the functions in read_and_process.py
 import os
 import yaml
 from pylithics.src.read_and_process import read_image, detect_lithic, \
-    find_lithic_contours, process_image, get_scars_angles, data_output, find_arrows
-from pylithics.src.utils import get_angles
+    find_lithic_contours, process_image
 
 import matplotlib.pyplot as plt
 
