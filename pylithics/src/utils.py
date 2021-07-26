@@ -102,12 +102,6 @@ def classify_distributions(image_array):
 
     is_narrow = False
 
-    fig, axes = plt.subplots(figsize=(8, 2.5))
-
-    axes.hist(image_array.ravel(), bins=256)
-    axes.set_title('Histogram')
-    plt.close(fig)
-
     image_array_nonzero = image_array > 0
 
     mean = np.mean(image_array[image_array_nonzero])
