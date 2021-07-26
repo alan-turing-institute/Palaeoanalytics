@@ -1,8 +1,8 @@
 """
 Test full pipeline
 """
-from pylithics.src.read_and_process import read_image, detect_lithic
-from pylithics.src.utils import mask_image, contour_characterisation
+from pylithics.src.read_and_process import read_image, detect_lithic, process_image
+from pylithics.src.utils import mask_image, contour_characterisation, classify_distributions
 import os
 import cv2
 import numpy as np
@@ -57,5 +57,25 @@ def test_contour_characterisation():
     assert cont_info['width_mm'] == 0.3
     assert cont_info['height_mm'] == 0.3
     assert cont_info['polygon_count'] == 4
+
+
+def test_classify_distributions():
+
+    id = '236'
+    image_array = read_image(os.path.join('tests', 'test_images'), id)
+    filename_config = os.path.join('tests', 'test_config.yml')
+
+    with open(filename_config, 'r') as config_file:
+        config_file = yaml.load(config_file)
+    config_file['conversion_px'] = 0.1  # hardcoded for now
+
+    image_processed = process_image(image_array, config_file)
+
+    is_narrow = classify_distributions(image_processed)
+
+    assert is_narrow == True
+
+
+
 
 
