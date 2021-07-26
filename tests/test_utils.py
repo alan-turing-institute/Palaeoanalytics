@@ -2,7 +2,7 @@
 Test full pipeline
 """
 from pylithics.src.read_and_process import read_image, detect_lithic, process_image
-from pylithics.src.utils import mask_image, contour_characterisation, classify_distributions
+from pylithics.src.utils import mask_image, contour_characterisation, classify_distributions, shape_detection
 import os
 import cv2
 import numpy as np
@@ -74,6 +74,29 @@ def test_classify_distributions():
     is_narrow = classify_distributions(image_processed)
 
     assert is_narrow == True
+
+def test_shape_detection():
+    image_array = read_image(os.path.join('tests', 'test_images'), '236')
+
+    filename_config = os.path.join('tests', 'test_config.yml')
+
+    # Read YAML file
+    with open(filename_config, 'r') as config_file:
+        config_file = yaml.load(config_file)
+    config_file['conversion_px'] = 0.1  # hardcoded for now
+
+    binary_edge_sobel, _ = detect_lithic(image_array, config_file)
+
+    _, contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+
+    cont = np.asarray([i[0] for i in list(contours_cv)[2]])
+
+    shape = shape_detection(cont)
+
+    assert shape == ('square', 4)
+
+
+
 
 
 
