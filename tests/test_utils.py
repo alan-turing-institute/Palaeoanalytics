@@ -2,7 +2,8 @@
 Test full pipeline
 """
 from pylithics.src.read_and_process import read_image, detect_lithic, process_image
-from pylithics.src.utils import mask_image, contour_characterisation, classify_distributions, shape_detection
+from pylithics.src.utils import mask_image, contour_characterisation, classify_distributions, shape_detection,\
+    get_high_level_parent_and_hierarchy, pixulator
 import os
 import cv2
 import numpy as np
@@ -74,6 +75,65 @@ def test_classify_distributions():
     is_narrow = classify_distributions(image_processed)
 
     assert is_narrow == True
+
+def test_get_high_level_parent_and_hierarchy():
+
+    image_array = read_image(os.path.join('tests', 'test_images'), '236')
+
+    filename_config = os.path.join('tests', 'test_config.yml')
+
+    # Read YAML file
+    with open(filename_config, 'r') as config_file:
+        config_file = yaml.load(config_file)
+    binary_edge_sobel, _ = detect_lithic(image_array, config_file)
+
+    _, contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+
+    parent_index, hierarchy_level = get_high_level_parent_and_hierarchy(list(hierarchy)[0])
+
+    assert len(parent_index) != 0
+    assert len(hierarchy_level) != 0
+
+def test_pixulator():
+    image_scale_array = read_image(os.path.join('tests', 'test_images'), 'sc_1')
+
+    conversion = pixulator(image_scale_array, 5)
+
+    assert conversion == 0.00423728813559322
+
+def test_classify_surfaces():
+    assert True
+
+def test_contour_arrow_classification():
+    assert True
+
+
+def test_find_arrow_templates():
+
+    assert True
+
+def test_subtract_masked_image():
+    assert True
+
+def test_template_matching():
+    assert True
+
+def test_get_angles():
+
+    assert True
+
+def test_contour_selection():
+
+    assert True
+
+def test_measure_arrow_angle():
+
+    assert True
+
+def test_measure_vertices():
+
+    assert True
+
 
 def test_shape_detection():
     image_array = read_image(os.path.join('tests', 'test_images'), '236')
