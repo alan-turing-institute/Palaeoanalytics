@@ -6,21 +6,22 @@ import pylithics.src.utils as utils
 
 def plot_contours(image_array, contours, output_path):
     """
-
-    Plot the results of the object characterisation
+    Plot the results of the object characterisation.
 
     Parameters
     ----------
     image_array: array
-
+    Original image array (0 to 255)
     contours:
 
     output_path:
+        path to output directory to save processed images
 
     Returns
     -------
-
+    an array
     """
+
     # Display the image and plot all contours found
     from matplotlib.font_manager import FontProperties
     fontP = FontProperties()
@@ -76,20 +77,21 @@ def plot_contours(image_array, contours, output_path):
 
 def plot_thresholding(image_array, threshold, binary_array, output_file=''):
     """
-    Looking at the effect of the thresholding on the image
+    Visualize the effect of the thresholding on images. Produces three plots, l:r1) original,
+    2) pixel intensity histogram, 3) thresholded image.
 
     Parameters
     ----------
     image_array:  array
-        Image
+        Original image array (0 to 255)
     threshold: float
-        threshold value found
+        threshold value found for images
     binary_array: array
-        resulting binary image with pixel values of...
+        resulting binary image with pixel values of... <- variable name
 
     Returns
     -------
-
+    an array
     """
 
     image_array_nonzero = image_array > 0
@@ -129,16 +131,19 @@ def plot_thresholding(image_array, threshold, binary_array, output_file=''):
 
 def plot_contour_figure(image_array, cont):
     """
+    Returns plots of image contours by color. Waiting on plot design from RAF.
 
     Parameters
     ----------
-    image_array
-    cont
+    image_array: array
+
+    cont:
 
     Returns
     -------
-
+    an array
     """
+
     fig, ax = plt.subplots(figsize=(10, 5))
     ax = plt.subplot(111)
     ax.imshow(image_array, cmap=plt.cm.gray)
@@ -148,20 +153,18 @@ def plot_contour_figure(image_array, cont):
 
 def plot_arrow_contours(image_array, contours, output_path):
     """
-
     Plot the result of the object characterisation
-
     Parameters
     ----------
     image_array: array
-        Image
-    contours
-    output_path
+    contours:
+    output_path:
 
     Returns
     -------
 
     """
+
     # Display the image and plot all contours found
     from matplotlib.font_manager import FontProperties
     fontP = FontProperties()
@@ -195,13 +198,13 @@ def plot_arrow_contours(image_array, contours, output_path):
 
 def plot_template_arrow(image_array, template, value):
     """
+    Plot arrows for associated scars.
 
     Parameters
     ----------
     image_array
     template
     value
-
     Returns
     -------
 

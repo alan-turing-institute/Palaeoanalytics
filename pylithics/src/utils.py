@@ -8,18 +8,16 @@ import pylithics.src.plotting as plot
 
 def contour_disambiguation(df_contours, image_array):
     """
-
-    Function that selects contours by their size and removes duplicates.
+    Selects flake scar contours by their size and removes duplicates.
 
     Parameters
     ----------
     df_contours: dataframe
-        Dataframe with contour information.
+
+    image_array: array
 
     Returns
     -------
-
-    list of indexes
 
     """
 
@@ -85,17 +83,17 @@ def contour_disambiguation(df_contours, image_array):
 
 def mask_image(image_array, contour, innermask=False):
     """
-
-    Function that masks an image for cont given contour.
+    Function that masks an image for cont (1 contour = a list of a pair of coordinates) given contour.
 
     Parameters
     ----------
-    image_array
-    contour
+    image_array: array
+        Original image array (0 to 255)
+    contour:
 
     Returns
     -------
-
+    an array
     """
 
     r_mask = np.zeros_like(image_array, dtype='bool')
@@ -113,7 +111,6 @@ def mask_image(image_array, contour, innermask=False):
 
 def contour_characterisation(image_array, cont, conversion=1):
     """
-
     For cont given contour calculate characteristics (area, length, etc.)
 
     Parameters
@@ -164,8 +161,8 @@ def contour_characterisation(image_array, cont, conversion=1):
 
 def classify_distributions(image_array):
     """
-    Given an input image array classify it by their distribution of pixel intensities.
-    Returns True is the distribution is narrow and skewed to values of 1.
+    Classifies an image array by its distribution of pixel intensities.
+    Returns True if the distribution is narrow and skewed to values of 1.
 
     Parameters
     ----------
@@ -174,7 +171,6 @@ def classify_distributions(image_array):
     Returns
     -------
     a boolean
-
     """
 
     is_narrow = False
@@ -198,13 +194,13 @@ def classify_distributions(image_array):
 
 
 def get_high_level_parent_and_hierarchy(hierarchies):
-    """ For a list of contour hierarchies find the index of the
-    highest level parent for each contour.
+    """
+    Creates a list of contour hierarchies find the index of the highest level parent for each contour.
 
      Parameters
     ----------
     hierarchies: list
-        List of hierarchies
+        a list of contour hierarchies
 
     Returns
     -------
@@ -236,18 +232,18 @@ def get_high_level_parent_and_hierarchy(hierarchies):
 
 def pixulator(image_scale_array, scale_size):
     """
-    Converts image/scale dpi and pixel count to cm conversion rate.
+    Converts image/scale dpi and pixel count to mm conversion rate.
 
     Parameters
     ----------
     image_scale_array: array
         Image array
     scale_size:
-        length in mm of the scale
+        length of the scale in mm
 
     Returns
     -------
-        Image conversion pixel to centimeters.
+    Conversion image pixels to millimeters.
     """
 
     # dimension information in pixels
@@ -284,8 +280,8 @@ def classify_surfaces(cont):
 
         Parameters
         ----------
-        cont
-        contours
+        cont:
+        contours:
 
         Returns
         -------
@@ -505,7 +501,7 @@ def template_matching(image_array, templates_df, contour, debug=False):
     # this is to be able to do things with cv2
     image_array = image_array.astype(np.float32)
 
-    # defalut values of the index of best matched template and
+    # default values of the index of best matched template and
     location_index = -1
     avg_match = 0
 
@@ -542,8 +538,7 @@ def template_matching(image_array, templates_df, contour, debug=False):
                 location_index = i
 
     # plot the matching scar and arrow
-    if location_index!= -1 and debug==True:
-
+    if location_index != -1 and debug == True:
 
         plot.plot_template_arrow(masked_image, templates[location_index], avg_match)
 
@@ -585,6 +580,7 @@ def get_angles(templates):
     templates_df = pd.DataFrame.from_records(template_dict_list)
 
     return templates_df
+
 
 def contour_selection(df_contours):
 
