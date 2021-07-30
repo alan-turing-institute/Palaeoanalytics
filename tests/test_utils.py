@@ -1,9 +1,9 @@
 """
 Test full pipeline
 """
-from pylithics.src.read_and_process import read_image, detect_lithic, process_image
+from pylithics.src.read_and_process import read_image, detect_lithic, process_image, find_lithic_contours
 from pylithics.src.utils import mask_image, contour_characterisation, classify_distributions, shape_detection,\
-    get_high_level_parent_and_hierarchy, pixulator
+    get_high_level_parent_and_hierarchy, pixulator, classify_surfaces, subtract_masked_image, measure_vertices
 import os
 import cv2
 import numpy as np
@@ -102,18 +102,50 @@ def test_pixulator():
     assert conversion == 0.00423728813559322
 
 def test_classify_surfaces():
-    assert True
-
-def test_contour_arrow_classification():
-    assert True
 
 
-def test_find_arrow_templates():
+    id = '234'
+    image_array = read_image(os.path.join('tests', 'test_images'),id)
 
-    assert True
+    filename_config = os.path.join('tests', 'test_config.yml')
+
+    with open(filename_config, 'r') as config_file:
+        config_file = yaml.load(config_file)
+    config_file['conversion_px'] = 0.1  # hardcoded for now
+    config_file['id'] = id  # hardcoded for now
+
+    # initial processing of the image
+    image_processed = process_image(image_array, config_file)
+
+    # processing to detect lithic and scars
+    binary_array, threshold_value = detect_lithic(image_processed, config_file)
+
+    # find contours
+    contours = find_lithic_contours(binary_array, config_file)
+
+    surfaces_classification = classify_surfaces(contours)
+
+    assert surfaces_classification == {0: 'Ventral', 1: 'Dorsal', 2: 'Lateral'}
+
 
 def test_subtract_masked_image():
-    assert True
+    image_array = read_image(os.path.join('tests', 'test_images'), '236')
+
+    filename_config = os.path.join('tests', 'test_config.yml')
+
+    # Read YAML file
+    with open(filename_config, 'r') as config_file:
+        config_file = yaml.load(config_file)
+    binary_edge_sobel, _ = detect_lithic(image_array, config_file)
+
+    _, contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+
+    cont = np.asarray([i[0] for i in list(contours_cv)[1]])
+
+    rows, columns = subtract_masked_image(mask_image(image_array, cont))
+
+    assert len(rows) == 688
+    assert len(columns) == 1380
 
 def test_template_matching():
     assert True
@@ -132,7 +164,22 @@ def test_measure_arrow_angle():
 
 def test_measure_vertices():
 
-    assert True
+    image_array = read_image(os.path.join('tests', 'test_images'), '236')
+
+    filename_config = os.path.join('tests', 'test_config.yml')
+
+    # Read YAML file
+    with open(filename_config, 'r') as config_file:
+        config_file = yaml.load(config_file)
+    binary_edge_sobel, _ = detect_lithic(image_array, config_file)
+
+    _, contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+
+    cont = np.asarray([i[0] for i in list(contours_cv)[1]])
+
+    vertices, approx = measure_vertices(cont)
+
+    assert vertices == 1
 
 
 def test_shape_detection():
