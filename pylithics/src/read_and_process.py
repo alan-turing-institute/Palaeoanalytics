@@ -15,23 +15,25 @@ import os
 import pylithics.src.plotting as plot
 
 
-def read_image(input_dir, id, im_type = 'png'):
+def read_image(input_dir, id, im_type='png'):
     """
-
-    Function that read an image into the cv2 library and returning a grayscale array.
+    Read images from input directory.
 
     Parameters
-    ==========
-    input_dir: str, path where the image is found
-    id: str, name of the image
-    im_type: str, file extension type, default is png.
+    ----------
+    input_dir: str
+        path to input directory where images are found
+    id: str
+        unique image identifier code
+    im_type: str
+        image file extension type, default is .png
 
     Returns
-    =======
+    -------
     an array
     """
 
-    filename = os.path.join(input_dir, id +"."+im_type)
+    filename = os.path.join(input_dir, id + "." + im_type)
 
     im = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
 
@@ -40,54 +42,51 @@ def read_image(input_dir, id, im_type = 'png'):
 
 def detect_lithic(image_array, config_file):
     """
-    Function that given an input image array and configuration options
-    applies thresholding
-    and edge detection to find the general shape of the lithic object
+    Apply thresholding on input image array based on configuration file options.
+    of images that have been 'binarized' (0,1) <- do we need to mention that they are inverted?
+    edge detection of 'binarized' images.
 
     Parameters
-    ==========
-    image_array: array, of the image read by skimage
-    config_file: dict, with information of thresholding values
+    ----------
+    image_array: array
+        of the image read by openCV
+    config_file: dict
+        information on thresholding values
+
     Returns
-    =======
-    an array
-    cont float with the threshold value
-
+    -------
+    An array
     """
-
 
     # thresholding
     thresh = threshold_mean(image_array)
     thresh = thresh + thresh * config_file['threshold']
-    _ ,binary = cv2.threshold(image_array,thresh,255,cv2.THRESH_BINARY_INV)
+    _, binary = cv2.threshold(image_array, thresh, 255, cv2.THRESH_BINARY_INV)
 
     # edge detection
-
     x = cv2.Sobel(binary, cv2.CV_64F, 1, 0, ksize=1)
     y = cv2.Sobel(binary, cv2.CV_64F, 0, 1, ksize=1)
     absX = cv2.convertScaleAbs(x)  # convert back to uint8
     absY = cv2.convertScaleAbs(y)
     sobelXY = cv2.addWeighted(absX, 0.5, absY, 0.5, 0)
 
-
     return sobelXY, thresh
 
 
 def find_lithic_contours(image_array, config_file):
     """
-    Function that given an input image array and configuration options
-     finds contours on cont the lithic object
+    Contour finding of lithic artefact images from input image array and configuration options.
 
     Parameters
-    ==========
-    image_array: array, of the image read by skimage
-    config_file: dict, with information of thresholding values
-    arrows: bool
+    ----------
+    image_array : array
+        of the image read by openCV
+    config_file : dict
+        information on thresholding values
 
     Returns
-    =======
-    an dataframe with contours and its characteristics.
-
+    -------
+    an array
     """
 
     _, contours_cv, hierarchy = cv2.findContours(image_array, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
@@ -128,16 +127,18 @@ def find_lithic_contours(image_array, config_file):
 
 def process_image(image_array, config_file):
     """
-    Function that applies some processing to the initial image
+    Image denoising and contrast stretching for images.
 
     Parameters
-    ==========
-    image_array: array, of the image read by skimage
-    config_file: dict, with information of processing values
-    Returns
-    =======
-    an array
+    ----------
+    image_array : array
+        of the image read by openCV
+    config_file : dict
+        information of processing values
 
+    Returns
+    -------
+    an array
     """
 
     # noise removal
@@ -152,21 +153,19 @@ def process_image(image_array, config_file):
 
 def data_output(cont, config_file):
     """
-
-    Create a nested dictionary with output data from surfaces and scars
-    that could be easily saved into a json file
+    Create an output of a nested dictionary with data from surfaces and scars metrics
+    that could be easily saved into a json file.
 
     Parameters
     ----------
     cont: dataframe
-        dataframe with all the contour information and measurements for an image
+        dataframe with all contour information and measurements for an image
     config_file: dictionary
-        config file with relevant information for the image
+        configuration file with relevant information for the image
 
     Returns
     -------
-
-        A dictionary
+    a dictionary
     """
 
     # record high level information of surfaces detected
@@ -245,22 +244,23 @@ def data_output(cont, config_file):
 
 
 def associate_arrows_to_scars(image_array, cont, templates):
+
     """
-    Function that uses template matching to match the arrows to a given scar.
+    Use template matching to match the arrows to a given flake scar.
+    contour dataframe with arrow information, i.e. arrow angles.
 
     Parameters
     ----------
-    image_array: array,
+    image_array: array
         2D array of the masked_image_array
     cont: dataframe
         dataframe with all the contour information and measurements for an masked_image_array
     templates: list of arrays
-        list of arrays with  arrows templates
+        list of arrays with arrows templates
+
     Returns
     -------
-
-    A contour dataframe with arrow information
-
+    A dataframe
     """
 
     templates_angle = []
@@ -295,23 +295,21 @@ def associate_arrows_to_scars(image_array, cont, templates):
 
 def get_scars_angles(image_array, cont, templates):
     """
-    Function that classifies contours that correspond to arrows, or ripples and
-    returns the angle measurement of that scar.
+    Classify contours that correspond to arrows or ripples and return the angle measurement of that scar.
+    of contours and associate arrow angle information
 
     Parameters
     ----------
-    image_array: array,
+    image_array: array
         2D array of the masked_image_array
-    contours: dataframe
-        dataframe with all the contour information and measurements for an masked_image_array
+    cont: dataframe
+        dataframe with all contour information and measurements for a masked_image_array
     templates: array
         list of arrays with templates
 
     Returns
     -------
-
-    A contour dataframe with angle information
-
+    A dataframe
     """
 
     if templates.shape[0] == 0:
@@ -348,22 +346,22 @@ def read_arrow_data(input_dir):
 
 def find_arrows(image_array, image_processed, debug=False):
     """
-    Function that given an input image array and finds the arrows using connected components
+    Use connected components to find arrows on an image, and return an array with the arrow templates.
 
     Parameters
-    ==========
-    image_array: array,
-       Original image array (0 to 255)
-    image_processed: array,
-       Processed image array (0 to 1)
+    ----------
+    image_array: array
+        Original image array (0 to 255)
+    image_processed: array
+        Processed (binarized) image array (0 to 1)
     debug: flag to plot the outputs.
 
     Returns
-    =======
-    a list of arrays with the arrow templates.
+    -------
+    an array
     """
 
-    # load the image, convert to gray, and threshold
+    # load the image, convert to gray, and threshold.
     thresh = cv2.threshold(image_array, 0, 255,
                            cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
 
