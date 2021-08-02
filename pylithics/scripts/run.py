@@ -15,21 +15,27 @@ from pylithics.src.utils import pixulator, get_angles
 
 def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_arrows):
     """
-    Script that runs the process of lithic characterisation of imported images.
+    Script that sets up directories, data identification, and configurations for lithic characterisation,
+    and runs the pipeline.
 
     Parameters
     ----------
     id_list: list
         list of uniques identifier codes for images
     metadata_df: dataframe
-
+        User defined table describing lithic images in id_list. Must include image file ID, scale ID, and scale measurement.
     input_dir: str
         path to input directory where images are found
     output_dir: str
-        path to output directory to save outputs
+        path to output directory to save processed images
     config_file: dict
         dictionary with information of thresholding values
-    get_arrows:
+    get_arrows: boolean
+        Default = False. If True, PyLithics will find arrows and add them to the data.
+
+    Returns
+    -------
+    none
     """
 
     for id in id_list:
@@ -39,15 +45,16 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_a
             scale_id = metadata_df[metadata_df['PA_ID'] == id]['scale_ID'].values[0]
             if pd.isna(scale_id):
                 print(
-                    "Scale for Object " + id + " not available. No area measurement will be calculated in this image.")
+                    "Scale for Object " + id + " not available. No measurements will be calculated for this image.\
+                    Results will be returned in pixels")
                 config_file['scale_id'] = "no scale"
             else:
                 scale_size = metadata_df[metadata_df['PA_ID'] == id]['PA_scale'].values[0]
                 config_file['scale_id'] = str(scale_id)
                 config_file["scale_cm"] = scale_size
         except (TypeError, IndexError):
-            print("Information of scale and measurement for image " + id + " no found in metadata")
-            print("No area measurement will be calculated in this image")
+            print("Scale ID and scale measurement for image " + id + " not found in metadata")
+            print("No measurements will be calculated for this image")
             config_file['scale_id'] = "no scale"
 
         run_characterisation(input_dir, output_dir, config_file, get_arrows)
@@ -57,27 +64,35 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_a
 
 def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False):
     """
-        Lithic characterisation of an image.
+    Characterisation of image file.
 
-        Parameters
-        ----------
-        input_dir: str
-            path to input directory where images are found
-        output_dir: str
-            path to output directory to save outputs
-        config_file: dict
-            dictionary with information of thresholding values
-        """
+    Parameters
+    ----------
+    input_dir: str
+        path to input directory where images are found
+    output_dir: str
+        path to output directory to save processed images
+    config_file: dict
+        dictionary with information of thresholding values
+    arrows: boolean
+        If True, pylithics will collect templates for arrows.
+    debug: flag to plot the outputs.
+
+    Returns
+    -------
+    none
+    """
+
     id = config_file["id"]
     print('=============================')
     print('Processing figure: ', id)
 
     # read image
-    image_array = read_image(os.path.join(input_dir,'images'), id)
+    image_array = read_image(os.path.join(input_dir, 'images'), id)
 
     # get name of scale and if found read it
     try:
-        image_scale_array = read_image(os.path.join(input_dir, "scales"),config_file["scale_id"])
+        image_scale_array = read_image(os.path.join(input_dir, "scales"), config_file["scale_id"])
         config_file['conversion_px'] = pixulator(image_scale_array, config_file["scale_cm"])
     except (FileNotFoundError):
         config_file['conversion_px'] = 1
@@ -109,13 +124,14 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
         contours = get_scars_angles(image_processed, contours, arrow_df)
 
     else:
-        # in case we dont have arrows
+
         contours = get_scars_angles(image_processed, contours)
+
 
     output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
     plot_contours(image_array, contours, output_lithic)
 
-    # save data into a .json file
+    # record and save data into a .json file
     json_output = data_output(contours, config_file)
 
     data_output_file = os.path.join(output_dir, id + ".json")
@@ -133,8 +149,9 @@ def main():
     parser.add_argument("-c", "--config", required=True, type=str, metavar="config-file",
                         help="the model config file (YAML)")
     parser.add_argument('--input_dir', help='path to input directory where images are found', default=None)
-    parser.add_argument('--output_dir', type=str, help='directory where output data is saved', default=None)
-    parser.add_argument('--metadata_filename', type=str, help='CSV file with information on images and scales',
+    parser.add_argument('--output_dir', type=str, help='path to output directory to save processed image outputs',
+                        default=None)
+    parser.add_argument('--metadata_filename', type=str, help='CSV file with metadata on images and scales',
                         default=None)
     parser.add_argument('--get_arrows', action="store_true",
                         help='If a lithic contains arrows, find them and add them to the data',
