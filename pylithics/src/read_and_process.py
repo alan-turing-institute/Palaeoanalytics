@@ -6,7 +6,7 @@ from skimage import exposure
 from pylithics.src.utils import contour_characterisation, classify_surfaces, \
     get_high_level_parent_and_hierarchy
 import cv2
-from pylithics.src.utils import template_matching, mask_image, subtract_masked_image, contour_selection
+from pylithics.src.utils import template_matching, mask_image, contour_selection
 import os
 import pylithics.src.plotting as plot
 
