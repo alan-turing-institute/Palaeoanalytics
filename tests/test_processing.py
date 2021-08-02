@@ -97,8 +97,6 @@ def test_find_lithic_contours():
     plt.savefig(os.path.join('tests', 'contour_detection_lithic.png'))
     plt.close(fig)
 
-    print('Numer of contours:', contours[['contour']].shape[0])
-
     assert contours[['contour']].shape[0]> 40
 
 def test_process_image():
