@@ -9,7 +9,7 @@ import pandas as pd
 from pylithics.src.read_and_process import read_image,\
     find_lithic_contours, detect_lithic, process_image, data_output, \
     get_scars_angles, find_arrows
-from pylithics.src.plotting import plot_contours, plot_thresholding
+from pylithics.src.plotting import plot_results, plot_thresholding
 from pylithics.src.utils import pixulator, get_angles
 
 
@@ -127,9 +127,7 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
 
         contours = get_scars_angles(image_processed, contours)
 
-
-    output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
-    plot_contours(image_array, contours, output_lithic)
+    plot_results(id, image_array, contours, output_dir)
 
     # record and save data into a .json file
     json_output = data_output(contours, config_file)
