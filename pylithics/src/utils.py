@@ -6,80 +6,6 @@ import scipy.ndimage as ndi
 import pylithics.src.plotting as plot
 
 
-def contour_disambiguation(df_contours, image_array):
-    """
-    Selects flake scar contours by their size and removes duplicates.
-
-    Parameters
-    ----------
-    df_contours: dataframe
-
-    image_array: array
-
-    Returns
-    -------
-
-    """
-
-    index_to_drop = []
-
-    for hierarchy_level, index, parent_index, area_px, contour, in df_contours[
-        ['hierarchy_level', 'index', 'parent_index', 'area_px', 'contour']].itertuples(index=False):
-
-        pass_selection = True
-        if hierarchy_level == 0:
-            if area_px / max(df_contours['area_px']) < 0.1:
-                pass_selection = False
-            else:
-                continue
-        else:
-            # get the total area of the parent figure
-            norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
-            area = area_px
-            percentage = area / norm * 100
-            if percentage < 3:
-                pass_selection = False
-            if percentage > 60:
-                pass_selection = False
-
-        # fig, ax = plt.subplots(figsize=(10, 5))
-        # ax = plt.subplot(111)
-        # ax.imshow(image_array, cmap=plt.cm.gray)
-        # ax.plot(contour[:, 0], contour[:, 1])
-
-        if pass_selection == False:
-            index_to_drop.append(index)
-
-    cent_df = df_contours[['area_px', 'centroid', 'hierarchy_level', 'contour']]
-
-    import itertools
-
-    for i, j in itertools.combinations(cent_df.index, 2):
-
-        if ((i in index_to_drop) or (j in index_to_drop)):
-            continue
-
-        d_ij_centroid = np.linalg.norm(np.asarray(cent_df.loc[i]['centroid']) - np.asarray(cent_df.loc[j]['centroid']))
-
-        if cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']:
-            ratio = cent_df.loc[j]['area_px'] / cent_df.loc[i]['area_px']
-        else:
-            ratio = cent_df.loc[i]['area_px'] / cent_df.loc[j]['area_px']
-
-        if d_ij_centroid < 15 and ratio > 0.5:
-            if (cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']):
-                if d_ij_centroid < 1:
-                    index_to_drop.append(i)
-                else:
-                    index_to_drop.append(j)
-            elif (cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']):
-                if d_ij_centroid < 1:
-                    index_to_drop.append(j)
-                else:
-                    index_to_drop.append(i)
-
-    return index_to_drop
-
 
 def mask_image(image_array, contour, innermask=False):
     """
@@ -174,12 +100,6 @@ def classify_distributions(image_array):
     """
 
     is_narrow = False
-
-    fig, axes = plt.subplots(figsize=(8, 2.5))
-
-    axes.hist(image_array.ravel(), bins=256)
-    axes.set_title('Histogram')
-    plt.close(fig)
 
     image_array_nonzero = image_array > 0
 
@@ -346,95 +266,6 @@ def classify_surfaces(cont):
                 names[i] = np.nan
 
     return names
-
-
-def contour_arrow_classification(cont, hierarchy, quantiles, image_array):
-    """
-    Function that finds contours corresponding to arrows.
-
-    Parameters
-    ----------
-    cont: dataframe
-        Dataframe with contour information.
-    quantiles
-    hierarchy
-    Returns
-    -------
-
-    a boolean, stating if the contour is likely to be an arrow
-
-    """
-
-    if len(cont) < 50 or len(cont) > 300 or hierarchy < quantiles:
-        return False
-    else:
-
-        shape, vertices = shape_detection(cont)
-        # multiply the contour (x, y)-coordinates by the resize ratio,
-        # then draw the contours and the name of the shape on the image
-
-        if shape == 'arrow':
-
-            return True
-        else:
-            return False
-
-
-def find_arrow_templates(image_array, df_contours):
-    """
-    Decide if a contour is really an arrow and make it into a template
-
-    Parameters
-    ----------
-    image_array: array
-        Array of input image
-
-    df_contours: dataframe
-        dataframe with all the contour information and measurements for an image
-
-
-    Returns
-    -------
-
-    """
-
-    templates = []
-    index_drop = []
-
-    quantiles = np.quantile([item[-1] for item in df_contours['hierarchy']], 0.2)
-
-    df_contours['arrow'] = False
-
-    for cont, index, hierarchy in df_contours[['contour', 'index', 'hierarchy']].itertuples(index=False):
-
-        is_arrow = contour_arrow_classification(cont, hierarchy[-1], quantiles, image_array)
-
-        if is_arrow == False:
-            continue
-        else:
-
-            masked_image = mask_image(image_array, cont, False)
-
-            ratio = len(masked_image[(masked_image > 0.9)]) / len(masked_image[(masked_image != 0)])
-
-            # plot_contour_figure(masked_image, cont)
-
-            if ratio > 0.7:
-                continue
-            if ratio < 0.3:
-                index_drop.append(index)
-                continue
-
-            df_contours.loc[df_contours.index == index, 'arrow'] = True
-
-            rows, columns = subtract_masked_image(masked_image)
-
-            new_masked_image = np.delete(image_array, rows[:-3], 0)
-            new_masked_image = np.delete(new_masked_image, columns[:-3], 1)
-
-            templates.append(new_masked_image)
-
-    return index_drop, templates
 
 
 def subtract_masked_image(masked_image_array):
