@@ -5,6 +5,31 @@ import pylithics.src.utils as utils
 # Display the image and plot all contours found
 from matplotlib.font_manager import FontProperties
 import os
+import matplotlib as mpl
+
+def fig_size(image_array):
+    """
+
+    Calculate optimum figure size for a plot based on the ratio of sizes of rows and columns.
+
+    Parameters
+    ----------
+    image_array: array
+    Original image array (0 to 255)
+
+    Returns
+    -------
+
+    A number for the x width of the figure size.
+
+    """
+    ratio = image_array.shape[0] / image_array.shape[1]
+    if ratio < 1:
+        fig_size = 20 / ratio
+    else:
+        fig_size = 10 * ratio
+
+    return fig_size
 
 def plot_surfaces(image_array, contours_df, output_path):
     """
@@ -36,8 +61,52 @@ def plot_surfaces(image_array, contours_df, output_path):
 
     ax.set_xticks([])
     ax.set_yticks([])
-    plt.legend(bbox_to_anchor=(1.01, 0), loc="lower left", borderaxespad=0, fontsize=15)
-    plt.title("Detected surfaces", fontsize=20)
+    plt.legend(bbox_to_anchor=(1.2, 0), loc="lower left", borderaxespad=0, fontsize=15)
+    plt.title("Detected surfaces", fontsize=25)
+    plt.savefig(output_path)
+    plt.close(fig)
+
+
+def plot_scars(image_array, contours_df, output_path):
+    """
+    Plot the contours from the lithic surfaces.
+
+    Parameters
+    ----------
+    image_array: array
+    Original image array (0 to 255)
+    contours_df:
+        Dataframe with detected contours and extra information about them.
+    output_path:
+        path to output directory to save processed images
+
+    """
+    mpl.rc('image', cmap='Dark2')
+
+    fig_x_size = fig_size(image_array)
+    fig, ax = plt.subplots(figsize=(fig_x_size, 18))
+
+    ax.imshow(image_array, cmap=plt.cm.gray)
+
+    surfaces_classification = utils.classify_surfaces(contours_df)
+    # selecting only surfaces (lowest hiearchy level).
+    contours_surface_df = contours_df[contours_df['parent_index'] != -1].sort_values(by=["area_px"], ascending=False)
+
+    i = 0
+    for contour, area_mm, width_mm, height_mm in \
+            contours_surface_df[['contour', 'area_mm',
+                                 'width_mm', 'height_mm']].itertuples(index=False):
+        text = "A: " + str(area_mm) + ", B: " + str(width_mm) + ", L: " + str(height_mm)
+        ax.plot(contour[:, 0], contour[:, 1], label=text, linewidth=3)
+        i = i + 1
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    plt.figtext(0.05, 0.5, ("A: Total Area"), fontsize=20)
+    plt.figtext(0.05, 0.52, ("B: Maximum Breath"), fontsize=20)
+    plt.figtext(0.05, 0.54, ("L: Maximum Lenght"), fontsize=20)
+    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=12)
+    plt.title("Scar measurements (in millimeters)", fontsize=25)
     plt.show()
     plt.savefig(output_path)
     plt.close(fig)
@@ -67,8 +136,8 @@ def plot_results(id, image_array, contours_df, output_dir):
     output_lithic = os.path.join(output_dir, id + "_lithic_surfaces.png")
     plot_surfaces(image_array, contours_df, output_lithic)
 
-    output_lithic = os.path.join(output_dir, id + "_test.png")
-    plot_contours(image_array, contours_df, output_lithic)
+    output_lithic = os.path.join(output_dir, id + "_lithium_scars.png")
+    plot_scars(image_array, contours_df, output_lithic)
 
 
 def plot_contours(image_array, contours, output_path):
