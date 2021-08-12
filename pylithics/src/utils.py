@@ -220,8 +220,8 @@ def classify_surfaces(cont):
 
         return output
 
-    surfaces = cont[cont['hierarchy_level'] == 0].copy()  #
-    surfaces.sort_values(by=["area_px"], ascending=False)
+    # dataframe should be sorted in order for this algorithm to work correctly.
+    surfaces = cont[cont['hierarchy_level'] == 0].sort_values(by=["area_px"], ascending=False)  #
 
     names = [np.nan] * surfaces.shape[0]
     # Dorsal, lateral, platform, ventral.
