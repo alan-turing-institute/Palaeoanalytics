@@ -8,54 +8,39 @@ import os
 
 def plot_surfaces(image_array, contours_df, output_path):
     """
-    Plot the surfaces contours.
+    Plot the contours from the lithic surfaces.
 
     Parameters
     ----------
     image_array: array
     Original image array (0 to 255)
     contours_df:
-
+        Dataframe with detected contours and extra information about them.
     output_path:
         path to output directory to save processed images
 
-    Returns
-    -------
-    an array
     """
-    fontP = FontProperties()
-
-    fig, ax = plt.subplots(figsize=(20, 12))
-    ax = plt.subplot(111)
+    fig, ax = plt.subplots(figsize=(16, 12))
     ax.imshow(image_array, cmap=plt.cm.gray)
 
-    contours_df.sort_values(by=["area_px"], inplace=True, ascending=False)
-    surfaces_classification = utils.classify_surfaces(contours_df)
+    # selecting only surfaces (lowest hiearchy level).
+    contours_surface_df = contours_df[contours_df['parent_index']==-1]
+    contours_surface_df.sort_values(by=["area_px"], inplace=True, ascending=False)
+    surfaces_classification = utils.classify_surfaces(contours_surface_df)
 
     i = 0
-    for contour, parent_index in \
-            contours_df[['contour', 'parent_index']].itertuples(index=False):
-        try:
-            if parent_index == -1:
-                line_width = 3
-                line_style = 'solid'
-                classification = surfaces_classification[i]
-                text = str(classification)
-                i = i + 1
-                ax.plot(contour[:, 0], contour[:, 1], line_width=line_width, line_style=line_style, label=text)
+    for contour in contours_surface_df['contour'].values:
+        classification = surfaces_classification[i]
+        text = str(classification)
+        ax.plot(contour[:, 0], contour[:, 1], label=text, linewidth=5)
+        i = i + 1
 
-        except:
-            continue
 
-    fontP.set_size('xx-small')
-    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102),
-               loc='lower left', ncol=2, mode="expand", borderaxespad=0., fontsize='xx-small')
-        # bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='xx-small')
-
-    plt.figtext(0.02, 0.5, str(i)+' surfaces')
-    plt.title("Detected surfaces")
+    plt.legend(bbox_to_anchor=(1.01, 0), loc="lower left", borderaxespad=0,fontsize=15)
+    plt.title("Detected surfaces", fontsize=20)
     ax.set_xticks([])
     ax.set_yticks([])
+    plt.show()
     plt.savefig(output_path)
     plt.close(fig)
 
