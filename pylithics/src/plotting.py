@@ -20,13 +20,12 @@ def plot_surfaces(image_array, contours_df, output_path):
         path to output directory to save processed images
 
     """
-    fig, ax = plt.subplots(figsize=(16, 12))
+    fig, ax = plt.subplots(figsize=(18, 12))
     ax.imshow(image_array, cmap=plt.cm.gray)
 
+    surfaces_classification = utils.classify_surfaces(contours_df)
     # selecting only surfaces (lowest hiearchy level).
-    contours_surface_df = contours_df[contours_df['parent_index']==-1]
-    contours_surface_df.sort_values(by=["area_px"], inplace=True, ascending=False)
-    surfaces_classification = utils.classify_surfaces(contours_surface_df)
+    contours_surface_df = contours_df[contours_df['parent_index'] == -1].sort_values(by=["area_px"], ascending=False)
 
     i = 0
     for contour in contours_surface_df['contour'].values:
@@ -35,17 +34,16 @@ def plot_surfaces(image_array, contours_df, output_path):
         ax.plot(contour[:, 0], contour[:, 1], label=text, linewidth=5)
         i = i + 1
 
-
-    plt.legend(bbox_to_anchor=(1.01, 0), loc="lower left", borderaxespad=0,fontsize=15)
-    plt.title("Detected surfaces", fontsize=20)
     ax.set_xticks([])
     ax.set_yticks([])
+    plt.legend(bbox_to_anchor=(1.01, 0), loc="lower left", borderaxespad=0, fontsize=15)
+    plt.title("Detected surfaces", fontsize=20)
     plt.show()
     plt.savefig(output_path)
     plt.close(fig)
 
 
-def plot_results(id,image_array, contours_df, output_dir):
+def plot_results(id, image_array, contours_df, output_dir):
     """
     Plot the results of the object characterisation.
 
@@ -67,11 +65,10 @@ def plot_results(id,image_array, contours_df, output_dir):
 
     # plot surfaces
     output_lithic = os.path.join(output_dir, id + "_lithic_surfaces.png")
-    plot_surfaces(image_array, contours_df,output_lithic)
+    plot_surfaces(image_array, contours_df, output_lithic)
 
     output_lithic = os.path.join(output_dir, id + "_test.png")
-    plot_contours(image_array, contours_df,output_lithic)
-
+    plot_contours(image_array, contours_df, output_lithic)
 
 
 def plot_contours(image_array, contours, output_path):
@@ -113,7 +110,8 @@ def plot_contours(image_array, contours, output_path):
                 line_style = 'solid'
                 classification = surfaces_classification[id]
                 text = str(classification) + \
-                    ", index: "+str(index) + ",surface_id: "+str(id)+", w: "+str(width_mm)+", h: "+str(height_mm)
+                       ", index: " + str(index) + ",surface_id: " + str(id) + ", w: " + str(width_mm) + ", h: " + str(
+                    height_mm)
                 id = id + 1
                 ax.plot(contour[:, 0], contour[:, 1], line_width=line_width, line_style=line_style, label=text)
 
@@ -122,12 +120,12 @@ def plot_contours(image_array, contours, output_path):
                     line_width = 2
                     line_style = 'solid'
                     # text = "arrow angle: "+str(angle)
-                    text = "n vertices: "+str(polygon_count)
+                    text = "n vertices: " + str(polygon_count)
                     ax.plot(contour[:, 0], contour[:, 1], line_width=line_width, line_style=line_style, label=text)
                 else:
                     line_width = 2
                     line_style = 'dashed'
-                    text = "n vertices: "+str(polygon_count)
+                    text = "n vertices: " + str(polygon_count)
                     ax.plot(contour[:, 0], contour[:, 1], line_width=line_width, line_style=line_style, label=text)
 
         except:
@@ -136,9 +134,9 @@ def plot_contours(image_array, contours, output_path):
     fontP.set_size('xx-small')
     plt.legend(bbox_to_anchor=(0., 1.02, 1., .102),
                loc='lower left', ncol=2, mode="expand", borderaxespad=0., fontsize='xx-small')
-        # bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='xx-small')
+    # bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='xx-small')
 
-    plt.figtext(0.02, 0.5, str(len(contours))+' contours')
+    plt.figtext(0.02, 0.5, str(len(contours)) + ' contours')
     ax.set_xticks([])
     ax.set_yticks([])
     plt.savefig(output_path)
@@ -191,7 +189,7 @@ def plot_thresholding(image_array, threshold, binary_array, output_file=''):
     # ax[1].text(1, 0.55,"std: "+ str(std))
 
     ax[2].imshow(binary_array, cmap=plt.cm.gray)
-    ax[2].set_title('Thresholded and '+text)
+    ax[2].set_title('Thresholded and ' + text)
     ax[2].axis('off')
 
     if output_file != "":
@@ -247,7 +245,9 @@ def plot_arrow_contours(image_array, contours, output_path):
 
     for contour, parent_index, index, area_mm, width_mm, height_mm, arrow in contours[['contour', 'parent_index',
                                                                                        'index', 'area_px', 'width_mm',
-                                                                                       'height_mm', 'arrow']].itertuples(index=False):
+                                                                                       'height_mm',
+                                                                                       'arrow']].itertuples(
+        index=False):
         try:
             if arrow == True:
                 line_style = 'solid'
@@ -259,7 +259,7 @@ def plot_arrow_contours(image_array, contours, output_path):
             continue
 
     fontP.set_size('xx-small')
-    plt.figtext(0.02, 0.5, str(len(contours))+' contours')
+    plt.figtext(0.02, 0.5, str(len(contours)) + ' contours')
     ax.set_xticks([])
     ax.set_yticks([])
     plt.savefig(output_path)
