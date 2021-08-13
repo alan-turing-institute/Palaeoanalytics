@@ -110,6 +110,43 @@ def plot_scars(image_array, contours_df, output_path):
     plt.savefig(output_path)
     plt.close(fig)
 
+def plot_angles(image_array, contours_df, output_path):
+    """
+    Plot the contours from the lithic surfaces.
+
+    Parameters
+    ----------
+    image_array: array
+    Original image array (0 to 255)
+    contours_df:
+        Dataframe with detected contours and extra information about them.
+    output_path:
+        path to output directory to save processed images
+
+    """
+    fig_x_size = fig_size(image_array)
+    fig, ax = plt.subplots(figsize=(fig_x_size, 20))
+
+    ax.imshow(image_array, cmap=plt.cm.gray)
+
+    # selecting only surfaces (lowest hiearchy level).
+    contours_surface_df = contours_df[(contours_df['parent_index'] != -1) & (contours_df['angle'].notnull())].sort_values(by=["area_px"], ascending=False)
+
+    i = 0
+    for contour, angle in \
+            contours_surface_df[['contour', 'angle']].itertuples(index=False):
+        text = "Angle: " + str(angle)
+        ax.plot(contour[:, 0], contour[:, 1], label=text, linewidth=4)
+        i = i + 1
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=11)
+    plt.title("Scar Strike Angle measurement (in degrees)", fontsize=25)
+    plt.show()
+    plt.savefig(output_path)
+    plt.close(fig)
+
 
 def plot_results(id, image_array, contours_df, output_dir):
     """
@@ -137,6 +174,10 @@ def plot_results(id, image_array, contours_df, output_dir):
 
     output_lithic = os.path.join(output_dir, id + "_lithium_scars.png")
     plot_scars(image_array, contours_df, output_lithic)
+
+    output_lithic = os.path.join(output_dir, id + "_lithium_angles.png")
+    plot_angles(image_array, contours_df, output_lithic)
+
 
 
 def plot_contours(image_array, contours, output_path):

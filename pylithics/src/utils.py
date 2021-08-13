@@ -626,7 +626,7 @@ def measure_arrow_angle(template):
     rads %= 2 * math.pi
     angle = math.degrees(rads)  # convert to degrees.
 
-    return angle
+    return round(angle,2)
 
 
 def measure_vertices(cont, epsilon=0.04):
