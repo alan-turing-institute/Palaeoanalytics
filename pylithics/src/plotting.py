@@ -45,7 +45,8 @@ def plot_surfaces(image_array, contours_df, output_path):
         path to output directory to save processed images
 
     """
-    fig, ax = plt.subplots(figsize=(18, 12))
+    fig_x_size = fig_size(image_array)
+    fig, ax = plt.subplots(figsize=(fig_x_size, 20))
     ax.imshow(image_array, cmap=plt.cm.gray)
 
     surfaces_classification = utils.classify_surfaces(contours_df)
@@ -61,8 +62,9 @@ def plot_surfaces(image_array, contours_df, output_path):
 
     ax.set_xticks([])
     ax.set_yticks([])
-    plt.legend(bbox_to_anchor=(1.2, 0), loc="lower left", borderaxespad=0, fontsize=15)
+    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=17)
     plt.title("Detected surfaces", fontsize=25)
+    plt.show()
     plt.savefig(output_path)
     plt.close(fig)
 
@@ -81,14 +83,11 @@ def plot_scars(image_array, contours_df, output_path):
         path to output directory to save processed images
 
     """
-    mpl.rc('image', cmap='Dark2')
-
     fig_x_size = fig_size(image_array)
-    fig, ax = plt.subplots(figsize=(fig_x_size, 18))
+    fig, ax = plt.subplots(figsize=(fig_x_size, 20))
 
     ax.imshow(image_array, cmap=plt.cm.gray)
 
-    surfaces_classification = utils.classify_surfaces(contours_df)
     # selecting only surfaces (lowest hiearchy level).
     contours_surface_df = contours_df[contours_df['parent_index'] != -1].sort_values(by=["area_px"], ascending=False)
 
@@ -97,7 +96,7 @@ def plot_scars(image_array, contours_df, output_path):
             contours_surface_df[['contour', 'area_mm',
                                  'width_mm', 'height_mm']].itertuples(index=False):
         text = "A: " + str(area_mm) + ", B: " + str(width_mm) + ", L: " + str(height_mm)
-        ax.plot(contour[:, 0], contour[:, 1], label=text, linewidth=3)
+        ax.plot(contour[:, 0], contour[:, 1], label=text, linewidth=4)
         i = i + 1
 
     ax.set_xticks([])
@@ -105,7 +104,7 @@ def plot_scars(image_array, contours_df, output_path):
     plt.figtext(0.05, 0.5, ("A: Total Area"), fontsize=20)
     plt.figtext(0.05, 0.52, ("B: Maximum Breath"), fontsize=20)
     plt.figtext(0.05, 0.54, ("L: Maximum Lenght"), fontsize=20)
-    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=12)
+    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=11)
     plt.title("Scar measurements (in millimeters)", fontsize=25)
     plt.show()
     plt.savefig(output_path)
