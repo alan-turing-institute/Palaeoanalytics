@@ -2,10 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 import pylithics.src.utils as utils
-# Display the image and plot all contours found
-from matplotlib.font_manager import FontProperties
 import os
 import matplotlib as mpl
+
 
 def fig_size(image_array):
     """
@@ -53,17 +52,19 @@ def plot_surfaces(image_array, contours_df, output_path):
     # selecting only surfaces (lowest hiearchy level).
     contours_surface_df = contours_df[contours_df['parent_index'] == -1].sort_values(by=["area_px"], ascending=False)
 
+    cmap_list = plt.cm.get_cmap('Paired', contours_surface_df.shape[0])
+
     i = 0
     for contour in contours_surface_df['contour'].values:
         classification = surfaces_classification[i]
         text = str(classification)
-        ax.plot(contour[:, 0], contour[:, 1], label=text, linewidth=5)
+        ax.plot(contour[:, 0], contour[:, 1], label=text, linewidth=10, color=cmap_list(i))
         i = i + 1
 
     ax.set_xticks([])
     ax.set_yticks([])
     plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=17)
-    plt.title("Detected surfaces", fontsize=25)
+    plt.title("Detected surfaces", fontsize=30)
     plt.show()
     plt.savefig(output_path)
     plt.close(fig)
@@ -89,23 +90,24 @@ def plot_scars(image_array, contours_df, output_path):
     ax.imshow(image_array, cmap=plt.cm.gray)
 
     # selecting only surfaces (lowest hiearchy level).
-    contours_surface_df = contours_df[contours_df['parent_index'] != -1].sort_values(by=["area_px"], ascending=False)
+    contours_scars_df = contours_df[contours_df['parent_index'] != -1].sort_values(by=["area_px"], ascending=False)
+    cmap_list = plt.cm.get_cmap('tab20', contours_scars_df.shape[0])
 
     i = 0
     for contour, area_mm, width_mm, height_mm in \
-            contours_surface_df[['contour', 'area_mm',
+            contours_scars_df[['contour', 'area_mm',
                                  'width_mm', 'height_mm']].itertuples(index=False):
         text = "A: " + str(area_mm) + ", B: " + str(width_mm) + ", L: " + str(height_mm)
-        ax.plot(contour[:, 0], contour[:, 1], label=text, linewidth=4)
+        ax.plot(contour[:, 0], contour[:, 1], label=text, linewidth=5, color=cmap_list(i))
         i = i + 1
 
     ax.set_xticks([])
     ax.set_yticks([])
-    plt.figtext(0.05, 0.5, ("A: Total Area"), fontsize=20)
-    plt.figtext(0.05, 0.52, ("B: Maximum Breath"), fontsize=20)
-    plt.figtext(0.05, 0.54, ("L: Maximum Lenght"), fontsize=20)
+    plt.figtext(0.02, 0.5, ("A: Total Area"), fontsize=18)
+    plt.figtext(0.02, 0.52, ("B: Maximum Breath"), fontsize=18)
+    plt.figtext(0.02, 0.54, ("L: Maximum Lenght"), fontsize=18)
     plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=11)
-    plt.title("Scar measurements (in millimeters)", fontsize=25)
+    plt.title("Scar measurements (in millimeters)", fontsize=30)
     plt.show()
     plt.savefig(output_path)
     plt.close(fig)
@@ -129,20 +131,21 @@ def plot_angles(image_array, contours_df, output_path):
 
     ax.imshow(image_array, cmap=plt.cm.gray)
 
-    # selecting only surfaces (lowest hiearchy level).
-    contours_surface_df = contours_df[(contours_df['parent_index'] != -1) & (contours_df['angle'].notnull())].sort_values(by=["area_px"], ascending=False)
+    # selecting only scars with angles
+    contours_angles_df = contours_df[(contours_df['parent_index'] != -1) & (contours_df['angle'].notnull())].sort_values(by=["area_px"], ascending=False)
+    cmap_list = plt.cm.get_cmap('tab20', contours_angles_df.shape[0])
 
     i = 0
     for contour, angle in \
-            contours_surface_df[['contour', 'angle']].itertuples(index=False):
+            contours_angles_df[['contour', 'angle']].itertuples(index=False):
         text = "Angle: " + str(angle)
-        ax.plot(contour[:, 0], contour[:, 1], label=text, linewidth=4)
+        ax.plot(contour[:, 0], contour[:, 1], label=text, linewidth=5, color=cmap_list(i))
         i = i + 1
 
     ax.set_xticks([])
     ax.set_yticks([])
     plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=11)
-    plt.title("Scar Strike Angle measurement (in degrees)", fontsize=25)
+    plt.title("Scar Strike Angle measurement (in degrees)", fontsize=30)
     plt.show()
     plt.savefig(output_path)
     plt.close(fig)
