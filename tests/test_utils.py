@@ -99,7 +99,7 @@ def test_classify_surfaces():
 
     surfaces_classification = classify_surfaces(contours)
 
-    assert surfaces_classification == {0: 'Ventral', 1: 'Dorsal', 2: 'Lateral'}
+    assert surfaces_classification == {0: 'Dorsal', 1: 'Ventral', 2: 'Lateral'}
 
 
 def test_subtract_masked_image():

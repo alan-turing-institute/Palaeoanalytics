@@ -223,7 +223,11 @@ def classify_surfaces(cont):
     # dataframe should be sorted in order for this algorithm to work correctly.
     surfaces = cont[cont['hierarchy_level'] == 0].sort_values(by=["area_px"], ascending=False)  #
 
-    names = [np.nan] * surfaces.shape[0]
+    names = {}
+    # start assigning them all to nan
+    for i in range(surfaces.shape[0]):
+        names[i] = 'Unclassified'
+
     # Dorsal, lateral, platform, ventral.
     if surfaces.shape[0] == 1:
         names[0] = 'Dorsal'
