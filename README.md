@@ -143,6 +143,12 @@ pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --outpu
 lithics image files must still be inside  the '<path_to_input_dir>/images/' directory). However all the measurements will only be
 provided as number of pixels. 
 
+# Contributing
 
+We welcome contributions from anyone who is interested in the project. There are lots of ways to contribute, not just writing code. See our Contributor Guidelines to learn more about how you can contribute and how we work together as a community.
+
+# Licence
+
+This project is licensed under the terms of the Creative Commons Attribution-ShareAlike (CC BY-SA 4.0) software license - https://creativecommons.org/licenses/by-sa/4.0/
 
 
