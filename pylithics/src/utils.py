@@ -1,10 +1,9 @@
 import cv2
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import scipy.ndimage as ndi
 import pylithics.src.plotting as plot
-
+import itertools
 
 
 def mask_image(image_array, contour, innermask=False):
@@ -177,7 +176,7 @@ def pixulator(image_scale_array, scale_size):
 
     px_conversion = 1 / (orientation / scale_size)
 
-    print(f"1 cm will equate to {1 / px_conversion} pixels width.")
+    print(f"1 cm will equate to {round(1 / px_conversion,1)} pixels width.")
 
     return (px_conversion)
 
@@ -377,14 +376,12 @@ def template_matching(image_array, templates_df, contour, debug=False):
 
     # plot the matching scar and arrow
     if location_index != -1 and debug == True:
-
         plot.plot_template_arrow(masked_image, templates[location_index], avg_match)
 
     return location_index
 
 
 def get_angles(templates):
-
     """
 
     For a list of templates of arrows
@@ -421,7 +418,6 @@ def get_angles(templates):
 
 
 def contour_selection(df_contours):
-
     """
 
     Function that selects contours by their size and removes duplicates.
@@ -440,63 +436,32 @@ def contour_selection(df_contours):
 
     index_to_drop = []
 
+    # in here we select contours by size and percentage of the total area ad their hierarchy
     for hierarchy_level, index, parent_index, area_px, contour, in df_contours[
         ['hierarchy_level', 'index', 'parent_index', 'area_px', 'contour']].itertuples(index=False):
 
         pass_selection = True
         if hierarchy_level == 0:
+            # this removes very small contours that can be found from noise in the figure
             if area_px / max(df_contours['area_px']) < 0.05:
                 pass_selection = False
 
-
         else:
-            if area_px / max(df_contours['area_px']) > 0.4:
-                pass_selection = False
-
-            # only allow
+            # only allow low hierarchies
             if hierarchy_level > 2:
                 pass_selection = False
             else:
                 # get the total area of the parent figure
                 norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
                 area = area_px
-                percentage = area / norm * 100
-                if percentage < 0.2:
+                percentage = area / norm
+                if percentage < 0.02:
                     pass_selection = False
-                if percentage > 60:
+                if percentage > 0.60:
                     pass_selection = False
 
-
-        if pass_selection == False:
+        if not pass_selection:
             index_to_drop.append(index)
-
-    cent_df = df_contours[['area_px', 'centroid', 'hierarchy_level', 'contour']]
-
-    import itertools
-
-    for i, j in itertools.combinations(cent_df.index, 2):
-
-        if ((i in index_to_drop) or (j in index_to_drop)):
-            continue
-
-        d_ij_centroid = np.linalg.norm(np.asarray(cent_df.loc[i]['centroid']) - np.asarray(cent_df.loc[j]['centroid']))
-
-        if cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']:
-            ratio = cent_df.loc[j]['area_px'] / cent_df.loc[i]['area_px']
-        else:
-            ratio = cent_df.loc[i]['area_px'] / cent_df.loc[j]['area_px']
-
-        if d_ij_centroid < 15 and ratio > 0.5:
-            if (cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']):
-                if d_ij_centroid < 1:
-                    index_to_drop.append(i)
-                else:
-                    index_to_drop.append(j)
-            elif (cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']):
-                if d_ij_centroid < 1:
-                    index_to_drop.append(j)
-                else:
-                    index_to_drop.append(i)
 
     return index_to_drop
 
@@ -626,7 +591,7 @@ def measure_arrow_angle(template):
     rads %= 2 * math.pi
     angle = math.degrees(rads)  # convert to degrees.
 
-    return round(angle,2)
+    return round(angle, 2)
 
 
 def measure_vertices(cont, epsilon=0.04):
