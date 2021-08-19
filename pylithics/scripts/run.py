@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 # install libraries for pylithics pipeline.
 import argparse
 import yaml
@@ -94,7 +93,7 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
     try:
         image_scale_array = read_image(os.path.join(input_dir, "scales"), config_file["scale_id"])
         config_file['conversion_px'] = pixulator(image_scale_array, config_file["scale_cm"])
-    except (FileNotFoundError):
+    except FileNotFoundError:
         config_file['conversion_px'] = 1
 
     # initial processing of the image
@@ -104,7 +103,7 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
     binary_array, threshold_value = detect_lithic(image_processed, config_file)
 
     # show output of lithic detection for debugging
-    if debug == True:
+    if debug:
         output_threshold = os.path.join(output_dir, id + "_lithic_threshold.png")
         plot_thresholding(image_processed, threshold_value, binary_array, output_threshold)
 
@@ -124,7 +123,7 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
         contours = get_scars_angles(image_processed, contours, arrow_df)
 
     else:
-
+        # if there is no arrows in the figures we can measure the angles differently
         contours = get_scars_angles(image_processed, contours)
 
     plot_results(id, image_array, contours, output_dir)
