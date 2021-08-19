@@ -220,9 +220,14 @@ def classify_surfaces(cont):
 
         return output
 
-    surfaces = cont[cont['hierarchy_level'] == 0].copy()  # .sort_values(by=["area_px"], ascending=False)
+    # dataframe should be sorted in order for this algorithm to work correctly.
+    surfaces = cont[cont['hierarchy_level'] == 0].sort_values(by=["area_px"], ascending=False)  #
 
     names = {}
+    # start assigning them all to nan
+    for i in range(surfaces.shape[0]):
+        names[i] = 'Unclassified'
+
     # Dorsal, lateral, platform, ventral.
     if surfaces.shape[0] == 1:
         names[0] = 'Dorsal'
@@ -233,7 +238,7 @@ def classify_surfaces(cont):
         if ratio > 0.9:
             names[0], names[1] = dorsal_ventral(cont, surfaces)
 
-        if surfaces.shape[0] == 2 and ratio <= 0.9:
+        elif surfaces.shape[0] == 2 and ratio <= 0.9:
 
             if ratio > 0.3:
                 names[0] = 'Dorsal'
@@ -242,12 +247,12 @@ def classify_surfaces(cont):
                 names[0] = 'Dorsal'
                 names[1] = 'Platform'
 
-        elif surfaces.shape[0] == 3:
+        if surfaces.shape[0] == 3:
             if ratio > 0.9:
 
                 ratio2 = surfaces["area_px"].iloc[2] / surfaces["area_px"].iloc[0]
 
-                if ratio2 > 0.3:
+                if ratio2 > 0.2:
                     names[2] = 'Lateral'
                 else:
                     names[2] = 'Platform'
@@ -256,14 +261,16 @@ def classify_surfaces(cont):
                 names[1] = 'Lateral'
                 names[2] = 'Platform'
 
-        elif surfaces.shape[0] == 4:
+        elif surfaces.shape[0] > 3:
             names[0], names[1] = dorsal_ventral(cont, surfaces)
-            names[2] = 'Lateral'
-            names[3] = 'Platform'
+            ratio2 = surfaces["area_px"].iloc[2] / surfaces["area_px"].iloc[0]
+            if ratio2 > 0.2:
+                names[2] = 'Lateral'
+            else:
+                names[2] = 'Platform'
 
-        else:
-            for i in range(surfaces.shape[0]):
-                names[i] = np.nan
+            if surfaces["area_px"].iloc[3] / surfaces["area_px"].iloc[0] < 0.2:
+                names[3] = 'Platform'
 
     return names
 
@@ -619,7 +626,7 @@ def measure_arrow_angle(template):
     rads %= 2 * math.pi
     angle = math.degrees(rads)  # convert to degrees.
 
-    return angle
+    return round(angle,2)
 
 
 def measure_vertices(cont, epsilon=0.04):
