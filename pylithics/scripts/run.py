@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 # install libraries for pylithics pipeline.
 import argparse
 import yaml
@@ -9,7 +8,7 @@ import pandas as pd
 from pylithics.src.read_and_process import read_image,\
     find_lithic_contours, detect_lithic, process_image, data_output, \
     get_scars_angles, find_arrows
-from pylithics.src.plotting import plot_contours, plot_thresholding
+from pylithics.src.plotting import plot_results, plot_thresholding
 from pylithics.src.utils import pixulator, get_angles
 
 
@@ -103,7 +102,7 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
     binary_array, threshold_value = detect_lithic(image_processed, config_file)
 
     # show output of lithic detection for debugging
-    if debug == True:
+    if debug:
         output_threshold = os.path.join(output_dir, id + "_lithic_threshold.png")
         plot_thresholding(image_processed, threshold_value, binary_array, output_threshold)
 
@@ -123,11 +122,11 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
         contours = get_scars_angles(image_processed, contours, arrow_df)
 
     else:
-        # when arrows are not present
+
+        # if there is no arrows in the figures we can measure the angles differently
         contours = get_scars_angles(image_processed, contours)
 
-    output_lithic = os.path.join(output_dir, id + "_lithic_contours.png")
-    plot_contours(image_array, contours, output_lithic)
+    plot_results(id, image_array, contours, output_dir)
 
     # record and save data into a .json file
     json_output = data_output(contours, config_file)

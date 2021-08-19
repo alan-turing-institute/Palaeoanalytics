@@ -3,7 +3,8 @@ Test the functions in read_and_process.py
 """
 import os
 import yaml
-from pylithics.src.read_and_process import read_image, detect_lithic, find_lithic_contours, process_image
+from pylithics.src.read_and_process import read_image, detect_lithic, \
+    find_lithic_contours, process_image
 
 import matplotlib.pyplot as plt
 
@@ -96,9 +97,7 @@ def test_find_lithic_contours():
     plt.savefig(os.path.join('tests', 'contour_detection_lithic.png'))
     plt.close(fig)
 
-    print('Numer of contours:', contours[['contour']].shape[0])
-
-    assert contours[['contour']].shape[0]> 40
+    assert contours[['contour']].shape[0]> 20
 
 def test_process_image():
 
@@ -115,4 +114,5 @@ def test_process_image():
 
     assert image_processed.shape[0]!= 0
     assert image_processed.max()<=1.0
+
 

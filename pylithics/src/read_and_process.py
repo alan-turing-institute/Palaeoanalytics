@@ -292,7 +292,8 @@ def associate_arrows_to_scars(image_array, cont, templates):
     return cont
 
 
-def get_scars_angles(image_array, cont, templates=pd.DataFrame()):
+
+def get_scars_angles(image_array, cont, templates = pd.DataFrame()):
     """
     Classify contours that correspond to arrows or ripples and return the angle measurement of that scar.
     of contours and associate arrow angle information

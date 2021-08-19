@@ -1,9 +1,10 @@
 import cv2
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import scipy.ndimage as ndi
 import pylithics.src.plotting as plot
+import itertools
+
 
 
 def mask_image(binary_array, contour, innermask=False):
@@ -105,12 +106,6 @@ def classify_distributions(image_array):
 
     is_narrow = False
 
-    fig, axes = plt.subplots(figsize=(8, 2.5))
-
-    axes.hist(image_array.ravel(), bins=256)
-    axes.set_title('Histogram')
-    plt.close(fig)
-
     image_array_nonzero = image_array > 0
 
     mean = np.mean(image_array[image_array_nonzero])
@@ -188,7 +183,8 @@ def pixulator(image_scale_array, scale_size):
 
     px_conversion = 1 / (orientation / scale_size)
 
-    print(f"1 mm will equate to {1 / px_conversion} pixels width.")
+
+    print(f"1 cm will equate to {round(1 / px_conversion,1)} pixels width.")
 
     return (px_conversion)
 
@@ -234,9 +230,15 @@ def classify_surfaces(contour_df):
 
         return output
 
-    surfaces = contour_df[contour_df['hierarchy_level'] == 0].copy()  # .sort_values(by=["area_px"], ascending=False)
+
+    # dataframe should be sorted in order for this algorithm to work correctly.
+    surfaces = cont[cont['hierarchy_level'] == 0].sort_values(by=["area_px"], ascending=False)  #
 
     names = {}
+    # start assigning them all to nan
+    for i in range(surfaces.shape[0]):
+        names[i] = 'Unclassified'
+
     # Dorsal, lateral, platform, ventral.
     if surfaces.shape[0] == 1:
         names[0] = 'Dorsal'
@@ -247,7 +249,7 @@ def classify_surfaces(contour_df):
         if ratio > 0.9:
             names[0], names[1] = dorsal_ventral(contour_df, surfaces)
 
-        if surfaces.shape[0] == 2 and ratio <= 0.9:
+        elif surfaces.shape[0] == 2 and ratio <= 0.9:
 
             if ratio > 0.3:
                 names[0] = 'Dorsal'
@@ -256,12 +258,12 @@ def classify_surfaces(contour_df):
                 names[0] = 'Dorsal'
                 names[1] = 'Platform'
 
-        elif surfaces.shape[0] == 3:
+        if surfaces.shape[0] == 3:
             if ratio > 0.9:
 
                 ratio2 = surfaces["area_px"].iloc[2] / surfaces["area_px"].iloc[0]
 
-                if ratio2 > 0.3:
+                if ratio2 > 0.2:
                     names[2] = 'Lateral'
                 else:
                     names[2] = 'Platform'
@@ -270,14 +272,17 @@ def classify_surfaces(contour_df):
                 names[1] = 'Lateral'
                 names[2] = 'Platform'
 
-        elif surfaces.shape[0] == 4:
-            names[0], names[1] = dorsal_ventral(contour_df, surfaces)
-            names[2] = 'Lateral'
-            names[3] = 'Platform'
 
-        else:
-            for i in range(surfaces.shape[0]):
-                names[i] = np.nan
+        elif surfaces.shape[0] > 3:
+            names[0], names[1] = dorsal_ventral(cont, surfaces)
+            ratio2 = surfaces["area_px"].iloc[2] / surfaces["area_px"].iloc[0]
+            if ratio2 > 0.2:
+                names[2] = 'Lateral'
+            else:
+                names[2] = 'Platform'
+
+            if surfaces["area_px"].iloc[3] / surfaces["area_px"].iloc[0] < 0.2:
+                names[3] = 'Platform'
 
     return names
 
@@ -379,14 +384,12 @@ def template_matching(image_array, templates_df, contour, debug=False):
 
     # plot the matching scar and arrow
     if location_index != -1 and debug == True:
-
         plot.plot_template_arrow(masked_image, templates[location_index], avg_match)
 
     return location_index
 
 
 def get_angles(templates):
-
     """
     Create a dataframe of angles measured from arrows.
 
@@ -446,55 +449,22 @@ def contour_selection(contour_df):
             if area_px / max(contour_df['area_px']) < 0.05:
                 pass_selection = False
 
-
         else:
-            if area_px / max(contour_df['area_px']) > 0.4:
-                pass_selection = False
-
-            # only allow
+            # only allow low hierarchies
             if hierarchy_level > 2:
                 pass_selection = False
             else:
                 # get the total area of the parent figure
                 norm = contour_df[contour_df['index'] == parent_index]['area_px'].values[0]
                 area = area_px
-                percentage = area / norm * 100
-                if percentage < 0.2:
+                percentage = area / norm
+                if percentage < 0.02:
                     pass_selection = False
-                if percentage > 60:
+                if percentage > 0.60:
                     pass_selection = False
 
-
-        if pass_selection == False:
+        if not pass_selection:
             index_to_drop.append(index)
-
-    cent_df = contour_df[['area_px', 'centroid', 'hierarchy_level', 'contour']]
-
-    import itertools
-
-    for i, j in itertools.combinations(cent_df.index, 2):
-
-        if ((i in index_to_drop) or (j in index_to_drop)):
-            continue
-
-        d_ij_centroid = np.linalg.norm(np.asarray(cent_df.loc[i]['centroid']) - np.asarray(cent_df.loc[j]['centroid']))
-
-        if cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']:
-            ratio = cent_df.loc[j]['area_px'] / cent_df.loc[i]['area_px']
-        else:
-            ratio = cent_df.loc[i]['area_px'] / cent_df.loc[j]['area_px']
-
-        if d_ij_centroid < 15 and ratio > 0.5:
-            if (cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']):
-                if d_ij_centroid < 1:
-                    index_to_drop.append(i)
-                else:
-                    index_to_drop.append(j)
-            elif (cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']):
-                if d_ij_centroid < 1:
-                    index_to_drop.append(j)
-                else:
-                    index_to_drop.append(i)
 
     return index_to_drop
 
@@ -619,7 +589,7 @@ def measure_arrow_angle(template):
     rads %= 2 * math.pi
     angle = math.degrees(rads)  # convert to degrees.
 
-    return angle
+    return round(angle, 2)
 
 
 def measure_vertices(contour, epsilon=0.04):
