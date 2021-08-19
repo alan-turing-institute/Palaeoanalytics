@@ -37,7 +37,7 @@ def test_pipeline():
     json_output = data_output(contours, config_file)
 
     assert len(json_output) == 4
-    assert contours.shape == (49,16)
+    assert contours.shape == (22,16)
     assert binary_array.shape == (495,719)
     assert len(json_output['lithic_contours'])==3
 
@@ -72,6 +72,6 @@ def test_arrow_pipeline():
     contours_final = get_scars_angles(image_processed, contours, arrow_df)
 
     assert len(templates) == 12
-    assert contours_final.shape == (49,15)
+    assert contours_final.shape == (22,15)
     assert arrow_df.shape == (12,2)
 
