@@ -20,15 +20,15 @@ def fig_size(image_array):
     """
     ratio = image_array.shape[0] / image_array.shape[1]
     if ratio < 0.7:
-        fig_size = 20/ratio
+        x_size = 20 / ratio
     elif ratio < 1:
-        fig_size = 22/ratio
+        x_size = 22 / ratio
     elif ratio < 1.2:
-        fig_size = 22 * ratio
+        x_size = 22 * ratio
     else:
-        fig_size = 18 * ratio
+        x_size = 18 * ratio
 
-    return fig_size
+    return x_size
 
 def plot_surfaces(image_array, contours_df, output_figure):
     """
