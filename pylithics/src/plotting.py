@@ -19,10 +19,14 @@ def fig_size(image_array):
     A number for the x width of the figure size.
     """
     ratio = image_array.shape[0] / image_array.shape[1]
-    if ratio < 1:
-        fig_size = 20 / ratio
+    if ratio < 0.7:
+        fig_size = 20/ratio
+    elif ratio < 1:
+        fig_size = 22/ratio
+    elif ratio < 1.2:
+        fig_size = 22 * ratio
     else:
-        fig_size = 14 * ratio
+        fig_size = 18 * ratio
 
     return fig_size
 
@@ -45,7 +49,7 @@ def plot_surfaces(image_array, contours_df, output_figure):
     ax.imshow(image_array, cmap=plt.cm.gray)
 
     surfaces_classification = utils.classify_surfaces(contours_df)
-    # selecting only surfaces (lowest hiearchy level).
+    # selecting only surfaces (lowest hierarchy level).
     contours_surface_df = contours_df[contours_df['parent_index'] == -1].sort_values(by=["area_px"], ascending=False)
 
     if contours_surface_df.shape[0] == 0:
