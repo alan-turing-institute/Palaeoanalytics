@@ -1,15 +1,12 @@
 import matplotlib.pyplot as plt
-import numpy as np
-import math
 import pylithics.src.utils as utils
 import os
-import matplotlib as mpl
-
+import warnings
 
 def fig_size(image_array):
     """
 
-    Calculate optimum figure size for a plot based on the ratio of sizes of rows and columns.
+    Calculate optimum figure horizontal width based on the ratio of sizes of rows and columns.
 
     Parameters
     ----------
@@ -20,17 +17,16 @@ def fig_size(image_array):
     -------
 
     A number for the x width of the figure size.
-
     """
     ratio = image_array.shape[0] / image_array.shape[1]
     if ratio < 1:
         fig_size = 20 / ratio
     else:
-        fig_size = 10 * ratio
+        fig_size = 14 * ratio
 
     return fig_size
 
-def plot_surfaces(image_array, contours_df, output_path):
+def plot_surfaces(image_array, contours_df, output_figure):
     """
     Plot the contours from the lithic surfaces.
 
@@ -40,8 +36,8 @@ def plot_surfaces(image_array, contours_df, output_path):
     Original image array (0 to 255)
     contours_df:
         Dataframe with detected contours and extra information about them.
-    output_path:
-        path to output directory to save processed images
+    output_figure:
+        path including name of the figure to be saved
 
     """
     fig_x_size = fig_size(image_array)
@@ -51,6 +47,10 @@ def plot_surfaces(image_array, contours_df, output_path):
     surfaces_classification = utils.classify_surfaces(contours_df)
     # selecting only surfaces (lowest hiearchy level).
     contours_surface_df = contours_df[contours_df['parent_index'] == -1].sort_values(by=["area_px"], ascending=False)
+
+    if contours_surface_df.shape[0] == 0:
+        warnings.warn("Warning: No surfaces detected, no surface output figure will be saved.'")
+        return None
 
     cmap_list = plt.cm.get_cmap('Paired', contours_surface_df.shape[0])
 
@@ -65,12 +65,11 @@ def plot_surfaces(image_array, contours_df, output_path):
     ax.set_yticks([])
     plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=17)
     plt.title("Detected surfaces", fontsize=30)
-    plt.show()
-    plt.savefig(output_path)
+    plt.savefig(output_figure)
     plt.close(fig)
 
 
-def plot_scars(image_array, contours_df, output_path):
+def plot_scars(image_array, contours_df, output_figure):
     """
     Plot the contours from the lithic surfaces.
 
@@ -80,8 +79,8 @@ def plot_scars(image_array, contours_df, output_path):
     Original image array (0 to 255)
     contours_df:
         Dataframe with detected contours and extra information about them.
-    output_path:
-        path to output directory to save processed images
+    output_figure:
+        path including name of the figure to be saved
 
     """
     fig_x_size = fig_size(image_array)
@@ -91,6 +90,11 @@ def plot_scars(image_array, contours_df, output_path):
 
     # selecting only surfaces (lowest hiearchy level).
     contours_scars_df = contours_df[contours_df['parent_index'] != -1].sort_values(by=["area_px"], ascending=False)
+
+    if contours_scars_df.shape[0] == 0:
+        warnings.warn("Warning: No scars detected, no scar output figure will be saved.'")
+        return None
+
     cmap_list = plt.cm.get_cmap('tab20', contours_scars_df.shape[0])
 
     i = 0
@@ -108,8 +112,7 @@ def plot_scars(image_array, contours_df, output_path):
     plt.figtext(0.02, 0.54, ("L: Maximum Lenght"), fontsize=18)
     plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=11)
     plt.title("Scar measurements (in millimeters)", fontsize=30)
-    plt.show()
-    plt.savefig(output_path)
+    plt.savefig(output_figure)
     plt.close(fig)
 
 def plot_angles(image_array, contours_df, output_path):
@@ -135,6 +138,10 @@ def plot_angles(image_array, contours_df, output_path):
     contours_angles_df = contours_df[(contours_df['parent_index'] != -1) & (contours_df['angle'].notnull())].sort_values(by=["area_px"], ascending=False)
     cmap_list = plt.cm.get_cmap('tab20', contours_angles_df.shape[0])
 
+    if contours_angles_df.shape[0] == 0:
+        warnings.warn("Warning: No scars with measured angles detected, no angle output figure will be saved.'")
+        return None
+
     i = 0
     for contour, angle in \
             contours_angles_df[['contour', 'angle']].itertuples(index=False):
@@ -146,7 +153,6 @@ def plot_angles(image_array, contours_df, output_path):
     ax.set_yticks([])
     plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=11)
     plt.title("Scar Strike Angle measurement (in degrees)", fontsize=30)
-    plt.show()
     plt.savefig(output_path)
     plt.close(fig)
 
@@ -163,7 +169,7 @@ def plot_results(id, image_array, contours_df, output_dir):
          Original image array (0 to 255)
     contours_df:
 
-    output_path:
+    output_figure:
         path to output directory to save processed images
 
         Returns
@@ -175,84 +181,14 @@ def plot_results(id, image_array, contours_df, output_dir):
     output_lithic = os.path.join(output_dir, id + "_lithic_surfaces.png")
     plot_surfaces(image_array, contours_df, output_lithic)
 
+    # plot scars
     output_lithic = os.path.join(output_dir, id + "_lithium_scars.png")
     plot_scars(image_array, contours_df, output_lithic)
 
+    # plot scar strike angle
     output_lithic = os.path.join(output_dir, id + "_lithium_angles.png")
     plot_angles(image_array, contours_df, output_lithic)
 
-
-
-def plot_contours(image_array, contours, output_path):
-    """
-    Plot the results of the object characterisation.
-
-    Parameters
-    ----------
-    image_array: array
-    Original image array (0 to 255)
-    contours:
-
-    output_path:
-        path to output directory to save processed images
-
-    Returns
-    -------
-    an array
-    """
-
-    # Display the image and plot all contours found
-    from matplotlib.font_manager import FontProperties
-    fontP = FontProperties()
-
-    fig, ax = plt.subplots(figsize=(20, 12))
-    ax = plt.subplot(111)
-    ax.imshow(image_array, cmap=plt.cm.gray)
-
-    contours.sort_values(by=["area_px"], inplace=True, ascending=False)
-    surfaces_classification = utils.classify_surfaces(contours)
-
-    id = 0
-    for contour, parent_index, index, area_mm, width_mm, height_mm, angle, polygon_count in \
-            contours[['contour', 'parent_index', 'index', 'area_px',
-                      'width_mm', 'height_mm', 'angle', 'polygon_count']].itertuples(index=False):
-        try:
-            if parent_index == -1:
-                line_width = 3
-                line_style = 'solid'
-                classification = surfaces_classification[id]
-                text = str(classification) + \
-                       ", index: " + str(index) + ",surface_id: " + str(id) + ", w: " + str(width_mm) + ", h: " + str(
-                    height_mm)
-                id = id + 1
-                ax.plot(contour[:, 0], contour[:, 1], line_width=line_width, line_style=line_style, label=text)
-
-            else:
-                if math.isnan(angle) == False:
-                    line_width = 2
-                    line_style = 'solid'
-                    # text = "arrow angle: "+str(angle)
-                    text = "n vertices: " + str(polygon_count)
-                    ax.plot(contour[:, 0], contour[:, 1], line_width=line_width, line_style=line_style, label=text)
-                else:
-                    line_width = 2
-                    line_style = 'dashed'
-                    text = "n vertices: " + str(polygon_count)
-                    ax.plot(contour[:, 0], contour[:, 1], line_width=line_width, line_style=line_style, label=text)
-
-        except:
-            continue
-
-    fontP.set_size('xx-small')
-    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102),
-               loc='lower left', ncol=2, mode="expand", borderaxespad=0., fontsize='xx-small')
-    # bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='xx-small')
-
-    plt.figtext(0.02, 0.5, str(len(contours)) + ' contours')
-    ax.set_xticks([])
-    ax.set_yticks([])
-    plt.savefig(output_path)
-    plt.close(fig)
 
 
 def plot_thresholding(image_array, threshold, binary_array, output_file=''):
@@ -274,15 +210,6 @@ def plot_thresholding(image_array, threshold, binary_array, output_file=''):
     an array
     """
 
-    image_array_nonzero = image_array > 0
-
-    mean = round(np.mean(image_array[image_array_nonzero]), 2)
-    std = round(np.std(image_array[image_array_nonzero]), 2)
-
-    # if mean > 0.9 and std < 0.15:
-    #     text = 'segmentation'
-    # else:
-    #     text = 'edge detection'
     text = 'edge detection'
     fig, axes = plt.subplots(ncols=3, figsize=(10, 2.5))
     ax = axes.ravel()
@@ -297,8 +224,6 @@ def plot_thresholding(image_array, threshold, binary_array, output_file=''):
     ax[1].hist(image_array.ravel(), bins=256)
     ax[1].set_title('Histogram')
     ax[1].axvline(threshold, color='r')
-    # ax[1].text(2, 0.65,"mean: "+str(mean))
-    # ax[1].text(1, 0.55,"std: "+ str(std))
 
     ax[2].imshow(binary_array, cmap=plt.cm.gray)
     ax[2].set_title('Thresholded and ' + text)
@@ -311,13 +236,14 @@ def plot_thresholding(image_array, threshold, binary_array, output_file=''):
 
 def plot_contour_figure(image_array, cont):
     """
-    Returns plots of image contours by color. Waiting on plot design from RAF.
+    Returns plots of image and a give contour.
 
     Parameters
     ----------
     image_array: array
-
-    cont:
+        Image array, this can be (0 to 255) or binary (0 to 1)
+    cont: array
+        Array with coordinates
 
     Returns
     -------
@@ -328,53 +254,6 @@ def plot_contour_figure(image_array, cont):
     ax = plt.subplot(111)
     ax.imshow(image_array, cmap=plt.cm.gray)
     ax.plot(cont[:, 0], cont[:, 1])
-    plt.close(fig)
-
-
-def plot_arrow_contours(image_array, contours, output_path):
-    """
-    Plot the result of the object characterisation
-    Parameters
-    ----------
-    image_array: array
-    contours:
-    output_path:
-
-    Returns
-    -------
-
-    """
-
-    # Display the image and plot all contours found
-    from matplotlib.font_manager import FontProperties
-    fontP = FontProperties()
-
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax = plt.subplot(111)
-    ax.imshow(image_array, cmap=plt.cm.gray)
-
-    contours.sort_values(by=["area_px"], inplace=True, ascending=False)
-
-    for contour, parent_index, index, area_mm, width_mm, height_mm, arrow in contours[['contour', 'parent_index',
-                                                                                       'index', 'area_px', 'width_mm',
-                                                                                       'height_mm',
-                                                                                       'arrow']].itertuples(
-        index=False):
-        try:
-            if arrow == True:
-                line_style = 'solid'
-                ax.plot(contour[:, 0], contour[:, 1], line_width=1, line_style=line_style)
-            else:
-                continue
-
-        except:
-            continue
-
-    fontP.set_size('xx-small')
-    plt.figtext(0.02, 0.5, str(len(contours)) + ' contours')
-    ax.set_xticks([])
-    ax.set_yticks([])
-    plt.savefig(output_path)
     plt.close(fig)
 
 
