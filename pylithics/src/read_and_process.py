@@ -1,16 +1,12 @@
 from skimage.filters import threshold_mean
-from skimage import filters
 import numpy as np
 import pandas as pd
 from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
-from skimage.segmentation import morphological_chan_vese, checkerboard_level_set
-from pylithics.src.utils import contour_characterisation, contour_disambiguation, classify_surfaces, \
+from pylithics.src.utils import contour_characterisation, classify_surfaces, \
     get_high_level_parent_and_hierarchy
-from skimage import img_as_ubyte
 import cv2
-from PIL import Image
-from pylithics.src.utils import template_matching, mask_image, subtract_masked_image, contour_selection
+from pylithics.src.utils import template_matching, mask_image, contour_selection
 import os
 import pylithics.src.plotting as plot
 
@@ -42,14 +38,13 @@ def read_image(input_dir, id, im_type='png'):
 
 def detect_lithic(image_array, config_file):
     """
-    Apply thresholding on input image array based on configuration file options.
-    of images that have been 'binarized' (0,1) <- do we need to mention that they are inverted?
-    edge detection of 'binarized' images.
+    Apply binary threshold to input image array/s based on configuration file options.
+    Resulting image array has pixel values of 0,1
 
     Parameters
     ----------
     image_array: array
-        of the image read by openCV
+        array of an unprocessed image read by openCV (0, 255 pixels)
     config_file: dict
         information on thresholding values
 
@@ -61,44 +56,47 @@ def detect_lithic(image_array, config_file):
     # thresholding
     thresh = threshold_mean(image_array)
     thresh = thresh + thresh * config_file['threshold']
-    _, binary = cv2.threshold(image_array, thresh, 255, cv2.THRESH_BINARY_INV)
+    # binary_array = 'binarized' image, 0, 255 pixels to 0, 1 pixel values
+    _, binary_array = cv2.threshold(image_array, thresh, 255, cv2.THRESH_BINARY_INV)
 
-    # edge detection
-    x = cv2.Sobel(binary, cv2.CV_64F, 1, 0, ksize=1)
-    y = cv2.Sobel(binary, cv2.CV_64F, 0, 1, ksize=1)
+    # edge detection using sobel filter
+    x = cv2.Sobel(binary_array, cv2.CV_64F, 1, 0, ksize=1)
+    y = cv2.Sobel(binary_array, cv2.CV_64F, 0, 1, ksize=1)
     absX = cv2.convertScaleAbs(x)  # convert back to uint8
-    absY = cv2.convertScaleAbs(y)
+    absY = cv2.convertScaleAbs(y)  # convert back to uint8
     sobelXY = cv2.addWeighted(absX, 0.5, absY, 0.5, 0)
 
     return sobelXY, thresh
 
 
-def find_lithic_contours(image_array, config_file):
+def find_lithic_contours(binary_array, config_file):
     """
-    Contour finding of lithic artefact images from input image array and configuration options.
+    Contour finding of lithic artefact image from thresholded image array and configuration options.
 
     Parameters
     ----------
-    image_array : array
-        of the image read by openCV
+    binary_array: array
+        processed image (0, 1 pixels)
     config_file : dict
         information on thresholding values
 
     Returns
     -------
-    an array
+    image array
     """
 
-    _, contours_cv, hierarchy = cv2.findContours(image_array, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    # contour finding using cv2.RETR_TREE gives contour hierarchy (e.g. object 1 is nested n levels deep in object 2)
+    contours_cv, hierarchy = cv2.findContours(binary_array, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
+    # create empty lists to store contour information
     new_contours = []
-    cont_info_list = []
+    contour_info_list = []
 
     for index, cont in enumerate(list(contours_cv), start=0):
-        cont = np.asarray([i[0] for i in cont])
+        contour_array = np.asarray([i[0] for i in cont])
 
         # calculate character listings of the contour.
-        cont_info = contour_characterisation(image_array, cont, config_file['conversion_px'])
+        cont_info = contour_characterisation(binary_array, contour_array, config_file['conversion_px'])
 
         cont_info['index'] = index
         cont_info['hierarchy'] = list(hierarchy)[0][index]
@@ -106,11 +104,11 @@ def find_lithic_contours(image_array, config_file):
         cont_info['contour'] = cont
 
         new_contours.append(cont)
-        cont_info_list.append(cont_info)
+        contour_info_list.append(cont_info)
 
     if len(new_contours) != 0:
 
-        df_cont_info = pd.DataFrame.from_dict(cont_info_list)
+        df_cont_info = pd.DataFrame.from_dict(contour_info_list)
 
         df_cont_info['parent_index'], df_cont_info['hierarchy_level'] = get_high_level_parent_and_hierarchy(
             df_cont_info['hierarchy'].values)
@@ -127,41 +125,41 @@ def find_lithic_contours(image_array, config_file):
 
 def process_image(image_array, config_file):
     """
-    Image denoising and contrast stretching for images.
+    De-noising and contrast stretching for images.
 
     Parameters
     ----------
     image_array : array
-        of the image read by openCV
+        array of an unprocessed image read by openCV (0, 255 pixels)
     config_file : dict
         information of processing values
 
     Returns
     -------
-    an array
+    image array
     """
 
-    # noise removal
+    # noise removal by minimizing the variation of the image gradient
     img_denoise = denoise_tv_chambolle(image_array, weight=config_file['denoise_weight'], multichannel=False)
 
-    # Contrast stretching
+    # Contrast stretching to rescale all pixel intensities that fall within the 2nd and 98th percentiles
     p2, p98 = np.percentile(img_denoise, config_file['contrast_stretch'])
     img_rescale = exposure.rescale_intensity(img_denoise, in_range=(p2, p98))
 
     return img_rescale
 
 
-def data_output(cont, config_file):
+def data_output(contour_df, config_file):
     """
-    Create an output of a nested dictionary with data from surfaces and scars metrics
-    that could be easily saved into a json file.
+    Create an output of a nested dictionary with data from lithic surface and scar metrics
+    that can be saved into a json file.
 
     Parameters
     ----------
-    cont: dataframe
-        dataframe with all contour information and measurements for an image
+    contour_df: dataframe
+        dataframe with all contour information and measurements for a single image
     config_file: dictionary
-        configuration file with relevant information for the image
+        configuration file with relevant information for the processed image
 
     Returns
     -------
@@ -172,19 +170,20 @@ def data_output(cont, config_file):
     lithic_output = {}
 
     lithic_output['id'] = config_file['id']
-    lithic_output['conversion_px'] = config_file['conversion_px']
-    lithic_output["n_surfaces"] = cont[cont['hierarchy_level'] == 0].shape[0]
+    lithic_output['conversion_px'] = config_file['conversion_px'] # convert pixels to user define metric
+    lithic_output["n_surfaces"] = contour_df[contour_df['hierarchy_level'] == 0].shape[0]  # nested hierarchy of ltihic flake scars
+    # based on size
 
-    cont.sort_values(by=["area_px"], inplace=True, ascending=False)
+    contour_df.sort_values(by=["area_px"], inplace=True, ascending=False)
 
     # classify surfaces
-    surfaces_classification = classify_surfaces(cont)
+    surfaces_classification = classify_surfaces(contour_df)
 
     id = 0
     outer_objects_list = []
 
     # loop through the contours
-    for hierarchy_level, index, area_px, area_mm, width_mm, height_mm, polygon_count in cont[
+    for hierarchy_level, index, area_px, area_mm, width_mm, height_mm, polygon_count in contour_df[
         ['hierarchy_level', 'index', 'area_px',
          'area_mm', 'width_mm', 'height_mm', 'polygon_count']].itertuples(index=False):
 
@@ -201,7 +200,7 @@ def data_output(cont, config_file):
             outer_objects['max_length'] = height_mm
             outer_objects["polygon_count"] = polygon_count
 
-            scars_df = cont[cont['parent_index'] == index]
+            scars_df = contour_df[contour_df['parent_index'] == index]
 
             outer_objects["scar_count"] = scars_df.shape[0]
             outer_objects["percentage_detected_scars"] = round(
@@ -247,14 +246,14 @@ def associate_arrows_to_scars(image_array, cont, templates):
 
     """
     Use template matching to match the arrows to a given flake scar.
-    contour dataframe with arrow information, i.e. arrow angles.
+    Contour dataframe with arrow information, i.e. arrow angles.
 
     Parameters
     ----------
     image_array: array
-        2D array of the masked_image_array
+        2D array of the masked_image_array <- this should be the processed image - img_process
     cont: dataframe
-        dataframe with all the contour information and measurements for an masked_image_array
+        dataframe with all the contour information and measurements for a masked_image_array
     templates: list of arrays
         list of arrays with arrows templates
 
@@ -265,7 +264,7 @@ def associate_arrows_to_scars(image_array, cont, templates):
 
     templates_angle = []
 
-    # iterate on each contour to select only scars
+    # iterate on each contour to select only flake scars
     for hierarchy_level, index, contour, area_px in cont[['hierarchy_level',
                                                           'index', 'contour', 'area_px']].itertuples(index=False):
 
@@ -293,7 +292,7 @@ def associate_arrows_to_scars(image_array, cont, templates):
     return cont
 
 
-def get_scars_angles(image_array, cont, templates):
+def get_scars_angles(image_array, cont, templates=pd.DataFrame()):
     """
     Classify contours that correspond to arrows or ripples and return the angle measurement of that scar.
     of contours and associate arrow angle information
@@ -324,26 +323,6 @@ def get_scars_angles(image_array, cont, templates):
     return cont
 
 
-def read_arrow_data(input_dir):
-    """
-
-    Parameters
-    ----------
-    input_dir
-
-    Returns
-    -------
-
-    """
-    id_list = [os.path.join(input_dir, i) for i in os.listdir(input_dir) if i.endswith('.pkl')]
-
-    df_list = []
-    for i in id_list:
-        df_list.append(pd.read_pickle(i))
-
-    return pd.concat(df_list)
-
-
 def find_arrows(image_array, image_processed, debug=False):
     """
     Use connected components to find arrows on an image, and return an array with the arrow templates.
@@ -351,7 +330,7 @@ def find_arrows(image_array, image_processed, debug=False):
     Parameters
     ----------
     image_array: array
-        Original image array (0 to 255)
+        array of an unprocessed image read by openCV (0:255 pixels)
     image_processed: array
         Processed (binarized) image array (0 to 1)
     debug: flag to plot the outputs.

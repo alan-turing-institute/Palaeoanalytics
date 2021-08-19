@@ -6,97 +6,24 @@ import scipy.ndimage as ndi
 import pylithics.src.plotting as plot
 
 
-def contour_disambiguation(df_contours, image_array):
+def mask_image(binary_array, contour, innermask=False):
     """
-    Selects flake scar contours by their size and removes duplicates.
+    Mask negative (white pixels) areas of lithic flakes scars in order to generate contour lines.
 
     Parameters
     ----------
-    df_contours: dataframe
-
-    image_array: array
-
-    Returns
-    -------
-
-    """
-
-    index_to_drop = []
-
-    for hierarchy_level, index, parent_index, area_px, contour, in df_contours[
-        ['hierarchy_level', 'index', 'parent_index', 'area_px', 'contour']].itertuples(index=False):
-
-        pass_selection = True
-        if hierarchy_level == 0:
-            if area_px / max(df_contours['area_px']) < 0.1:
-                pass_selection = False
-            else:
-                continue
-        else:
-            # get the total area of the parent figure
-            norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
-            area = area_px
-            percentage = area / norm * 100
-            if percentage < 3:
-                pass_selection = False
-            if percentage > 60:
-                pass_selection = False
-
-        # fig, ax = plt.subplots(figsize=(10, 5))
-        # ax = plt.subplot(111)
-        # ax.imshow(image_array, cmap=plt.cm.gray)
-        # ax.plot(contour[:, 0], contour[:, 1])
-
-        if pass_selection == False:
-            index_to_drop.append(index)
-
-    cent_df = df_contours[['area_px', 'centroid', 'hierarchy_level', 'contour']]
-
-    import itertools
-
-    for i, j in itertools.combinations(cent_df.index, 2):
-
-        if ((i in index_to_drop) or (j in index_to_drop)):
-            continue
-
-        d_ij_centroid = np.linalg.norm(np.asarray(cent_df.loc[i]['centroid']) - np.asarray(cent_df.loc[j]['centroid']))
-
-        if cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']:
-            ratio = cent_df.loc[j]['area_px'] / cent_df.loc[i]['area_px']
-        else:
-            ratio = cent_df.loc[i]['area_px'] / cent_df.loc[j]['area_px']
-
-        if d_ij_centroid < 15 and ratio > 0.5:
-            if (cent_df.loc[i]['area_px'] < cent_df.loc[j]['area_px']):
-                if d_ij_centroid < 1:
-                    index_to_drop.append(i)
-                else:
-                    index_to_drop.append(j)
-            elif (cent_df.loc[i]['area_px'] > cent_df.loc[j]['area_px']):
-                if d_ij_centroid < 1:
-                    index_to_drop.append(j)
-                else:
-                    index_to_drop.append(i)
-
-    return index_to_drop
-
-
-def mask_image(image_array, contour, innermask=False):
-    """
-    Function that masks an image for cont (1 contour = a list of a pair of coordinates) given contour.
-
-    Parameters
-    ----------
-    image_array: array
-        Original image array (0 to 255)
+    binary_array: array
+        array of a processed image read by openCV (0, 1 pixels)
     contour:
+        pixel coordinates for a contour of a single flake scar
+        or outline of a lithic object detected by contour finding
 
     Returns
     -------
-    an array
+    an image array
     """
 
-    r_mask = np.zeros_like(image_array, dtype='bool')
+    r_mask = np.zeros_like(binary_array, dtype='bool')
     r_mask[np.round(contour[:, 1]).astype('int'), np.round(contour[:, 0]).astype('int')] = 1
 
     r_mask = ndi.binary_fill_holes(r_mask)
@@ -104,43 +31,46 @@ def mask_image(image_array, contour, innermask=False):
     if innermask:
         new_image = r_mask
     else:
-        new_image = np.multiply(r_mask, image_array)
+        new_image = np.multiply(r_mask, binary_array)
 
     return new_image
 
 
-def contour_characterisation(image_array, cont, conversion=1):
+def contour_characterisation(image_array, contour, conversion=1):
     """
-    For cont given contour calculate characteristics (area, length, etc.)
+    Calculate contour characteristics (area, length, etc.),
+    from a specific element of an image.
 
     Parameters
     ----------
-    cont: array
-        Array of pairs of pixel coordinates
+    contour:
+        pixel coordinates for a contour of a single flake scar
+        or outline of a lithic object detected by contour finding
     conversion: float
-        Value to convert pixels to inches
+        Value to convert pixels to millimeters
 
     Returns
     -------
     A dictionary
 
     """
-    cont_info = {}
+    contour_info = {}
 
     # Expand numpy dimensions and convert it to UMat object
-    area = cv2.contourArea(cont)
+    area = cv2.contourArea(contour)
 
-    masked_image = mask_image(image_array, cont, True)
+    masked_image = mask_image(image_array, contour, True)
 
-    cont_info['length'] = len(cont * conversion)
-    cont_info['area_px'] = area
+    contour_info['length'] = len(contour * conversion)
+    contour_info['area_px'] = area
 
     rows, columns = subtract_masked_image(masked_image)
 
-    cont_info['height_px'] = masked_image.shape[0] - len(rows)
-    cont_info['width_px'] = masked_image.shape[1] - len(columns)
+    # height and width of individual flake scar/lithic surface outline in pixels
+    contour_info['height_px'] = masked_image.shape[0] - len(rows)
+    contour_info['width_px'] = masked_image.shape[1] - len(columns)
 
-    cont_info['centroid'] = ndi.center_of_mass(mask_image(image_array, cont, True))
+    contour_info['centroid'] = ndi.center_of_mass(mask_image(image_array, contour, True))
 
     if conversion == 1:
         area_mm = np.nan
@@ -148,15 +78,15 @@ def contour_characterisation(image_array, cont, conversion=1):
         height_mm = np.nan
     else:
         area_mm = round(area * (conversion * conversion), 1)
-        width_mm = round(cont_info['width_px'] * conversion, 1)
-        height_mm = round(cont_info['height_px'] * conversion, 1)
+        width_mm = round(contour_info['width_px'] * conversion, 1)
+        height_mm = round(contour_info['height_px'] * conversion, 1)
 
-    cont_info['area_mm'] = area_mm
-    cont_info['width_mm'] = width_mm
-    cont_info['height_mm'] = height_mm
-    cont_info['polygon_count'], _ = measure_vertices(cont, 0.02)
+    contour_info['area_mm'] = area_mm
+    contour_info['width_mm'] = width_mm
+    contour_info['height_mm'] = height_mm
+    contour_info['polygon_count'], _ = measure_vertices(contour, 0.02)
 
-    return cont_info
+    return contour_info
 
 
 def classify_distributions(image_array):
@@ -167,7 +97,7 @@ def classify_distributions(image_array):
     Parameters
     ----------
     image_array: array
-
+        array of an unprocessed image read by openCV (0,255 pixels)
     Returns
     -------
     a boolean
@@ -195,7 +125,8 @@ def classify_distributions(image_array):
 
 def get_high_level_parent_and_hierarchy(hierarchies):
     """
-    Creates a list of contour hierarchies find the index of the highest level parent for each contour.
+    Given a list of individual contour hierarchies, find the index of the highest level parent for each contour.
+    Defines which scar belongs to which surface.
 
      Parameters
     ----------
@@ -204,7 +135,7 @@ def get_high_level_parent_and_hierarchy(hierarchies):
 
     Returns
     -------
-    A list
+    a list
     """
 
     parent_index = []
@@ -232,12 +163,12 @@ def get_high_level_parent_and_hierarchy(hierarchies):
 
 def pixulator(image_scale_array, scale_size):
     """
-    Converts image/scale dpi and pixel count to mm conversion rate.
+    Converts image and scale pixel count to millimeters.
 
     Parameters
     ----------
     image_scale_array: array
-        Image array
+        image array of scale data.
     scale_size:
         length of the scale in mm
 
@@ -257,31 +188,34 @@ def pixulator(image_scale_array, scale_size):
 
     px_conversion = 1 / (orientation / scale_size)
 
-    print(f"1 cm will equate to {1 / px_conversion} pixels width.")
+    print(f"1 mm will equate to {1 / px_conversion} pixels width.")
 
     return (px_conversion)
 
 
-def classify_surfaces(cont):
+def classify_surfaces(contour_df):
     """
+    Classify individual contours
 
     Parameters
     ----------
-    cont: dataframe
+    contour_df: dataframe
         dataframe with all the contour information and measurements for an image
 
     Returns
     -------
-
+    a dataframe
     """
 
-    def dorsal_ventral(cont, contours):
+    def dorsal_ventral(contour, contour_df):
         """
-
+        Determines if object surface is dorsal or ventral
         Parameters
         ----------
-        cont:
-        contours:
+        contour:
+            pixel coordinates for a contour of a single flake scar
+            or outline of a lithic object detected by contour finding
+        contour_df:
 
         Returns
         -------
@@ -289,8 +223,8 @@ def classify_surfaces(cont):
         """
 
         output = [None] * 2
-        if (cont[cont['parent_index'] == contours['index'].iloc[0]].shape[0] >
-                cont[cont['parent_index'] == contours['index'].iloc[1]].shape[0]):
+        if (contour_df[contour_df['parent_index'] == contour_df['index'].iloc[0]].shape[0] >
+                contour_df[contour_df['parent_index'] == contour_df['index'].iloc[1]].shape[0]):
 
             output[0] = 'Dorsal'
             output[1] = 'Ventral'
@@ -300,7 +234,7 @@ def classify_surfaces(cont):
 
         return output
 
-    surfaces = cont[cont['hierarchy_level'] == 0].copy()  # .sort_values(by=["area_px"], ascending=False)
+    surfaces = contour_df[contour_df['hierarchy_level'] == 0].copy()  # .sort_values(by=["area_px"], ascending=False)
 
     names = {}
     # Dorsal, lateral, platform, ventral.
@@ -311,7 +245,7 @@ def classify_surfaces(cont):
         ratio = surfaces["area_px"].iloc[1] / surfaces["area_px"].iloc[0]
 
         if ratio > 0.9:
-            names[0], names[1] = dorsal_ventral(cont, surfaces)
+            names[0], names[1] = dorsal_ventral(contour_df, surfaces)
 
         if surfaces.shape[0] == 2 and ratio <= 0.9:
 
@@ -337,7 +271,7 @@ def classify_surfaces(cont):
                 names[2] = 'Platform'
 
         elif surfaces.shape[0] == 4:
-            names[0], names[1] = dorsal_ventral(cont, surfaces)
+            names[0], names[1] = dorsal_ventral(contour_df, surfaces)
             names[2] = 'Lateral'
             names[3] = 'Platform'
 
@@ -348,113 +282,20 @@ def classify_surfaces(cont):
     return names
 
 
-def contour_arrow_classification(cont, hierarchy, quantiles, image_array):
-    """
-    Function that finds contours corresponding to arrows.
-
-    Parameters
-    ----------
-    cont: dataframe
-        Dataframe with contour information.
-    quantiles
-    hierarchy
-    Returns
-    -------
-
-    a boolean, stating if the contour is likely to be an arrow
-
-    """
-
-    if len(cont) < 50 or len(cont) > 300 or hierarchy < quantiles:
-        return False
-    else:
-
-        shape, vertices = shape_detection(cont)
-        # multiply the contour (x, y)-coordinates by the resize ratio,
-        # then draw the contours and the name of the shape on the image
-
-        if shape == 'arrow':
-
-            return True
-        else:
-            return False
-
-
-def find_arrow_templates(image_array, df_contours):
-    """
-    Decide if a contour is really an arrow and make it into a template
-
-    Parameters
-    ----------
-    image_array: array
-        Array of input image
-
-    df_contours: dataframe
-        dataframe with all the contour information and measurements for an image
-
-
-    Returns
-    -------
-
-    """
-
-    templates = []
-    index_drop = []
-
-    quantiles = np.quantile([item[-1] for item in df_contours['hierarchy']], 0.2)
-
-    df_contours['arrow'] = False
-
-    for cont, index, hierarchy in df_contours[['contour', 'index', 'hierarchy']].itertuples(index=False):
-
-        is_arrow = contour_arrow_classification(cont, hierarchy[-1], quantiles, image_array)
-
-        if is_arrow == False:
-            continue
-        else:
-
-            masked_image = mask_image(image_array, cont, False)
-
-            ratio = len(masked_image[(masked_image > 0.9)]) / len(masked_image[(masked_image != 0)])
-
-            # plot_contour_figure(masked_image, cont)
-
-            if ratio > 0.7:
-                continue
-            if ratio < 0.3:
-                index_drop.append(index)
-                continue
-
-            df_contours.loc[df_contours.index == index, 'arrow'] = True
-
-            rows, columns = subtract_masked_image(masked_image)
-
-            new_masked_image = np.delete(image_array, rows[:-3], 0)
-            new_masked_image = np.delete(new_masked_image, columns[:-3], 1)
-
-            templates.append(new_masked_image)
-
-    return index_drop, templates
-
-
 def subtract_masked_image(masked_image_array):
     """
-
-    Given an input masked image, return all rows and columns where
-    an image is all masked.
-
+    Given an input masked image, return all rows and columns where an image is all masked.
 
     Parameters
     ----------
     masked_image_array: array
-        2D array of an image
+        a boolean, stating if the contour is likely to be an arrow
 
     Returns
     -------
-
-    List of columns and rows that have been masked.
-
+    a list
     """
+
     # Check rows in which all values are equal
     rows = []
     for i in range(masked_image_array.shape[0]):
@@ -482,12 +323,11 @@ def template_matching(image_array, templates_df, contour, debug=False):
     templates_df: array
         Array of template images
     debug: bool
-        Make plot if True
+        Generate plot if True
+
     Returns
     -------
-
-    Index of best matching template
-
+    index of best matching template
     """
 
     # get template array from dataframe
@@ -548,18 +388,16 @@ def template_matching(image_array, templates_df, contour, debug=False):
 def get_angles(templates):
 
     """
-
-    For a list of templates of arrows
+    Create a dataframe of angles measured from arrows.
 
     Parameters
     ----------
-    templates: list of arrays
-
+    templates: list
+     a list of template image arrays
 
     Returns
     -------
-
-    dataframe with arrays and angles measured
+    a dataframe
 
     """
 
@@ -582,37 +420,35 @@ def get_angles(templates):
     return templates_df
 
 
-def contour_selection(df_contours):
+def contour_selection(contour_df):
 
     """
-
     Function that selects contours by their size and removes duplicates.
 
     Parameters
     ----------
-    df_contours: dataframe
-        Dataframe with contour information.
+    contour_df: dataframe
+        Dataframe with all contour information for an image.
 
     Returns
     -------
-
     list of indexes
 
     """
 
     index_to_drop = []
 
-    for hierarchy_level, index, parent_index, area_px, contour, in df_contours[
+    for hierarchy_level, index, parent_index, area_px, contour, in contour_df[
         ['hierarchy_level', 'index', 'parent_index', 'area_px', 'contour']].itertuples(index=False):
 
         pass_selection = True
         if hierarchy_level == 0:
-            if area_px / max(df_contours['area_px']) < 0.05:
+            if area_px / max(contour_df['area_px']) < 0.05:
                 pass_selection = False
 
 
         else:
-            if area_px / max(df_contours['area_px']) > 0.4:
+            if area_px / max(contour_df['area_px']) > 0.4:
                 pass_selection = False
 
             # only allow
@@ -620,7 +456,7 @@ def contour_selection(df_contours):
                 pass_selection = False
             else:
                 # get the total area of the parent figure
-                norm = df_contours[df_contours['index'] == parent_index]['area_px'].values[0]
+                norm = contour_df[contour_df['index'] == parent_index]['area_px'].values[0]
                 area = area_px
                 percentage = area / norm * 100
                 if percentage < 0.2:
@@ -632,7 +468,7 @@ def contour_selection(df_contours):
         if pass_selection == False:
             index_to_drop.append(index)
 
-    cent_df = df_contours[['area_px', 'centroid', 'hierarchy_level', 'contour']]
+    cent_df = contour_df[['area_px', 'centroid', 'hierarchy_level', 'contour']]
 
     import itertools
 
@@ -665,8 +501,7 @@ def contour_selection(df_contours):
 
 def measure_arrow_angle(template):
     """
-
-    Function that measures the angle of an arrow template
+    Function that measures the angle of an arrow template.
 
     Parameters
     ----------
@@ -675,18 +510,15 @@ def measure_arrow_angle(template):
 
     Returns
     -------
-
-    an angle.
-
+    an angle measurement
     """
 
     import math
-
     # import image and grayscale
     uint_img = np.array(template * 255).astype('uint8')
     gray = 255 - uint_img
 
-    # Extend the borders for the skeleton
+    # Extend the borders for the skeleton for convolution
     extended = cv2.copyMakeBorder(gray, 5, 5, 5, 5, cv2.BORDER_CONSTANT)
 
     # Create a copy of the crop for results:
@@ -700,7 +532,6 @@ def measure_arrow_angle(template):
     retval, thresh = cv2.threshold(skeleton, 128, 10, cv2.THRESH_BINARY)
 
     # Set the end-points kernel for image convolution
-
     end_points = np.array([[1, 1, 1],
                            [1, 9, 1],
                            [1, 1, 1]])
@@ -791,7 +622,7 @@ def measure_arrow_angle(template):
     return angle
 
 
-def measure_vertices(cont, epsilon=0.04):
+def measure_vertices(contour, epsilon=0.04):
     """
 
     Given a contour from a surface or scar, estimate the number of vertices of an approximate
@@ -799,47 +630,43 @@ def measure_vertices(cont, epsilon=0.04):
 
     Parameters
     ----------
-    cont: array
-     array with coordinates defining the contour.
+    contour:
+        pixel coordinates for a contour of a single flake scar
+        or outline of a lithic object detected by contour finding.
     epsilon: float
-     degree of prediction in approximation
-
+        degree of prediction in approximation
 
     Returns
     -------
-
     A number
     An array with approximate contour
-
     """
 
     # get perimeters
-    peri = cv2.arcLength(cont, True)
+    peri = cv2.arcLength(contour, True)
     # approximates a curve or a polygon with another curve / polygon with less vertices
     # so that the distance between them is less or equal to the specified precision
-    approx = cv2.approxPolyDP(cont, epsilon * peri, True)
+    approx = cv2.approxPolyDP(contour, epsilon * peri, True)
 
     return len(approx), approx
 
 
 def shape_detection(contour):
     """
-    Given a contour from a surface or scar, detect an approximate
-    shape to the contour.
+    Given a contour from a surface or scar, detect an approximate shape to the contour.
 
     Parameters
     ----------
-    cont: array
-     array with coordinates defining the contour.
+    contour:
+        pixel coordinates for a contour of a single flake scar
+        or outline of a lithic object detected by contour finding
 
     Returns
     -------
-
     A string with the shape classification
     A number with the number of vertices
-
-
     """
+
     # initialize the shape name and approximate the contour
     shape = "unidentified"
     vertices, approx = measure_vertices(contour)

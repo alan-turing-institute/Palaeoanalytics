@@ -6,14 +6,15 @@ import pylithics.src.utils as utils
 
 def plot_contours(image_array, contours, output_path):
     """
-    Plot the results of the object characterisation.
+    Plot the results of the lithic object characterisation.
 
     Parameters
     ----------
     image_array: array
-    Original image array (0 to 255)
-    contours:
-
+        array of an unprocessed image read by openCV (0, 255 pixels)
+    contours: dataframe
+        pixel coordinates for a contour of a single flake scar ############
+        or outline of a lithic object detected by contour finding
     output_path:
         path to output directory to save processed images
 
@@ -26,10 +27,12 @@ def plot_contours(image_array, contours, output_path):
     from matplotlib.font_manager import FontProperties
     fontP = FontProperties()
 
+    # generate plot for lithic characterization output
     fig, ax = plt.subplots(figsize=(20, 12))
     ax = plt.subplot(111)
     ax.imshow(image_array, cmap=plt.cm.gray)
 
+    # sort contours of lithic shape and flake scar outlines by size(area).
     contours.sort_values(by=["area_px"], inplace=True, ascending=False)
     surfaces_classification = utils.classify_surfaces(contours)
 
@@ -45,7 +48,7 @@ def plot_contours(image_array, contours, output_path):
                 text = str(classification) + \
                     ", index: "+str(index) + ",surface_id: "+str(id)+", w: "+str(width_mm)+", h: "+str(height_mm)
                 id = id + 1
-                ax.plot(contour[:, 0], contour[:, 1], line_width=line_width, line_style=line_style, label=text)
+                ax.plot(contour[:, 0], contour[:, 1], linewidth=line_width, linestyle=line_style, label=text)
 
             else:
                 if math.isnan(angle) == False:
@@ -53,12 +56,12 @@ def plot_contours(image_array, contours, output_path):
                     line_style = 'solid'
                     # text = "arrow angle: "+str(angle)
                     text = "n vertices: "+str(polygon_count)
-                    ax.plot(contour[:, 0], contour[:, 1], line_width=line_width, line_style=line_style, label=text)
+                    ax.plot(contour[:, 0], contour[:, 1], linewidth=line_width, linestyle=line_style, label=text)
                 else:
                     line_width = 2
                     line_style = 'dashed'
                     text = "n vertices: "+str(polygon_count)
-                    ax.plot(contour[:, 0], contour[:, 1], line_width=line_width, line_style=line_style, label=text)
+                    ax.plot(contour[:, 0], contour[:, 1], linewidth=line_width, linestyle=line_style, label=text)
 
         except:
             continue
@@ -83,12 +86,11 @@ def plot_thresholding(image_array, threshold, binary_array, output_file=''):
     Parameters
     ----------
     image_array:  array
-        Original image array (0 to 255)
+        array of an unprocessed image read by openCV (0:255 pixels)
     threshold: float
         threshold value found for images
     binary_array: array
-        resulting binary image with pixel values of... <- variable name
-
+        resulting binary image with pixel values of 0,1
     Returns
     -------
     an array
@@ -103,6 +105,7 @@ def plot_thresholding(image_array, threshold, binary_array, output_file=''):
     #     text = 'segmentation'
     # else:
     #     text = 'edge detection'
+
     text = 'edge detection'
     fig, axes = plt.subplots(ncols=3, figsize=(10, 2.5))
     ax = axes.ravel()
@@ -136,8 +139,9 @@ def plot_contour_figure(image_array, cont):
     Parameters
     ----------
     image_array: array
-
+        array of an unprocessed image read by openCV (0:255 pixels)
     cont:
+        array of coordinates for a contour
 
     Returns
     -------
@@ -157,6 +161,7 @@ def plot_arrow_contours(image_array, contours, output_path):
     Parameters
     ----------
     image_array: array
+        array of an unprocessed image read by openCV (0:255 pixels)
     contours:
     output_path:
 
@@ -202,7 +207,8 @@ def plot_template_arrow(image_array, template, value):
 
     Parameters
     ----------
-    image_array
+    image_array: array
+        array of an unprocessed image read by openCV (0:255 pixels)
     template
     value
     Returns
