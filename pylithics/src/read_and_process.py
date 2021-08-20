@@ -101,7 +101,7 @@ def find_lithic_contours(binary_array, config_file):
         cont_info['index'] = index
         cont_info['hierarchy'] = list(hierarchy)[0][index]
 
-        cont_info['contour'] = cont
+        cont_info['contour'] = contour_array
 
         new_contours.append(cont)
         contour_info_list.append(cont_info)
@@ -242,7 +242,7 @@ def data_output(contour_df, config_file):
     return lithic_output
 
 
-def associate_arrows_to_scars(image_array, cont, templates):
+def associate_arrows_to_scars(image_array, contour_df, templates):
 
     """
     Use template matching to match the arrows to a given flake scar.
@@ -252,7 +252,7 @@ def associate_arrows_to_scars(image_array, cont, templates):
     ----------
     image_array: array
         2D array of the masked_image_array <- this should be the processed image - img_process
-    cont: dataframe
+    contour_df: dataframe
         dataframe with all the contour information and measurements for a masked_image_array
     templates: list of arrays
         list of arrays with arrows templates
@@ -265,7 +265,7 @@ def associate_arrows_to_scars(image_array, cont, templates):
     templates_angle = []
 
     # iterate on each contour to select only flake scars
-    for hierarchy_level, index, contour, area_px in cont[['hierarchy_level',
+    for hierarchy_level, index, contour, area_px in contour_df[['hierarchy_level',
                                                           'index', 'contour', 'area_px']].itertuples(index=False):
 
         angle = np.nan
@@ -287,13 +287,13 @@ def associate_arrows_to_scars(image_array, cont, templates):
 
         templates_angle.append(angle)
 
-    cont['angle'] = templates_angle
+    contour_df['angle'] = templates_angle
 
-    return cont
+    return contour_df
 
 
 
-def get_scars_angles(image_array, cont, templates = pd.DataFrame()):
+def get_scars_angles(image_array, contour_df, templates = pd.DataFrame()):
     """
     Classify contours that correspond to arrows or ripples and return the angle measurement of that scar.
     of contours and associate arrow angle information
@@ -302,7 +302,7 @@ def get_scars_angles(image_array, cont, templates = pd.DataFrame()):
     ----------
     image_array: array
         2D array of the masked_image_array
-    cont: dataframe
+    contour_df: dataframe
         dataframe with all contour information and measurements for a masked_image_array
     templates: array
         list of arrays with templates
@@ -313,15 +313,15 @@ def get_scars_angles(image_array, cont, templates = pd.DataFrame()):
     """
 
     if templates.shape[0] == 0:
-        cont['arrow_index'] = -1
-        cont['angle'] = np.nan
+        contour_df['arrow_index'] = -1
+        contour_df['angle'] = np.nan
 
         # TODO: DO SOMETHING WITH RIPPLES
 
     else:
-        cont = associate_arrows_to_scars(image_array, cont, templates)
+        contour_df = associate_arrows_to_scars(image_array, contour_df, templates)
 
-    return cont
+    return contour_df
 
 
 def find_arrows(image_array, image_processed, debug=False):
