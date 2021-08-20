@@ -276,7 +276,7 @@ def classify_surfaces(contour_df):
 
 
         elif surfaces.shape[0] > 3:
-            names[0], names[1] = dorsal_ventral(cont, surfaces)
+            names[0], names[1] = dorsal_ventral(contour_df, surfaces)
             ratio2 = surfaces["area_px"].iloc[2] / surfaces["area_px"].iloc[0]
             if ratio2 > 0.2:
                 names[2] = 'Lateral'
