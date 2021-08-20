@@ -191,7 +191,7 @@ def pixulator(image_scale_array, scale_size):
 
 def classify_surfaces(contour_df):
     """
-    Classify individual contours
+    Classify individual surfaces
 
     Parameters
     ----------
@@ -203,24 +203,26 @@ def classify_surfaces(contour_df):
     a dataframe
     """
 
-    def dorsal_ventral(contour, contour_df):
+    def dorsal_ventral(contour_df, surfaces_df):
         """
-        Determines if object surface is dorsal or ventral
+
         Parameters
         ----------
-        contour:
-            pixel coordinates for a contour of a single flake scar
-            or outline of a lithic object detected by contour finding
-        contour_df:
+        contour_df: dataframe
+        dataframe with all the contour information and measurements for an image
+        surfaces: dataframe
+        dataframe with all the contour information and measurements related to the surfaces of an image
+
 
         Returns
         -------
+        A dictionary with a surface classification
 
         """
 
         output = [None] * 2
-        if (contour_df[contour_df['parent_index'] == contour_df['index'].iloc[0]].shape[0] >
-                contour_df[contour_df['parent_index'] == contour_df['index'].iloc[1]].shape[0]):
+        if (contour_df[contour_df['parent_index'] == surfaces_df['index'].iloc[0]].shape[0] >
+                contour_df[contour_df['parent_index'] == surfaces_df['index'].iloc[1]].shape[0]):
 
             output[0] = 'Dorsal'
             output[1] = 'Ventral'
@@ -232,7 +234,7 @@ def classify_surfaces(contour_df):
 
 
     # dataframe should be sorted in order for this algorithm to work correctly.
-    surfaces = cont[cont['hierarchy_level'] == 0].sort_values(by=["area_px"], ascending=False)  #
+    surfaces = contour_df[contour_df['hierarchy_level'] == 0].sort_values(by=["area_px"], ascending=False)  #
 
     names = {}
     # start assigning them all to nan
