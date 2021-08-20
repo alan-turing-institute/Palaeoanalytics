@@ -86,7 +86,7 @@ def find_lithic_contours(binary_array, config_file):
     """
 
     # contour finding using cv2.RETR_TREE gives contour hierarchy (e.g. object 1 is nested n levels deep in object 2)
-    contours_cv, hierarchy = cv2.findContours(binary_array, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    _, contours_cv, hierarchy = cv2.findContours(binary_array, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     # create empty lists to store contour information
     new_contours = []
