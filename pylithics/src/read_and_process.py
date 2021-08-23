@@ -38,7 +38,7 @@ def read_image(input_dir, id, im_type='png'):
 
 def detect_lithic(image_array, config_file):
     """
-    Apply binary threshold to input image array/s based on configuration file options.
+    Apply binary threshold and edge detection to input image array/s based on configuration file options.
     Resulting image array has pixel values of 0,1
 
     Parameters
@@ -71,7 +71,7 @@ def detect_lithic(image_array, config_file):
 
 def find_lithic_contours(binary_array, config_file):
     """
-    Contour finding of lithic artefact image from thresholded image array and configuration options.
+    Contour finding of lithic artefact image from binary image array and configuration options.
 
     Parameters
     ----------
@@ -242,7 +242,7 @@ def data_output(contour_df, config_file):
     return lithic_output
 
 
-def associate_arrows_to_scars(image_array, contour_df, templates):
+def associate_arrows_to_scars(image_array, contour_df, templates_df):
 
     """
     Use template matching to match the arrows to a given flake scar.
@@ -254,8 +254,8 @@ def associate_arrows_to_scars(image_array, contour_df, templates):
         2D array of the masked_image_array <- this should be the processed image - img_process
     contour_df: dataframe
         dataframe with all the contour information and measurements for a masked_image_array
-    templates: list of arrays
-        list of arrays with arrows templates
+    templates_df: dataframe
+        dataframe containing arrays with arrows templates and measured angles
 
     Returns
     -------
@@ -279,11 +279,11 @@ def associate_arrows_to_scars(image_array, contour_df, templates):
             masked_image = mask_image(image_array, contour, False)
 
             # apply template matching to associate arrow to scar
-            template_index = template_matching(masked_image, templates, contour)
+            template_index = template_matching(masked_image, templates_df, contour)
 
             # if we find a matching template, get the angle.
             if template_index != -1:
-                angle = templates.iloc[template_index]['angle']
+                angle = templates_df.iloc[template_index]['angle']
 
         templates_angle.append(angle)
 
@@ -295,7 +295,7 @@ def associate_arrows_to_scars(image_array, contour_df, templates):
 
 def get_scars_angles(image_array, contour_df, templates = pd.DataFrame()):
     """
-    Classify contours that correspond to arrows or ripples and return the angle measurement of that scar.
+    Classify contours that contain arrows or ripples and return the angle measurement of that scar.
     of contours and associate arrow angle information
 
     Parameters
@@ -324,15 +324,15 @@ def get_scars_angles(image_array, contour_df, templates = pd.DataFrame()):
     return contour_df
 
 
-def find_arrows(image_array, image_processed, debug=False):
+def find_arrows(image_array, binary_array, debug=False):
     """
-    Use connected components to find arrows on an image, and return an array with the arrow templates.
+    Use connected components to find arrows on an image, and return an array with the arrow templates_df.
 
     Parameters
     ----------
     image_array: array
         array of an unprocessed image read by openCV (0:255 pixels)
-    image_processed: array
+    binary_array: array
         Processed (binarized) image array (0 to 1)
     debug: flag to plot the outputs.
 
@@ -366,7 +366,7 @@ def find_arrows(image_array, image_processed, debug=False):
             continue
 
         # extract templates from bounding box
-        roi = image_processed[y:y + h, x:x + w]
+        roi = binary_array[y:y + h, x:x + w]
 
         # calculate the ratio between black and while pixels
         ratio = len(roi[(roi > 0.9)]) / len(roi[(roi != 0)])

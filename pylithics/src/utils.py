@@ -3,8 +3,7 @@ import numpy as np
 import pandas as pd
 import scipy.ndimage as ndi
 import pylithics.src.plotting as plot
-import itertools
-
+import math
 
 
 def mask_image(binary_array, contour, innermask=False):
@@ -321,7 +320,7 @@ def subtract_masked_image(masked_image_array):
 def template_matching(image_array, templates_df, contour, debug=False):
     """
 
-    Find best template match in an image
+    Find best template match in an image within a contour
 
     Parameters
     ----------
@@ -329,6 +328,8 @@ def template_matching(image_array, templates_df, contour, debug=False):
         Array of input masked_image_array
     templates_df: array
         Array of template images
+    contour:
+        pixel coordinates for a contour
     debug: bool
         Generate plot if True
 
@@ -485,7 +486,6 @@ def measure_arrow_angle(template):
     an angle measurement
     """
 
-    import math
     # import image and grayscale
     uint_img = np.array(template * 255).astype('uint8')
     gray = 255 - uint_img
