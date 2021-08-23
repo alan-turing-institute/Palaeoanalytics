@@ -37,11 +37,10 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_a
     none
     """
 
-    for id in id_list:
-
+    for id in id_list:  # ID of individual lithic images
         config_file['id'] = id
         try:
-            scale_id = metadata_df[metadata_df['PA_ID'] == id]['scale_ID'].values[0]
+            scale_id = metadata_df[metadata_df['PA_ID'] == id]['scale_ID'].values[0]  # ID of associated scale data
             if pd.isna(scale_id):
                 print(
                     "Scale for Object " + id + " not available. No measurements will be calculated for this image.\
@@ -50,7 +49,7 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_a
             else:
                 scale_size = metadata_df[metadata_df['PA_ID'] == id]['PA_scale'].values[0]
                 config_file['scale_id'] = str(scale_id)
-                config_file["scale_cm"] = scale_size
+                config_file["scale_mm"] = scale_size
         except (TypeError, IndexError):
             print("Scale ID and scale measurement for image " + id + " not found in metadata")
             print("No measurements will be calculated for this image")
@@ -92,8 +91,8 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
     # get name of scale and if found read it
     try:
         image_scale_array = read_image(os.path.join(input_dir, "scales"), config_file["scale_id"])
-        config_file['conversion_px'] = pixulator(image_scale_array, config_file["scale_cm"])
-    except FileNotFoundError:
+        config_file['conversion_px'] = pixulator(image_scale_array, config_file["scale_mm"])
+    except (FileNotFoundError):
         config_file['conversion_px'] = 1
 
     # initial processing of the image
@@ -123,6 +122,7 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
         contours = get_scars_angles(image_processed, contours, arrow_df)
 
     else:
+
         # if there is no arrows in the figures we can measure the angles differently
         contours = get_scars_angles(image_processed, contours)
 

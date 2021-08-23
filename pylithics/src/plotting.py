@@ -18,6 +18,7 @@ def fig_size(image_array):
 
     A number for the x width of the figure size.
     """
+
     ratio = image_array.shape[0] / image_array.shape[1]
     if ratio < 0.7:
         x_size = 20 / ratio
@@ -37,7 +38,7 @@ def plot_surfaces(image_array, contours_df, output_figure):
     Parameters
     ----------
     image_array: array
-    Original image array (0 to 255)
+        array of an unprocessed image read by openCV (0, 255 pixels)
     contours_df:
         Dataframe with detected contours and extra information about them.
     output_figure:
@@ -135,7 +136,6 @@ def plot_angles(image_array, contours_df, output_path):
     """
     fig_x_size = fig_size(image_array)
     fig, ax = plt.subplots(figsize=(fig_x_size, 20))
-
     ax.imshow(image_array, cmap=plt.cm.gray)
 
     # selecting only scars with angles
@@ -203,12 +203,11 @@ def plot_thresholding(image_array, threshold, binary_array, output_file=''):
     Parameters
     ----------
     image_array:  array
-        Original image array (0 to 255)
+        array of an unprocessed image read by openCV (0:255 pixels)
     threshold: float
         threshold value found for images
     binary_array: array
-        resulting binary image with pixel values of... <- variable name
-
+        resulting binary image with pixel values of 0,1
     Returns
     -------
     an array
@@ -245,9 +244,10 @@ def plot_contour_figure(image_array, cont):
     Parameters
     ----------
     image_array: array
-        Image array, this can be (0 to 255) or binary (0 to 1)
-    cont: array
-        Array with coordinates
+        array of an unprocessed image read by openCV (0:255 pixels)
+    cont:
+        array of coordinates for a contour
+
 
     Returns
     -------
@@ -267,7 +267,8 @@ def plot_template_arrow(image_array, template, value):
 
     Parameters
     ----------
-    image_array
+    image_array: array
+        array of an unprocessed image read by openCV (0:255 pixels)
     template
     value
     Returns
