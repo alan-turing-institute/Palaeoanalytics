@@ -6,16 +6,15 @@
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 [![Build Status](https://app.travis-ci.com/alan-turing-institute/Palaeoanalytics.svg?token=sMJzQpXKRs31ujsqXNxP&branch=develop)](https://app.travis-ci.com/alan-turing-institute/Palaeoanalytics)
 
+# **Table of Contents:**
 
-**Table of Contents:**
-
-- [About the project](#about-the-project)
-- [The Team](#the-team)
+- [About the project](#about)
+- [The team](#team)
 - [The PyLithics package](#pylithics)
 - [Contributing](#contributing)
 - [Licence](#get-in-touch)
 
-##📖 About the project 
+# 📖 About the project <a name="about"></a>
 Archaeologists have long used stone tools (lithics) to reconstruct the behavior of prehistoric hominins. While techniques 
 have become more quantitative, there still remain barriers to optimizing data retrieval. Machine learning and computer 
 vision approaches can be developed to extract quantitative and trait data from lithics, photographs and drawings. `PyLithics`
@@ -31,7 +30,7 @@ and shape metrics of individual scars and whole flakes can be calculated and rec
 of dorsal scars can also be calculated. The resulting data can be used for metrical analysis, extracting features indicative
 of both typologies and technological processes. Data output can easily be employed to explore patterns of variation within and between assemblages.
 
-## 👥 The team
+# 👥 The team <a name="team"></a>
 
 These are the members of the Palaoanalytics team as updated August 2021:
 
@@ -42,16 +41,16 @@ These are the members of the Palaoanalytics team as updated August 2021:
 | Rob Foley | Principal Investigator (REG) | [raf10@cam.ac.uk](mailto:raf10@cam.ac.uk)| [Rob-LCHES](https://github.com/Rob-LCHES)
 
 
-## 📦 The PyLithics package
+# 📦 The PyLithics package
 
-### Workflow
+## Workflow
 
 🚧 WIP 🚧
 <!--
 #TODO: Add the schema.
 -->
 
-### Installation
+## Installation
 The `PyLithics` package requires Python 3.7 or greater. To install, start by creating a fresh conda environment.
 ```
 conda create -n paleo python=3.7
@@ -74,7 +73,7 @@ conda install -c conda-forge opencv
 pip install .
 ```
 
-### Running PyLithics
+## Running PyLithics
 
 
 *Pylithics* can be run via command line. The following command displays all available options:
@@ -178,7 +177,7 @@ An example of this table, where one scale correspond to several images is the fo
 | lithic_id2    | scale_id2       | 5         |
 | lithic_id3    | scale_id3       | 5         |   
 
-### Note:
+**Note**
 
 In the scenario that the scale and csv file are not available, it is possible to run the analysis only using the images
 with the command:
@@ -189,21 +188,21 @@ pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --outpu
 lithics image files must still be inside  the '<path_to_input_dir>/images/' directory). However, all the measurements will only be
 provided as number of pixels. 
 
-### PyLithics Output
+## PyLithics Output
 
 <!--
 #TODO: Figures when avalaible
 -->
 
-#### Output images
+### Output images
 
 🚧 WIP 🚧
 
-#### Output data
+### Output data
 
 🚧 WIP 🚧
 
-### Drawing recommendations for PyLithics
+## Drawing recommendations for PyLithics
 
 🚧 WIP 🚧
 
@@ -212,7 +211,7 @@ provided as number of pixels.
 We welcome contributions from anyone who is interested in the project. There are lots of ways to contribute, not just writing code. If you have
 ideas in how to extend/improve PyLithics do get in touch with members of the team (preferable by email). See our [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a community in Github.
 
-#📝 Licence
+# 📝 Licence
 
 This project is licensed under the terms of the Creative Commons Attribution-ShareAlike (CC BY-SA 4.0) software license - https://creativecommons.org/licenses/by-sa/4.0/
 
