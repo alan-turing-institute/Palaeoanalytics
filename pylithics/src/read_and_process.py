@@ -362,14 +362,17 @@ def find_arrows(image_array, binary_array, debug=False):
         area = stats[i, cv2.CC_STAT_AREA]
 
         # select arrows based on area
-        if area > 1000 or area < 50:
+        if area > 3000 or area < 50:
             continue
 
         # extract templates from bounding box
         roi = binary_array[y:y + h, x:x + w]
 
         # calculate the ratio between black and while pixels
-        ratio = len(roi[(roi > 0.9)]) / len(roi[(roi != 0)])
+        try:
+            ratio = len(roi[(roi > 0.9)]) / len(roi[(roi != 0)])
+        except ZeroDivisionError:
+            continue
 
         # filter templates that are unlikely to be an arrow
         if ratio > 0.85 or ratio < 0.2:
