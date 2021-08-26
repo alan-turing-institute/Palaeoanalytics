@@ -46,7 +46,7 @@ These are the members of the Palaoanalytics team as updated August 2021:
 
 ## Workflow
 
-🚧 WIP 🚧
+### 🚧 WIP 🚧
 <!--
 #TODO: Add the schema.
 -->
@@ -203,9 +203,9 @@ provided as number of pixels.
 
 🚧 WIP 🚧
 
-# Drawing style for PyLithics <a name="drawing"></a>
+#🖌️ Drawing style for PyLithics <a name="drawing"></a>
 
-🚧 WIP 🚧
+## 🚧 WIP 🚧
 
 # 👋 Contributing <a name="contributing"></a>
 
