@@ -1,16 +1,18 @@
 """
 Test utils
 """
+import os
+
+import cv2
+import numpy as np
+import pandas as pd
+import yaml
+
 from pylithics.src.read_and_process import read_image, detect_lithic, process_image, find_lithic_contours, find_arrows
 from pylithics.src.utils import mask_image, contour_characterisation, classify_distributions, shape_detection, \
     get_high_level_parent_and_hierarchy, pixulator, classify_surfaces, subtract_masked_image, measure_vertices, \
     get_angles, \
     measure_arrow_angle, contour_selection
-import os
-import cv2
-import numpy as np
-import yaml
-import pandas as pd
 
 # Global loads for all tests
 image_array = read_image(os.path.join('tests', 'test_images'), 'test')
@@ -83,8 +85,6 @@ def test_pixulator():
 
 
 def test_classify_surfaces():
-
-
     # initial processing of the image
     image_processed = process_image(image_array, config_file)
 

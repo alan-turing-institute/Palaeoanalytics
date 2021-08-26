@@ -8,11 +8,9 @@ from pylithics.src.read_and_process import read_image, detect_lithic, \
 from pylithics.src.utils import get_angles
 
 
-
 def test_pipeline():
-
     id = 'test'
-    image_array = read_image(os.path.join('tests', 'test_images'),id)
+    image_array = read_image(os.path.join('tests', 'test_images'), id)
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
@@ -37,14 +35,14 @@ def test_pipeline():
     json_output = data_output(contours, config_file)
 
     assert len(json_output) == 4
-    assert contours.shape == (11,16)
+    assert contours.shape == (11, 16)
     assert binary_array.shape == (1841, 1665)
-    assert len(json_output['lithic_contours'])==4
+    assert len(json_output['lithic_contours']) == 4
+
 
 def test_arrow_pipeline():
-
     id = 'test'
-    image_array = read_image(os.path.join('tests', 'test_images'),id)
+    image_array = read_image(os.path.join('tests', 'test_images'), id)
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
@@ -72,6 +70,5 @@ def test_arrow_pipeline():
     contours_final = get_scars_angles(image_processed, contours, arrow_df)
 
     assert len(templates) == 4
-    assert contours_final.shape == (11,15)
-    assert arrow_df.shape == (4,2)
-
+    assert contours_final.shape == (11, 15)
+    assert arrow_df.shape == (4, 2)
