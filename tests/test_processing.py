@@ -10,18 +10,13 @@ import matplotlib.pyplot as plt
 
 
 def test_read_image():
+    image_array = read_image(os.path.join('tests', 'test_images'), 'test')
 
-    image_array = read_image(os.path.join('tests','test_images'),'RDK2_17_Dc_Pc_Lc')
-
-    image_array_tif = read_image(os.path.join('tests','test_images'),'2005_Erps-Kwerps-Villershof','tif')
-
-    assert image_array.shape==(1595, 1465)
-    assert image_array_tif.shape==(445, 1548)
+    assert image_array.shape == (1841, 1665)
 
 
 def test_detect_lithic():
-
-    image_array = read_image(os.path.join('tests','test_images'),'236')
+    image_array = read_image(os.path.join('tests', 'test_images'), 'test')
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
@@ -47,11 +42,11 @@ def test_detect_lithic():
     plt.tight_layout()
     plt.savefig(os.path.join('tests', 'edge_detection_lithic.png'))
 
-    assert binary_edge_sobel.shape==(689,1381)
+    assert binary_edge_sobel.shape == (1841, 1665)
+
 
 def test_find_lithic_contours():
-
-    image_array = read_image(os.path.join('tests', 'test_images'),'234')
+    image_array = read_image(os.path.join('tests', 'test_images'), 'test')
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
@@ -64,7 +59,7 @@ def test_find_lithic_contours():
 
     image_processed = process_image(image_array, config_file)
 
-    config_file['conversion_px'] = 0.1 #hardcoded for now
+    config_file['conversion_px'] = 0.1  # hardcoded for now
     binary_edge_sobel, _ = detect_lithic(image_processed, config_file)
 
     contours = find_lithic_contours(binary_edge_sobel, config_file)
@@ -97,11 +92,11 @@ def test_find_lithic_contours():
     plt.savefig(os.path.join('tests', 'contour_detection_lithic.png'))
     plt.close(fig)
 
-    assert contours[['contour']].shape[0]> 20
+    assert contours[['contour']].shape[0] > 10
+
 
 def test_process_image():
-
-    image_array = read_image(os.path.join('tests', 'test_images'),'234')
+    image_array = read_image(os.path.join('tests', 'test_images'), 'test')
 
     filename_config = os.path.join('tests', 'test_config.yml')
 
@@ -111,8 +106,5 @@ def test_process_image():
 
     image_processed = process_image(image_array, config_file)
 
-
-    assert image_processed.shape[0]!= 0
-    assert image_processed.max()<=1.0
-
-
+    assert image_processed.shape[0] != 0
+    assert image_processed.max() <= 1.0

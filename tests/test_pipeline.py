@@ -11,7 +11,7 @@ from pylithics.src.utils import get_angles
 
 def test_pipeline():
 
-    id = '234'
+    id = 'test'
     image_array = read_image(os.path.join('tests', 'test_images'),id)
 
     filename_config = os.path.join('tests', 'test_config.yml')
@@ -37,13 +37,13 @@ def test_pipeline():
     json_output = data_output(contours, config_file)
 
     assert len(json_output) == 4
-    assert contours.shape == (22,16)
-    assert binary_array.shape == (495,719)
-    assert len(json_output['lithic_contours'])==3
+    assert contours.shape == (11,16)
+    assert binary_array.shape == (1841, 1665)
+    assert len(json_output['lithic_contours'])==4
 
 def test_arrow_pipeline():
 
-    id = '234'
+    id = 'test'
     image_array = read_image(os.path.join('tests', 'test_images'),id)
 
     filename_config = os.path.join('tests', 'test_config.yml')
@@ -71,7 +71,7 @@ def test_arrow_pipeline():
     # associate arrows to scars, add that info into the contour
     contours_final = get_scars_angles(image_processed, contours, arrow_df)
 
-    assert len(templates) == 12
-    assert contours_final.shape == (22,15)
-    assert arrow_df.shape == (12,2)
+    assert len(templates) == 4
+    assert contours_final.shape == (11,15)
+    assert arrow_df.shape == (4,2)
 
