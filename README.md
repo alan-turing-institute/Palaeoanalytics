@@ -111,9 +111,7 @@ For example, given that you have a set of lithics images (and it respective scal
 following:
 
 ```python
-
 pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --output_dir <path_to_output_directory> --metadata_filename metatada_file.csv
-
 ```
 
 This ```test_config.yml``` config file contains the following options:
@@ -205,6 +203,9 @@ provided as number of pixels.
 
 🚧 WIP 🚧
 
+### Drawing recommendations for PyLithics
+
+🚧 WIP 🚧
 
 # 👋 Contributing
 
