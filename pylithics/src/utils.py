@@ -461,7 +461,7 @@ def contour_selection(contour_df):
                 norm = contour_df[contour_df['index'] == parent_index]['area_px'].values[0]
                 area = area_px
                 percentage = area / norm
-                if percentage < 0.03:
+                if percentage < 0.01:
                     pass_selection = False
                 if percentage > 0.50:
                     pass_selection = False
