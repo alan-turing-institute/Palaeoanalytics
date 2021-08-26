@@ -1,19 +1,58 @@
-# Palaeoanalytics
-Repository for the Paleoanalytics project.
+<h1 align="center">Welcome to Palaeoanalytics! </h1>
 
-For over one hundred years, archaeologists have recovered, recorded, photographed and drawn stone tools, and used these to build up strong models of their
-typologies, technologies, distributions and affinities. Much of this information is recorded in publications of greater or lesser accessibility, and large-scale,
-comprehensive databases are few and far between. To improve the scale and quality of these data, the PALAEONALYTICS Project (https://www.turing.ac.uk/research/research-projects/palaeoanalytics) has utilized computer vision methodologies to develop PyLithics, an open-source, free for use, software package to capture rapidly large volumes of these data in usable forms. PyLithics v1.0, processes lithic artefact illustrations scanned from the literature, and has been optimised for feature extraction and measurement using a number of computer vision techniques including pixel intensity thresholding, edge detection and segmentation, and custom template matching and image kernels. 
- 
-On both conventional and modern drawings, PyLithics v1.0 can identify and measure dorsal surface scar number, shape, size, orientation and diversity. The
-orientation and flaking direction of dorsal scars can also be calculated from either ripples or arrows. Complete size and shape metrics of individual scars and
-whole flakes can be calculated and recorded in a customisable database. The resulting data can be used for metrical analysis, extracting features indicative of
-both typologies and technological processes. Data output has been optimised for machine learning and neural network processing algorithms and can easily be
-employed to explore patterns of variation within and between assemblages.  
+> Repository for the [Paleoanalytics project](https://www.turing.ac.uk/research/research-projects/palaeoanalytics). 
+>A collaboration between The Alan Turing Institute and the University of Cambridge.  
 
-# Installation
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![Build Status](https://app.travis-ci.com/alan-turing-institute/Palaeoanalytics.svg?token=sMJzQpXKRs31ujsqXNxP&branch=develop)](https://app.travis-ci.com/alan-turing-institute/Palaeoanalytics)
 
-The `pylithics` package requires Python 3.6 or greater. To install, start by creating a fresh conda environment.
+
+**Table of Contents:**
+
+- [About the project](#about-the-project)
+- [The Team](#the-team)
+- [The PyLithics package](#pylithics)
+- [Contributing](#contributing)
+- [Licence](#get-in-touch)
+
+##📖 About the project 
+Archaeologists have long used stone tools (lithics) to reconstruct the behavior of prehistoric hominins. While techniques 
+have become more quantitative, there still remain barriers to optimizing data retrieval. Machine learning and computer 
+vision approaches can be developed to extract quantitative and trait data from lithics, photographs and drawings. `PyLithics`
+has been developed to capture data from 2D line drawings, focusing on the size, shape and technological attributes of flakes. 
+
+`PyLithics`is an open-source, free for use, software package for processing lithic artefact illustrations scanned from 
+the literature. This tool accurately identifies, outlines and computes lithic shape and linear measures, and returns user 
+ready data. It has been optimized for feature extraction and measurement using a number of computer vision techniques 
+including pixel intensity thresholding, edge detection, contour finding, custom template matching and image kernels. 
+On both conventional and modern drawings, `PyLithics`can identify and platform, lateral, dorsal, and ventral surfaces,
+as well as individual dorsal surface scar shape, size, orientation, diversity, number, and flaking order. Complete size
+and shape metrics of individual scars and whole flakes can be calculated and recorded. Orientation and flaking direction 
+of dorsal scars can also be calculated. The resulting data can be used for metrical analysis, extracting features indicative
+of both typologies and technological processes. Data output can easily be employed to explore patterns of variation within and between assemblages.
+
+## 👥 The team
+
+These are the members of the Palaoanalytics team as updated August 2021:
+
+| Name | Role | email | Github | 
+| --- | --- | --- | --- |
+| Jason Gellis | Postdoctoral Researcher (University of Cambridge) | [jg760@cam.ac.uk](mailto:jg760@cam.ac.uk) | [@JasonGellis](https://github.com/JasonGellis) |
+| Camila Rangel Smith | Research Data Scientist (The Alan Turing Institute) | [crangelsmith@turing.ac.uk](mailto:crangelsmith@turing.ac.uk) |[@crangelsmith](https://github.com/crangelsmith) |
+| Rob Foley | Principal Investigator (REG) | [raf10@cam.ac.uk](mailto:raf10@cam.ac.uk)| [Rob-LCHES](https://github.com/Rob-LCHES)
+
+
+## 📦 The PyLithics package
+
+### Workflow
+
+🚧 WIP 🚧
+<!--
+#TODO: Add the schema.
+-->
+
+### Installation
+The `PyLithics` package requires Python 3.7 or greater. To install, start by creating a fresh conda environment.
 ```
 conda create -n paleo python=3.7
 conda activate paleo
@@ -35,10 +74,10 @@ conda install -c conda-forge opencv
 pip install .
 ```
 
-# Running pylithics
+### Running PyLithics
 
 
-*pylithics* can be run via command line. The following command displays all available options:
+*Pylithics* can be run via command line. The following command displays all available options:
 
 ```bash
 pylithics_run --help
@@ -57,19 +96,24 @@ optional arguments:
   -c config-file, --config config-file
                         the model config file (YAML)
   --input_dir INPUT_DIR
-                        directory where the input images are
+                        path to input directory where images are found
   --output_dir OUTPUT_DIR
-                        directory where the output data is saved
-  --metadata_filename FILENAME
-                        Name of the metadata CSV file that pairs scales and lithics
+                        path to output directory to save processed image
+                        outputs
+  --metadata_filename METADATA_FILENAME
+                        CSV file with metadata on images and scales
+  --get_arrows          If a lithic contains arrows, find them and add them to
+                        the data
 
 ```
 
 For example, given that you have a set of lithics images (and it respective scales), you can run the pylithics processing script with the
 following:
 
-```
+```python
+
 pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --output_dir <path_to_output_directory> --metadata_filename metatada_file.csv
+
 ```
 
 This ```test_config.yml``` config file contains the following options:
@@ -84,12 +128,16 @@ minimum_pixels_contour: 0.01
 denoise_weight: 0.06
 contrast_stretch: [4, 96]
 
-
 ```
 
-You can modify or create your on config file and provide it to the CLI. 
+This config is optimised to work with the images in the example dataset. If you want use PyLithics with different stiles of
+drawing you might have to modify this configuration file. You can modify or create your on config file and provide it to the CLI. 
 
-The images found in ```<path_to_input_dir>``` should follow the this directory structure:
+<!--
+#TODO: Add a comment about the example dataset when avalaible. 
+-->
+
+The images found in ```<path_to_input_dir>``` should follow this directory structure:
 
 ```bash
 input_directory
@@ -128,11 +176,11 @@ An example of this table, where one scale correspond to several images is the fo
 
 |PA_ID | scale_ID  | PA_scale  | 
 |------|-----------|-----------|
-| 1    | sc1       | 5         | 
-| 2    | sc1       | 5         |
-| 3    | sc1       | 5         |   
+| lithic_id1    | scale_id1       | 5         | 
+| lithic_id2    | scale_id2       | 5         |
+| lithic_id3    | scale_id3       | 5         |   
 
-## Note:
+### Note:
 
 In the scenario that the scale and csv file are not available, it is possible to run the analysis only using the images
 with the command:
@@ -140,14 +188,30 @@ with the command:
 ```
 pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --output_dir <path_to_output_directory> 
 ```
-lithics image files must still be inside  the '<path_to_input_dir>/images/' directory). However all the measurements will only be
+lithics image files must still be inside  the '<path_to_input_dir>/images/' directory). However, all the measurements will only be
 provided as number of pixels. 
 
-# Contributing
+### PyLithics Output
 
-We welcome contributions from anyone who is interested in the project. There are lots of ways to contribute, not just writing code. See our Contributor Guidelines to learn more about how you can contribute and how we work together as a community.
+<!--
+#TODO: Figures when avalaible
+-->
 
-# Licence
+#### Output images
+
+🚧 WIP 🚧
+
+#### Output data
+
+🚧 WIP 🚧
+
+
+# 👋 Contributing
+
+We welcome contributions from anyone who is interested in the project. There are lots of ways to contribute, not just writing code. If you have
+ideas in how to extend/improve PyLithics do get in touch with members of the team (preferable by email). See our [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a community in Github.
+
+#📝 Licence
 
 This project is licensed under the terms of the Creative Commons Attribution-ShareAlike (CC BY-SA 4.0) software license - https://creativecommons.org/licenses/by-sa/4.0/
 
