@@ -11,8 +11,9 @@
 - [About the project](#about)
 - [The team](#team)
 - [The PyLithics package](#pylithics)
+- [Drawing style for PyLithics](#drawing)
 - [Contributing](#contributing)
-- [Licence](#get-in-touch)
+- [Licence](#licence)
 
 # 📖 About the project <a name="about"></a>
 Archaeologists have long used stone tools (lithics) to reconstruct the behavior of prehistoric hominins. While techniques 
@@ -41,7 +42,7 @@ These are the members of the Palaoanalytics team as updated August 2021:
 | Rob Foley | Principal Investigator (REG) | [raf10@cam.ac.uk](mailto:raf10@cam.ac.uk)| [Rob-LCHES](https://github.com/Rob-LCHES)
 
 
-# 📦 The PyLithics package
+# 📦 The PyLithics package <a name="pylithics"></a>
 
 ## Workflow
 
@@ -202,16 +203,16 @@ provided as number of pixels.
 
 🚧 WIP 🚧
 
-## Drawing recommendations for PyLithics
+# Drawing style for PyLithics <a name="drawing"></a>
 
 🚧 WIP 🚧
 
-# 👋 Contributing
+# 👋 Contributing <a name="contributing"></a>
 
 We welcome contributions from anyone who is interested in the project. There are lots of ways to contribute, not just writing code. If you have
 ideas in how to extend/improve PyLithics do get in touch with members of the team (preferable by email). See our [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a community in Github.
 
-# 📝 Licence
+# 📝 Licence <a name="licence"></a>
 
 This project is licensed under the terms of the Creative Commons Attribution-ShareAlike (CC BY-SA 4.0) software license - https://creativecommons.org/licenses/by-sa/4.0/
 
