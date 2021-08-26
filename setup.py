@@ -5,7 +5,7 @@ with open("requirements.txt", "r") as f:
 
 setup(
     name="pylithics",
-    version="0.0.1",
+    version="1.0",
     description="A lithics study using computer vision.",
     url="https://github.com/alan-turing-institute/Palaeoanalytics",
     author="Jason Gellis, Camila Rangel Smith",
