@@ -201,8 +201,147 @@ provided as number of pixels.
 
 ### Output data
 
-🚧 WIP 🚧
+The output dataset is a JSON file with data for the lithic objects found in an image 
+hierarchically organised by type of surface object (ventral, dorsal, platform). For each 
+surface the metrics form its scars are recorded. This is an example of the output data:
 
+<!--
+#TODO: Update data with scale when available.
+-->
+
+```json
+{
+   "id":"test", 
+   "conversion_px":1,
+   "n_surfaces":4,
+   "lithic_contours":[
+      {
+         "surface_id":0,
+         "classification":"Ventral",
+         "total_area_px":515662.0,
+         "total_area":"NaN",
+         "max_breadth":"NaN",
+         "max_length":"NaN",
+         "polygon_count":7,
+         "scar_count":0,
+         "percentage_detected_scars":0.0,
+         "scar_contours":[
+            
+         ]
+      },
+      {
+         "surface_id":1,
+         "classification":"Dorsal",
+         "total_area_px":515583.0,
+         "total_area":"NaN",
+         "max_breadth":"NaN",
+         "max_length":"NaN",
+         "polygon_count":7,
+         "scar_count":5,
+         "percentage_detected_scars":0.71,
+         "scar_contours":[
+            {
+               "scar_id":0,
+               "total_area_px":139998.0,
+               "total_area":"NaN",
+               "max_breadth":"NaN",
+               "max_length":"NaN",
+               "percentage_of_lithic":0.27,
+               "scar_angle":1.74,
+               "polygon_count":5
+            },
+            {
+               "scar_id":1,
+               "total_area_px":111052.5,
+               "total_area":"NaN",
+               "max_breadth":"NaN",
+               "max_length":"NaN",
+               "percentage_of_lithic":0.22,
+               "scar_angle":356.78,
+               "polygon_count":6
+            },
+            {
+               "scar_id":2,
+               "total_area_px":103554.0,
+               "total_area":"NaN",
+               "max_breadth":"NaN",
+               "max_length":"NaN",
+               "percentage_of_lithic":0.2,
+               "scar_angle":5.49,
+               "polygon_count":4
+            },
+            {
+               "scar_id":3,
+               "total_area_px":6288.0,
+               "total_area":"NaN",
+               "max_breadth":"NaN",
+               "max_length":"NaN",
+               "percentage_of_lithic":0.01,
+               "scar_angle":"NaN",
+               "polygon_count":7
+            },
+            {
+               "scar_id":4,
+               "total_area_px":5853.0,
+               "total_area":"NaN",
+               "max_breadth":"NaN",
+               "max_length":"NaN",
+               "percentage_of_lithic":0.01,
+               "scar_angle":"NaN",
+               "polygon_count":6
+            }
+         ]
+      },
+      {
+         "surface_id":2,
+         "classification":"Lateral",
+         "total_area_px":162660.5,
+         "total_area":"NaN",
+         "max_breadth":"NaN",
+         "max_length":"NaN",
+         "polygon_count":3,
+         "scar_count":2,
+         "percentage_detected_scars":0.47,
+         "scar_contours":[
+            {
+               "scar_id":0,
+               "total_area_px":57245.5,
+               "total_area":"NaN",
+               "max_breadth":"NaN",
+               "max_length":"NaN",
+               "percentage_of_lithic":0.35,
+               "scar_angle":"NaN",
+               "polygon_count":3
+            },
+            {
+               "scar_id":1,
+               "total_area_px":18672.5,
+               "total_area":"NaN",
+               "max_breadth":"NaN",
+               "max_length":"NaN",
+               "percentage_of_lithic":0.11,
+               "scar_angle":"NaN",
+               "polygon_count":2
+            }
+         ]
+      },
+      {
+         "surface_id":3,
+         "classification":"Platform",
+         "total_area_px":50040.0,
+         "total_area":"NaN",
+         "max_breadth":"NaN",
+         "max_length":"NaN",
+         "polygon_count":5,
+         "scar_count":0,
+         "percentage_detected_scars":0.0,
+         "scar_contours":[
+            
+         ]
+      }
+   ]
+}
+```
 #🖌️ Drawing style for PyLithics <a name="drawing"></a>
 
 ## 🚧 WIP 🚧
