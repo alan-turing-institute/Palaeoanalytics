@@ -217,9 +217,9 @@ Output images are saved in the output directory for validation of the data extra
 are the following: 
 
 <p float="left">
-<img src="figures/rub_al_khali_lithic_surfaces.png" width="200" />
-<img src="figures/rub_al_khali_lithium_scars.png" width="200" />
-<img src="figures/rub_al_khali_lithium_angles.png" width="200" />
+<img src="figures/rub_al_khali_lithic_surfaces.png" width="310" />
+<img src="figures/rub_al_khali_lithium_scars.png" width="310" />
+<img src="figures/rub_al_khali_lithium_angles.png" width="310" />
 </p>
 
 ### Output data
