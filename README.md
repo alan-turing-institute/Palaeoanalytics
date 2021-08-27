@@ -44,6 +44,8 @@ These are the members of the Palaoanalytics team as updated August 2021:
 
 # 📦 The `PyLithics` package <a name="pylithics"></a>
 
+> PyLithics: A Python package for stone tool analysis
+
 ## Workflow
 
 The workflow of `PyLithics` is the following:
@@ -61,7 +63,7 @@ The workflow of `PyLithics` is the following:
 8. Plot the resulting surface and scar contours on the original images for validation.    
 8. Output data in a hierarchical json file detailing measurements of surface and scar contours. 
 
-In figure X you can find a schema of the workflow described above.
+Here you can find a schema of the workflow described above:
 ### 🚧 WIP 🚧
 <!--
 #TODO: Add the schema.
@@ -202,16 +204,16 @@ contrast_stretch: [4, 96]
 The config is optimised to work with the images in an [example dataset](data). If you want use `PyLithics` with different styles of
 drawing you might have to modify this configuration file. You can modify or create your on config file and provide it to the CLI. 
 
-## Quickstart 
+## 💫 Quickstart 
 **In order to provide a quick start we have provided an [example dataset](data) including images, scales and metadata.** You
 can run a quick analysis in this dataset by running:
 
 ```python
-pylithics_run -c configs/test_config.yml --input_dir data --output_dir output --metadata_filename meta_data.csv --get_arrows```
+pylithics_run -c configs/test_config.yml --input_dir data --output_dir output --metadata_filename meta_data.csv --get_arrows
 ```
 
 
-## `PyLithics` Output
+## Output from `PyLithics`
 
 ### Output images
 

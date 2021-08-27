@@ -10,7 +10,7 @@ authors:
 - family-names: "Foley"
   given-names: "Robert A."
   orcid: "https://orcid.org/0000-0003-0479-3039"
-title: "PyLithics: computer vision for lithic analysis "
+title: "PyLithics: A Python package for stone tool analysis"
 version: 1.0
 date-released: 2021-08-27
 url: "https://github.com/alan-turing-institute/Palaeoanalytics/"
