@@ -10,7 +10,7 @@
 
 - [About the project](#about)
 - [The team](#team)
-- [The PyLithics package](#pylithics)
+- [The `PyLithics` package](#pylithics)
 - [Drawing style for PyLithics](#drawing)
 - [Contributing](#contributing)
 - [Licence](#licence)
@@ -39,14 +39,14 @@ These are the members of the Palaoanalytics team as updated August 2021:
 | --- | --- | --- | --- |
 | Jason Gellis | Postdoctoral Researcher (University of Cambridge) | [jg760@cam.ac.uk](mailto:jg760@cam.ac.uk) | [@JasonGellis](https://github.com/JasonGellis) |
 | Camila Rangel Smith | Research Data Scientist (The Alan Turing Institute) | [crangelsmith@turing.ac.uk](mailto:crangelsmith@turing.ac.uk) |[@crangelsmith](https://github.com/crangelsmith) |
-| Rob Foley | Principal Investigator (REG) | [raf10@cam.ac.uk](mailto:raf10@cam.ac.uk)| [Rob-LCHES](https://github.com/Rob-LCHES)
+| Rob Foley | Principal Investigator (University of Cambridge) | [raf10@cam.ac.uk](mailto:raf10@cam.ac.uk)| [Rob-LCHES](https://github.com/Rob-LCHES)
 
 
-# 📦 The PyLithics package <a name="pylithics"></a>
+# 📦 The `PyLithics` package <a name="pylithics"></a>
 
 ## Workflow
 
-The workflow of PyLithics is the following:
+The workflow of `PyLithics` is the following:
 
 1. Read lithic image, and based on its name find its associated scale image (these are linked to each other in an input csv file).
 2. Calculate a conversion of pixels to millimeters based on the size of the scale.
@@ -90,10 +90,10 @@ conda install -c conda-forge opencv
 pip install .
 ```
 
-## Running PyLithics
+## Running `PyLithics`
 
 
-*Pylithics* can be run via command line. The following command displays all available options:
+`PyLithics` can be run via command line. The following command displays all available options:
 
 ```bash
 pylithics_run --help
@@ -123,7 +123,7 @@ optional arguments:
 
 ```
 
-For example, given that you have a set of lithics images (and it respective scales), you can run the pylithics processing script with the
+For example, given that you have a set of lithics images (and it respective scales), you can run the `PyLithics` processing script with the
 following:
 
 ```python
@@ -204,11 +204,11 @@ contrast_stretch: [4, 96]
 
 ```
 
-The config is optimised to work with the images in the [example dataset](data). If you want use PyLithics with different stiles of
+The config is optimised to work with the images in the [example dataset](data). If you want use `PyLithics` with different styles of
 drawing you might have to modify this configuration file. You can modify or create your on config file and provide it to the CLI. 
 
 
-## PyLithics Output
+## `PyLithics` Output
 
 
 ### Output images
@@ -230,14 +230,14 @@ surface the metrics form its scars are recorded. In [this data output example](o
 resulting of running `PyLithics` on the above images, with comments to better understand the hierarchy and variables. 
 
 
-# 🖌 Drawing style for PyLithics <a name="drawing"></a>
+# 🖌 Drawing style for `PyLithics` <a name="drawing"></a>
 
 ## 🚧 WIP 🚧
 
 # 👋 Contributing <a name="contributing"></a>
 
 We welcome contributions from anyone who is interested in the project. There are lots of ways to contribute, not just writing code. If you have
-ideas in how to extend/improve PyLithics do get in touch with members of the team (preferable by email). See our [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a community in Github.
+ideas in how to extend/improve `PyLithics` do get in touch with members of the team (preferable by email). See our [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a community in Github.
 
 # 📝 Licence <a name="licence"></a>
 
