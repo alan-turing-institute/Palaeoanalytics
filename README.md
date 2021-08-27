@@ -39,7 +39,7 @@ These are the members of the Palaoanalytics team as updated August 2021:
 | --- | --- | --- | --- |
 | Jason Gellis | Postdoctoral Researcher (University of Cambridge) | [jg760@cam.ac.uk](mailto:jg760@cam.ac.uk) | [@JasonGellis](https://github.com/JasonGellis) |
 | Camila Rangel Smith | Research Data Scientist (The Alan Turing Institute) | [crangelsmith@turing.ac.uk](mailto:crangelsmith@turing.ac.uk) |[@crangelsmith](https://github.com/crangelsmith) |
-| Rob Foley | Principal Investigator (University of Cambridge) | [raf10@cam.ac.uk](mailto:raf10@cam.ac.uk)| [Rob-LCHES](https://github.com/Rob-LCHES)
+| Robert Foley | Principal Investigator (University of Cambridge) | [raf10@cam.ac.uk](mailto:raf10@cam.ac.uk)| [Rob-LCHES](https://github.com/Rob-LCHES)
 
 
 # 📦 The `PyLithics` package <a name="pylithics"></a>
@@ -58,7 +58,7 @@ The workflow of `PyLithics` is the following:
 7. Classify these selected contours of surfaces as "Dorsal","Ventral","Platform". Assign scars contours to 
    a surface. 
 7. If available, find arrows, measure their angle and assign it their scar.
-8. Plot final resulting surface and scar contours on the original images for validation.    
+8. Plot the resulting surface and scar contours on the original images for validation.    
 8. Output data in a hierarchical json file detailing measurements of surface and scar contours. 
 
 In figure X you can find a schema of the workflow described above.
@@ -123,7 +123,7 @@ optional arguments:
 
 ```
 
-For example, given that you have a set of lithics images (and it respective scales), you can run the `PyLithics` processing script with the
+For example, given that you have a set of lithics images (and its respective scales), you can run the `PyLithics` processing script with the
 following:
 
 ```python
@@ -160,7 +160,7 @@ where the mapping between the lithics and scale images should be available in th
 
 This CSV file should have as a minimum the following 3 variables:
  
-- *PA_ID*:  corresponding the the lithics image id
+- *PA_ID*: corresponding the lithics image id
 (the name of the image file), 
 - *scale_ID*: The scale id (name of the scale image file)
 - *PA_scale*: The scale measurement (how many centimeters this scale represents).
@@ -174,7 +174,6 @@ An example of this table, where one scale correspond to several images is the fo
 | lithic_id3    | scale_id3       | 5         |   
 
 
-
 **Note**
 
 In the scenario that the scale and csv file are not available, it is possible to run the analysis only using the images
@@ -185,10 +184,6 @@ pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --outpu
 ```
 lithics image files must still be inside  the '<path_to_input_dir>/images/' directory). However, all the measurements will only be
 provided as number of pixels. 
-
-
-**In order to provide a quick start we have provided an [example dataset](data) including images, scales and metadata.**
-
 
 The ```test_config.yml``` config file contains the following options:
 
@@ -204,12 +199,19 @@ contrast_stretch: [4, 96]
 
 ```
 
-The config is optimised to work with the images in the [example dataset](data). If you want use `PyLithics` with different styles of
+The config is optimised to work with the images in an [example dataset](data). If you want use `PyLithics` with different styles of
 drawing you might have to modify this configuration file. You can modify or create your on config file and provide it to the CLI. 
+
+## Quickstart 
+**In order to provide a quick start we have provided an [example dataset](data) including images, scales and metadata.** You
+can run a quick analysis in this dataset by running:
+
+```python
+pylithics_run -c configs/test_config.yml --input_dir data --output_dir output --metadata_filename meta_data.csv --get_arrows```
+```
 
 
 ## `PyLithics` Output
-
 
 ### Output images
 
@@ -236,11 +238,11 @@ resulting of running `PyLithics` on the above images, with comments to better un
 
 # 👋 Contributing <a name="contributing"></a>
 
-We welcome contributions from anyone who is interested in the project. There are lots of ways to contribute, not just writing code. If you have
+We welcome contributions from anyone interested in the project. There are lots of ways to contribute, not just writing code. If you have
 ideas in how to extend/improve `PyLithics` do get in touch with members of the team (preferable by email). See our [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a community in Github.
 
 # 📝 Licence <a name="licence"></a>
 
-This project is licensed under the terms of the Creative Commons Attribution-ShareAlike (CC BY-SA 4.0) software license - https://creativecommons.org/licenses/by-sa/4.0/
+This software is licensed under the terms of the [Creative Commons Attribution-ShareAlike (CC BY-SA 4.0) software license](https://creativecommons.org/licenses/by-sa/4.0/).
 
 
