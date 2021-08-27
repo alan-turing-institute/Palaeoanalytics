@@ -130,27 +130,6 @@ following:
 pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --output_dir <path_to_output_directory> --metadata_filename metatada_file.csv
 ```
 
-This ```test_config.yml``` config file contains the following options:
-
-
-```yaml
-
-threshold: 0.01
-contour_parameter: 0.1
-contour_fully_connected: 'low'
-minimum_pixels_contour: 0.01
-denoise_weight: 0.06
-contrast_stretch: [4, 96]
-
-```
-
-This config is optimised to work with the images in the example dataset. If you want use PyLithics with different stiles of
-drawing you might have to modify this configuration file. You can modify or create your on config file and provide it to the CLI. 
-
-<!--
-#TODO: Add a comment about the example dataset when avalaible. 
--->
-
 The images found in ```<path_to_input_dir>``` should follow this directory structure:
 
 ```bash
@@ -194,6 +173,8 @@ An example of this table, where one scale correspond to several images is the fo
 | lithic_id2    | scale_id2       | 5         |
 | lithic_id3    | scale_id3       | 5         |   
 
+
+
 **Note**
 
 In the scenario that the scale and csv file are not available, it is possible to run the analysis only using the images
@@ -205,11 +186,30 @@ pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --outpu
 lithics image files must still be inside  the '<path_to_input_dir>/images/' directory). However, all the measurements will only be
 provided as number of pixels. 
 
+
+**In order to provide a quick start we have provided an [example dataset](data) including images, scales and metadata.**
+
+
+The ```test_config.yml``` config file contains the following options:
+
+
+```yaml
+
+threshold: 0.01
+contour_parameter: 0.1
+contour_fully_connected: 'low'
+minimum_pixels_contour: 0.01
+denoise_weight: 0.06
+contrast_stretch: [4, 96]
+
+```
+
+The config is optimised to work with the images in the [example dataset](data). If you want use PyLithics with different stiles of
+drawing you might have to modify this configuration file. You can modify or create your on config file and provide it to the CLI. 
+
+
 ## PyLithics Output
 
-<!--
-#TODO: Update Figures when avalaible
--->
 
 ### Output images
 
