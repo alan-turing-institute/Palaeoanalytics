@@ -5,7 +5,7 @@ import yaml
 import json
 import os
 import pandas as pd
-from pylithics.src.read_and_process import read_image,\
+from pylithics.src.read_and_process import read_image, \
     find_lithic_contours, detect_lithic, process_image, data_output, \
     get_scars_angles, find_arrows
 from pylithics.src.plotting import plot_results, plot_thresholding
@@ -54,6 +54,7 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_a
             print("Scale ID and scale measurement for image " + id + " not found in metadata")
             print("No measurements will be calculated for this image")
             config_file['scale_id'] = "no scale"
+            config_file["scale_mm"] = 1
 
         run_characterisation(input_dir, output_dir, config_file, get_arrows)
 
@@ -89,10 +90,10 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
     image_array = read_image(os.path.join(input_dir, 'images'), id)
 
     # get name of scale and if found read it
-    try:
+    if config_file["scale_id"] != "no scale":
         image_scale_array = read_image(os.path.join(input_dir, "scales"), config_file["scale_id"])
         config_file['conversion_px'] = pixulator(image_scale_array, config_file["scale_mm"])
-    except (FileNotFoundError):
+    else:
         config_file['conversion_px'] = 1
 
     # initial processing of the image

@@ -1,19 +1,21 @@
 """
 Test utils
 """
+import os
+
+import cv2
+import numpy as np
+import pandas as pd
+import yaml
+
 from pylithics.src.read_and_process import read_image, detect_lithic, process_image, find_lithic_contours, find_arrows
 from pylithics.src.utils import mask_image, contour_characterisation, classify_distributions, shape_detection, \
     get_high_level_parent_and_hierarchy, pixulator, classify_surfaces, subtract_masked_image, measure_vertices, \
     get_angles, \
     measure_arrow_angle, contour_selection
-import os
-import cv2
-import numpy as np
-import yaml
-import pandas as pd
 
 # Global loads for all tests
-image_array = read_image(os.path.join('tests', 'test_images'), '236')
+image_array = read_image(os.path.join('tests', 'test_images'), 'test')
 filename_config = os.path.join('tests', 'test_config.yml')
 
 # Read YAML file
@@ -44,15 +46,15 @@ def test_contour_characterisation():
 
     cont_info = contour_characterisation(image_array, cont, config_file['conversion_px'])
 
-    assert cont_info['length'] == 4
-    assert cont_info['area_px'] == 2.0
-    assert cont_info['height_px'] == 3
-    assert cont_info['width_px'] == 3
-    assert cont_info['centroid'] == (584.0, 669.0)
-    assert cont_info['area_mm'] == 0.0
-    assert cont_info['width_mm'] == 0.3
-    assert cont_info['height_mm'] == 0.3
-    assert cont_info['polygon_count'] == 4
+    assert cont_info['length'] == 2965
+    assert cont_info['area_px'] == 490095.5
+    assert cont_info['height_px'] == 1339
+    assert cont_info['width_px'] == 539
+    assert cont_info['centroid'] == (930.1856303869774, 1362.474110977076)
+    assert cont_info['area_mm'] == 4901.0
+    assert cont_info['width_mm'] == 53.9
+    assert cont_info['height_mm'] == 133.9
+    assert cont_info['polygon_count'] == 7
 
 
 def test_classify_distributions():
@@ -83,13 +85,8 @@ def test_pixulator():
 
 
 def test_classify_surfaces():
-
-    image_array_ = read_image(os.path.join('tests', 'test_images'), '234')
-
-    config_file['id'] = '234'  # hardcoded for now
-
     # initial processing of the image
-    image_processed = process_image(image_array_, config_file)
+    image_processed = process_image(image_array, config_file)
 
     # processing to detect lithic and scars
     binary_array, threshold_value = detect_lithic(image_processed, config_file)
@@ -99,7 +96,7 @@ def test_classify_surfaces():
 
     surfaces_classification = classify_surfaces(contours)
 
-    assert surfaces_classification == {0: 'Dorsal', 1: 'Ventral', 2: 'Lateral'}
+    assert surfaces_classification == {0: 'Ventral', 1: 'Dorsal', 2: 'Lateral', 3: 'Platform'}
 
 
 def test_subtract_masked_image():
@@ -111,8 +108,8 @@ def test_subtract_masked_image():
 
     rows, columns = subtract_masked_image(mask_image(image_array, cont))
 
-    assert len(rows) == 688
-    assert len(columns) == 1380
+    assert len(rows) == 1835
+    assert len(columns) == 1659
 
 
 def test_get_angles():
@@ -159,7 +156,7 @@ def test_contour_selection():
     indexes = contour_selection(df_cont_info)
 
     assert len(indexes) > 1
-    assert len(indexes) < 6
+    assert len(indexes) < 20
 
 
 def test_measure_arrow_angle():
@@ -184,7 +181,7 @@ def test_measure_vertices():
 
     vertices, approx = measure_vertices(cont)
 
-    assert vertices == 1
+    assert vertices == 6
 
 
 def test_shape_detection():
@@ -198,4 +195,4 @@ def test_shape_detection():
 
     shape = shape_detection(cont)
 
-    assert shape == ('square', 4)
+    assert shape == ('arrow', 4)
