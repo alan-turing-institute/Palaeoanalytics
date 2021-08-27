@@ -216,9 +216,9 @@ provided as number of pixels.
 Output images are saved in the output directory for validation of the data extraction process. An example of these images
 are the following: 
 
-<img src="figures/rub_al_khali_lithic_surfaces.png" width="500" />
-<img src="figures/rub_al_khali_lithium_scars.png" width="500" />
-<img src="figures/rub_al_khali_lithium_angles.png" width="500" />
+<img src="figures/rub_al_khali_lithic_surfaces.png" width="200" />
+<img src="figures/rub_al_khali_lithium_scars.png" width="200" />
+<img src="figures/rub_al_khali_lithium_angles.png" width="200" />
 
 ### Output data
 
@@ -228,7 +228,7 @@ surface the metrics form its scars are recorded. In [this data output example](o
 resulting of running `PyLithics` on the above images, with comments to better understand the hierarchy and variables. 
 
 
-# 🖌️ Drawing style for PyLithics <a name="drawing"></a>
+# 🖌 Drawing style for PyLithics <a name="drawing"></a>
 
 ## 🚧 WIP 🚧
 
