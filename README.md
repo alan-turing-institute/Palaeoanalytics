@@ -64,10 +64,9 @@ The workflow of `PyLithics` is the following:
 8. Output data in a hierarchical json file detailing measurements of surface and scar contours. 
 
 Here you can find a schema of the workflow described above:
-### 🚧 WIP 🚧
-<!--
-#TODO: Add the schema.
--->
+
+<img src="figures/pylithics_flowchart.svg"/>
+
 
 ## Installation
 The `PyLithics` package requires Python 3.7 or greater. To install, start by creating a fresh conda environment.
