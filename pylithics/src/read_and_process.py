@@ -220,7 +220,7 @@ def data_output(contour_df, config_file):
                 scars_objects['total_area'] = area_mm
                 scars_objects['max_breadth'] = width_mm
                 scars_objects['max_length'] = height_mm
-                scars_objects['percentage_of_lithic'] = round(
+                scars_objects['percentage_of_surface'] = round(
                     scars_objects['total_area_px'] / outer_objects['total_area_px'], 2)
                 scars_objects['scar_angle'] = angle
                 scars_objects["polygon_count"] = polygon_count
