@@ -65,7 +65,7 @@ The workflow of `PyLithics` is the following:
 
 Here you can find a schema of the workflow described above:
 
-<img src="figures/pylithics_flowchart.png"/>
+<img src="figures/pylithics_flowchart.jpg"/>
 
 
 ## Installation
