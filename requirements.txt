@@ -1,9 +1,6 @@
 numpy
 matplotlib
-seaborn
 pytest
 pandas
 scikit-image
 scipy
-PyYAML
-Pillow
