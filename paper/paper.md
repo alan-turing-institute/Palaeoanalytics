@@ -59,9 +59,11 @@ The inputs for `PyLithics` are images of lithic objects, images of their associa
 
 
 The `PyLithics` depends on common Python packages such as numpy
-[@2020NumPy-Array], scipy [@2020SciPy-NMeth], pandas [@reback2020pandas] for data processing, matplotlib [@Hunter:2007] for plotting and scikit-image [@van2014scikit] and opencv [@opencv_library] for image processing and computer vision tasks.
+[@2020NumPy-Array], scipy [@2020SciPy-NMeth], pandas [@mckinney-proc-scipy-2010] for data processing, matplotlib [@Hunter:2007] for plotting and scikit-image [@van2014scikit] and opencv [@opencv_library] for image processing and computer vision tasks.
 
-![`PyLithics` program workflow.\label{fig:pylithics_workflow}](../figures/pylithics_flowchart.png)
+<!--![`PyLithics` program workflow.\label{fig:pylithics_workflow}](../figures/pylithics_flowchart.jpg)-->
+
+<img src="../figures/pylithics_flowchart.jpg", alt="`PyLithics` program workflow.", label="fig:pylithics_workflow"/>
 
 
 # Results
