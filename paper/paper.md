@@ -61,9 +61,8 @@ The inputs for `PyLithics` are images of lithic objects, images of their associa
 The `PyLithics` depends on common Python packages such as numpy
 [@2020NumPy-Array], scipy [@2020SciPy-NMeth], pandas [@mckinney-proc-scipy-2010] for data processing, matplotlib [@Hunter:2007] for plotting and scikit-image [@van2014scikit] and opencv [@opencv_library] for image processing and computer vision tasks.
 
-<!--![`PyLithics` program workflow.\label{fig:pylithics_workflow}](../figures/pylithics_flowchart.jpg)-->
+![`PyLithics` program workflow.\label{fig:pylithics_workflow}](../figures/pylithics_flowchart.jpg)
 
-<img src="../figures/pylithics_flowchart.jpg", alt="`PyLithics` program workflow.", label="fig:pylithics_workflow"/>
 
 
 # Results
@@ -75,9 +74,9 @@ The `PyLithics` depends on common Python packages such as numpy
 
 Output images (1) serve as validation of the output data (2).
 
-![`PyLithics` output figure describing the detected surfaces.\label{fig:pylithics_output_fig1}](../figures/rub_al_khali_lithic_surfaces.png)
-![`PyLithics` output figure describing the detected scars.\label{fig:pylithics_output_fig2}](../figures/rub_al_khali_lithium_scars.png)
-![`PyLithics` output figure describing the angle measurements.\label{fig:pylithics_output_fig3}](../figures/rub_al_khali_lithium_angles.png)
+![`PyLithics` output figure describing the detected surfaces.\label{fig:pylithics_output_fig1}](../figures/rub_al_khali_lithic_surfaces.png){width=50%}
+![`PyLithics` output figure describing the detected scars.\label{fig:pylithics_output_fig2}](../figures/rub_al_khali_lithium_scars.png){width=50%}
+![`PyLithics` output figure describing the angle measurements.\label{fig:pylithics_output_fig3}](../figures/rub_al_khali_lithium_angles.png){width=50%}
 
 
 # Outlook 
