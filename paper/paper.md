@@ -88,3 +88,4 @@ Evolutionary biology, and the study of human evolution in particular, has been t
 
 The`PyLithics` package was developed by researchers from The Alan Turing Institute, University of Cambridge, and the Leverhulme Centre for Human Evolutionary Studies. Funding was provided by the Alan Turing Institute (grant number G109254). We would like to acknowledge support from Professor Katharine Robson Brown and Doctor Sebastian Ahnert.
 
+# References
