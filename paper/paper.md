@@ -8,7 +8,7 @@ tags:
   - Prehistoric technology
   - Computer vision 
 authors:
-  - name: Jason J. Gellis
+  - name: Jason J. Gellis^[corresponding author]
     orcid: 0000-0002-9929-789X
     affiliation: 2, 3
   - name: Camila Rangel Smith
