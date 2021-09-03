@@ -69,14 +69,15 @@ The `PyLithics` depends on common Python packages such as numpy
 
 `PyLithics`generates two outputs:
 
-1. An image set comprised of the original input images with superimposed contour identification and derived metrics (see Figures \autoref{fig:pylithics_output_fig1},\autoref{fig:pylithics_output_fig2} and \autoref{fig:pylithics_output_fig3} as examples).
+1. An image set comprised of the original input images with superimposed contour identification and derived metrics (see Figures \autoref{fig:pylithics_output_fig1} and \autoref{fig:pylithics_output_fig2} and \autoref{fig:pylithics_output_fig3} as examples).
 2. A JSON file with data for lithic objects and surface features found in each image. These data are hierarchically organised, first by type of object surface (i.e., ventral, dorsal, lateral, and platform); and second by metrics from scars and arrows assoicated to each object surface. 
 
 Output images (1) serve as validation of the output data (2).
 
 ![`PyLithics` output figure describing the detected surfaces. \label{fig:pylithics_output_fig1}](../figures/rub_al_khali_lithic_surfaces.png)
 
-![`PyLithics` output figure describing the detected scars. \label{fig:pylithics_output_fig2}](../figures/rub_al_khali_lithium_scars.png){width=40%}
+![`PyLithics` output figure describing the detected scars. \label{fig:pylithics_output_fig2}](../figures/rub_al_khali_lithium_scars.png)
+
 ![`PyLithics` output figure describing the angle measurements. \label{fig:pylithics_output_fig3}](../figures/rub_al_khali_lithium_angles.png){width=40%}
 
 
