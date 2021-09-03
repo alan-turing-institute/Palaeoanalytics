@@ -74,11 +74,10 @@ The `PyLithics` depends on common Python packages such as numpy
 
 Output images (1) serve as validation of the output data (2).
 
-![`PyLithics` output figure describing the detected surfaces. \label{fig:pylithics_output_fig1}](../figures/rub_al_khali_lithic_surfaces.png)
+![`PyLithics` output figure describing the detected surfaces. \label{fig:pylithics_output_fig1}](../figures/rub_al_khali_lithic_surfaces.png){width=50%}
 
-![`PyLithics` output figure describing the detected scars. \label{fig:pylithics_output_fig2}](../figures/rub_al_khali_lithium_scars.png)
+![`PyLithics` output figure describing the detected scars. \label{fig:pylithics_output_fig2}](../figures/rub_al_khali_lithium_scars.png){width=50%}
 
-![`PyLithics` output figure describing the angle measurements. \label{fig:pylithics_output_fig3}](../figures/rub_al_khali_lithium_angles.png){width=40%}
 
 
 # Outlook 
