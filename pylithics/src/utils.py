@@ -97,7 +97,7 @@ def classify_distributions(image_array):
     Parameters
     ----------
     image_array: array
-        array of an unprocessed image read by openCV (0,255 pixels)
+        array of an unprocessed image  (0,255 pixels)
     Returns
     -------
     a boolean

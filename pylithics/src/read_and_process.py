@@ -18,11 +18,11 @@ def read_image(input_dir, id, im_type='png'):
     Parameters
     ----------
     input_dir: str
-        path to input directory where images are found
+        Path to input directory where images are found
     id: str
-        unique image identifier code
+        Image identifier code
     im_type: str
-        image file extension type, default is .png
+        Image file extension type, default is .png
 
     Returns
     -------
@@ -44,9 +44,9 @@ def detect_lithic(image_array, config_file):
     Parameters
     ----------
     image_array: array
-        array of an unprocessed image read by openCV (0, 255 pixels)
+        Array of an unprocessed image  (0, 255 pixels)
     config_file: dict
-        information on thresholding values
+        Information on thresholding values and other configuration options
 
     Returns
     -------
@@ -130,7 +130,7 @@ def process_image(image_array, config_file):
     Parameters
     ----------
     image_array : array
-        array of an unprocessed image read by openCV (0, 255 pixels)
+        array of an unprocessed image  (0, 255 pixels)
     config_file : dict
         information of processing values
 
@@ -331,7 +331,7 @@ def find_arrows(image_array, binary_array, debug=False):
     Parameters
     ----------
     image_array: array
-        array of an unprocessed image read by openCV (0:255 pixels)
+        array of an unprocessed image  (0:255 pixels)
     binary_array: array
         Processed (binarized) image array (0 to 1)
     debug: flag to plot the outputs.
