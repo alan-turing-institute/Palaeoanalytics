@@ -13,14 +13,14 @@ def mask_image(binary_array, contour, innermask=False):
     Parameters
     ----------
     binary_array: array
-        array of a processed image read by openCV (0, 1 pixels)
-    contour:
-        pixel coordinates for a contour of a single flake scar
+        Array of a processed image  (0, 1 pixels)
+    contour: list of lists
+        Pixel coordinates for a contour of a single flake scar
         or outline of a lithic object detected by contour finding
 
     Returns
     -------
-    an image array
+    An image array
     """
 
     r_mask = np.zeros_like(binary_array, dtype='bool')
@@ -43,8 +43,8 @@ def contour_characterisation(image_array, contour, conversion=1):
 
     Parameters
     ----------
-    contour:
-        pixel coordinates for a contour of a single flake scar
+    contour: list of lists
+        Pixel coordinates for a contour of a single flake scar
         or outline of a lithic object detected by contour finding
     conversion: float
         Value to convert pixels to millimeters
@@ -97,7 +97,7 @@ def classify_distributions(image_array):
     Parameters
     ----------
     image_array: array
-        array of an unprocessed image  (0,255 pixels)
+        Array of an unprocessed image  (0,255 pixels)
     Returns
     -------
     a boolean
@@ -125,11 +125,11 @@ def get_high_level_parent_and_hierarchy(hierarchies):
      Parameters
     ----------
     hierarchies: list
-        a list of contour hierarchies
+        A list of contour hierarchies
 
     Returns
     -------
-    a list
+    A list
     """
 
     parent_index = []
@@ -161,10 +161,10 @@ def pixulator(image_scale_array, scale_size):
 
     Parameters
     ----------
-    image_scale_array: array
-        image array of scale data.
+    image_scale_array: Array
+        Image array of scale data.
     scale_size:
-        length of the scale in mm
+        Length of the scale in mm
 
     Returns
     -------
@@ -190,16 +190,16 @@ def pixulator(image_scale_array, scale_size):
 
 def classify_surfaces(contour_df):
     """
-    Classify individual surfaces
+    Classify individual surfaces into Ventral, Dorsal, Lateral or Platform
 
     Parameters
     ----------
     contour_df: dataframe
-        dataframe with all the contour information and measurements for an image
+        Dataframe with all the contour information and measurements for an image
 
     Returns
     -------
-    a dataframe
+    A dataframe
     """
 
     def dorsal_ventral(contour_df, surfaces_df):
@@ -208,10 +208,9 @@ def classify_surfaces(contour_df):
         Parameters
         ----------
         contour_df: dataframe
-        dataframe with all the contour information and measurements for an image
-        surfaces: dataframe
-        dataframe with all the contour information and measurements related to the surfaces of an image
-
+            Dataframe with all the contour information and measurements for an image
+        surfaces_df: dataframe
+            Dataframe with all the contour information and measurements related to the surfaces of an image
 
         Returns
         -------
@@ -295,11 +294,11 @@ def subtract_masked_image(masked_image_array):
     Parameters
     ----------
     masked_image_array: array
-        a boolean, stating if the contour is likely to be an arrow
+        A masked image array
 
     Returns
     -------
-    a list
+    A list
     """
 
     # Check rows in which all values are equal
@@ -329,13 +328,13 @@ def template_matching(image_array, templates_df, contour, debug=False):
     templates_df: array
         Array of template images
     contour:
-        pixel coordinates for a contour
+        Pixel coordinates for a contour
     debug: bool
         Generate plot if True
 
     Returns
     -------
-    index of best matching template
+    Index of best matching template
     """
 
     # get template array from dataframe
@@ -399,11 +398,10 @@ def get_angles(templates):
     Parameters
     ----------
     templates: list
-     a list of template image arrays
-
+        A list of template image arrays
     Returns
     -------
-    a dataframe
+    A dataframe
 
     """
 
@@ -438,7 +436,7 @@ def contour_selection(contour_df):
 
     Returns
     -------
-    list of indexes
+    A list of indexes
 
     """
 
@@ -483,7 +481,7 @@ def measure_arrow_angle(template):
 
     Returns
     -------
-    an angle measurement
+    An angle measurement
     """
 
     # import image and grayscale
@@ -603,10 +601,10 @@ def measure_vertices(contour, epsilon=0.04):
     Parameters
     ----------
     contour:
-        pixel coordinates for a contour of a single flake scar
+        Pixel coordinates for a contour of a single flake scar
         or outline of a lithic object detected by contour finding.
     epsilon: float
-        degree of prediction in approximation
+        Degree of prediction in approximation
 
     Returns
     -------
@@ -630,7 +628,7 @@ def shape_detection(contour):
     Parameters
     ----------
     contour:
-        pixel coordinates for a contour of a single flake scar
+        Pixel coordinates for a contour of a single flake scar
         or outline of a lithic object detected by contour finding
 
     Returns
