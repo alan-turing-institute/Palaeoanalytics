@@ -48,20 +48,23 @@ These are the members of the Palaoanalytics team as updated August 2021:
 
 ## Workflow
 
-The workflow of `PyLithics` is the following:
+`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale,with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell1988]). Currently,   `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
 
-1. Read lithic image, and based on its name find its associated scale image (these are linked to each other in an input csv file).
-2. Calculate a conversion of pixels to millimeters based on the size of the scale.
-3. Process input lithic image, removing noise and applying thresholding.
-4. Apply edge detection and contour finding to processed image.
-5. Calculate metrics to the resulting contours: area, length, breath, shape, number of vertices.   
-6. Select contours that can be either the outline of a lithic object (surfaces) or inner scar that is more than
-   3% and less than 50% of the total size of its surface.
-7. Classify these selected contours of surfaces as "Dorsal","Ventral","Platform". Assign scars contours to 
-   a surface. 
-7. If available, find arrows, measure their angle and assign it their scar.
-8. Plot the resulting surface and scar contours on the original images for validation.    
-8. Output data in a hierarchical json file detailing measurements of surface and scar contours. 
+The inputs for `PyLithics` are images of lithic objects, images of their associated scales, and a metadata `CSV` file linking the two and giving the scale measurement in millimeters. 
+
+`PyLithics` processes the images with the following steps (and as illustrated in Figure \autoref{fig:pylithics_workflow}):
+
+1. Import images and match image name find to associated image ID and scale image from CSV meetadata file.
+2. Calculate a conversion of pixels to millimeters based on the size of the associated scale from CSV metadata file. If no scale is present, measurements will be in pixels
+3. Apply noise removal and contrast stretching to images to minimise pixel variation.
+4. Pixel intensity thresholding of images to prepare for contour finding.
+5. Apply edge detection and contour finding to thresholded images.
+6. Calculate metrics of lithic surface features from found contours -- area, length, breath, shape, number of vertices. 
+7. Select contours which outline an entire lithic object's surfaces, or select contours of inner scars greater than 3% and less than 50% of the total size of its surface.
+8. Classify these selected surface contours as "Dorsal", "Ventral", "Lateral", and/or "Platform" depending on presence or absence. Assign scar contours to these surfaces. 
+9. If present, find arrows using connected components and template matching, measure their angle and assign angle to associated scar.
+10. Plot resulting surface and scar contours on the original images for validation.
+11. Output data in a hierarchical json file detailing measurements of surface and scar contours. 
 
 Here you can find a schema of the workflow described above:
 
