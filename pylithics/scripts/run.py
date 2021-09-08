@@ -82,9 +82,14 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
     none
     """
 
+
     id = config_file["id"]
     print('=============================')
     print('Processing figure: ', id)
+
+    # if output dir doesnt exist create one
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # read image
     image_array = read_image(os.path.join(input_dir, 'images'), id)
