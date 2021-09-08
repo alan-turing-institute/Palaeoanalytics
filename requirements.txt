@@ -4,3 +4,4 @@ pytest
 pandas
 scikit-image
 scipy
+pyyaml

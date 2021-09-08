@@ -83,10 +83,11 @@ Get the source.
 git clone https://github.com/alan-turing-institute/Palaeoanalytics.git
 ```
 
-Enter the repository and check out a relevant branch if necessary (the develop branch contains the most up to date stable version of the code).
+Enter the repository and check out a relevant branch if necessary (the `develop` branch contains the most up to date stable version of the code, but this branch is fast moving
+if you want to have a stable and static version is better to use `main` branch).
 ```
 cd Palaeoanalytics
-git checkout develop
+git checkout main
 ```
 Install OpenCV using conda and the rest of packages using `pip`.
 ```
