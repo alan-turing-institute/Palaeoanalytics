@@ -91,7 +91,7 @@ git checkout main
 ```
 Install OpenCV using conda and the rest of packages using `pip`.
 ```
-conda install -c conda-forge opencv
+conda install -c conda-forge opencv=4.5.3
 pip install .
 ```
 
