@@ -372,7 +372,7 @@ def template_matching(image_array, templates_df, contour, debug=False):
         for j in range(len(location[0])):
             X = location[1][j]
             Y = location[0][j]
-            inside = cv2.pointPolygonTest(contour, (X, Y), False)
+            inside = cv2.pointPolygonTest(contour, (int(X), int(Y)), False)
             if inside == 1.0:
                 location_new_x.append(location[1][j])
                 location_new_y.append(location[0][j])
