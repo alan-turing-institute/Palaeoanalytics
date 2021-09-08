@@ -11,11 +11,9 @@ def fig_size(image_array):
     Parameters
     ----------
     image_array: array
-    Original image array (0 to 255)
-
+        Original image array (0 to 255)
     Returns
     -------
-
     A number for the x width of the figure size.
     """
 
@@ -39,9 +37,9 @@ def plot_surfaces(image_array, contours_df, output_figure):
     ----------
     image_array: array
         array of an unprocessed image read by openCV (0, 255 pixels)
-    contours_df:
+    contours_df: dataframe
         Dataframe with detected contours and extra information about them.
-    output_figure:
+    output_figure: str
         path including name of the figure to be saved
 
     """
@@ -81,11 +79,11 @@ def plot_scars(image_array, contours_df, output_figure):
     Parameters
     ----------
     image_array: array
-    Original image array (0 to 255)
-    contours_df:
+        Original image array (0 to 255)
+    contours_df: dataframe
         Dataframe with detected contours and extra information about them.
-    output_figure:
-        path including name of the figure to be saved
+    output_figure: str
+        Path including name of the figure to be saved
 
     """
     fig_x_size = fig_size(image_array)
@@ -127,11 +125,11 @@ def plot_angles(image_array, contours_df, output_path):
     Parameters
     ----------
     image_array: array
-    Original image array (0 to 255)
-    contours_df:
+        Original image array (0 to 255)
+    contours_df: dataframe
         Dataframe with detected contours and extra information about them.
-    output_path:
-        path to output directory to save processed images
+    output_path: str
+        Path to output directory to save processed images
 
     """
     fig_x_size = fig_size(image_array)
@@ -171,14 +169,14 @@ def plot_results(id, image_array, contours_df, output_dir):
         Name of the lithic
     image_array: array
          Original image array (0 to 255)
-    contours_df:
+    contours_df: dataframe
+         Dataframe with detected contours and extra information about them.
+    output_figure: str
+        Path to output directory to save processed images
 
-    output_figure:
-        path to output directory to save processed images
-
-        Returns
-        -------
-        an array
+    Returns
+    -------
+    an array
     """
 
     # plot surfaces
@@ -203,11 +201,11 @@ def plot_thresholding(image_array, threshold, binary_array, output_file=''):
     Parameters
     ----------
     image_array:  array
-        array of an unprocessed image read by openCV (0:255 pixels)
+        Array of an unprocessed image read by openCV (0:255 pixels)
     threshold: float
-        threshold value found for images
+        Threshold value found for images
     binary_array: array
-        resulting binary image with pixel values of 0,1
+        Resulting binary image with pixel values of 0,1
     Returns
     -------
     an array
@@ -244,11 +242,9 @@ def plot_contour_figure(image_array, cont):
     Parameters
     ----------
     image_array: array
-        array of an unprocessed image read by openCV (0:255 pixels)
-    cont:
-        array of coordinates for a contour
-
-
+        Array of an unprocessed image read by openCV (0:255 pixels)
+    cont: list
+        Array of coordinates for a contour
     Returns
     -------
     an array
@@ -261,16 +257,16 @@ def plot_contour_figure(image_array, cont):
     plt.close(fig)
 
 
-def plot_template_arrow(image_array, template, value):
+def plot_template_arrow(image_array, template_array, value):
     """
     Plot arrows for associated scars.
 
     Parameters
     ----------
     image_array: array
-        array of an unprocessed image read by openCV (0:255 pixels)
-    template
-    value
+        Array of an unprocessed image read by openCV (0:255 pixels)
+    template_array: array
+        Array of an template image  (0:255 pixels)
     Returns
     -------
 
@@ -278,7 +274,7 @@ def plot_template_arrow(image_array, template, value):
 
     fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 5))
     ax[0].imshow(image_array, cmap=plt.cm.gray)
-    ax[1].imshow(template, cmap=plt.cm.gray)
+    ax[1].imshow(template_array, cmap=plt.cm.gray)
     ax[1].set_xticks([])
     ax[1].set_yticks([])
     plt.figtext(0.4, 0.9, str(value))

@@ -18,11 +18,11 @@ def read_image(input_dir, id, im_type='png'):
     Parameters
     ----------
     input_dir: str
-        path to input directory where images are found
+        Path to input directory where images are found
     id: str
-        unique image identifier code
+        Image identifier code
     im_type: str
-        image file extension type, default is .png
+        Image file extension type, default is .png
 
     Returns
     -------
@@ -44,9 +44,9 @@ def detect_lithic(image_array, config_file):
     Parameters
     ----------
     image_array: array
-        array of an unprocessed image read by openCV (0, 255 pixels)
+        Array of an unprocessed image (0, 255 pixels)
     config_file: dict
-        information on thresholding values
+        Information on thresholding values and other configuration options
 
     Returns
     -------
@@ -78,7 +78,7 @@ def find_lithic_contours(binary_array, config_file):
     binary_array: array
         processed image (0, 1 pixels)
     config_file : dict
-        information on thresholding values
+        Information on conversion values and other configuration options
 
     Returns
     -------
@@ -125,14 +125,14 @@ def find_lithic_contours(binary_array, config_file):
 
 def process_image(image_array, config_file):
     """
-    De-noising and contrast stretching for images.
+    Applying De-noising and contrast stretching on an input image.
 
     Parameters
     ----------
     image_array : array
-        array of an unprocessed image read by openCV (0, 255 pixels)
+        Array of an unprocessed image (0, 255 pixels)
     config_file : dict
-        information of processing values
+        Information on configuration values for denoising and contrast stretching.
 
     Returns
     -------
@@ -151,19 +151,19 @@ def process_image(image_array, config_file):
 
 def data_output(contour_df, config_file):
     """
-    Create an output of a nested dictionary with data from lithic surface and scar metrics
-    that can be saved into a json file.
+    Create a nested dictionary with data from lithic surface and scar metrics
+    that is saved into a json file.
 
     Parameters
     ----------
     contour_df: dataframe
-        dataframe with all contour information and measurements for a single image
+        Dataframe with all contour information and measurements for a single image
     config_file: dictionary
-        configuration file with relevant information for the processed image
+        Configuration file with processing information for the image
 
     Returns
     -------
-    a dictionary
+    A dictionary
     """
 
     # record high level information of surfaces detected
@@ -245,17 +245,17 @@ def data_output(contour_df, config_file):
 def associate_arrows_to_scars(image_array, contour_df, templates_df):
 
     """
-    Use template matching to match the arrows to a given flake scar.
-    Contour dataframe with arrow information, i.e. arrow angles.
+    Use template matching to match the arrows from a template image to a given flake scar
+    defined by a contour in a dataframe.
 
     Parameters
     ----------
     image_array: array
         2D array of the masked_image_array <- this should be the processed image - img_process
     contour_df: dataframe
-        dataframe with all the contour information and measurements for a masked_image_array
+        Dataframe with all the contour information and measurements for a masked_image_array
     templates_df: dataframe
-        dataframe containing arrays with arrows templates and measured angles
+        Dataframe containing arrays with arrows templates and measured angles
 
     Returns
     -------
@@ -272,8 +272,6 @@ def associate_arrows_to_scars(image_array, contour_df, templates_df):
 
         # high levels contours are surfaces
         if hierarchy_level != 0:
-
-            # TODO: Make a scar selection to not search in empty scars.
 
             # mask scar contour
             masked_image = mask_image(image_array, contour, False)
@@ -303,9 +301,9 @@ def get_scars_angles(image_array, contour_df, templates = pd.DataFrame()):
     image_array: array
         2D array of the masked_image_array
     contour_df: dataframe
-        dataframe with all contour information and measurements for a masked_image_array
-    templates: array
-        list of arrays with templates
+        Dataframe with all contour information and measurements for a masked_image_array
+    templates: dataframe
+        Dataframe with template information
 
     Returns
     -------
@@ -313,12 +311,14 @@ def get_scars_angles(image_array, contour_df, templates = pd.DataFrame()):
     """
 
     if templates.shape[0] == 0:
+        # if there is no templates in the dataframe assing nan to angles.
         contour_df['arrow_index'] = -1
         contour_df['angle'] = np.nan
 
         # TODO: DO SOMETHING WITH RIPPLES
 
     else:
+        # if there is templates in the dataframe associate them to their respective scars.
         contour_df = associate_arrows_to_scars(image_array, contour_df, templates)
 
     return contour_df
@@ -326,19 +326,19 @@ def get_scars_angles(image_array, contour_df, templates = pd.DataFrame()):
 
 def find_arrows(image_array, binary_array, debug=False):
     """
-    Use connected components to find arrows on an image, and return an array with the arrow templates_df.
+    Use connected components to find arrows on an image and return them as a list of templates.
 
     Parameters
     ----------
     image_array: array
-        array of an unprocessed image read by openCV (0:255 pixels)
+        Array of an unprocessed image  (0:255 pixels)
     binary_array: array
         Processed (binarized) image array (0 to 1)
     debug: flag to plot the outputs.
 
     Returns
     -------
-    an array
+    A list of arrays.
     """
 
     # load the image, convert to gray, and threshold.
