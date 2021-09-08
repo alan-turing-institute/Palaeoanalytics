@@ -175,7 +175,7 @@ def test_measure_arrow_angle():
 def test_measure_vertices():
     binary_edge_sobel, _ = detect_lithic(image_array, config_file)
 
-    _, contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     cont = np.asarray([i[0] for i in list(contours_cv)[1]])
 
@@ -189,7 +189,7 @@ def test_shape_detection():
 
     binary_edge_sobel, _ = detect_lithic(image_array, config_file)
 
-    _, contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     cont = np.asarray([i[0] for i in list(contours_cv)[2]])
 
