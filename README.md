@@ -237,7 +237,13 @@ resulting of running `PyLithics` on the above images, with comments to better un
 
 # 🖌 Drawing style for `PyLithics` <a name="drawing"></a>
 
+We are working hard in developing methods to cater for all styles of stone tools drawings. However, at the moment `PyLithics`
+works best with the following styles:
+
 <img src="figures/drawing_style.png"/>
+
+
+If you want to help us optimise `PyLithics` for different drawing styles we welcome your [contributions](#contributing)!
 
 # 👋 Contributing <a name="contributing"></a>
 
