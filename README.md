@@ -237,7 +237,7 @@ resulting of running `PyLithics` on the above images, with comments to better un
 
 # 🖌 Drawing style for `PyLithics` <a name="drawing"></a>
 
-## 🚧 WIP 🚧
+<img src="figures/drawing_style.png.png"/>
 
 # 👋 Contributing <a name="contributing"></a>
 
