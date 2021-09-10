@@ -27,7 +27,7 @@ config_file['conversion_px'] = 0.1  # hardcoded for now
 def test_mask_image():
     binary_edge_sobel, _ = detect_lithic(image_array, config_file)
 
-    _, contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     cont = np.asarray([i[0] for i in list(contours_cv)[1]])
 
@@ -40,7 +40,7 @@ def test_mask_image():
 def test_contour_characterisation():
     binary_edge_sobel, _ = detect_lithic(image_array, config_file)
 
-    _, contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     cont = np.asarray([i[0] for i in list(contours_cv)[2]])
 
@@ -68,7 +68,7 @@ def test_classify_distributions():
 def test_get_high_level_parent_and_hierarchy():
     binary_edge_sobel, _ = detect_lithic(image_array, config_file)
 
-    _, contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     parent_index, hierarchy_level = get_high_level_parent_and_hierarchy(list(hierarchy)[0])
 
@@ -102,7 +102,7 @@ def test_classify_surfaces():
 def test_subtract_masked_image():
     binary_edge_sobel, _ = detect_lithic(image_array, config_file)
 
-    _, contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     cont = np.asarray([i[0] for i in list(contours_cv)[1]])
 
@@ -129,7 +129,7 @@ def test_get_angles():
 def test_contour_selection():
     binary_edge_sobel, _ = detect_lithic(image_array, config_file)
 
-    _, contours_cv, hierarchy = cv2.findContours(image_array, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    contours_cv, hierarchy = cv2.findContours(image_array, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     new_contours = []
     cont_info_list = []
@@ -175,7 +175,7 @@ def test_measure_arrow_angle():
 def test_measure_vertices():
     binary_edge_sobel, _ = detect_lithic(image_array, config_file)
 
-    _, contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     cont = np.asarray([i[0] for i in list(contours_cv)[1]])
 
@@ -189,7 +189,7 @@ def test_shape_detection():
 
     binary_edge_sobel, _ = detect_lithic(image_array, config_file)
 
-    _, contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     cont = np.asarray([i[0] for i in list(contours_cv)[2]])
 

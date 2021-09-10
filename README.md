@@ -52,7 +52,7 @@ These are the members of the Palaoanalytics team as updated August 2021:
 
 The inputs for `PyLithics` are images of lithic objects, images of their associated scales, and a metadata `CSV` file linking the two and giving the scale measurement in millimeters. 
 
-`PyLithics` processes the images with the following steps (and as illustrated in Figure \autoref{fig:pylithics_workflow}):
+`PyLithics` processes the images with the following steps (and as illustrated in the schema below):
 
 1. Import images and match image name find to associated image ID and scale image from CSV meetadata file.
 2. Calculate a conversion of pixels to millimeters based on the size of the associated scale from CSV metadata file. If no scale is present, measurements will be in pixels
@@ -91,7 +91,7 @@ git checkout main
 ```
 Install OpenCV using conda and the rest of packages using `pip`.
 ```
-conda install -c conda-forge opencv
+conda install -c conda-forge opencv=4.5.3
 pip install .
 ```
 
@@ -128,8 +128,15 @@ optional arguments:
 
 ```
 
-For example, given that you have a set of lithics images (and its respective scales), you can run the `PyLithics` processing script with the
-following:
+## 💫 Quickstart 
+**In order to provide a quick start we have provided an [example dataset](data) including images, scales and metadata.** You
+can run a quick analysis in this dataset by running:
+
+```python
+pylithics_run -c configs/test_config.yml --input_dir data --output_dir output --metadata_filename meta_data.csv --get_arrows
+```
+
+More generally, given that you have a set of lithics images (and its respective scales), you can run the `PyLithics` processing script with the following:
 
 ```python
 pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --output_dir <path_to_output_directory> --metadata_filename metatada_file.csv
@@ -207,15 +214,6 @@ contrast_stretch: [4, 96]
 The config is optimised to work with the images in an [example dataset](data). If you want use `PyLithics` with different styles of
 drawing you might have to modify this configuration file. You can modify or create your on config file and provide it to the CLI. 
 
-## 💫 Quickstart 
-**In order to provide a quick start we have provided an [example dataset](data) including images, scales and metadata.** You
-can run a quick analysis in this dataset by running:
-
-```python
-pylithics_run -c configs/test_config.yml --input_dir data --output_dir output --metadata_filename meta_data.csv --get_arrows
-```
-
-
 ## Output from `PyLithics`
 
 ### Output images
@@ -239,7 +237,13 @@ resulting of running `PyLithics` on the above images, with comments to better un
 
 # 🖌 Drawing style for `PyLithics` <a name="drawing"></a>
 
-## 🚧 WIP 🚧
+We are working hard in developing methods to cater for all styles of stone tools drawings. However, at the moment `PyLithics`
+works best with the following styles:
+
+<img src="figures/drawing_style.png"/>
+
+
+If you want to help us optimise `PyLithics` for different drawing styles we welcome your [contributions](#contributing)!
 
 # 👋 Contributing <a name="contributing"></a>
 
