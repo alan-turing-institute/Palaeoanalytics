@@ -9,7 +9,7 @@ setup(
     description="A lithics study using computer vision.",
     url="https://github.com/alan-turing-institute/Palaeoanalytics",
     author="Jason Gellis, Camila Rangel Smith",
-    license="MIT",
+    license="GNU GPLv3",
     include_package_data=True,
     packages=["pylithics",
               "pylithics.src",

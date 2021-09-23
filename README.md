@@ -252,6 +252,6 @@ ideas in how to extend/improve `PyLithics` do get in touch with members of the t
 
 # 📝 Licence <a name="licence"></a>
 
-This software is licensed under the terms of the [Creative Commons Attribution-ShareAlike (CC BY-SA 4.0) software license](https://creativecommons.org/licenses/by-sa/4.0/).
+This software is licensed under the terms of the [GNU General Public License v3.0 (GNU GPLv3)](https://choosealicense.com/licenses/gpl-3.0/).
 
 
