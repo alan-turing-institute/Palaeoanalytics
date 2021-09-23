@@ -4,6 +4,7 @@ import pandas as pd
 import scipy.ndimage as ndi
 import pylithics.src.plotting as plot
 import math
+import itertools
 
 
 def mask_image(binary_array, contour, innermask=False):
@@ -658,3 +659,54 @@ def shape_detection(contour):
         shape = "arrow"
         # otherwise, we assume the shape is an arrow
     return shape, vertices
+
+def complexity_estimator(contour_df):
+
+    adjacency_list = []
+    for i in range(0, contour_df.shape[0]):
+        if contour_df.iloc[i]["parent_index"] == -1:
+            adjacency_list.append(0)
+        else:
+            # list coordinates for the contour we are interested on
+            contour_coordinate = contour_df.iloc[i]["contour"]
+
+            # list of coordinates of each of the siblings that we are interested on (list of list)
+            contour_coordinate_siblings = contour_df[contour_df["parent_index"] == contour_df.iloc[i]["parent_index"]]['contour'].values
+
+            count = 0
+            for sibling_contour in contour_coordinate_siblings:
+
+                # compare contour_coordinate with sibling_contour
+                adjacent = complexity_measure(contour_coordinate,sibling_contour)
+
+                if adjacent == True:
+                    count = count + 1
+
+            adjacency_list.append(count)
+
+    contour_df['complexity'] = adjacency_list
+
+    return contour_df
+
+
+def complexity_measure(contour_coordinates1, contour_coordinates2):
+
+    if np.array_equal(contour_coordinates1, contour_coordinates2):
+        return False
+    else:
+        new_pairs =  [list(zip(x,contour_coordinates2)) for x in itertools.permutations(contour_coordinates2,len(contour_coordinates2))]
+
+        print (new_pairs)
+        #dist = math.hypot(x2 - x1, y2 - y1)
+    return True
+
+
+
+
+
+
+
+
+
+
+

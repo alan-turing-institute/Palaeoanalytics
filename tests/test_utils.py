@@ -12,7 +12,7 @@ from pylithics.src.read_and_process import read_image, detect_lithic, process_im
 from pylithics.src.utils import mask_image, contour_characterisation, classify_distributions, shape_detection, \
     get_high_level_parent_and_hierarchy, pixulator, classify_surfaces, subtract_masked_image, measure_vertices, \
     get_angles, \
-    measure_arrow_angle, contour_selection
+    measure_arrow_angle, contour_selection, complexity_estimator
 
 # Global loads for all tests
 image_array = read_image(os.path.join('tests', 'test_images'), 'test')
@@ -196,3 +196,23 @@ def test_shape_detection():
     shape = shape_detection(cont)
 
     assert shape == ('arrow', 4)
+
+def test_complexity_estimator():
+    image_array = read_image(os.path.join('tests', 'test_images'), 'test')
+
+    filename_config = os.path.join('tests', 'test_config.yml')
+
+    # Read YAML file
+    with open(filename_config, 'r') as config_file:
+        config_file = yaml.load(config_file)
+
+    image_processed = process_image(image_array, config_file)
+
+    config_file['conversion_px'] = 0.1  # hardcoded for now
+    binary_edge_sobel, _ = detect_lithic(image_processed, config_file)
+
+    contours = find_lithic_contours(binary_edge_sobel, config_file)
+
+    contour_complexity = complexity_estimator(contours)
+    return True
+
