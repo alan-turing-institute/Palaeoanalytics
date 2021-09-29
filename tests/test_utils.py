@@ -198,13 +198,6 @@ def test_shape_detection():
     assert shape == ('arrow', 4)
 
 def test_complexity_estimator():
-    image_array = read_image(os.path.join('tests', 'test_images'), 'test')
-
-    filename_config = os.path.join('tests', 'test_config.yml')
-
-    # Read YAML file
-    with open(filename_config, 'r') as config_file:
-        config_file = yaml.load(config_file)
 
     image_processed = process_image(image_array, config_file)
 
@@ -214,5 +207,8 @@ def test_complexity_estimator():
     contours = find_lithic_contours(binary_edge_sobel, config_file)
 
     contour_complexity = complexity_estimator(contours)
-    return True
+
+    assert contour_complexity['complexity'].iloc[7] == 4
+
+
 
