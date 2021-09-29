@@ -91,9 +91,12 @@ git checkout main
 ```
 Install OpenCV using conda and the rest of packages using `pip`.
 ```
-conda install -c conda-forge opencv=4.5.3
 pip install .
 ```
+
+**Note**: For some OS (e.g. Mojave OSX), the OpenCV installation can take too long, if this is the case you can also install
+the library from conda using the line `conda install -c conda-forge opencv=4.5.3`. Also, be careful about versions,
+older openCV versions can break this code. 
 
 ## Running `PyLithics`
 
