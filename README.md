@@ -3,7 +3,7 @@
 > Repository for the [Paleoanalytics project](https://www.turing.ac.uk/research/research-projects/palaeoanalytics). 
 >A collaboration between The Alan Turing Institute and the University of Cambridge.  
 
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Build Status](https://app.travis-ci.com/alan-turing-institute/Palaeoanalytics.svg?token=sMJzQpXKRs31ujsqXNxP&branch=develop)](https://app.travis-ci.com/alan-turing-institute/Palaeoanalytics)
 
 # **Table of Contents:**
@@ -91,9 +91,12 @@ git checkout main
 ```
 Install OpenCV using conda and the rest of packages using `pip`.
 ```
-conda install -c conda-forge opencv=4.5.3
 pip install .
 ```
+
+**Note**: For some OS (e.g. Mojave OSX), the OpenCV installation can take too long, if this is the case you can also install
+the library from conda using the line `conda install -c conda-forge opencv=4.5.3`. Also, be careful about versions,
+older openCV versions can break this code. 
 
 ## Running `PyLithics`
 
@@ -252,6 +255,6 @@ ideas in how to extend/improve `PyLithics` do get in touch with members of the t
 
 # 📝 Licence <a name="licence"></a>
 
-This software is licensed under the terms of the [Creative Commons Attribution-ShareAlike (CC BY-SA 4.0) software license](https://creativecommons.org/licenses/by-sa/4.0/).
+This software is licensed under the terms of the [GNU General Public License v3.0 (GNU GPLv3)](https://choosealicense.com/licenses/gpl-3.0/).
 
 
