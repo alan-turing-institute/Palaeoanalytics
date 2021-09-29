@@ -4,7 +4,7 @@ import pandas as pd
 import scipy.ndimage as ndi
 import pylithics.src.plotting as plot
 import math
-import itertools
+from scipy.spatial.distance import cdist
 
 
 def mask_image(binary_array, contour, innermask=False):
@@ -661,6 +661,21 @@ def shape_detection(contour):
     return shape, vertices
 
 def complexity_estimator(contour_df):
+    """
+
+    Function that estimate a complexity measure. Complexity is measured as the number of adjacent contours
+    for each contour.
+
+    Parameters
+    ----------
+    contour_df: dataframe
+        Dataframe with all contour information for an image.
+    Returns
+    -------
+
+    A copy of the contour_df dataframe with a new measure of complexity
+
+    """
 
     adjacency_list = []
     for i in range(0, contour_df.shape[0]):
@@ -690,15 +705,37 @@ def complexity_estimator(contour_df):
 
 
 def complexity_measure(contour_coordinates1, contour_coordinates2):
+    """
+    Decide if two contours are adjacent based on distance between its coordinates.
 
+    Parameters
+    ----------
+    contour_coordinates1: list of lists
+        Pixel coordinates for a contour of a single flake scar
+        or outline of a lithic object detected by contour finding
+    contour_coordinates2: list of lists
+        Pixel coordinates for a contour of a single flake scar
+        or outline of a lithic object detected by contour finding
+
+    Returns
+    -------
+
+    A boolean
+
+    """
+
+    # if they are the same contour they are not adjacent
     if np.array_equal(contour_coordinates1, contour_coordinates2):
         return False
     else:
-        new_pairs =  [list(zip(x,contour_coordinates2)) for x in itertools.permutations(contour_coordinates2,len(contour_coordinates2))]
+        # get minimum distance between contours
+        min_dist = np.min(cdist(contour_coordinates1, contour_coordinates2))
 
-        print (new_pairs)
-        #dist = math.hypot(x2 - x1, y2 - y1)
-    return True
+        # if the minimum distance found is less than a threshold then they are adjacent
+        if min_dist < 20:
+            return True
+        else:
+            return False
 
 
 
