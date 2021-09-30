@@ -9,7 +9,7 @@ from pylithics.src.read_and_process import read_image, \
     find_lithic_contours, detect_lithic, process_image, data_output, \
     get_scars_angles, find_arrows
 from pylithics.src.plotting import plot_results, plot_thresholding
-from pylithics.src.utils import pixulator, get_angles
+from pylithics.src.utils import pixulator, get_angles, complexity_estimator
 
 
 def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_arrows):
@@ -114,6 +114,10 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
 
     # find contours
     contours = find_lithic_contours(binary_array, config_file)
+
+    # measure complexity on scars
+    contours = complexity_estimator(contours)
+
 
     # if this lithic has arrows do processing to detect and measure arrow angle
     if arrows:
