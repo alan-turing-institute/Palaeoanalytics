@@ -38,7 +38,7 @@ def test_pipeline():
     json_output = data_output(contours, config_file)
 
     assert len(json_output) == 4
-    assert contours.shape == (11, 16)
+    assert contours.shape == (11, 17)
     assert binary_array.shape == (1841, 1665)
     assert len(json_output['lithic_contours']) == 4
 
