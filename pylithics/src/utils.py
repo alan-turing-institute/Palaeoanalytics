@@ -732,7 +732,7 @@ def complexity_measure(contour_coordinates1, contour_coordinates2):
         min_dist = np.min(cdist(contour_coordinates1, contour_coordinates2))
 
         # if the minimum distance found is less than a threshold then they are adjacent
-        if min_dist < 50:
+        if min_dist < 70:
             return True
         else:
             return False
