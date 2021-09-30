@@ -313,7 +313,6 @@ def get_scars_angles(image_array, contour_df, templates = pd.DataFrame()):
 
     if templates.shape[0] == 0:
         # if there is no templates in the dataframe assing nan to angles.
-        contour_df['arrow_index'] = -1
         contour_df['angle'] = np.nan
 
         # TODO: DO SOMETHING WITH RIPPLES
