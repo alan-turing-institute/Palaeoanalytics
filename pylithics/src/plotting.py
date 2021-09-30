@@ -303,16 +303,16 @@ def plot_complexity(image_array, contours_df, output_path):
     ax.imshow(image_array, cmap=plt.cm.gray)
 
     # selecting only scars with a complexity measure > 0
-    contours_angles_df = contours_df[(contours_df['parent_index'] != -1) & (contours_df['complexity']>0)]
-    cmap_list = plt.cm.get_cmap('tab20', contours_angles_df.shape[0])
+    contours_complexity_df = contours_df[(contours_df['parent_index'] != -1) & (contours_df['complexity']>0)]
+    cmap_list = plt.cm.get_cmap('tab20', contours_complexity_df.shape[0])
 
-    if contours_angles_df.shape[0] == 0:
+    if contours_complexity_df.shape[0] == 0:
         warnings.warn("Warning: No scars with complexity measure, no complexity output figure will be saved.'")
         return None
 
     i = 0
     for contour, complexity, polygon_count in \
-            contours_angles_df[['contour', 'complexity','polygon_count']].itertuples(index=False):
+            contours_complexity_df[['contour', 'complexity','polygon_count']].itertuples(index=False):
         text = "Complexity: " + str(complexity)+", Polygon Count: "+str(polygon_count)
         ax.plot(contour[:, 0], contour[:, 1], label=text, linewidth=5, color=cmap_list(i))
         i = i + 1
