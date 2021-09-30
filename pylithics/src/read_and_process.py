@@ -210,9 +210,9 @@ def data_output(contour_df, config_file):
 
             scars_objects_list = []
             scar_id = 0
-            for index, area_px, area_mm, width_mm, height_mm, angle, polygon_count in scars_df[
+            for index, area_px, area_mm, width_mm, height_mm, angle, polygon_count, complexity in scars_df[
                 ['index', 'area_px', 'area_mm',
-                 'width_mm', 'height_mm', 'angle', 'polygon_count']].itertuples(index=False):
+                 'width_mm', 'height_mm', 'angle', 'polygon_count','complexity']].itertuples(index=False):
                 scars_objects = {}
 
                 scars_objects['scar_id'] = scar_id
@@ -224,6 +224,7 @@ def data_output(contour_df, config_file):
                     scars_objects['total_area_px'] / outer_objects['total_area_px'], 2)
                 scars_objects['scar_angle'] = angle
                 scars_objects["polygon_count"] = polygon_count
+                scars_objects["complexity"] = complexity
 
                 scars_objects_list.append(scars_objects)
                 scar_id = scar_id + 1
