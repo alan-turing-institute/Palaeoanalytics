@@ -54,7 +54,7 @@ The inputs for `PyLithics` are images of lithic objects, images of their associa
 
 `PyLithics` processes the images with the following steps (and as illustrated in the schema below):
 
-1. Import images and match image name find to associated image ID and scale image from CSV meetadata file.
+1. Import images and match to associated image ID and scale image from CSV metadata file.
 2. Calculate a conversion of pixels to millimeters based on the size of the associated scale from CSV metadata file. If no scale is present, measurements will be in pixels
 3. Apply noise removal and contrast stretching to images to minimise pixel variation.
 4. Pixel intensity thresholding of images to prepare for contour finding.
@@ -83,8 +83,8 @@ Get the source.
 git clone https://github.com/alan-turing-institute/Palaeoanalytics.git
 ```
 
-Enter the repository and check out a relevant branch if necessary (the `develop` branch contains the most up to date stable version of the code, but this branch is fast moving
-if you want to have a stable and static version is better to use `main` branch).
+Enter the repository and check out a relevant branch if necessary (the `develop` branch contains the most up-to-date stable version of the code, but this branch is fast moving.
+If you want to have a stable and static version it is better to use `main` branch).
 ```
 cd Palaeoanalytics
 git checkout main
@@ -180,7 +180,7 @@ This CSV file should have as a minimum the following 3 variables:
 - *scale_ID*: The scale id (name of the scale image file)
 - *PA_scale*: The scale measurement (how many centimeters this scale represents).
 
-An example of this table, where one scale correspond to several images is the following:
+An example of this table, where one scale corresponds to several images is the following:
 
 |PA_ID | scale_ID  | PA_scale  | 
 |------|-----------|-----------|
@@ -197,7 +197,7 @@ with the command:
 ```
 pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --output_dir <path_to_output_directory> 
 ```
-lithics image files must still be inside  the '<path_to_input_dir>/images/' directory). However, all the measurements will only be
+lithics image files must still be inside the '<path_to_input_dir>/images/' directory). However, all the measurements will only be
 provided as number of pixels. 
 
 The ```test_config.yml``` config file contains the following options:
@@ -214,7 +214,7 @@ contrast_stretch: [4, 96]
 
 ```
 
-The config is optimised to work with the images in an [example dataset](data). If you want use `PyLithics` with different styles of
+The config is optimised to work with the images in an [example dataset](data). If you want to use `PyLithics` with different styles of
 drawing you might have to modify this configuration file. You can modify or create your on config file and provide it to the CLI. 
 
 ## Output from `PyLithics`
@@ -234,13 +234,13 @@ are the following:
 
 The output dataset is a JSON file with data for the lithic objects found in an image. The data is 
 hierarchically organised by type of surface object (ventral, dorsal, platform). For each 
-surface the metrics form its scars are recorded. In [this data output example](output_example.md) you can find the json file
-resulting of running `PyLithics` on the above images, with comments to better understand the hierarchy and variables. 
+surface the metrics from its scars are recorded. In [this data output example,](output_example.md) you can find the json file
+that results from running `PyLithics` on the above images, with comments to better understand the hierarchy and variables. 
 
 
 # 🖌 Drawing style for `PyLithics` <a name="drawing"></a>
 
-We are working hard in developing methods to cater for all styles of stone tools drawings. However, at the moment `PyLithics`
+We are working hard in developing methods to cater to all styles of stone tools drawings. However, at the moment `PyLithics`
 works best with the following styles:
 
 <img src="figures/drawing_style.png"/>
@@ -251,7 +251,7 @@ If you want to help us optimise `PyLithics` for different drawing styles we welc
 # 👋 Contributing <a name="contributing"></a>
 
 We welcome contributions from anyone interested in the project. There are lots of ways to contribute, not just writing code. If you have
-ideas in how to extend/improve `PyLithics` do get in touch with members of the team (preferable by email). See our [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a community in Github.
+ideas on how to extend/improve `PyLithics` do get in touch with members of the team (preferable by email). See our [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a community in Github.
 
 # 📝 Licence <a name="licence"></a>
 
