@@ -5,4 +5,4 @@ pandas
 scikit-image
 scipy
 pyyaml
-opencv-contrib-python
+opencv-python==4.5.4.58

@@ -64,7 +64,6 @@ The `PyLithics` depends on common Python packages such as numpy
 ![Figure 1: 'PyLithics' program workflow.\label{fig:Figure_1}](../figures/pylithics_flowchart.jpg "Figure 1: 'PyLithics' program workflow.")
 *Figure 1: PyLithics program workflow.*
 
-
 # Results
 
 `PyLithics` generates two outputs:
