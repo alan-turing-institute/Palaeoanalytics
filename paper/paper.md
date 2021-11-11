@@ -28,24 +28,24 @@ date: 3rd September 2021
 bibliography: paper.bib
 ---
 # Summary
-Archaeologists have long used stone tools (lithics) to reconstruct the behavior of prehistoric hominins. While techniques have become more quantitative, there still remain barriers to optimizing data retrieval [@AndrefskyWilliam2005L:ma]. Machine learning and computer vision approaches can be developed to extract quantitative and trait data from lithics, photographs and drawings. `PyLithics` has been developed to capture data from 2D line drawings, focusing on the size, shape and technological attributes of flakes. The problems addressed in the software are: 
+Archaeologists have long used stone tools (lithics) to reconstruct the behavior of prehistoric hominins. While techniques have become more quantitative, there still remain barriers to optimizing data retrieval [@Andrefsky:2005]. Machine learning and computer vision approaches can be developed to extract quantitative and trait data from lithics, photographs and drawings. `PyLithics` has been developed to capture data from 2D line drawings, focusing on the size, shape and technological attributes of flakes. The problems addressed in the software are: 
 one, capturing data in a form that can be quantified, and information maximized; two, solving the challenges of data that is not a simple linear sequence of bases but complex 3D objects or 2D image representations; and three, transforming and exporting these into systematic data for analysis. The goal is to enhance the size and quality of lithic databases for analyzing ancient technology and human behavior.
 
 # Statement of need
 
-`PyLithics` is an open-source, free for use, software package for processing lithic artefact illustrations scanned from the literature. Accurately measuring lithic artefacts is difficult and especially time consuming as lithics and their features are incongruous shapes and sizes. This is especially problematic for the researcher as certain features, such as flake scar size, are useful in elucidating the manufacturing process of an artefact. Thus, while even the best, most complete illustrations are able to visually capture an immense amount of information about an artefact, much of this information is under-utilized or not used at all. 
+`PyLithics` is an open-source, free for use software package for processing lithic artefact illustrations scanned from the literature. Accurately measuring lithic artefacts is difficult and especially time consuming as lithics and their features are incongruous shapes and sizes. This is especially problematic for the researcher as certain features, such as flake scar size, are useful in elucidating the manufacturing process of an artefact. Thus, while even the best, most complete illustrations are able to visually capture an immense amount of information about an artefact, much of this information is under-utilized or not used at all. 
 
-`PyLithics` alleviates these issues by accurately identifying, outlining and computing lithic shape and linear measures, and returns user ready data. It has been optimized for feature extraction and measurement using a number of computer vision techniques including pixel intensity thresholding, edge detection, contour finding, custom template matching and image kernels. On both conventional and modern drawings, `PyLithics` can identify and platform, lateral, dorsal, and ventral surfaces, as well as individual dorsal surface scar shape, size, orientation, diversity, number, and flaking order. Complete size and shape metrics of individual scars and whole flakes can be calculated and recorded. Orientation and flaking direction of dorsal scars can also be calculated. The resulting data can be used for metrical analysis, extracting features indicative of both typologies and technological processes. Data output can easily be employed to explore patterns of variation within and between assemblages.
+`PyLithics` alleviates these issues by accurately identifying, outlining, and computing lithic shape and linear measures, and returns user ready data. It has been optimized for feature extraction and measurement using a number of computer vision techniques including pixel intensity thresholding, edge detection, contour finding, custom template matching and image kernels. On both conventional and modern drawings, `PyLithics` can identify and label platform, lateral, dorsal, and ventral surfaces, as well as individual dorsal surface scar shape, size, orientation, diversity, number, and flaking order. Complete size and shape metrics of individual scars and whole flakes can be calculated and recorded. Orientation and flaking direction of dorsal scars can also be calculated. The resulting data can be used for metrical analysis, extracting features indicative of both typologies and technological processes. Data output can easily be employed to explore patterns of variation within and between assemblages.
 
 # Methods and workflow
 
-`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale,with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell1988]). Currently,   `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
+`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale, with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell:1988]). Currently,   `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
 
 The inputs for `PyLithics` are images of lithic objects, images of their associated scales, and a metadata `CSV` file linking the two and giving the scale measurement in millimeters. 
 
-`PyLithics` processes the images with the following steps (and as illustrated in Figure \autoref{fig:pylithics_workflow}):
+`PyLithics` processes the images with the following steps and as illustrated in Figure 1 \autoref{fig:Figure_1}:
 
-1. Import images and match image name find to associated image ID and scale image from CSV meetadata file.
+1. Import images and match image name to associated image ID and scale image from CSV metadata file.
 2. Calculate a conversion of pixels to millimeters based on the size of the associated scale from CSV metadata file. If no scale is present, measurements will be in pixels
 3. Apply noise removal and contrast stretching to images to minimise pixel variation.
 4. Pixel intensity thresholding of images to prepare for contour finding.
@@ -59,30 +59,31 @@ The inputs for `PyLithics` are images of lithic objects, images of their associa
 
 
 The `PyLithics` depends on common Python packages such as numpy
-[@2020NumPy-Array], scipy [@2020SciPy-NMeth], pandas [@mckinney-proc-scipy-2010] for data processing, matplotlib [@Hunter:2007] for plotting and scikit-image [@van2014scikit] and opencv [@opencv_library] for image processing and computer vision tasks.
+[@Harris <i>et al.</i>:2020], scipy [@Virtanen <i>et al.</i>:2020], pandas [@mckinney-proc-scipy-2010] for data processing, matplotlib [@Hunter:2007] for plotting and scikit-image [@scikit-image] and opencv [@opencv_library] for image processing and computer vision tasks.
 
-![`PyLithics` program workflow.\label{fig:pylithics_workflow}](../figures/pylithics_flowchart.jpg)
-
+![Figure 1: 'PyLithics' program workflow.\label{fig:Figure_1}](../figures/pylithics_flowchart.jpg "Figure 1: 'PyLithics' program workflow.")
+*Figure 1: PyLithics program workflow.*
 
 
 # Results
 
 `PyLithics` generates two outputs:
 
-1. An image set comprised of the original input images with superimposed contour identification and derived metrics (see Figures \autoref{fig:pylithics_output_fig1} and \autoref{fig:pylithics_output_fig2} as examples).
+1. An image set comprised of the original input images with superimposed contour identification and derived metrics (see Figures \autoref{fig:Figure_2} and \autoref{fig:Figure_3} as examples).
 2. A JSON file with data for lithic objects and surface features found in each image. These data are hierarchically organised, first by type of object surface (i.e., ventral, dorsal, lateral, and platform); and second by metrics from scars and arrows assoicated to each object surface. 
 
-Output images (1) serve as validation of the output data (2).
+Output images (Figure 2) serve as validation of the output data (Figure 3).
 
-![`PyLithics` output figure describing the detected surfaces. \label{fig:pylithics_output_fig1}](../figures/rub_al_khali_lithic_surfaces.png){width=50%}
+![Figure 2: 'PyLithics' output - detected surfaces.\label{fig:Figure_2}](../figures/rub_al_khali_lithic_surfaces.png "Figure 2: 'PyLithics' output figure describing the detected surfaces.")
+*Figure 2: PyLithics output figure describing the detected surfaces.*
 
-![`PyLithics` output figure describing the detected scars. \label{fig:pylithics_output_fig2}](../figures/rub_al_khali_lithium_scars.png){width=50%}
-
+![Figure 3: 'PyLithics' output - detected scars.\label{fig:Figure_3}](../figures/rub_al_khali_lithium_scars.png "Figure 3: 'PyLithics' output figure describing the detected scars.")
+*Figure 3: PyLithics output figure describing the detected scars.*
 
 
 # Outlook 
 
-Evolutionary biology, and the study of human evolution in particular, has been transformed by the impact of genomics and the development of ancient DNA methodologies [@Moody2004]. One of the reasons that genomics has had such an impact is the sheer scale of the data now available, and power of the analytical techniques used. Although current approaches to lithic analysis have become more quantitative, they remain based on relatively univariate attribute assignments and limited metrics, variably collected and reported.   `PyLithics` aims to expand data collection with the goal of building expansive, comprehensive, and standardized high-dimensional lithic artefact datasets for integration with genomic and fossil data. 
+Evolutionary biology, and the study of human evolution in particular, has been transformed by the impact of genomics and the development of ancient DNA methodologies [@Moody:2004]. One of the reasons that genomics has had such an impact is the sheer scale of the data now available, and power of the analytical techniques used. Although current approaches to lithic analysis have become more quantitative, they remain based on relatively univariate attribute assignments and limited metrics, variably collected and reported.   `PyLithics` aims to expand data collection with the goal of building expansive, comprehensive, and standardized high-dimensional lithic artefact datasets for integration with genomic and fossil data. 
 
 # Acknowledgements
 
