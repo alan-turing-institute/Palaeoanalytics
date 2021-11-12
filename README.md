@@ -72,13 +72,13 @@ Here you can find a schema of the workflow described above:
 
 
 ## Installation
-The `PyLithics` package requires Python 3.7 or greater. To install, start by creating a fresh conda environment.
+The `PyLithics` package requires Python 3.7 or greater. To install, start by creating a fresh virtual environment.
 ```
-conda create -n paleo python=3.7
-conda activate paleo
+python3 -m venv palaeo
+source palaeo/bin/activate
 ```
 
-Get the source.
+Clone the repository.
 ```
 git clone https://github.com/alan-turing-institute/Palaeoanalytics.git
 ```
@@ -89,14 +89,13 @@ If you want to have a stable and static version it is better to use `main` branc
 cd Palaeoanalytics
 git checkout main
 ```
-Install OpenCV using conda and the rest of packages using `pip`.
+Install 'PyLithics'.
 ```
 pip install .
 ```
 
-**Note**: For Mac users we recommend to use an OS versions=> 10.14 to prevent build problems. For some OS (e.g. Mojave OSX), the OpenCV installation can take too long, if this is the case you can also install
-the library from conda using the line `conda install -c conda-forge opencv=4.5.3`. Also, be careful about versions,
-older OpenCV versions can break this code. 
+**Note**: For Mac users we recommend an OS versions=> 10.14 to prevent build problems. For some OS (e.g. Mojave OSX), the OpenCV installation can take too long, if this is the case you can also install
+the library using `pip install opencv=4.5.4.58`. Also, be careful about versions, as older versions of OpenCV can break this code. 
 
 ## Running `PyLithics`
 
