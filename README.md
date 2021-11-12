@@ -22,7 +22,7 @@ vision approaches can be developed to extract quantitative and trait data from l
 has been developed to capture data from 2D line drawings, focusing on the size, shape and technological attributes of flakes. 
 
 `PyLithics`is an open-source, free for use, software package for processing lithic artefact illustrations scanned from 
-the literature. This tool accurately identifies, outlines and computes lithic shape and linear measures, and returns user 
+the literature. This tool accurately identifies, outlines, and computes lithic shape and linear measures, and returns user 
 ready data. It has been optimized for feature extraction and measurement using a number of computer vision techniques 
 including pixel intensity thresholding, edge detection, contour finding, custom template matching and image kernels. 
 On both conventional and modern drawings, `PyLithics`can identify and platform, lateral, dorsal, and ventral surfaces,
@@ -48,13 +48,13 @@ These are the members of the Palaoanalytics team as updated August 2021:
 
 ## Workflow
 
-`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale,with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell1988]). Currently,   `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
+`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale, with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell1988]). Currently, `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
 
 The inputs for `PyLithics` are images of lithic objects, images of their associated scales, and a metadata `CSV` file linking the two and giving the scale measurement in millimeters. 
 
 `PyLithics` processes the images with the following steps (and as illustrated in the schema below):
 
-1. Import images and match to associated image ID and scale image from CSV metadata file.
+1. Import and match images to associated image ID and scale image from CSV metadata file.
 2. Calculate a conversion of pixels to millimeters based on the size of the associated scale from CSV metadata file. If no scale is present, measurements will be in pixels
 3. Apply noise removal and contrast stretching to images to minimise pixel variation.
 4. Pixel intensity thresholding of images to prepare for contour finding.
@@ -235,7 +235,7 @@ are the following:
 The output dataset is a JSON file with data for the lithic objects found in an image. The data is 
 hierarchically organised by type of surface object (ventral, dorsal, platform). For each 
 surface the metrics from its scars are recorded. In [this data output example,](output_example.md) you can find the json file
-that results from running `PyLithics` on the above images, with comments to better understand the hierarchy and variables. 
+that results from running `PyLithics` on the above images, with comments to better understand the feature hierarchy and variables. 
 
 
 # 🖌 Drawing style for `PyLithics` <a name="drawing"></a>
