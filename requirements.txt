@@ -4,5 +4,5 @@ pytest
 pandas
 scikit-image
 scipy
-opencv-python
+opencv-contrib-python
 pyyaml==5.4.1
