@@ -94,9 +94,7 @@ Install 'PyLithics'.
 pip install .
 ```
 
-**Note**: For Mac users we recommend an OS versions=> 10.14 to prevent build problems. For some OS (e.g. Mojave OSX), the OpenCV installation can take too long, if this is the case you can also install
-the library using `pip install opencv=4.5.4.58`. Also, be careful about versions, as older versions of OpenCV can break this code. 
-
+**Note**: For Mac users we recommend an OS versions=> 10.14 to prevent build problems. 
 ## Running `PyLithics`
 
 
