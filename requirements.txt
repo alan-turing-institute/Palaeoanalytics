@@ -4,5 +4,5 @@ pytest
 pandas
 scikit-image
 scipy
-pyyaml
-opencv-python==4.5.4.58
+opencv-contrib-python
+pyyaml==5.4.1
