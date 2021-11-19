@@ -48,13 +48,13 @@ These are the members of the Palaeoanalytics team as updated August 2021:
 
 ## Workflow
 
-`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale,with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell1988]). Currently,   `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
+`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale, with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell1988]). Currently, `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
 
 The inputs for `PyLithics` are images of lithic objects, images of their associated scales, and a metadata `CSV` file linking the two and giving the scale measurement in millimeters. 
 
 `PyLithics` processes the images with the following steps (and as illustrated in the schema below):
 
-1. Import images and match to associated image ID and scale image from CSV metadata file.
+1. Import and match images to associated image ID and scale image from CSV metadata file.
 2. Calculate a conversion of pixels to millimeters based on the size of the associated scale from CSV metadata file. If no scale is present, measurements will be in pixels
 3. Apply noise removal and contrast stretching to images to minimise pixel variation.
 4. Pixel intensity thresholding of images to prepare for contour finding.
@@ -91,7 +91,7 @@ Install 'PyLithics'.
 pip install .
 ```
 The `pip install .` command will call `setup.py` to install and configure PyLithics and its required packages listed in the [requirements.txt](requirements.txt) file. 
-**Note**: For Mac users we recommend an OS versions=> 10.14 to prevent build problems.
+**Note**: For Mac users we recommend an OS versions=> 10.14 to prevent build problems. 
 
 ## Running `PyLithics`
 `PyLithics` can be run via command line. The following command displays all available options:
@@ -123,7 +123,6 @@ optional arguments:
                         the data
 
 ```
-
 ## 💫 Quickstart 
 **In order to provide a quick start we have provided an [example dataset](data) including images, scales and metadata.** You
 can run a quick analysis in this dataset by running:
@@ -228,8 +227,7 @@ are the following:
 The output dataset is a JSON file with data for the lithic objects found in an image. The data is 
 hierarchically organised by type of surface object (ventral, dorsal, platform). For each 
 surface the metrics from its scars are recorded. In [this data output example,](output_example.md) you can find the json file
-that results from running `PyLithics` on the above images, with comments to better understand the hierarchy and variables. 
-
+that results from running `PyLithics` on the above images, with comments to better understand the feature hierarchy and variables. 
 
 # 🖌 Drawing style for `PyLithics` <a name="drawing"></a>
 
