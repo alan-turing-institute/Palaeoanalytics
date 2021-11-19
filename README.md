@@ -71,7 +71,6 @@ Here you can find a schema of the workflow described above:
 <img src="figures/pylithics_flowchart.jpg"/>
 
 ## Installation
-
 The `PyLithics` package requires Python 3.7 or greater. To install, start by creating a fresh virtual environment.
 ```
 python3 -m venv palaeo
@@ -91,8 +90,7 @@ Install 'PyLithics'.
 ```
 pip install .
 ```
-
-The `pip install .` command will call `setup.py` to install and configure PyLithics and its required packages listed in the [requirements.txt](requirements.txt) file.
+The `pip install .` command will call `setup.py` to install and configure PyLithics and its required packages listed in the [requirements.txt](requirements.txt) file. 
 **Note**: For Mac users we recommend an OS versions=> 10.14 to prevent build problems. 
 
 ## Running `PyLithics`
