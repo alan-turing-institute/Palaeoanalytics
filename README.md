@@ -1,6 +1,6 @@
 <h1 align="center">Welcome to Palaeoanalytics! </h1>
 
-> Repository for the [Paleoanalytics project](https://www.turing.ac.uk/research/research-projects/palaeoanalytics). 
+> Repository for the [Palaeoanalytics project](https://www.turing.ac.uk/research/research-projects/palaeoanalytics). 
 >A collaboration between The Alan Turing Institute and the University of Cambridge.  
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
@@ -33,7 +33,7 @@ of both typologies and technological processes. Data output can easily be employ
 
 # 👥 The team <a name="team"></a>
 
-These are the members of the Palaoanalytics team as updated August 2021:
+These are the members of the Palaeoanalytics team as updated August 2021:
 
 | Name | Role | email | Github | 
 | --- | --- | --- | --- |
@@ -194,7 +194,7 @@ with the command:
 ```
 pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --output_dir <path_to_output_directory> 
 ```
-lithics image files must still be inside the '<path_to_input_dir>/images/' directory). However, all the measurements will only be
+lithics image files must still be inside the '<path_to_input_dir>/images/' directory. However, all the measurements will only be
 provided as number of pixels. 
 
 The ```test_config.yml``` config file contains the following options:
@@ -248,7 +248,7 @@ If you want to help us optimise `PyLithics` for different drawing styles we welc
 # 👋 Contributing <a name="contributing"></a>
 
 We welcome contributions from anyone interested in the project. There are lots of ways to contribute, not just writing code. If you have
-ideas on how to extend/improve `PyLithics` do get in touch with members of the team (preferable by email). See our [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a community in Github.
+ideas on how to extend/improve `PyLithics` do get in touch with members of the team (preferable by email). See our [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a community in GitHub.
 
 # 📝 Licence <a name="licence"></a>
 
