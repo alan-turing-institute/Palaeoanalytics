@@ -94,7 +94,6 @@ The `pip install .` command will call `setup.py` to install and configure PyLith
 **Note**: For Mac users we recommend an OS versions=> 10.14 to prevent build problems. 
 
 ## Running `PyLithics`
-
 `PyLithics` can be run via command line. The following command displays all available options:
 
 ```bash
