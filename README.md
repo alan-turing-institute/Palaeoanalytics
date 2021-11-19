@@ -33,7 +33,7 @@ of both typologies and technological processes. Data output can easily be employ
 
 # 👥 The team <a name="team"></a>
 
-These are the members of the Palaoanalytics team as updated August 2021:
+These are the members of the Palaeoanalytics team as updated August 2021:
 
 | Name | Role | email | Github | 
 | --- | --- | --- | --- |
