@@ -237,6 +237,8 @@ If you want to help us optimise `PyLithics` for different drawing styles we welc
 
 We welcome contributions from anyone interested in the project. There are lots of ways to contribute, not just writing code. If you have
 ideas on how to extend/improve `PyLithics` do get in touch with members of the team (preferable by email). See our [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a community in GitHub.
+Because PyLithics' code changes frequently we [test](tests) and deploy current builds and updates via [Travis CI](https://docs.travis-ci.com/user/for-beginners/). These automated tests build and test the stability and functionality of PyLithics code in a virtual GitHub repository before merging to the main branch. 
+All contributions will have to pass these automated tests to be merged into the `main` branch.
 
 # 📝 Licence <a name="licence"></a>
 
