@@ -70,19 +70,17 @@ Here you can find a schema of the workflow described above:
 
 <img src="figures/pylithics_flowchart.jpg"/>
 
-
 ## Installation
+
 The `PyLithics` package requires Python 3.7 or greater. To install, start by creating a fresh virtual environment.
 ```
 python3 -m venv palaeo
 source palaeo/bin/activate
 ```
-
 Clone the repository.
 ```
 git clone https://github.com/alan-turing-institute/Palaeoanalytics.git
 ```
-
 Enter the repository and check out a relevant branch if necessary (the `develop` branch contains the most up-to-date stable version of the code, but this branch is fast moving.
 If you want to have a stable and static version it is better to use `main` branch).
 ```
@@ -94,9 +92,10 @@ Install 'PyLithics'.
 pip install .
 ```
 
+The `pip install .` command will call `setup.py` to install and configure PyLithics and its required packages listed in the [requirements.txt](requirements.txt) file.
 **Note**: For Mac users we recommend an OS versions=> 10.14 to prevent build problems. 
-## Running `PyLithics`
 
+## Running `PyLithics`
 
 `PyLithics` can be run via command line. The following command displays all available options:
 
@@ -127,7 +126,6 @@ optional arguments:
                         the data
 
 ```
-
 ## 💫 Quickstart 
 **In order to provide a quick start we have provided an [example dataset](data) including images, scales and metadata.** You
 can run a quick analysis in this dataset by running:
@@ -233,7 +231,6 @@ The output dataset is a JSON file with data for the lithic objects found in an i
 hierarchically organised by type of surface object (ventral, dorsal, platform). For each 
 surface the metrics from its scars are recorded. In [this data output example,](output_example.md) you can find the json file
 that results from running `PyLithics` on the above images, with comments to better understand the feature hierarchy and variables. 
-
 
 # 🖌 Drawing style for `PyLithics` <a name="drawing"></a>
 
