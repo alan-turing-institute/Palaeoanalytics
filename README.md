@@ -93,8 +93,7 @@ Install 'PyLithics'.
 ```
 pip install .
 ```
-
-
+The `pip install .` command will call `setup.py` to install and configure PyLithics and its required packages listed in the [requirements.txt](requirements.txt) file.
 **Note**: For Mac users we recommend an OS versions=> 10.14 to prevent build problems.
 
 ## Running `PyLithics`
