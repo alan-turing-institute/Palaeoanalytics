@@ -247,5 +247,3 @@ ideas on how to extend/improve `PyLithics` do get in touch with members of the t
 # 📝 Licence <a name="licence"></a>
 
 This software is licensed under the terms of the [GNU General Public License v3.0 (GNU GPLv3)](https://choosealicense.com/licenses/gpl-3.0/).
-
-
