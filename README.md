@@ -26,11 +26,11 @@ has been developed to capture data from 2D line drawings, focusing on the size, 
 the literature. This tool accurately identifies, outlines, and computes lithic shape and linear measures, and returns user 
 ready data. It has been optimized for feature extraction and measurement using a number of computer vision techniques 
 including pixel intensity thresholding, edge detection, contour finding, custom template matching and image kernels. 
-On both conventional and modern drawings, `PyLithics`can identify and platform, lateral, dorsal, and ventral surfaces,
+On both conventional and modern drawings, `PyLithics` can identify and label platform, lateral, dorsal, and ventral surfaces,
 as well as individual dorsal surface scar shape, size, orientation, diversity, number, and flaking order. Complete size
 and shape metrics of individual scars and whole flakes can be calculated and recorded. Orientation and flaking direction 
 of dorsal scars can also be calculated. The resulting data can be used for metrical analysis, extracting features indicative
-of both typologies and technological processes. Data output can easily be employed to explore patterns of variation within and between assemblages.
+of typologies and technological processes. Data output can easily be employed to explore patterns of variation within and between assemblages.
 
 # 👥 The team <a name="team"></a>
 
@@ -48,7 +48,7 @@ These are the members of the Palaeoanalytics team as updated August 2021:
 
 ## Workflow
 
-`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale, with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell1988]). Currently, `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
+`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale, with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell:1988]). Currently, `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
 
 The inputs for `PyLithics` are images of lithic objects, images of their associated scales, and a metadata `CSV` file linking the two and giving the scale measurement in millimeters. 
 
