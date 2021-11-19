@@ -21,7 +21,7 @@ have become more quantitative, there still remain barriers to optimizing data re
 vision approaches can be developed to extract quantitative and trait data from lithics, photographs and drawings. `PyLithics`
 has been developed to capture data from 2D line drawings, focusing on the size, shape and technological attributes of flakes. 
 
-`PyLithics`is an open-source, free for use, software package for processing lithic artefact illustrations scanned from 
+`PyLithics`is an open-source, free for use software package for processing lithic artefact illustrations scanned from 
 the literature. This tool accurately identifies, outlines, and computes lithic shape and linear measures, and returns user 
 ready data. It has been optimized for feature extraction and measurement using a number of computer vision techniques 
 including pixel intensity thresholding, edge detection, contour finding, custom template matching and image kernels. 
