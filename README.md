@@ -1,7 +1,7 @@
 <h1 align="center">Welcome to Palaeoanalytics! </h1>
 
 > Repository for the [Palaeoanalytics project](https://www.turing.ac.uk/research/research-projects/palaeoanalytics). 
->A collaboration between The Alan Turing Institute and the University of Cambridge.  
+> A collaboration between The Alan Turing Institute and the University of Cambridge.  
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Build Status](https://app.travis-ci.com/alan-turing-institute/Palaeoanalytics.svg?token=sMJzQpXKRs31ujsqXNxP&branch=develop)](https://app.travis-ci.com/alan-turing-institute/Palaeoanalytics)
@@ -16,6 +16,7 @@
 - [Licence](#licence)
 
 # 📖 About the project <a name="about"></a>
+
 Archaeologists have long used stone tools (lithics) to reconstruct the behavior of prehistoric hominins. While techniques 
 have become more quantitative, there still remain barriers to optimizing data retrieval. Machine learning and computer 
 vision approaches can be developed to extract quantitative and trait data from lithics, photographs and drawings. `PyLithics`
@@ -40,7 +41,6 @@ These are the members of the Palaeoanalytics team as updated August 2021:
 | Jason Gellis | Postdoctoral Researcher (University of Cambridge) | [jg760@cam.ac.uk](mailto:jg760@cam.ac.uk) | [@JasonGellis](https://github.com/JasonGellis) |
 | Camila Rangel Smith | Research Data Scientist (The Alan Turing Institute) | [crangelsmith@turing.ac.uk](mailto:crangelsmith@turing.ac.uk) |[@crangelsmith](https://github.com/crangelsmith) |
 | Robert Foley | Principal Investigator (University of Cambridge) | [raf10@cam.ac.uk](mailto:raf10@cam.ac.uk)| [Rob-LCHES](https://github.com/Rob-LCHES)
-
 
 # 📦 The `PyLithics` package <a name="pylithics"></a>
 
@@ -71,6 +71,7 @@ Here you can find a schema of the workflow described above:
 <img src="figures/pylithics_flowchart.jpg"/>
 
 ## Installation
+
 The `PyLithics` package requires Python 3.7 or greater. To install, start by creating a fresh virtual environment.
 ```
 python3 -m venv palaeo
@@ -91,17 +92,16 @@ Install 'PyLithics'.
 pip install .
 ```
 The `pip install .` command will call `setup.py` to install and configure PyLithics and its required packages listed in the [requirements.txt](requirements.txt) file. 
+
 **Note**: For Mac users we recommend an OS versions=> 10.14 to prevent build problems. 
 
 ## Running `PyLithics`
-`PyLithics` can be run via command line. The following command displays all available options:
 
+`PyLithics` can be run via command line. The following command displays all available options:
 ```bash
 pylithics_run --help
 ```
-
 Output:
-
 ```bash
 usage: pylithics_run [-h] -c config-file [--input_dir INPUT_DIR]
                      [--output_dir OUTPUT_DIR]
@@ -124,19 +124,17 @@ optional arguments:
 
 ```
 ## 💫 Quickstart 
+
 **In order to provide a quick start we have provided an [example dataset](data) including images, scales and metadata.** You
 can run a quick analysis in this dataset by running:
-
 ```python
 pylithics_run -c configs/test_config.yml --input_dir data --output_dir output --metadata_filename meta_data.csv --get_arrows
 ```
-
 More generally, given that you have a set of lithics images (and its respective scales), you can run the `PyLithics` processing script with the following:
 
 ```python
 pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --output_dir <path_to_output_directory> --metadata_filename metatada_file.csv
 ```
-
 The images found in ```<path_to_input_dir>``` should follow this directory structure:
 
 ```bash
@@ -180,12 +178,10 @@ An example of this table, where one scale corresponds to several images is the f
 | lithic_id2    | scale_id2       | 5         |
 | lithic_id3    | scale_id3       | 5         |   
 
-
 **Note**
 
 In the scenario that the scale and csv file are not available, it is possible to run the analysis only using the images
 with the command:
-
 ```
 pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --output_dir <path_to_output_directory> 
 ```
@@ -193,7 +189,6 @@ lithics image files must still be inside the '<path_to_input_dir>/images/' direc
 provided as number of pixels. 
 
 The ```test_config.yml``` config file contains the following options:
-
 
 ```yaml
 
@@ -235,7 +230,6 @@ We are working hard in developing methods to cater to all styles of stone tools 
 works best with the following styles:
 
 <img src="figures/drawing_style.png"/>
-
 
 If you want to help us optimise `PyLithics` for different drawing styles we welcome your [contributions](#contributing)!
 
