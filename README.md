@@ -70,19 +70,16 @@ Here you can find a schema of the workflow described above:
 
 <img src="figures/pylithics_flowchart.jpg"/>
 
-
 ## Installation
 The `PyLithics` package requires Python 3.7 or greater. To install, start by creating a fresh virtual environment.
 ```
 python3 -m venv palaeo
 source palaeo/bin/activate
 ```
-
 Clone the repository.
 ```
 git clone https://github.com/alan-turing-institute/Palaeoanalytics.git
 ```
-
 Enter the repository and check out a relevant branch if necessary (the `develop` branch contains the most up-to-date stable version of the code, but this branch is fast moving.
 If you want to have a stable and static version it is better to use `main` branch).
 ```
