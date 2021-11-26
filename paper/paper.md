@@ -25,7 +25,7 @@ affiliations:
   - name: Leverhulme Centre for Human Evolutionary Studies
     index: 3
 date: 3rd September 2021
-bibliography: [paper.bib]
+bibliography: paper.bib
 ---
 # Summary
 Archaeologists have long used stone tools (lithics) to reconstruct the behavior of prehistoric hominins. While techniques have become more quantitative, there still remain barriers to optimizing data retrieval [@Andrefsky:2005]. Machine learning and computer vision approaches can be developed to extract quantitative and trait data from lithics, photographs and drawings. `PyLithics` has been developed to capture data from 2D line drawings, focusing on the size, shape and technological attributes of flakes. The problems addressed in the software are: 
@@ -59,7 +59,7 @@ The inputs for `PyLithics` are images of lithic objects, images of their associa
 
 
 The `PyLithics` depends on common Python packages such as numpy
-[@Harris:2020], scipy [@Virtanen:2020], pandas [@McKinney-proc-scipy:2010] for data processing, matplotlib [@Hunter:2007] for plotting and scikit-image [@scikit-image] and opencv [@opencv_library] for image processing and computer vision tasks.
+[@Harris:2020], scipy [@Virtanen:2020], pandas [@McKinney:2010] for data processing, matplotlib [@Hunter:2007] for plotting and scikit-image [@scikit-image] and opencv [@opencv_library] for image processing and computer vision tasks.
 
 ![Figure 1: 'PyLithics' program workflow.\label{fig:Figure_1}](../figures/pylithics_flowchart.jpg "Figure 1: 'PyLithics' program workflow.")
 *Figure 1: PyLithics program workflow.*
