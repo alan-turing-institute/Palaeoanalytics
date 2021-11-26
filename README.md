@@ -1,7 +1,7 @@
 <h1 align="center">Welcome to Palaeoanalytics! </h1>
 
 > Repository for the [Palaeoanalytics project](https://www.turing.ac.uk/research/research-projects/palaeoanalytics). 
->A collaboration between The Alan Turing Institute and the University of Cambridge.  
+> A collaboration between The Alan Turing Institute and the University of Cambridge.  
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Build Status](https://app.travis-ci.com/alan-turing-institute/Palaeoanalytics.svg?token=sMJzQpXKRs31ujsqXNxP&branch=develop)](https://app.travis-ci.com/alan-turing-institute/Palaeoanalytics)
