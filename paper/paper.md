@@ -10,7 +10,7 @@ tags:
 authors:
   - name: Jason J. Gellis^[corresponding author]
     orcid: 0000-0002-9929-789X
-    affiliation: 2, 3
+    affiliation: 1, 2, 3
   - name: Camila Rangel Smith
     orcid: 0000-0002-0227-836X
     affiliation: 1
@@ -33,17 +33,17 @@ one, capturing data in a form that can be quantified, and information maximized;
 
 # Statement of need
 
-`PyLithics` is an open-source, free for use software package for processing lithic artefact illustrations scanned from the literature. Accurately measuring lithic artefacts is difficult and especially time consuming as lithics and their features are incongruous shapes and sizes. This is especially problematic for the researcher as certain features, such as flake scar size, are useful in elucidating the manufacturing process of an artefact. Thus, while even the best, most complete illustrations are able to visually capture an immense amount of information about an artefact, much of this information is under-utilized or not used at all. 
+`PyLithics` is an open-source, free for use software package for processing lithic artefact illustrations scanned from the literature. Accurately measuring lithic artefacts is difficult and especially time-consuming as lithics and their features are incongruous shapes and sizes. This is especially problematic for the researcher as certain features, such as flake scar size, are useful in elucidating the manufacturing process of an artefact. Thus, while even the best, most complete illustrations are able to visually capture an immense amount of information about an artefact, much of this information is under-utilized or not used at all. 
 
 `PyLithics` alleviates these issues by accurately identifying, outlining, and computing lithic shape and linear measures, and returns user ready data. It has been optimized for feature extraction and measurement using a number of computer vision techniques including pixel intensity thresholding, edge detection, contour finding, custom template matching and image kernels. On both conventional and modern drawings, `PyLithics` can identify and label platform, lateral, dorsal, and ventral surfaces, as well as individual dorsal surface scar shape, size, orientation, diversity, number, and flaking order. Complete size and shape metrics of individual scars and whole flakes can be calculated and recorded. Orientation and flaking direction of dorsal scars can also be calculated. The resulting data can be used for metrical analysis, extracting features indicative of both typologies and technological processes. Data output can easily be employed to explore patterns of variation within and between assemblages.
 
 # Methods and workflow
 
-`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale, with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell:1988]. Currently `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
+`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale, with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell:1988]). Currently `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
 
 The inputs for `PyLithics` are images of lithic objects, images of their associated scales, and a metadata `CSV` file linking the two and giving the scale measurement in millimeters. 
 
-`PyLithics` processes the images with the following steps and as illustrated in Figure 1 \autoref{fig:Figure_1}:
+`PyLithics` processes the images with the following steps and as illustrated in [Figure 1](#fig:Figure_1):
 
 1. Import images and match image name to associated image ID and scale image from CSV metadata file.
 2. Calculate a conversion of pixels to millimeters based on the size of the associated scale from CSV metadata file. If no scale is present, measurements will be in pixels
@@ -61,15 +61,15 @@ The inputs for `PyLithics` are images of lithic objects, images of their associa
 The `PyLithics` depends on common Python packages such as NumPy
 [@Harris:2020], SciPy [@Virtanen:2020], Pandas [@McKinney:2010] for data processing, Matplotlib [@Hunter:2007] for plotting and scikit-image [@scikit-image] and OpenCv [@opencv_library] for image processing and computer vision tasks.
 
-![Figure 1: 'PyLithics' program workflow.\label{fig:Figure_1}](../figures/pylithics_flowchart.jpg "Figure 1: 'PyLithics' program workflow.")
+![Figure 1: 'PyLithics' program workflow. \label{fig:Figure_1}](../figures/pylithics_flowchart.jpg "Figure 1: 'PyLithics' program workflow.")
 *Figure 1: PyLithics program workflow.*
 
 # Results
 
 `PyLithics` generates two outputs:
 
-1. An image set comprised of the original input images with superimposed contour identification and derived metrics (see Figures \autoref{fig:Figure_2} and \autoref{fig:Figure_3} as examples).
-2. A JSON file with data for lithic objects and surface features found in each image. These data are hierarchically organised, first by type of object surface (i.e., ventral, dorsal, lateral, and platform); and second by metrics from scars and arrows assoicated to each object surface. 
+1. An image set comprised of the original input images with superimposed contour identification and derived metrics (see Figures [2](#fig:Figure_2) and [3](#fig:Figure_3) as examples).
+2. A JSON file with data for lithic objects and surface features found in each image. These data are hierarchically organised, first by type of object surface (i.e., ventral, dorsal, lateral, and platform); and second by metrics from scars and arrows associated to each object surface. 
 
 Output images (Figure 2) serve as validation of the output data (Figure 3).
 
