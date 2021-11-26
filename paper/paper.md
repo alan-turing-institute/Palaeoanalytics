@@ -28,7 +28,7 @@ date: 3rd September 2021
 bibliography: paper.bib
 ---
 # Summary
-Archaeologists have long used stone tools (lithics) to reconstruct the behavior of prehistoric hominins. While techniques have become more quantitative, there still remain barriers to optimizing data retrieval [@Andrefsky:2005]. Machine learning and computer vision approaches can be developed to extract quantitative and trait data from lithics, photographs and drawings. `PyLithics` has been developed to capture data from 2D line drawings, focusing on the size, shape and technological attributes of flakes. The problems addressed in the software are: 
+Archaeologists have long used stone tools (lithics) to reconstruct the behavior of prehistoric hominins. While techniques have become more quantitative, there still remain barriers to optimizing data retrieval [@Andrefsky:2012]. Machine learning and computer vision approaches can be developed to extract quantitative and trait data from lithics, photographs and drawings. `PyLithics` has been developed to capture data from 2D line drawings, focusing on the size, shape and technological attributes of flakes. The problems addressed in the software are: 
 one, capturing data in a form that can be quantified, and information maximized; two, solving the challenges of data that is not a simple linear sequence of bases but complex 3D objects or 2D image representations; and three, transforming and exporting these into systematic data for analysis. The goal is to enhance the size and quality of lithic databases for analyzing ancient technology and human behavior.
 
 # Statement of need
@@ -39,7 +39,7 @@ one, capturing data in a form that can be quantified, and information maximized;
 
 # Methods and workflow
 
-`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale, with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell:1988]). Currently,   `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
+`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale, with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell:1988]. Currently `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
 
 The inputs for `PyLithics` are images of lithic objects, images of their associated scales, and a metadata `CSV` file linking the two and giving the scale measurement in millimeters. 
 
@@ -58,8 +58,8 @@ The inputs for `PyLithics` are images of lithic objects, images of their associa
 11. Output data in a hierarchical json file detailing measurements of surface and scar contours. 
 
 
-The `PyLithics` depends on common Python packages such as numpy
-[@Harris:2020], scipy [@Virtanen:2020], pandas [@McKinney:2010] for data processing, matplotlib [@Hunter:2007] for plotting and scikit-image [@scikit-image] and opencv [@opencv_library] for image processing and computer vision tasks.
+The `PyLithics` depends on common Python packages such as NumPy
+[@Harris:2020], SciPy [@Virtanen:2020], Pandas [@McKinney:2010] for data processing, Matplotlib [@Hunter:2007] for plotting and scikit-image [@scikit-image] and OpenCv [@opencv_library] for image processing and computer vision tasks.
 
 ![Figure 1: 'PyLithics' program workflow.\label{fig:Figure_1}](../figures/pylithics_flowchart.jpg "Figure 1: 'PyLithics' program workflow.")
 *Figure 1: PyLithics program workflow.*
@@ -82,7 +82,7 @@ Output images (Figure 2) serve as validation of the output data (Figure 3).
 
 # Outlook 
 
-Evolutionary biology, and the study of human evolution in particular, has been transformed by the impact of genomics and the development of ancient DNA methodologies [@Moody:2004]. One of the reasons that genomics has had such an impact is the sheer scale of the data now available, and power of the analytical techniques used. Although current approaches to lithic analysis have become more quantitative, they remain based on relatively univariate attribute assignments and limited metrics, variably collected and reported.   `PyLithics` aims to expand data collection with the goal of building expansive, comprehensive, and standardized high-dimensional lithic artefact datasets for integration with genomic and fossil data. 
+Evolutionary biology, and the study of human evolution in particular, has been transformed by the impact of genomics and the development of ancient DNA methodologies [@Moody:2004]. One of the reasons that genomics has had such an impact is the sheer scale of the data now available, and power of the analytical techniques used. Although current approaches to lithic analysis have become more quantitative, they remain based on relatively univariate attribute assignments and limited metrics, variably collected and reported. `PyLithics` aims to expand data collection with the goal of building expansive, comprehensive, and standardized high-dimensional lithic artefact datasets for integration with genomic and fossil data. 
 
 # Acknowledgements
 
