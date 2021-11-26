@@ -43,7 +43,7 @@ one, capturing data in a form that can be quantified, and information maximized;
 
 The inputs for `PyLithics` are images of lithic objects, images of their associated scales, and a metadata `CSV` file linking the two and giving the scale measurement in millimeters. 
 
-`PyLithics` processes the images with the following steps and as illustrated in Figure 1 (\autoref{fig:Figure_1}):
+`PyLithics` processes the images with the following steps and as illustrated in (Figure 1\autoref{fig:Figure_1}):
 
 1. Import images and match image name to associated image ID and scale image from CSV metadata file.
 2. Calculate a conversion of pixels to millimeters based on the size of the associated scale from CSV metadata file. If no scale is present, measurements will be in pixels
@@ -61,20 +61,20 @@ The inputs for `PyLithics` are images of lithic objects, images of their associa
 The `PyLithics` depends on common Python packages such as NumPy
 [@Harris:2020], SciPy [@Virtanen:2020], Pandas [@McKinney:2010] for data processing, Matplotlib [@Hunter:2007] for plotting and scikit-image [@scikit-image] and OpenCv [@opencv_library] for image processing and computer vision tasks.
 
-![Figure 1: 'PyLithics' program workflow.\label{fig:Figure_1}](pylithics_flowchart.jpg)
+![Figure 1: PyLithics program workflow.\label{fig:Figure_1}](pylithics_flowchart.jpg)
 
 # Results
 
 `PyLithics` generates two outputs:
 
-1. An image set comprised of the original input images with superimposed contour identification and derived metrics (see Figures (\autoref{fig:Figure_2}) and (\autoref{fig:Figure_3}) as examples).
+1. An image set comprised of the original input images with superimposed contour identification and derived metrics (see Figures (2\autoref{fig:Figure_2}) and (3\autoref{fig:Figure_3}) as examples).
 2. A JSON file with data for lithic objects and surface features found in each image. These data are hierarchically organised, first by type of object surface (i.e., ventral, dorsal, lateral, and platform); and second by metrics from scars and arrows associated to each object surface. 
 
 Output images (Figure 2) serve as validation of the output data (Figure 3).
 
-![Figure 2: 'PyLithics' output - detected surfaces.\label{fig:Figure_2}](rub_al_khali_lithic_surfaces.png ){ width=50% }
+![Figure 2: PyLithics output - detected surfaces.\label{fig:Figure_2}](rub_al_khali_lithic_surfaces.png ){ width=50% }
 
-![Figure 3: 'PyLithics' output - detected scars.\label{fig:Figure_3}](rub_al_khali_lithium_scars.png ){ width=50% }
+![Figure 3: PyLithics output - detected scars.\label{fig:Figure_3}](rub_al_khali_lithium_scars.png ){ width=50% }
 
 
 # Outlook 
