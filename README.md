@@ -1,7 +1,7 @@
 <h1 align="center">Welcome to Palaeoanalytics! </h1>
 
 > Repository for the [Palaeoanalytics project](https://www.turing.ac.uk/research/research-projects/palaeoanalytics). 
->A collaboration between The Alan Turing Institute and the University of Cambridge.  
+> A collaboration between The Alan Turing Institute and the University of Cambridge.  
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Build Status](https://app.travis-ci.com/alan-turing-institute/Palaeoanalytics.svg?token=sMJzQpXKRs31ujsqXNxP&branch=develop)](https://app.travis-ci.com/alan-turing-institute/Palaeoanalytics)
@@ -16,24 +16,25 @@
 - [Licence](#licence)
 
 # 📖 About the project <a name="about"></a>
+
 Archaeologists have long used stone tools (lithics) to reconstruct the behavior of prehistoric hominins. While techniques 
 have become more quantitative, there still remain barriers to optimizing data retrieval. Machine learning and computer 
 vision approaches can be developed to extract quantitative and trait data from lithics, photographs and drawings. `PyLithics`
 has been developed to capture data from 2D line drawings, focusing on the size, shape and technological attributes of flakes. 
 
-`PyLithics`is an open-source, free for use, software package for processing lithic artefact illustrations scanned from 
-the literature. This tool accurately identifies, outlines and computes lithic shape and linear measures, and returns user 
+`PyLithics`is an open-source, free for use software package for processing lithic artefact illustrations scanned from 
+the literature. This tool accurately identifies, outlines, and computes lithic shape and linear measures, and returns user 
 ready data. It has been optimized for feature extraction and measurement using a number of computer vision techniques 
 including pixel intensity thresholding, edge detection, contour finding, custom template matching and image kernels. 
-On both conventional and modern drawings, `PyLithics`can identify and platform, lateral, dorsal, and ventral surfaces,
+On both conventional and modern drawings, `PyLithics` can identify and label platform, lateral, dorsal, and ventral surfaces,
 as well as individual dorsal surface scar shape, size, orientation, diversity, number, and flaking order. Complete size
 and shape metrics of individual scars and whole flakes can be calculated and recorded. Orientation and flaking direction 
 of dorsal scars can also be calculated. The resulting data can be used for metrical analysis, extracting features indicative
-of both typologies and technological processes. Data output can easily be employed to explore patterns of variation within and between assemblages.
+of typologies and technological processes. Data output can easily be employed to explore patterns of variation within and between assemblages.
 
 # 👥 The team <a name="team"></a>
 
-These are the members of the Palaoanalytics team as updated August 2021:
+These are the members of the Palaeoanalytics team as updated August 2021:
 
 | Name | Role | email | Github | 
 | --- | --- | --- | --- |
@@ -41,20 +42,19 @@ These are the members of the Palaoanalytics team as updated August 2021:
 | Camila Rangel Smith | Research Data Scientist (The Alan Turing Institute) | [crangelsmith@turing.ac.uk](mailto:crangelsmith@turing.ac.uk) |[@crangelsmith](https://github.com/crangelsmith) |
 | Robert Foley | Principal Investigator (University of Cambridge) | [raf10@cam.ac.uk](mailto:raf10@cam.ac.uk)| [Rob-LCHES](https://github.com/Rob-LCHES)
 
-
 # 📦 The `PyLithics` package <a name="pylithics"></a>
 
 > PyLithics: A Python package for stone tool analysis
 
 ## Workflow
 
-`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale,with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell1988]). Currently,   `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
+`PyLithics` is devised to work with illustrations of lithic objects common to publications in archaeology and anthropology. Lithic illustrators have established conventions regarding systems of artefact orientation and proportions. Lithics are normally drawn at a 1:1 scale, with the vertical axis orthogonal to the striking platform. A preferred method is to orient and illustrate various aspects of an artefact as a series of adjacent surfaces at 90-degree rotations from the principal view (usually the dorsal surface). Each aspect contains internal details (i.e., flake scars, cortical areas, etc.), indication of flaking direction radial lines (ripples), and the inclusion of a metric scale (for more information about lithic drawings see [@Martingell:1988]). Currently, `PyLithics` is optimised to work with unifacial flakes and bifaces, which are relatively flat, two-dimensional objects. 
 
 The inputs for `PyLithics` are images of lithic objects, images of their associated scales, and a metadata `CSV` file linking the two and giving the scale measurement in millimeters. 
 
 `PyLithics` processes the images with the following steps (and as illustrated in the schema below):
 
-1. Import images and match to associated image ID and scale image from CSV metadata file.
+1. Import and match images to associated image ID and scale image from CSV metadata file.
 2. Calculate a conversion of pixels to millimeters based on the size of the associated scale from CSV metadata file. If no scale is present, measurements will be in pixels
 3. Apply noise removal and contrast stretching to images to minimise pixel variation.
 4. Pixel intensity thresholding of images to prepare for contour finding.
@@ -70,19 +70,17 @@ Here you can find a schema of the workflow described above:
 
 <img src="figures/pylithics_flowchart.jpg"/>
 
-
 ## Installation
+
 The `PyLithics` package requires Python 3.7 or greater. To install, start by creating a fresh virtual environment.
 ```
 python3 -m venv palaeo
 source palaeo/bin/activate
 ```
-
 Clone the repository.
 ```
 git clone https://github.com/alan-turing-institute/Palaeoanalytics.git
 ```
-
 Enter the repository and check out a relevant branch if necessary (the `develop` branch contains the most up-to-date stable version of the code, but this branch is fast moving.
 If you want to have a stable and static version it is better to use `main` branch).
 ```
@@ -93,20 +91,17 @@ Install 'PyLithics'.
 ```
 pip install .
 ```
+The `pip install .` command will call `setup.py` to install and configure PyLithics and its required packages listed in the [requirements.txt](requirements.txt) file. 
 
-
-**Note**: For Mac users we recommend an OS versions=> 10.14 to prevent build problems.
+**Note**: For Mac users we recommend an OS versions=> 10.14 to prevent build problems. 
 
 ## Running `PyLithics`
 
 `PyLithics` can be run via command line. The following command displays all available options:
-
 ```bash
 pylithics_run --help
 ```
-
 Output:
-
 ```bash
 usage: pylithics_run [-h] -c config-file [--input_dir INPUT_DIR]
                      [--output_dir OUTPUT_DIR]
@@ -128,21 +123,18 @@ optional arguments:
                         the data
 
 ```
-
 ## 💫 Quickstart 
+
 **In order to provide a quick start we have provided an [example dataset](data) including images, scales and metadata.** You
 can run a quick analysis in this dataset by running:
-
 ```python
 pylithics_run -c configs/test_config.yml --input_dir data --output_dir output --metadata_filename meta_data.csv --get_arrows
 ```
-
 More generally, given that you have a set of lithics images (and its respective scales), you can run the `PyLithics` processing script with the following:
 
 ```python
 pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --output_dir <path_to_output_directory> --metadata_filename metatada_file.csv
 ```
-
 The images found in ```<path_to_input_dir>``` should follow this directory structure:
 
 ```bash
@@ -186,12 +178,10 @@ An example of this table, where one scale corresponds to several images is the f
 | lithic_id2    | scale_id2       | 5         |
 | lithic_id3    | scale_id3       | 5         |   
 
-
 **Note**
 
 In the scenario that the scale and csv file are not available, it is possible to run the analysis only using the images
 with the command:
-
 ```
 pylithics_run -c configs/test_config.yml --input_dir <path_to_input_dir> --output_dir <path_to_output_directory> 
 ```
@@ -199,7 +189,6 @@ lithics image files must still be inside the '<path_to_input_dir>/images/' direc
 provided as number of pixels. 
 
 The ```test_config.yml``` config file contains the following options:
-
 
 ```yaml
 
@@ -233,8 +222,7 @@ are the following:
 The output dataset is a JSON file with data for the lithic objects found in an image. The data is 
 hierarchically organised by type of surface object (ventral, dorsal, platform). For each 
 surface the metrics from its scars are recorded. In [this data output example,](output_example.md) you can find the json file
-that results from running `PyLithics` on the above images, with comments to better understand the hierarchy and variables. 
-
+that results from running `PyLithics` on the above images, with comments to better understand the feature hierarchy and variables. 
 
 # 🖌 Drawing style for `PyLithics` <a name="drawing"></a>
 
@@ -243,13 +231,14 @@ works best with the following styles:
 
 <img src="figures/drawing_style.png"/>
 
-
 If you want to help us optimise `PyLithics` for different drawing styles we welcome your [contributions](#contributing)!
 
 # 👋 Contributing <a name="contributing"></a>
 
 We welcome contributions from anyone interested in the project. There are lots of ways to contribute, not just writing code. If you have
 ideas on how to extend/improve `PyLithics` do get in touch with members of the team (preferable by email). See our [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a community in GitHub.
+Because PyLithics' code changes frequently we [test](tests) and deploy current builds and updates via [Travis CI](https://docs.travis-ci.com/user/for-beginners/). These automated tests build and test the stability and functionality of PyLithics code in a virtual GitHub repository before merging to the main branch. 
+All contributions will have to pass these automated tests to be merged into the `main` branch.
 
 # 📝 Licence <a name="licence"></a>
 
