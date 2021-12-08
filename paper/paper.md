@@ -87,9 +87,7 @@ objects. For best performance and accurate measurement, images loaded into `PyLi
 
 
 While `PyLithics` can identify and measure surfaces and surface features on illustrations with ripples, too many ripples 
-will reduce measurement accuracy of flake scars.
-
-The inputs for `PyLithics` are images of lithic objects, images of their associated scales, and a metadata CSV file 
+will reduce measurement accuracy of flake scars. The inputs for `PyLithics` are images of lithic objects, images of their associated scales, and a metadata CSV file 
 linking the two and giving the scale measurement in millimetres. `PyLithics` processes the images with the following steps 
 and as illustrated in (\autoref{fig:Figure_1}):
 
@@ -106,11 +104,11 @@ and as illustrated in (\autoref{fig:Figure_1}):
 10.	Plot resulting surface and scar contours on the original images for validation.
 11.	Output data in a hierarchical JSON file detailing measurement of surface and scar contours.
 
+![PyLithics program workflow.\label{fig:Figure_1}](pylithics_flowchart.jpg)
+
 `PyLithics` depends on common Python packages such as NumPy [@Harris:2020], SciPy [@Virtanen:2020], Pandas [@McKinney:2010] 
 for data processing, Matplotlib [@Hunter:2007] for plotting and scikit-image [@scikit-image] and OpenCv [@opencv_library] 
 for image processing and computer vision tasks.
-
-![PyLithics program workflow.\label{fig:Figure_1}](pylithics_flowchart.jpg)
 
 # Results
 
