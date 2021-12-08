@@ -91,7 +91,7 @@ will reduce measurement accuracy of flake scars.
 
 The inputs for `PyLithics` are images of lithic objects, images of their associated scales, and a metadata CSV file 
 linking the two and giving the scale measurement in millimetres. `PyLithics` processes the images with the following steps 
-and as illustrated in \autoref{fig:Figure_1}:
+and as illustrated in (\autoref{fig:Figure_1}):
 
 
 1.	Import images and match image name to associated image ID and scale image from CSV metadata file.
@@ -110,14 +110,14 @@ and as illustrated in \autoref{fig:Figure_1}:
 for data processing, Matplotlib [@Hunter:2007] for plotting and scikit-image [@scikit-image] and OpenCv [@opencv_library] 
 for image processing and computer vision tasks.
 
-![PyLithics program workflow.\label{fig:Figure_1}](PyLithics_flowchart.jpg)
+![PyLithics program workflow.\label{fig:Figure_1}](pylithics_flowchart.jpg)
 
 # Results
 
 `PyLithics` generates two outputs:
 
 1) An image set comprised of the original input images with superimposed contour identification and derived metrics (see \autoref{fig:Figure_2} and \autoref{fig:Figure_3}), and if arrows are present in the illustration, angles of flaking direction (see \autoref{fig:Figure_4}).
-2) A JSON file with data for lithic objects and surface features found in each image \autoref{fig:Figure_5}. These data are hierarchically organised, first by type of object surface (i.e., ventral, dorsal, lateral, and platform); and second by metrics (in mm) from scars and arrows associated to each object surface. Output includes: object id, pixel conversion rate (based on provided scale), number of surfaces identified (e.g., dorsal, ventral, etc.); surface and scar area, maximum breadth and length, scar count (ordered by largest to smallest), percentage of surface area represented by scars, surface area of individual scars, and flaking angle of scars. PyLithics also produces a polygon count – a way of characterising the shape of each scar by approximating a polygon to it and counting how many sides it has. Output files can be used for statistical analyses with any software that can read JSON files.
+2) A JSON file with data for lithic objects and surface features found in each image \autoref{fig:Figure_5}. These data are hierarchically organised, first by type of object surface (i.e., ventral, dorsal, lateral, and platform); and second by metrics (in mm) from scars and arrows associated to each object surface. Output includes: object id, pixel conversion rate (based on provided scale), number of surfaces identified (e.g., dorsal, ventral, etc.); surface and scar area, maximum breadth and length, scar count (ordered by largest to smallest), percentage of surface area represented by scars, surface area of individual scars, and flaking angle of scars. `PyLithics` also produces a polygon count – a way of characterising the shape of each scar by approximating a polygon to it and counting how many sides it has. Output files can be used for statistical analyses with any software that can read JSON files.
 
 Output images \autoref{fig:Figure_2} serve as validation of the output data \autoref{fig:Figure_3}.
 
@@ -135,12 +135,12 @@ Evolutionary biology, and the study of human evolution in particular, has been t
 the development of ancient DNA methodologies [@Moody:2004]. One of the reasons that genomics has had such an impact is 
 the sheer scale of the data now available, and power of the analytical techniques used. Although current approaches to 
 lithic analysis have become more quantitative, they remain based on relatively univariate attribute assignments and 
-limited metrics, variably collected and reported. PyLithics aims to expand data collection with the goal of building 
+limited metrics, variably collected and reported. `PyLithics` aims to expand data collection with the goal of building 
 expansive, comprehensive, and standardized high-dimensional lithic artefact datasets for integration with genomic and 
 fossil data.
 
 # Acknowledgements
 
-The ``PyLithics`` package was developed by researchers from The Alan Turing Institute, University of Cambridge, and the Leverhulme Centre for Human Evolutionary Studies. Funding was provided by the Alan Turing Institute (grant number G109254). We would like to acknowledge support from Professor Katharine Robson Brown and Doctor Sebastian Ahnert.
+The `PyLithics` package was developed by researchers from The Alan Turing Institute, University of Cambridge, and the Leverhulme Centre for Human Evolutionary Studies. Funding was provided by the Alan Turing Institute (grant number G109254). We would like to acknowledge support from Professor Katharine Robson Brown and Doctor Sebastian Ahnert.
 
 # References
