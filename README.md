@@ -172,11 +172,11 @@ This CSV file should have as a minimum the following 3 variables:
 
 An example of this table, where one scale corresponds to several images is the following:
 
-|PA_ID | scale_ID  | PA_scale  | 
-|------|-----------|-----------|
-| lithic_id1    | scale_id1       | 5         | 
-| lithic_id2    | scale_id2       | 5         |
-| lithic_id3    | scale_id3       | 5         |   
+| PA_ID      | scale_ID  | PA_scale | 
+|------------|-----------|----------|
+| lithic_id1 | scale_id1 | 5        | 
+| lithic_id2 | scale_id2 | 5        |
+| lithic_id3 | scale_id3 | 5        |   
 
 **Note**
 
@@ -235,10 +235,17 @@ If you want to help us optimise `PyLithics` for different drawing styles we welc
 
 # 👋 Contributing <a name="contributing"></a>
 
-We welcome contributions from anyone interested in the project. There are lots of ways to contribute, not just writing code. If you have
-ideas on how to extend/improve `PyLithics` do get in touch with members of the team (preferable by email). See our [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a community in GitHub.
-Because PyLithics' code changes frequently we [test](tests) and deploy current builds and updates via [Travis CI](https://docs.travis-ci.com/user/for-beginners/). These automated tests build and test the stability and functionality of PyLithics code in a virtual GitHub repository before merging to the main branch. 
-All contributions will have to pass these automated tests to be merged into the `main` branch.
+We welcome contributions from anyone interested in the project. There are lots of ways to contribute, not just writing code.
+If you have ideas on how to extend/improve `PyLithics` do get in touch with members of the team via email. See our 
+[Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a
+community in GitHub. Because `PyLithics'` code changes frequently we [test](tests) and deploy current builds and updates via [Travis CI](https://docs.travis-ci.com/user/for-beginners/).
+Every time a change in the `PyLitihcs` code is pushed to the Palaeoanalytics repository, the [`travis.yml`](.travis.yml) 
+file, which contains essential information about the `PyLithics` programming environment and version, triggers these automated
+tests. TravisCI will automatically create a virtual build of `PyLithics`, and run the software to ensure that integration
+of new code is stable and functioning. Upon completion of tests, TravisCI will generate a virtual build *pass* or *fail*
+report and notify `PyLithics` team members and contributing developers of any issues. Because the process is automated 
+there is no need for contributors to open a TravisCI account. All contributions will have to successfully pass these automated 
+tests to be merged into the `main` branch.
 
 # 📝 Licence <a name="licence"></a>
 
