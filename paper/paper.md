@@ -82,7 +82,7 @@ objects. For best performance and accurate measurement, images loaded into `PyLi
 
 1.	Oriented with the platform orthogonal to the top of the page.
 2.	Use arrows to indicate flaking direction rather than ripples.
-3.	Have arrow with longer tails than arrow points.
+3.	Have arrows with longer tails than arrow points.
 4.	Avoid having arrows or other indicators overlapping or immediately adjacent to flake scars.
 
 
