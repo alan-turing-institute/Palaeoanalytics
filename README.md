@@ -77,6 +77,11 @@ The `PyLithics` package requires Python 3.7 or greater. To install, start by cre
 python3 -m venv palaeo
 source palaeo/bin/activate
 ```
+For Windows OS:
+```
+Set-ExecutionPolicy Unrestricted -Scope Process
+.\palaeo\Scripts\activate
+```
 Clone the repository.
 ```
 git clone https://github.com/alan-turing-institute/Palaeoanalytics.git
