@@ -243,7 +243,7 @@ If you want to help us optimise `PyLithics` for different drawing styles we welc
 We welcome contributions from anyone interested in the project. There are lots of ways to contribute, not just writing code.
 If you have ideas on how to extend/improve `PyLithics` do get in touch with members of the team via email. See our 
 [Contributor Guidelines](CONTRIBUTING.md) to learn more about how you can contribute and how we work together as a
-community in GitHub. Because `PyLithics'` code changes frequently we [test](tests) and deploy current builds and updates via [Travis CI](https://docs.travis-ci.com/user/for-beginners/).
+community in GitHub. Because `PyLithics'` code changes frequently we test and deploy current builds and updates via [Travis CI](https://docs.travis-ci.com/user/for-beginners/).
 Every time a change in the `PyLitihcs` code is pushed to the Palaeoanalytics repository, the [`travis.yml`](.travis.yml) 
 file, which contains essential information about the `PyLithics` programming environment and version, triggers these automated
 tests. TravisCI will automatically create a virtual build of `PyLithics`, and run the software to ensure that integration
@@ -253,8 +253,9 @@ there is no need for contributors to open a TravisCI account. All contributions 
 tests to be merged into the `main` branch.
 
 ## Functional testing of `PyLithics`
-`PyLithics` uses the [pytest](https://pypi.org/project/pytest/) library for functional testing during development. This is easily run from 
-the project directory, use the command:
+
+`PyLithics` uses the [pytest](https://pypi.org/project/pytest/) library for automated functional testing of code 
+development and integration. These [tests](tests) are easily run from the project directory using the command:
 
 `pytest -s `
 
