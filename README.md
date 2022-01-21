@@ -252,6 +252,12 @@ report and notify `PyLithics` team members and contributing developers of any is
 there is no need for contributors to open a TravisCI account. All contributions will have to successfully pass these automated 
 tests to be merged into the `main` branch.
 
+## Functional testing of `PyLithics`
+`PyLithics` uses the [pytest](https://pypi.org/project/pytest/) library for functional testing during development. This is easily run from 
+the project directory, use the command:
+
+`pytest -s `
+
 # 📝 Licence <a name="licence"></a>
 
 This software is licensed under the terms of the [GNU General Public License v3.0 (GNU GPLv3)](https://choosealicense.com/licenses/gpl-3.0/).
