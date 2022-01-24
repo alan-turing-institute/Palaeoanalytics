@@ -11,7 +11,7 @@
 - [About the project](#about)
 - [The team](#team)
 - [The `PyLithics` package](#pylithics)
-- [Drawing style for PyLithics](#drawing)
+- [Drawing style for `PyLithics`](#drawing)
 - [Contributing](#contributing)
 - [Development and testing](#testing)
 - [Citing `PyLithics`](#cite)
