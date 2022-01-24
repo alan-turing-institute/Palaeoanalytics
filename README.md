@@ -13,6 +13,8 @@
 - [The `PyLithics` package](#pylithics)
 - [Drawing style for PyLithics](#drawing)
 - [Contributing](#contributing)
+- [Development and testing](#testing)
+- [Citing `PyLithics`](#cite)
 - [Licence](#licence)
 
 # 📖 About the project <a name="about"></a>
@@ -252,12 +254,16 @@ report and notify `PyLithics` team members and contributing developers of any is
 there is no need for contributors to open a TravisCI account. All contributions will have to successfully pass these automated 
 tests to be merged into the `main` branch.
 
-## Functional testing of `PyLithics`
+# Development and testing of `PyLithics` <a name="testing"></a>
 
 `PyLithics` uses the [pytest](https://pypi.org/project/pytest/) library for automated functional testing of code 
 development and integration. These [tests](tests) are easily run from the project directory using the command:
 
 `pytest -s `
+
+# Citing `PyLithics` <a name="cite"></a>
+
+[![DOI](https://zenodo.org/badge/303727518.svg)](https://zenodo.org/badge/latestdoi/303727518)
 
 # 📝 Licence <a name="licence"></a>
 
