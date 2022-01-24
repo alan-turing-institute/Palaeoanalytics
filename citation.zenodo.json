@@ -1,0 +1,36 @@
+{
+    "description": "<p>PyLithics: A Python package for stone tool analysis</p>",
+    "license": "other-open",
+    "title": "PyLithics: A Python package for stone tool analysis",
+    "notes": "If you use this software, please cite it as below.",
+    "version": "v1.0.0",
+    "upload_type": "software",
+    "publication_date": "2021-08-27",
+    "creators": [
+        {
+            "orcid": "0000-0002-9929-789X",
+            "name": "Gellis, Jason"
+        },
+        {
+            "orcid": "0000-0002-0227-836X",
+            "name": "Rangel Smith, Camila"
+        },
+        {
+            "orcid": "0000-0003-0479-3039",
+            "name": "Foley, Robert A."
+        }
+    ],
+    "access_right": "open",
+    "related_identifiers": [
+        {
+            "scheme": "url",
+            "identifier": "https://github.com/alan-turing-institute/Palaeoanalytics/tree/v1.0.0",
+            "relation": "isSupplementTo"
+        },
+        {
+            "scheme": "doi",
+            "identifier": "10.5281/zenodo.5897148",
+            "relation": "isVersionOf"
+        }
+    ]
+}
