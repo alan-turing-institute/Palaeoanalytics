@@ -1,15 +1,15 @@
 {
     "description": "<p>PyLithics: A Python package for stone tool analysis</p>",
-    "license": "other-open",
+    "license": "GNU General Public License v3.0 (GNU GPLv3)",
     "title": "PyLithics: A Python package for stone tool analysis",
     "notes": "If you use this software, please cite it as below.",
     "version": "v1.0.0",
     "upload_type": "software",
-    "publication_date": "2021-08-27",
+    "publication_date": "2022-01-24",
     "creators": [
         {
             "orcid": "0000-0002-9929-789X",
-            "name": "Gellis, Jason"
+            "name": "Gellis, Jason J."
         },
         {
             "orcid": "0000-0002-0227-836X",
