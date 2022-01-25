@@ -263,7 +263,7 @@ development and integration. These [tests](tests) are easily run from the projec
 
 # Citing `PyLithics` <a name="cite"></a>
 
-[![DOI](https://zenodo.org/badge/303727518.svg)](https://zenodo.org/badge/latestdoi/303727518)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5898149.svg)](https://doi.org/10.5281/zenodo.5898149)
 
 # 📝 Licence <a name="licence"></a>
 
