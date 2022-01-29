@@ -263,10 +263,12 @@ development and integration. These [tests](tests) are easily run from the projec
 
 # Citing `PyLithics` <a name="cite"></a>
 
-`PyLithics` publication from the Journal of Open Source Software:
+`PyLithics` publication in the Journal of Open Source Software:
+
 [![DOI](https://joss.theoj.org/papers/10.21105/joss.03738/status.svg)](https://doi.org/10.21105/joss.03738)
 
 `PyLithics` software version history on Zenodo:
+
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5898149.svg)](https://doi.org/10.5281/zenodo.5898149)
 
 # 📝 Licence <a name="licence"></a>
