@@ -184,11 +184,11 @@ def plot_results(id, image_array, contours_df, output_dir):
     plot_surfaces(image_array, contours_df, output_lithic)
 
     # plot scars
-    output_lithic = os.path.join(output_dir, id + "_lithium_scars.png")
+    output_lithic = os.path.join(output_dir, id + "_lithic_scars.png")
     plot_scars(image_array, contours_df, output_lithic)
 
     # plot scar strike angle
-    output_lithic = os.path.join(output_dir, id + "_lithium_angles.png")
+    output_lithic = os.path.join(output_dir, id + "_lithic_angles.png")
     plot_angles(image_array, contours_df, output_lithic)
 
 
