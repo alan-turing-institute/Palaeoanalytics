@@ -3,6 +3,7 @@ import pylithics.src.utils as utils
 import os
 import warnings
 
+
 def fig_size(image_array):
     """
 
@@ -28,6 +29,7 @@ def fig_size(image_array):
         x_size = 18 * ratio
 
     return x_size
+
 
 def plot_surfaces(image_array, contours_df, output_figure):
     """
@@ -117,6 +119,7 @@ def plot_scars(image_array, contours_df, output_figure):
     plt.title("Scar measurements (in millimeters)", fontsize=30)
     plt.savefig(output_figure)
     plt.close(fig)
+
 
 def plot_angles(image_array, contours_df, output_path):
     """
@@ -266,7 +269,7 @@ def plot_template_arrow(image_array, template_array, value):
     image_array: array
         Array of an unprocessed image read by openCV (0:255 pixels)
     template_array: array
-        Array of an template image  (0:255 pixels)
+        Array of a template image  (0:255 pixels)
     Returns
     -------
 
