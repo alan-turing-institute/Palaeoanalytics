@@ -74,7 +74,7 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
     config_file: dict
         dictionary with information of thresholding values
     arrows: boolean
-        If True, pylithics will collect templates for arrows.
+        If True, PyLithics will collect templates for arrows.
     debug: flag to plot the outputs.
 
     Returns

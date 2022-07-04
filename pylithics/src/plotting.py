@@ -52,7 +52,7 @@ def plot_surfaces(image_array, contours_df, output_figure):
     contours_surface_df = contours_df[contours_df['parent_index'] == -1].sort_values(by=["area_px"], ascending=False)
 
     if contours_surface_df.shape[0] == 0:
-        warnings.warn("Warning: No surfaces detected, no surface output figure will be saved.'")
+        warnings.warn("Warning: No surfaces detected, no surface output figure will be saved.")
         return None
 
     cmap_list = plt.cm.get_cmap('Paired', contours_surface_df.shape[0])
@@ -66,7 +66,7 @@ def plot_surfaces(image_array, contours_df, output_figure):
 
     ax.set_xticks([])
     ax.set_yticks([])
-    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=17)
+    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=18)
     plt.title("Detected surfaces", fontsize=30)
     plt.savefig(output_figure)
     plt.close(fig)
@@ -95,7 +95,7 @@ def plot_scars(image_array, contours_df, output_figure):
     contours_scars_df = contours_df[contours_df['parent_index'] != -1].sort_values(by=["area_px"], ascending=False)
 
     if contours_scars_df.shape[0] == 0:
-        warnings.warn("Warning: No scars detected, no scar output figure will be saved.'")
+        warnings.warn("Warning: No scars detected, no scar output figure will be saved.")
         return None
 
     cmap_list = plt.cm.get_cmap('tab20', contours_scars_df.shape[0])
@@ -113,7 +113,7 @@ def plot_scars(image_array, contours_df, output_figure):
     plt.figtext(0.02, 0.5, ("A: Total Area"), fontsize=18)
     plt.figtext(0.02, 0.52, ("B: Maximum Breadth"), fontsize=18)
     plt.figtext(0.02, 0.54, ("L: Maximum Length"), fontsize=18)
-    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=11)
+    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=18)
     plt.title("Scar measurements (in millimeters)", fontsize=30)
     plt.savefig(output_figure)
     plt.close(fig)
@@ -153,7 +153,7 @@ def plot_angles(image_array, contours_df, output_path):
 
     ax.set_xticks([])
     ax.set_yticks([])
-    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=11)
+    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=18)
     plt.title("Scar Strike Angle measurement (in degrees)", fontsize=30)
     plt.savefig(output_path)
     plt.close(fig)
@@ -279,3 +279,4 @@ def plot_template_arrow(image_array, template_array, value):
     ax[1].set_yticks([])
     plt.figtext(0.4, 0.9, str(value))
     plt.show()
+s

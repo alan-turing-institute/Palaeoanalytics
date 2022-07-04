@@ -16,7 +16,7 @@ def read_image(input_dir, id, im_type='png'):
     Read images from input directory.
 
     Parameters
-    ----------
+    ----------git remote show origin
     input_dir: str
         Path to input directory where images are found
     id: str
@@ -171,7 +171,7 @@ def data_output(contour_df, config_file):
 
     lithic_output['id'] = config_file['id']
     lithic_output['conversion_px'] = config_file['conversion_px'] # convert pixels to user define metric
-    lithic_output["n_surfaces"] = contour_df[contour_df['hierarchy_level'] == 0].shape[0]  # nested hierarchy of ltihic flake scars
+    lithic_output["n_surfaces"] = contour_df[contour_df['hierarchy_level'] == 0].shape[0] # nested hierarchy of lithic surfaces
     # based on size
 
     contour_df.sort_values(by=["area_px"], inplace=True, ascending=False)
@@ -222,13 +222,13 @@ def data_output(contour_df, config_file):
                 scars_objects['max_length'] = height_mm
                 scars_objects['percentage_of_surface'] = round(
                     scars_objects['total_area_px'] / outer_objects['total_area_px'], 2)
-                scars_objects['scar_angle'] = angle
+                scars_objects['flaking_angle'] = angle
                 scars_objects["polygon_count"] = polygon_count
 
                 scars_objects_list.append(scars_objects)
                 scar_id = scar_id + 1
 
-            outer_objects['scar_contours'] = scars_objects_list
+            outer_objects['scar_metrics'] = scars_objects_list
 
             id = id + 1
             outer_objects_list.append(outer_objects)
@@ -311,7 +311,7 @@ def get_scars_angles(image_array, contour_df, templates = pd.DataFrame()):
     """
 
     if templates.shape[0] == 0:
-        # if there is no templates in the dataframe assing nan to angles.
+        # if there is no templates in the dataframe assign nan to angles.
         contour_df['arrow_index'] = -1
         contour_df['angle'] = np.nan
 
@@ -333,7 +333,7 @@ def find_arrows(image_array, binary_array, debug=False):
     image_array: array
         Array of an unprocessed image  (0:255 pixels)
     binary_array: array
-        Processed (binarized) image array (0 to 1)
+        Processed (binarised) image array (0 to 1)
     debug: flag to plot the outputs.
 
     Returns
