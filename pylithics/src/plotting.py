@@ -279,4 +279,3 @@ def plot_template_arrow(image_array, template_array, value):
     ax[1].set_yticks([])
     plt.figtext(0.4, 0.9, str(value))
     plt.show()
-s
