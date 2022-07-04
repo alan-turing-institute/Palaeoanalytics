@@ -153,8 +153,7 @@ def plot_angles(image_array, contours_df, output_path):
 
     ax.set_xticks([])
     ax.set_yticks([])
-
-    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=17)
+    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=18)
     plt.title("Flaking angles (by scar)", fontsize=30)
     plt.savefig(output_path)
     plt.close(fig)
