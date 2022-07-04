@@ -61,7 +61,7 @@ def plot_surfaces(image_array, contours_df, output_figure):
     for contour in contours_surface_df['contour'].values:
         classification = surfaces_classification[i]
         text = str(classification)
-        ax.plot(contour[:, 0], contour[:, 1], label=text, fontsize = 14, linewidth=10, color=cmap_list(i))
+        ax.plot(contour[:, 0], contour[:, 1], label=text, fontsize=14, linewidth=10, color=cmap_list(i))
         i = i + 1
 
     ax.set_xticks([])
@@ -105,7 +105,7 @@ def plot_scars(image_array, contours_df, output_figure):
             contours_scars_df[['contour', 'area_mm',
                                  'width_mm', 'height_mm']].itertuples(index=False):
         text = "A: " + str(area_mm) + ", B: " + str(width_mm) + ", L: " + str(height_mm)
-        ax.plot(contour[:, 0], contour[:, 1], label=text, fontsize = 14, linewidth=5, color=cmap_list(i))
+        ax.plot(contour[:, 0], contour[:, 1], label=text, fontsize=14, linewidth=5, color=cmap_list(i))
         i = i + 1
 
     ax.set_xticks([])
@@ -148,7 +148,7 @@ def plot_angles(image_array, contours_df, output_path):
     for contour, angle in \
             contours_angles_df[['contour', 'angle']].itertuples(index=False):
         text = "Angle: " + str(angle)
-        ax.plot(contour[:, 0], contour[:, 1], label=text, fontsize = 14, linewidth=5, color=cmap_list(i))
+        ax.plot(contour[:, 0], contour[:, 1], label=text, fontsize=14, linewidth=5, color=cmap_list(i))
         i = i + 1
 
     ax.set_xticks([])
