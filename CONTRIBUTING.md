@@ -53,7 +53,7 @@ The list of labels for current issues includes:
 
 ## Making a change with a pull request
 
-We appreciate all contributions to the Palaoanalytics project and the PyLythics package.
+We appreciate all contributions to the Palaeoanalytics project and the PyLythics package.
 **THANK YOU** for helping us.
 
 All project management, conversations and questions related to the project happens here in the [Palaoanalytics][Palaoanalytics-repo].
