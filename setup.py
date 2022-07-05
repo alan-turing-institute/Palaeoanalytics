@@ -15,10 +15,10 @@ setup(
     packages=["pylithics",
               "pylithics.src",
               "pylithics.scripts"],
-    keywords = ['lithics', 'human evolution', 'Archaeology', 'archeology',
+    keywords=['lithics', 'human evolution', 'Archaeology', 'archeology',
                 'lithic analysis', 'prehistoric technology', 'computer vision'],
     install_requires=REQUIRED_PACKAGES,
-    # we will need this later, I'll leave it commented as cont reminder.
+    # we will need this later, I'll leave it commented as a reminder.
     entry_points={"console_scripts": [
       "pylithics_run=pylithics.scripts.run:main",
       "pylithics_get_arrows=pylithics.scripts.run_arrows:main",
