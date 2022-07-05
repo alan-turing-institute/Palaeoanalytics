@@ -1,28 +1,18 @@
-{
-  "language": "ruby",
-  "os": [
-    "linux"
-  ],
-  "dist": "xenial",
-  "after_failure": [
-    "cat config.log"
-  ],
-  "after_success": [
-    "echo \"All tests passed!\""
-  ],
-  "jobs": {
-    "include": [
-      {
-        "language": "python",
-        "python": "3.7",
-        "install": [
-          "pip install pip==20.0",
-          "pip install ."
-        ],
-        "script": [
-          "pytest -s"
-        ]
-      }
-    ]
-  }
-}
+matrix:
+ include:
+  language: python
+  python:
+   - "3.7"
+  # command to install dependencies
+  install:
+   - pip install --upgrade pip
+   - pip install .
+  # command to run tests
+  script:
+   - pytest -s
+
+after_failure:
+ - cat config.log
+
+after_success:
+ - echo "All tests passed!"
