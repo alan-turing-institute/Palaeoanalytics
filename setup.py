@@ -4,7 +4,7 @@ with open("requirements.txt", "r") as f:
     REQUIRED_PACKAGES = f.read().splitlines()
 
 setup(
-    name="PyLithics",
+    name="pylithics",
     version="1.0",
     description="A Python package for stone tool analysis",
     download_url="https://github.com/alan-turing-institute/Palaeoanalytics",
