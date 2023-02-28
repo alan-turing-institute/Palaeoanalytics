@@ -6,7 +6,7 @@ tags:
   - Archaeology
   - Lithic analysis
   - Prehistoric technology
-  - Computer vision
+  - Computer vision 
 authors:
   - name: Jason J. Gellis^[corresponding author]
     orcid: 0000-0002-9929-789X
