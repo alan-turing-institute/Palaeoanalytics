@@ -175,7 +175,7 @@ This CSV file should have as a minimum the following 3 variables:
 - *PA_ID*: corresponding the lithics image id
 (the name of the image file), 
 - *scale_ID*: The scale id (name of the scale image file)
-- *PA_scale*: The scale measurement (how many centimeters this scale represents).
+- *PA_scale*: The scale measurement (how many milliimeters this scale represents).
 
 An example of this table, where one scale corresponds to several images is the following:
 
