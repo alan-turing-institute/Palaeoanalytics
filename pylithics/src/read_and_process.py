@@ -362,7 +362,7 @@ def find_arrows(image_array, binary_array, debug=False):
         area = stats[i, cv2.CC_STAT_AREA]
 
         # select arrows based on area
-        if area > 3000 or area < 50:
+        if area > 1000 or area < 50:
             continue
 
         # extract templates from bounding box
