@@ -193,7 +193,7 @@ def data_output(contour_df, config_file):
         if hierarchy_level == 0:
             outer_objects['surface_id'] = id
             outer_objects['classification'] = surfaces_classification[id] if len(
-                surfaces_classification) > id else hierarchy_level.where(hierarchy_level.notnull(), None)
+                surfaces_classification) > id else np.nan
             outer_objects['total_area_px'] = area_px
             outer_objects['total_area'] = area_mm
             outer_objects['max_breadth'] = width_mm
@@ -268,7 +268,7 @@ def associate_arrows_to_scars(image_array, contour_df, templates_df):
     for hierarchy_level, index, contour, area_px in contour_df[['hierarchy_level',
                                                           'index', 'contour', 'area_px']].itertuples(index=False):
 
-        angle = None
+        angle = np.nan
 
         # high levels contours are surfaces
         if hierarchy_level != 0:
@@ -311,9 +311,9 @@ def get_scars_angles(image_array, contour_df, templates = pd.DataFrame()):
     """
 
     if templates.shape[0] == 0:
-        # if there is no templates in the dataframe assign nan to angles.
+        # if there is no templates in the dataframe assing nan to angles.
         contour_df['arrow_index'] = -1
-        contour_df['angle'] = None
+        contour_df['angle'] = np.nan
 
         # TODO: DO SOMETHING WITH RIPPLES
 
