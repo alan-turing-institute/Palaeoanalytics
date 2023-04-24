@@ -87,7 +87,7 @@ def plot_scars(image_array, contours_df, output_figure):
 
     """
     fig_x_size = fig_size(image_array)
-    fig, ax = plt.subplots(figsize=(fig_x_size, 20))
+    fig, ax = plt.subplots(figsize=(fig_x_size, 20), prop={'size': 12})
 
     ax.imshow(image_array, cmap=plt.cm.gray)
 
@@ -110,10 +110,10 @@ def plot_scars(image_array, contours_df, output_figure):
 
     ax.set_xticks([])
     ax.set_yticks([])
-    plt.figtext(0.02, 0.5, ("A: Total Area"), fontsize=18)
+    plt.figtext(0.02, 0.54, ("A: Total Area"), fontsize=18)
     plt.figtext(0.02, 0.52, ("B: Maximum Breadth"), fontsize=18)
-    plt.figtext(0.02, 0.54, ("L: Maximum Length"), fontsize=18)
-    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=14)
+    plt.figtext(0.02, 0.55, ("L: Maximum Length"), fontsize=18)
+    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=18)
     plt.title("Scar measurements (in millimeters)", fontsize=30)
     plt.savefig(output_figure)
     plt.close(fig)
@@ -153,7 +153,7 @@ def plot_angles(image_array, contours_df, output_path):
 
     ax.set_xticks([])
     ax.set_yticks([])
-    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=14)
+    plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=18)
     plt.title("Scar Strike Angle measurement (in degrees)", fontsize=30)
     plt.savefig(output_path)
     plt.close(fig)
