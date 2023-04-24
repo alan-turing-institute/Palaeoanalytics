@@ -15,7 +15,7 @@
 - [Contributing](#contributing)
 - [Development and testing](#testing)
 - [Citing `PyLithics`](#cite)
-- [Licence](#licence)
+- [License](#license)
 
 # 📖 About the project <a name="about"></a>
 
@@ -265,6 +265,6 @@ development and integration. These [tests](tests) are easily run from the projec
 
 [![DOI](https://zenodo.org/badge/303727518.svg)](https://zenodo.org/badge/latestdoi/303727518)
 
-# 📝 Licence <a name="licence"></a>
+# 📝 License <a name="license"></a>
 
 This software is licensed under the terms of the [GNU General Public License v3.0 (GNU GPLv3)](https://choosealicense.com/licenses/gpl-3.0/).
