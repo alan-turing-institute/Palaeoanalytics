@@ -110,9 +110,9 @@ def plot_scars(image_array, contours_df, output_figure):
 
     ax.set_xticks([])
     ax.set_yticks([])
-    plt.figtext(0.02, 0.54, ("A: Total Area"), fontsize=18)
+    plt.figtext(0.02, 0.5, ("A: Total Area"), fontsize=18)
     plt.figtext(0.02, 0.52, ("B: Maximum Breadth"), fontsize=18)
-    plt.figtext(0.02, 0.55, ("L: Maximum Length"), fontsize=18)
+    plt.figtext(0.02, 0.54, ("L: Maximum Length"), fontsize=18)
     plt.legend(bbox_to_anchor=(1.02, 0), loc="lower left", borderaxespad=0, fontsize=18)
     plt.title("Scar measurements (in millimeters)", fontsize=30)
     plt.savefig(output_figure)
