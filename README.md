@@ -227,7 +227,7 @@ are the following:
 ### Output data
 
 The output dataset is a JSON file with data for the lithic objects found in an image. The data is 
-hierarchically organised by type of surface object (ventral, dorsal, platform). For each 
+hierarchically organised by lithic surfaces (ventral, dorsal, platform). For each 
 surface the metrics from its scars are recorded. In [this data output example,](output_example.md) you can find the json file
 that results from running `PyLithics` on the above images, with comments to better understand the feature hierarchy and variables. 
 

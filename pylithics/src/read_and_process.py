@@ -10,6 +10,7 @@ from pylithics.src.utils import template_matching, mask_image, contour_selection
 import os
 import pylithics.src.plotting as plot
 
+null = None
 
 def read_image(input_dir, id, im_type='png'):
     """
@@ -311,9 +312,9 @@ def get_scars_angles(image_array, contour_df, templates = pd.DataFrame()):
     """
 
     if templates.shape[0] == 0:
-        # if there is no templates in the dataframe assign nan to angles.
+        # if there is no templates in the dataframe assign None to angles.
         contour_df['arrow_index'] = -1
-        contour_df['angle'] = None
+        contour_df['angle'] = ''
 
         # TODO: DO SOMETHING WITH RIPPLES
 
