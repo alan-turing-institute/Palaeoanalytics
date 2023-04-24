@@ -269,7 +269,7 @@ def associate_arrows_to_scars(image_array, contour_df, templates_df):
     for hierarchy_level, index, contour, area_px in contour_df[['hierarchy_level',
                                                           'index', 'contour', 'area_px']].itertuples(index=False):
 
-        angle = None
+        angle = null
 
         # high levels contours are surfaces
         if hierarchy_level != 0:
