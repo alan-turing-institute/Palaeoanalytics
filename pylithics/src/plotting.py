@@ -87,7 +87,7 @@ def plot_scars(image_array, contours_df, output_figure):
 
     """
     fig_x_size = fig_size(image_array)
-    fig, ax = plt.subplots(figsize=(fig_x_size, 20), prop={'size': 12})
+    fig, ax = plt.subplots(figsize=(fig_x_size, 20))
 
     ax.imshow(image_array, cmap=plt.cm.gray)
 
