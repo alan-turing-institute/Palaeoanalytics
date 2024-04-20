@@ -9,7 +9,7 @@ import pandas as pd
 import yaml
 
 from pylithics.src.read_and_process import read_image, detect_lithic, process_image, find_lithic_contours, find_arrows
-from pylithics.src.utils import mask_image, contour_characterisation, classify_distributions, shape_detection, \
+from pylithics.src.utils import mask_image, contour_characterization, classify_distributions, shape_detection, \
     get_high_level_parent_and_hierarchy, pixulator, classify_surfaces, subtract_masked_image, measure_vertices, \
     get_angles, \
     measure_arrow_angle, contour_selection
@@ -37,14 +37,14 @@ def test_mask_image():
     assert masked_image.sum() < binary_edge_sobel.sum()
 
 
-def test_contour_characterisation():
+def test_contour_characterization():
     binary_edge_sobel, _ = detect_lithic(image_array, config_file)
 
     contours_cv, hierarchy = cv2.findContours(binary_edge_sobel, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     cont = np.asarray([i[0] for i in list(contours_cv)[2]])
 
-    cont_info = contour_characterisation(image_array, cont, config_file['conversion_px'])
+    cont_info = contour_characterization(image_array, cont, config_file['conversion_px'])
 
     assert cont_info['length'] == 2965
     assert cont_info['area_px'] == 490095.5
@@ -138,7 +138,7 @@ def test_contour_selection():
         cont = np.asarray([i[0] for i in cont])
 
         # calculate character listings of the contour.
-        cont_info = contour_characterisation(image_array, cont, config_file['conversion_px'])
+        cont_info = contour_characterization(image_array, cont, config_file['conversion_px'])
 
         cont_info['index'] = index
         cont_info['hierarchy'] = list(hierarchy)[0][index]

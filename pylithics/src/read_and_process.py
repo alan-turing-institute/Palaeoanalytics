@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from skimage.restoration import denoise_tv_chambolle
 from skimage import exposure
-from pylithics.src.utils import contour_characterisation, classify_surfaces, \
+from pylithics.src.utils import contour_characterization, classify_surfaces, \
     get_high_level_parent_and_hierarchy
 import cv2
 from pylithics.src.utils import template_matching, mask_image, contour_selection
@@ -97,7 +97,7 @@ def find_lithic_contours(binary_array, config_file):
         contour_array = np.asarray([i[0] for i in cont])
 
         # calculate character listings of the contour.
-        cont_info = contour_characterisation(binary_array, contour_array, config_file['conversion_px'])
+        cont_info = contour_characterization(binary_array, contour_array, config_file['conversion_px'])
 
         cont_info['index'] = index
         cont_info['hierarchy'] = list(hierarchy)[0][index]
@@ -172,7 +172,7 @@ def data_output(contour_df, config_file):
 
     lithic_output['id'] = config_file['id']
     lithic_output['conversion_px'] = config_file['conversion_px'] # convert pixels to user define metric
-    lithic_output["n_surfaces"] = contour_df[contour_df['hierarchy_level'] == 0].shape[0]  # nested hierarchy of ltihic flake scars
+    lithic_output["n_surfaces"] = contour_df[contour_df['hierarchy_level'] == 0].shape[0]  # nested hierarchy of lithic flake scars
     # based on size
 
     contour_df.sort_values(by=["area_px"], inplace=True, ascending=False)

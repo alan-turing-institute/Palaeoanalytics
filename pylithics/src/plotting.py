@@ -91,7 +91,7 @@ def plot_scars(image_array, contours_df, output_figure):
 
     ax.imshow(image_array, cmap=plt.cm.gray)
 
-    # selecting only surfaces (lowest hiearchy level).
+    # selecting only surfaces (lowest hierarchy level).
     contours_scars_df = contours_df[contours_df['parent_index'] != -1].sort_values(by=["area_px"], ascending=False)
 
     if contours_scars_df.shape[0] == 0:
@@ -161,7 +161,7 @@ def plot_angles(image_array, contours_df, output_path):
 
 def plot_results(id, image_array, contours_df, output_dir):
     """
-    Plot the results of the object characterisation.
+    Plot the results of the object characterization.
 
     Parameters
     ----------

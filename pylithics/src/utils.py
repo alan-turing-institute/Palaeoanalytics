@@ -36,7 +36,7 @@ def mask_image(binary_array, contour, innermask=False):
     return new_image
 
 
-def contour_characterisation(image_array, contour, conversion=1):
+def contour_characterization(image_array, contour, conversion=1):
     """
     Calculate contour characteristics (area, length, etc.),
     from a specific element of an image.
