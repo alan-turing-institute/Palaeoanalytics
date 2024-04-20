@@ -14,7 +14,7 @@ from pylithics.src.utils import pixulator, get_angles
 
 def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_arrows):
     """
-    Script that sets up directories, data identification, and configurations for lithic characterisation,
+    Script that sets up directories, data identification, and configurations for lithic characterization,
     and runs the pipeline.
 
     Parameters
@@ -56,14 +56,14 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_a
             config_file['scale_id'] = "no scale"
             config_file["scale_mm"] = 1
 
-        run_characterisation(input_dir, output_dir, config_file, get_arrows)
+        run_characterization(input_dir, output_dir, config_file, get_arrows)
 
     return 0
 
 
-def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False):
+def run_characterization(input_dir, output_dir, config_file, arrows, debug=False):
     """
-    Characterisation of image file.
+    Characterization of image file.
 
     Parameters
     ----------
@@ -87,7 +87,7 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
     print('=============================')
     print('Processing figure: ', id)
 
-    # if output dir doesnt exist create one
+    # if output dir doesn't exist create one
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -147,7 +147,7 @@ def run_characterisation(input_dir, output_dir, config_file, arrows, debug=False
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run lithic characterisation pipeline")
+    parser = argparse.ArgumentParser(description="Run lithic characterization pipeline")
 
     parser.add_argument("-c", "--config", required=True, type=str, metavar="config-file",
                         help="the model config file (YAML)")
