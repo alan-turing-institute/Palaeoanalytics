@@ -4,6 +4,7 @@ import argparse
 import yaml
 import json
 import os
+import numpy as np
 import pandas as pd
 from pylithics.src.read_and_process import read_image, \
     find_lithic_contours, detect_lithic, process_image, data_output, \
@@ -59,7 +60,6 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_a
         run_characterization(input_dir, output_dir, config_file, get_arrows)
 
     return 0
-
 
 def run_characterization(input_dir, output_dir, config_file, arrows, debug=False):
     """
@@ -144,7 +144,6 @@ def run_characterization(input_dir, output_dir, config_file, arrows, debug=False
         json.dump(json_output, f)
 
         print('Done.')
-
 
 def main():
     parser = argparse.ArgumentParser(description="Run lithic characterization pipeline")
