@@ -1,3 +1,0 @@
-[console_scripts]
-pylithics_get_arrows = pylithics.scripts.run_arrows:main
-pylithics_run = pylithics.scripts.run:main
