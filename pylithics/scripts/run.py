@@ -2,7 +2,7 @@
 # install libraries for pylithics pipeline.
 import argparse
 import yaml
-import json
+import simplejson as json
 import os
 import pandas as pd
 from pylithics.src.read_and_process import read_image, \
@@ -59,7 +59,6 @@ def run_pipeline(id_list, metadata_df, input_dir, output_dir, config_file, get_a
         run_characterization(input_dir, output_dir, config_file, get_arrows)
 
     return 0
-
 
 def run_characterization(input_dir, output_dir, config_file, arrows, debug=False):
     """
@@ -141,10 +140,9 @@ def run_characterization(input_dir, output_dir, config_file, arrows, debug=False
     print('Saving data to file: ', data_output_file)
 
     with open(data_output_file, 'w') as f:
-        json.dump(json_output, f)
+        json.dump(json_output, f, ignore_nan=True)
 
         print('Done.')
-
 
 def main():
     parser = argparse.ArgumentParser(description="Run lithic characterization pipeline")

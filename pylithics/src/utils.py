@@ -88,7 +88,6 @@ def contour_characterization(image_array, contour, conversion=1):
 
     return contour_info
 
-
 def classify_distributions(image_array):
     """
     Classifies an image array by its distribution of pixel intensities.
@@ -415,7 +414,7 @@ def get_angles(templates):
         try:
             template_dict['angle'] = measure_arrow_angle(template)
         except:
-            template_dict['angle'] = np.nan
+            template_dict['angle'] = None
 
         template_dict_list.append(template_dict)
 
@@ -481,7 +480,7 @@ def measure_arrow_angle(template):
 
     Returns
     -------
-    An angle measurement
+    An angle measurement or None if no angle is computed
     """
 
     # import image and grayscale
@@ -589,7 +588,10 @@ def measure_arrow_angle(template):
     rads %= 2 * math.pi
     angle = math.degrees(rads)  # convert to degrees.
 
-    return round(angle, 2)
+    if angle is None:
+        return np.nan
+    else:
+        return round(angle, 2)
 
 
 def measure_vertices(contour, epsilon=0.04):
