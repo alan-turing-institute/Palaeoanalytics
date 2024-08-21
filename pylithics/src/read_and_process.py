@@ -12,62 +12,126 @@ import pylithics.src.plotting as plot
 
 null = None
 
-def read_image(input_dir, id, im_type='png'):
+def read_image(input_dir: str, image_id: str, im_type: str = 'png', grayscale: bool = True) -> np.ndarray:
     """
-    Read images from input directory.
+    Read an image from the input directory and ensure it's in the correct format.
 
     Parameters
     ----------
-    input_dir: str
-        Path to input directory where images are found
-    id: str
-        Image identifier code
-    im_type: str
-        Image file extension type, default is .png
+    input_dir : str
+        Path to the directory where images are stored.
+    image_id : str
+        Image identifier or name without the extension.
+    im_type : str, optional
+        Image file extension/type, default is 'png'.
+    grayscale : bool, optional
+        If True, reads the image in grayscale. If False, reads the image in color. Default is True.
 
     Returns
     -------
-    an array
+    np.ndarray
+        The image as a numpy array, in 8-bit format if grayscale is True.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the image file cannot be found or loaded.
+    ValueError
+        If input_dir is not a valid directory.
     """
 
-    filename = os.path.join(input_dir, id + "." + im_type)
+    if not os.path.isdir(input_dir):
+        raise ValueError(f"The specified directory '{input_dir}' does not exist or is not a directory.")
 
-    im = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
+    # Construct the full file path
+    filename = os.path.join(input_dir, f"{image_id}.{im_type}")
 
-    return im
+    # Determine the flag for reading the image (grayscale or color)
+    read_flag = cv2.IMREAD_GRAYSCALE if grayscale else cv2.IMREAD_COLOR
+
+    # Attempt to read the image
+    image = cv2.imread(filename, read_flag)
+
+    # Check if the image was loaded successfully
+    if image is None:
+        raise FileNotFoundError(f"Image file '{filename}' not found or could not be loaded.")
+
+    # Ensure the image is in 8-bit format if grayscale is True
+    if grayscale:
+        if image.dtype != np.uint8:
+            image = cv2.normalize(image, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+
+    return image
 
 
-def detect_lithic(image_array, config_file):
+def detect_lithic(image_array: np.ndarray, config: dict) -> np.ndarray:
     """
-    Apply binary threshold and edge detection to input image array/s based on configuration file options.
-    Resulting image array has pixel values of 0,1
+    Apply thresholding and Sobel edge detection to an input image array.
+    Allows the selection of different thresholding methods via a configuration file.
+    Otsu's thresholding is the default method.
 
     Parameters
     ----------
-    image_array: array
-        Array of an unprocessed image (0, 255 pixels)
-    config_file: dict
-        Information on thresholding values and other configuration options
+    image_array : np.ndarray
+        Array of an unprocessed image with pixel values ranging from 0 to 255.
+    config : dict
+        Configuration dictionary containing options for thresholding and additional processing.
 
     Returns
     -------
-    An array
+    np.ndarray
+        The binary thresholded image.
     """
 
-    # thresholding
-    thresh = threshold_mean(image_array)
-    thresh = thresh + thresh * config_file['threshold']
-    # binary_array = 'binarized' image, 0, 255 pixels to 0, 1 pixel values
-    _, binary_array = cv2.threshold(image_array, thresh, 255, cv2.THRESH_BINARY_INV)
+    # Input validation
+    if not isinstance(image_array, np.ndarray):
+        raise ValueError("Input must be a numpy array.")
+    if image_array.ndim != 2:
+        raise ValueError("Input image must be a 2D grayscale image.")
+    if image_array.size == 0:
+        raise ValueError("Input image array is empty.")
 
-    # edge detection using sobel filter
-    x = cv2.Sobel(binary_array, cv2.CV_64F, 1, 0, ksize=1)
-    y = cv2.Sobel(binary_array, cv2.CV_64F, 0, 1, ksize=1)
-    absX = cv2.convertScaleAbs(x)  # convert back to uint8
-    absY = cv2.convertScaleAbs(y)  # convert back to uint8
-    sobelXY = cv2.addWeighted(absX, 0.5, absY, 0.5, 0)
+    # Ensure image is in 8-bit format for thresholding
+    if image_array.dtype != np.uint8:
+        image_array = cv2.normalize(image_array, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
-    return sobelXY, thresh
+    # Get thresholding method from config or use Otsu's as default
+    threshold_method = config.get("threshold_method", "otsu").lower()
+
+    # Apply the selected thresholding method
+    if threshold_method == "otsu":
+        _, binary_array = cv2.threshold(image_array, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    elif threshold_method == "adaptive":
+        binary_array = cv2.adaptiveThreshold(
+            image_array,
+            maxValue=255,
+            adaptiveMethod=cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            thresholdType=cv2.THRESH_BINARY_INV,
+            blockSize=config.get("adaptive_block_size", 11),
+            C=config.get("adaptive_C", 2)
+        )
+    elif threshold_method == "mean":
+        mean_thresh_value = np.mean(image_array)
+        _, binary_array = cv2.threshold(image_array, mean_thresh_value, 255, cv2.THRESH_BINARY_INV)
+    else:
+        raise KeyError(f"Invalid threshold method specified: {threshold_method}. "
+                       "Choose from 'otsu', 'adaptive', or 'mean'.")
+
+    # Optional post-processing: morphological operations
+    if config.get("apply_morphology", False):
+        kernel_size = config.get("morphology_kernel_size", 3)
+        kernel = np.ones((kernel_size, kernel_size), np.uint8)
+        morph_operation = config.get("morph_operation", "close")
+        if morph_operation == "erode":
+            binary_array = cv2.erode(binary_array, kernel, iterations=1)
+        elif morph_operation == "dilate":
+            binary_array = cv2.dilate(binary_array, kernel, iterations=1)
+        elif morph_operation == "open":
+            binary_array = cv2.morphologyEx(binary_array, cv2.MORPH_OPEN, kernel)
+        elif morph_operation == "close":
+            binary_array = cv2.morphologyEx(binary_array, cv2.MORPH_CLOSE, kernel)
+
+    return binary_array
 
 
 def find_lithic_contours(binary_array, config_file):
