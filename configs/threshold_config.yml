@@ -1,0 +1,9 @@
+{
+    "threshold_method": "adaptive",  # Options: "otsu", "adaptive", "mean"
+    "adaptive_block_size": 11,       # Block size for adaptive thresholding
+    "adaptive_C": 2,                 # Constant subtracted from mean in adaptive thresholding
+    "apply_morphology": true,        # Whether to apply morphological operations
+    "morphology_kernel_size": 5,     # Kernel size for morphology
+    "morph_operation": "close",      # Morphological operation: "erode", "dilate", "open", "close"
+    "sobel_kernel_size": 3           # Kernel size for Sobel edge detection
+}
