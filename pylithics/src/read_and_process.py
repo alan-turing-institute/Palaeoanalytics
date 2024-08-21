@@ -133,59 +133,68 @@ def detect_lithic(image_array: np.ndarray, config: dict) -> np.ndarray:
 
     return binary_array
 
-
-def find_lithic_contours(binary_array, config_file):
+def find_lithic_contours(binary_array: np.ndarray, config_file: dict) -> pd.DataFrame:
     """
-    Contour finding of lithic artefact image from binary image array and configuration options.
+    Detect and process connected components in a binary image of a lithic artifact,
+    organizing them into a DataFrame.
 
     Parameters
     ----------
-    binary_array: array
-        processed image (0, 1 pixels)
+    binary_array : np.ndarray
+        Processed binary image array (0, 1 pixels).
     config_file : dict
-        Information on conversion values and other configuration options
+        Configuration dictionary containing conversion values and other options.
 
     Returns
     -------
-    image array
+    pd.DataFrame
+        DataFrame containing detailed information about the detected connected components.
     """
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_array, connectivity=8)
 
-    # contour finding using cv2.RETR_TREE gives contour hierarchy (e.g. object 1 is nested n levels deep in object 2)
-    contours_cv, hierarchy = cv2.findContours(binary_array, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-
-    # create empty lists to store contour information
-    new_contours = []
-    contour_info_list = []
-
-    for index, cont in enumerate(list(contours_cv), start=0):
-        contour_array = np.asarray([i[0] for i in cont])
-
-        # calculate character listings of the contour.
-        cont_info = contour_characterization(binary_array, contour_array, config_file['conversion_px'])
-
-        cont_info['index'] = index
-        cont_info['hierarchy'] = list(hierarchy)[0][index]
-
-        cont_info['contour'] = contour_array
-
-        new_contours.append(cont)
-        contour_info_list.append(cont_info)
-
-    if len(new_contours) != 0:
-
-        df_cont_info = pd.DataFrame.from_dict(contour_info_list)
-
-        df_cont_info['parent_index'], df_cont_info['hierarchy_level'] = get_high_level_parent_and_hierarchy(
-            df_cont_info['hierarchy'].values)
-
-        indexes = contour_selection(df_cont_info)
-
-        df_contours = df_cont_info.drop(index=indexes)
-
-    else:
+    if num_labels <= 1:
         raise RuntimeError("No contours found in this image")
 
+    contour_info_list = []
+    for i in range(1, num_labels):  # Skipping the background label (label 0)
+        area_px = stats[i, cv2.CC_STAT_AREA]
+        component_mask = (labels == i).astype(np.uint8)
+        contours, _ = cv2.findContours(component_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        contour_array = np.squeeze(contours[0])
+
+        contour_info = {
+            'index': i - 1,
+            'contour': contour_array,
+            'area_px': area_px,
+        }
+        contour_info_list.append(contour_info)
+
+    df_contours = pd.DataFrame(contour_info_list)
     return df_contours
+
+def display_contours(image: np.ndarray, df_contours: pd.DataFrame):
+    """
+    Display the original image with the detected contours overlayed.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The original image.
+    df_contours : pd.DataFrame
+        DataFrame containing contour information.
+    """
+    display_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+
+    for _, row in df_contours.iterrows():
+        contour = row['contour'].reshape(-1, 1, 2)
+        cv2.drawContours(display_image, [contour], -1, (0, 255, 0), 2)
+
+    plt.figure(figsize=(10, 10))
+    plt.imshow(cv2.cvtColor(display_image, cv2.COLOR_BGR2RGB))
+    plt.title("Detected Contours")
+    plt.axis('off')
+    plt.show()
+
 
 
 def process_image(image_array, config_file):
