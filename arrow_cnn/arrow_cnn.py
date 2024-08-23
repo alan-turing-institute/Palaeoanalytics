@@ -1,82 +1,161 @@
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.callbacks import EarlyStopping
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
 import os
+import cv2
+from PIL import Image
+import numpy as np
 
-# Set up paths for your data (Assuming you have 'train' and 'validation' folders with subfolders for each class)
-TRAIN_DIR = 'path/to/train'  # Update with the correct path
-VALIDATION_DIR = 'path/to/validation'  # Update with the correct path
+# Define the CNN model for arrow detection
+class ArrowDetectionCNN(nn.Module):
+    def __init__(self, num_classes=2):
+        super(ArrowDetectionCNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv2d(256, 512, kernel_size=3, padding=1)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.fc1 = nn.Linear(512 * 8 * 8, 1024)
+        self.fc2 = nn.Linear(1024, num_classes)
+        self.dropout = nn.Dropout(0.5)
+        self.relu = nn.ReLU()
 
-# Image data generators for loading and augmenting images
-train_datagen = ImageDataGenerator(
-    rescale=1./255,
-    rotation_range=20,
-    width_shift_range=0.2,
-    height_shift_range=0.2,
-    shear_range=0.2,
-    zoom_range=0.2,
-    horizontal_flip=True,
-    fill_mode='nearest'
-)
+    def forward(self, x):
+        x = self.pool(self.relu(self.conv1(x)))
+        x = self.pool(self.relu(self.conv2(x)))
+        x = self.pool(self.relu(self.conv3(x)))
+        x = self.pool(self.relu(self.conv4(x)))
+        x = x.view(-1, 512 * 8 * 8)
+        x = self.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = self.fc2(x)
+        return x
 
-validation_datagen = ImageDataGenerator(rescale=1./255)
+# Check if GPU is available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load the images in batches
-train_generator = train_datagen.flow_from_directory(
-    TRAIN_DIR,
-    target_size=(150, 150),
-    batch_size=32,
-    class_mode='binary'  # or 'categorical' if you have more than two classes
-)
+# Set up paths for your data (Assuming you have 'train', 'validation', and 'test' folders with subfolders for each class)
+TRAIN_DIR = 'train'
+VALIDATION_DIR = 'validation'  # Optional, only if you have a separate validation set
+TEST_DIR = 'test'
 
-validation_generator = validation_datagen.flow_from_directory(
-    VALIDATION_DIR,
-    target_size=(150, 150),
-    batch_size=32,
-    class_mode='binary'  # or 'categorical'
-)
-
-# Define the CNN model
-model = Sequential([
-    Conv2D(32, (3, 3), activation='relu', input_shape=(150, 150, 3)),
-    MaxPooling2D((2, 2)),
-    Conv2D(64, (3, 3), activation='relu'),
-    MaxPooling2D((2, 2)),
-    Conv2D(128, (3, 3), activation='relu'),
-    MaxPooling2D((2, 2)),
-    Conv2D(128, (3, 3), activation='relu'),
-    MaxPooling2D((2, 2)),
-    Flatten(),
-    Dense(512, activation='relu'),
-    Dropout(0.5),
-    Dense(1, activation='sigmoid')  # Use 'softmax' if using 'categorical'
+# Data preprocessing and loading
+transform = transforms.Compose([
+    transforms.Resize((64, 64)),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
-# Compile the model
-model.compile(
-    loss='binary_crossentropy',  # Use 'categorical_crossentropy' for multi-class classification
-    optimizer=tf.keras.optimizers.Adam(),
-    metrics=['accuracy']
-)
+train_dataset = torchvision.datasets.ImageFolder(root=TRAIN_DIR, transform=transform)
+validation_dataset = torchvision.datasets.ImageFolder(root=VALIDATION_DIR, transform=transform) if os.path.exists(VALIDATION_DIR) else None
+test_dataset = torchvision.datasets.ImageFolder(root=TEST_DIR, transform=transform)
 
-# Define early stopping to prevent overfitting
-early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
+validation_loader = DataLoader(validation_dataset, batch_size=32, shuffle=False, num_workers=4) if validation_dataset else None
+test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=4)
 
-# Train the model
-history = model.fit(
-    train_generator,
-    steps_per_epoch=train_generator.samples // train_generator.batch_size,
-    epochs=30,
-    validation_data=validation_generator,
-    validation_steps=validation_generator.samples // validation_generator.batch_size,
-    callbacks=[early_stopping]
-)
+# Initialize the model, loss function, and optimizer
+model = ArrowDetectionCNN(num_classes=2).to(device)
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# Save the model for later use
-model.save('arrow_detection_model.h5')
+# Training loop
+num_epochs = 10
+for epoch in range(num_epochs):
+    running_loss = 0.0
+    model.train()
+    for i, (inputs, labels) in enumerate(train_loader):
+        inputs, labels = inputs.to(device), labels.to(device)
 
-# Evaluate the model on the validation set
-validation_loss, validation_accuracy = model.evaluate(validation_generator)
-print(f"Validation Accuracy: {validation_accuracy * 100:.2f}%")
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
+        if i % 100 == 99:
+            print(f"Epoch [{epoch + 1}/{num_epochs}], Step [{i + 1}/{len(train_loader)}], Loss: {running_loss / 100:.4f}")
+            running_loss = 0.0
+
+    # Validation loop (if validation data is available)
+    if validation_loader:
+        model.eval()
+        validation_loss = 0.0
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for inputs, labels in validation_loader:
+                inputs, labels = inputs.to(device), labels.to(device)
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                validation_loss += loss.item()
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+
+        validation_loss /= len(validation_loader)
+        accuracy = 100 * correct / total
+        print(f"Validation Loss: {validation_loss:.4f}, Accuracy: {accuracy:.2f}%")
+
+print("Training completed")
+torch.save(model.state_dict(), "arrow_detection_cnn.pth")
+
+# Function to load arrow templates for contour matching
+def load_templates(template_dir):
+    templates = []
+    for filename in os.listdir(template_dir):
+        if filename.endswith(('.png', '.jpg', '.jpeg')):
+            template_path = os.path.join(template_dir, filename)
+            template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
+            _, binary_template = cv2.threshold(template, 127, 255, cv2.THRESH_BINARY)
+            templates.append(binary_template)
+    return templates
+
+arrow_templates = load_templates('arrow_templates/')
+
+# Function to match detected arrows with templates
+def match_template(input_image, templates):
+    detected_contours = []
+    for template in templates:
+        result = cv2.matchTemplate(input_image, template, cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, max_loc = cv2.minMaxLoc(result)
+        if max_val > 0.8:  # Threshold to consider a match
+            detected_contours.append((max_loc, template.shape))
+    return detected_contours
+
+# Function to perform detection using the CNN and refine it with contour matching
+def detect_arrows(image_path, model, templates):
+    model.eval()
+    image = Image.open(image_path)
+    image = transform(image).unsqueeze(0).to(device)
+
+    with torch.no_grad():
+        outputs = model(image)
+        _, predicted = torch.max(outputs.data, 1)
+
+    if predicted.item() == 1:  # Assuming '1' represents arrows
+        print("Arrow detected by CNN")
+        image_np = np.array(Image.open(image_path).convert('L'))
+        _, binary_image = cv2.threshold(image_np, 127, 255, cv2.THRESH_BINARY)
+        contours = match_template(binary_image, templates)
+        if contours:
+            print("Contour match found")
+            return contours
+        else:
+            print("No contour match found, false positive")
+            return None
+    else:
+        print("No arrow detected")
+        return None
+
+# Example usage
+# Assuming 'image.jpg' is the test image and 'arrow_templates/' contains the arrow templates
+detected_contours = detect_arrows('image.jpg', model, arrow_templates)
+if detected_contours:
+    print("Arrows detected and refined with contour matching")
+else:
+    print("No arrows detected or false positives removed")

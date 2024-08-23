@@ -14,7 +14,7 @@ def random_rotation(image):
     numpy.ndarray: The rotated image with adjusted canvas size to avoid clipping.
     """
     height, width = image.shape[:2]
-    angle = random.uniform(0, 360)  # Random rotation between 0 and 360 degrees
+    angle = random.uniform(1, 360)  # Random rotation between 1 and 360 degrees
     image_center = (width // 2, height // 2)
 
     # Calculate the rotation matrix
@@ -66,17 +66,19 @@ def augment_image(image):
     augmented_image = random_resizing(rotated_image)
     return augmented_image
 
-def main(input_dir, output_dir, num_augmentations=5):
+def main(input_dir, train_output_dir, test_output_dir, num_augmentations=10):
     """
     Main function to perform image augmentation and save the augmented images.
 
     Parameters:
     input_dir (str): Path to the directory with original images.
-    output_dir (str): Path to the directory to save augmented images.
-    num_augmentations (int): Number of augmentations to perform per image. Default is 5.
+    train_output_dir (str): Path to the directory to save augmented training images.
+    test_output_dir (str): Path to the directory to save augmented test images.
+    num_augmentations (int): Number of augmentations to perform per image. Default is 10.
     """
-    # Ensure the output directory exists
-    os.makedirs(output_dir, exist_ok=True)
+    # Ensure the output directories exist
+    os.makedirs(train_output_dir, exist_ok=True)
+    os.makedirs(test_output_dir, exist_ok=True)
 
     # Supported image file extensions
     supported_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif']
@@ -106,14 +108,14 @@ def main(input_dir, output_dir, num_augmentations=5):
         if idx < num_test_images:
             prefix = 'arrow_test'
             counter = test_counter
-            test_counter += 1
+            output_dir = test_output_dir
         else:
             prefix = 'arrow'
             counter = image_counter
-            image_counter += 1
+            output_dir = train_output_dir
 
         # Perform multiple augmentations per image and save each one
-        for _ in range(num_augmentations):
+        for aug_idx in range(num_augmentations):
             augmented_image = augment_image(image)
             augmented_filename = f"{prefix}{counter}{os.path.splitext(filename)[1]}"
             augmented_image_path = os.path.join(output_dir, augmented_filename)
@@ -122,16 +124,21 @@ def main(input_dir, output_dir, num_augmentations=5):
             cv2.imwrite(augmented_image_path, augmented_image)
 
             # Increment the counter for each saved augmentation
-            if prefix == 'arrow_test':
-                test_counter += 1
-            else:
-                image_counter += 1
+            counter += 1
+
+        # Update the image and test counters
+        if idx < num_test_images:
+            test_counter = counter
+        else:
+            image_counter = counter
 
     print("Image augmentation and renaming completed.")
 
 if __name__ == "__main__":
     # Set your input and output directories here
-    INPUT_DIR = 'arrow_templates/input'
-    OUTPUT_DIR = 'arrow_templates/output'
+    INPUT_DIR = 'arrow_templates/arrow_rotated'
+    TRAIN_OUTPUT_DIR = 'train/arrows'  # Example: 'images/augmented/train'
+    TEST_OUTPUT_DIR = 'test/arrows'  # Example: 'images/augmented/test'
+
     # Run the main function with the specified directories
-    main(INPUT_DIR, OUTPUT_DIR)
+    main(INPUT_DIR, TRAIN_OUTPUT_DIR, TEST_OUTPUT_DIR)
