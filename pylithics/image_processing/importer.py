@@ -1,12 +1,49 @@
 import os
-import csv
 import logging
+import cv2  # Using OpenCV for image preprocessing
 from PIL import Image
 from pylithics.image_processing.measurement import Measurement
 from pylithics.image_processing.utils import read_metadata
 
 # Load logging configuration
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
+def preprocess_image(image_path):
+    """
+    Preprocess the image by converting it to grayscale, reducing noise,
+    and applying adaptive thresholding.
+
+    :param image_path: Path to the original color image.
+    :return: The processed image ready for further analysis.
+    """
+    try:
+        # Read the image using OpenCV
+        image = cv2.imread(image_path)
+        if image is None:
+            raise ValueError(f"Image at {image_path} could not be loaded.")
+
+        # Convert to grayscale
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        logging.info(f"Converted {image_path} to grayscale.")
+
+        # Apply Gaussian blur for noise reduction
+        blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
+        logging.info(f"Applied Gaussian blur to {image_path} for noise reduction.")
+
+        # Apply adaptive thresholding for better segmentation of low-res images
+        thresholded_image = cv2.adaptiveThreshold(
+            blurred_image, 255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY,
+            11, 2
+        )
+        logging.info(f"Applied adaptive thresholding to {image_path}.")
+
+        return thresholded_image
+
+    except Exception as e:
+        logging.error(f"Failed to preprocess image {image_path}: {e}")
+        return None
 
 def validate_image_scale_dpi(image_path, scale_dpi):
     try:
@@ -24,7 +61,13 @@ def validate_image_scale_dpi(image_path, scale_dpi):
         return False
 
 def import_images(data_dir, meta_file):
-    # Directories for images and scales
+    """
+    Import images from the specified directory, preprocess each image,
+    and measure features from the processed image.
+
+    :param data_dir: Directory containing the images and scale images.
+    :param meta_file: Path to the metadata file.
+    """
     images_dir = os.path.join(data_dir, 'images')
     scales_dir = os.path.join(data_dir, 'scales')
 
@@ -47,13 +90,24 @@ def import_images(data_dir, meta_file):
             logging.error(f"Scale file not found: {scale_path}")
             continue
 
-        # Create a measurement in pixels (as an example, let's assume we're measuring width in pixels)
-        # This will be retrieved based on actual use case later
-        pixels = 500  # Example measurement in pixels
+        # Preprocess the image (grayscale + noise reduction + thresholding)
+        processed_image = preprocess_image(image_path)
+        if processed_image is None:
+            logging.error(f"Skipping measurement for {image_id} due to preprocessing failure.")
+            continue
 
-        # Create the Measurement object
+        # Validate the image DPI against the scale DPI from metadata
+        if scale_dpi is not None and not validate_image_scale_dpi(image_path, scale_dpi):
+            logging.error(f"Skipping measurement for {image_id} due to DPI mismatch.")
+            continue
+
+        # Assuming we take measurements after preprocessing (here, just a placeholder measurement)
+        # Normally, this would be based on actual features in the processed image.
+        pixels = 500  # Example placeholder for a measurement in pixels
+
+        # Create the Measurement object with the processed scale DPI
         measurement = Measurement(pixels, scale_dpi)
 
         # Convert to millimeters (if possible) or leave as pixels
         result = measurement.to_millimeters()
-        logging.info(f"Final measurement: {result} ({'mm' if measurement.is_scaled() else 'pixels'})")
+        logging.info(f"Final measurement for {image_id}: {result} ({'mm' if measurement.is_scaled() else 'pixels'})")
