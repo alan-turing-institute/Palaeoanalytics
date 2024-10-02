@@ -1,144 +1,126 @@
 import cv2
 import os
-import numpy as np
 import random
+import argparse
+from tqdm import tqdm  # Import tqdm for progress bar
 
-def random_rotation(image):
+def process_image(image, angle):
     """
-    Apply a random rotation to the input image.
+    Rotate the image by the specified angle and apply random resizing.
 
     Parameters:
-    image (numpy.ndarray): The input image to be rotated.
+    image (numpy.ndarray): The input image to be processed.
+    angle (float): The angle to rotate the image.
 
     Returns:
-    numpy.ndarray: The rotated image with adjusted canvas size to avoid clipping.
+    numpy.ndarray: The processed image (rotated and resized).
     """
     height, width = image.shape[:2]
-    angle = random.uniform(1, 360)  # Random rotation between 1 and 360 degrees
     image_center = (width // 2, height // 2)
 
-    # Calculate the rotation matrix
-    rotation_matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+    # Rotation matrix
+    rotation_matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0) # change angle of rotation
     abs_cos = abs(rotation_matrix[0, 0])
     abs_sin = abs(rotation_matrix[0, 1])
 
-    # Compute the new bounding dimensions of the image after rotation
+    # New bounding box size after rotation
     new_width = int(height * abs_sin + width * abs_cos)
     new_height = int(height * abs_cos + width * abs_sin)
 
-    # Adjust the rotation matrix to account for the new image size
+    # Adjust matrix to account for the new image size
     rotation_matrix[0, 2] += (new_width / 2) - image_center[0]
     rotation_matrix[1, 2] += (new_height / 2) - image_center[1]
 
-    # Perform the rotation with a white border to handle empty areas
-    rotated_image = cv2.warpAffine(
-        image, rotation_matrix, (new_width, new_height),
-        flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255)
-    )
-    return rotated_image
+    # Rotate with white padding for empty areas
+    rotated_image = cv2.warpAffine(image, rotation_matrix, (new_width, new_height),
+                                   flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT,
+                                   borderValue=(255, 255, 255))
 
-def random_resizing(image):
-    """
-    Apply a random resizing to the input image.
+    # Random scaling between 20% and 200%
+    scale = random.uniform(0.2, 2.0)
+    new_size = (max(int(rotated_image.shape[1] * scale), 1), max(int(rotated_image.shape[0] * scale), 1))
 
-    Parameters:
-    image (numpy.ndarray): The input image to be resized.
+    # Resize the image
+    resized_image = cv2.resize(rotated_image, new_size, interpolation=cv2.INTER_LINEAR)
 
-    Returns:
-    numpy.ndarray: The resized image.
-    """
-    scale = random.uniform(0.2, 2.0)  # Random scaling between 20% and 200%
-    new_size = (int(image.shape[1] * scale), int(image.shape[0] * scale))
-    resized_image = cv2.resize(image, new_size, interpolation=cv2.INTER_LINEAR)
     return resized_image
 
-def augment_image(image):
+def process_images(input_dir, output_dir1, output_dir2, percentage):
     """
-    Apply a series of augmentations (rotation and resizing) to the input image.
+    Process and distribute images between two directories based on the percentage split.
 
     Parameters:
-    image (numpy.ndarray): The input image to be augmented.
-
-    Returns:
-    numpy.ndarray: The augmented image.
+    input_dir (str): Directory containing input images.
+    output_dir1 (str): Directory to save the majority percentage of images.
+    output_dir2 (str): Directory to save the minority percentage of images.
+    percentage (float): Percentage of images to save to output_dir1.
     """
-    rotated_image = random_rotation(image)
-    augmented_image = random_resizing(rotated_image)
-    return augmented_image
+    # Create output directories if they don't exist
+    os.makedirs(output_dir1, exist_ok=True)
+    os.makedirs(output_dir2, exist_ok=True)
 
-def main(input_dir, train_output_dir, test_output_dir, num_augmentations=10):
-    """
-    Main function to perform image augmentation and save the augmented images.
-
-    Parameters:
-    input_dir (str): Path to the directory with original images.
-    train_output_dir (str): Path to the directory to save augmented training images.
-    test_output_dir (str): Path to the directory to save augmented test images.
-    num_augmentations (int): Number of augmentations to perform per image. Default is 10.
-    """
-    # Ensure the output directories exist
-    os.makedirs(train_output_dir, exist_ok=True)
-    os.makedirs(test_output_dir, exist_ok=True)
-
-    # Supported image file extensions
+    # Get supported image file extensions
     supported_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif']
 
-    # Initialize counters for the naming conventions
-    image_counter = 1
-    test_counter = 1
-
-    # Collect all image filenames in the input directory
+    # Collect all image files from input directory
     image_filenames = [
-        f for f in os.listdir(input_dir)
-        if any(f.lower().endswith(ext) for ext in supported_extensions)
+        filename for filename in os.listdir(input_dir)
+        if any(filename.lower().endswith(ext) for ext in supported_extensions)
     ]
 
-    # Shuffle the filenames to ensure randomness when selecting the 20% test images
-    random.shuffle(image_filenames)
+    # Store all variations (rotations and resizes) of all images
+    all_variations = []
 
-    # Calculate the number of test images (20% of total images)
-    num_test_images = int(len(image_filenames) * 0.2)
+    for filename in tqdm(image_filenames, desc="Processing images"):
+        input_image_path = os.path.join(input_dir, filename)
+        base_filename = os.path.splitext(filename)[0]
 
-    # Iterate through each image in the input directory
-    for idx, filename in enumerate(image_filenames):
-        image_path = os.path.join(input_dir, filename)
-        image = cv2.imread(image_path)
+        # Load the image
+        image = cv2.imread(input_image_path)
+        if image is None:
+            print(f"Error loading image {input_image_path}")
+            continue
 
-        # Determine if the image should be part of the test set or training set
-        if idx < num_test_images:
-            prefix = 'arrow_test'
-            counter = test_counter
-            output_dir = test_output_dir
+        # Generate 360 variations (rotated versions) for each image
+        all_variations.extend([(image, base_filename, angle) for angle in range(0,360, 15)]) # change angle rotations
+
+    # Shuffle the variations list
+    random.shuffle(all_variations)
+
+    # Determine the split based on the percentage
+    num_variations_output1 = int(len(all_variations) * (percentage / 100.0))
+
+    # Save the shuffled variations to output directories
+    for i, (image, base_filename, angle) in tqdm(enumerate(all_variations), total=len(all_variations), desc="Saving images"):
+        processed_image = process_image(image, angle)
+        output_filename = f"{base_filename}_rotated_{angle}deg_resized.png"
+
+        if i < num_variations_output1:
+            output_path = os.path.join(output_dir1, output_filename)
         else:
-            prefix = 'arrow'
-            counter = image_counter
-            output_dir = train_output_dir
+            output_path = os.path.join(output_dir2, output_filename)
 
-        # Perform multiple augmentations per image and save each one
-        for aug_idx in range(num_augmentations):
-            augmented_image = augment_image(image)
-            augmented_filename = f"{prefix}{counter}{os.path.splitext(filename)[1]}"
-            augmented_image_path = os.path.join(output_dir, augmented_filename)
+        cv2.imwrite(output_path, processed_image)
 
-            # Save the augmented image
-            cv2.imwrite(augmented_image_path, augmented_image)
-
-            # Increment the counter for each saved augmentation
-            counter += 1
-
-        # Update the image and test counters
-        if idx < num_test_images:
-            test_counter = counter
-        else:
-            image_counter = counter
-
-    print("Image augmentation and renaming completed.")
+    print(f"Rotation, resizing, and saving of all image variations completed with {percentage}% going to {output_dir1} and the remaining {100 - percentage}% going to {output_dir2}.")
 
 if __name__ == "__main__":
-    # Set your input and output directories here
-    INPUT_DIR = 'arrow_templates/arrow_rotated'
-    TRAIN_OUTPUT_DIR = 'train/arrows'  # Example: 'images/augmented/train'
-    TEST_OUTPUT_DIR = 'test/arrows'  # Example: 'images/augmented/test'
+    # Set up command line argument parsing
+    parser = argparse.ArgumentParser(
+        description="Rotate and resize images, and distribute them between two output directories."
+    )
+# Define the command-line arguments
+    parser.add_argument('-i', '--input', type=str, required=True, help="Directory containing the input images.")
+    parser.add_argument('-o1', '--output1', type=str, required=True, help="Directory to save the training set of images.")
+    parser.add_argument('-o2', '--output2', type=str, required=True, help="Directory to save the test set of images.")
+    parser.add_argument(
+        '-p', '--percentage', type=float, default=80.0,
+        help=(
+            "Percentage of images to save to output1 (the training set). "
+            "Remaining images will automatically go to output2 (the test set). Default is an 80%% : 20%% split."
+        )
+    )
 
-    # Run the main function with the specified directories
-    main(INPUT_DIR, TRAIN_OUTPUT_DIR, TEST_OUTPUT_DIR)
+    # Parse the arguments and run the image processing function
+    args = parser.parse_args()
+    process_images(args.input, args.output1, args.output2, args.percentage)
