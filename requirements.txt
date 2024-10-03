@@ -1,9 +1,4 @@
-numpy==1.20.2
-matplotlib==3.3.4
-pytest==7.1.2
-pandas==1.2.4
-scikit-image==0.18.1
-scipy==1.6.2
-opencv-contrib-python==4.5.4.60
-pyyaml==5.4.1
-simplejson==3.17.6
+#opencv-python-headless==4.8.0.74  # For image processing (headless version, no GUI)
+Pillow==9.3.0  # For handling image files in PIL format (used for DPI checks)
+numpy>=1.21.0  # OpenCV relies on numpy for array handling
+argparse  # Built-in library, not needed to be specified for modern Python versions but included for completeness
