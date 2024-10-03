@@ -1,0 +1,18 @@
+thresholding:
+  method: adaptive  # Options: "adaptive", "simple", "otsu", "default"
+  threshold_value: 127  # Only used for "simple" thresholding
+  max_value: 255  # Maximum pixel value after thresholding
+
+normalization:
+  enabled: true  # Enable or disable normalization
+  method: minmax  # Options: "minmax", "zscore", "custom"
+  clip_values: [0, 255]  # Clip intensity values to this range after normalization
+
+grayscale_conversion:
+  enabled: true  # Enable grayscale conversion step
+  method: standard  # Options: "standard", "clahe"
+
+logging:
+  level: INFO  # Log level, e.g., DEBUG, INFO, WARNING, ERROR
+  log_to_file: true  # Enable logging to a file
+  log_file: logs/pylithics.log  # File path for log output
