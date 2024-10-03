@@ -1,6 +1,2 @@
-PA_ID,scale_ID,PA_scale
-KL3_5313_1,sc_001,50
-awbari,sc_001,50
-qesem_cave,sc_001,50
-replica_1,sc_001,50
-rub_al_khali,sc_001,50
+image_id,scale_id,scale
+awbari.png,sc_001,50
