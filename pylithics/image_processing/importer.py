@@ -1,7 +1,6 @@
 import os
 import logging
 import cv2  # Using OpenCV for image preprocessing
-import json
 from PIL import Image
 from pylithics.image_processing.measurement import Measurement
 from pylithics.image_processing.utils import read_metadata
@@ -14,20 +13,35 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 ### CONFIGURATION LOADER ###
 
+import os
+import yaml
+import logging
+
 def load_config(config_file="config.yaml"):
     """
-    Load configuration settings from a YAML file.
-    :param config_file: Path to the configuration file.
+    Load configuration settings from a YAML file located in the 'pylithics/config' directory.
+    :param config_file: Name of the configuration file.
     :return: A dictionary containing configuration settings.
     """
     try:
-        with open(config_file, 'r') as f:
+        # Get the directory of the current file and navigate up to the parent 'pylithics' directory
+        base_dir = os.path.dirname(os.path.dirname(__file__))
+
+        # Join the correct path to the 'config' directory
+        config_file_path = os.path.join(base_dir, 'config', config_file)
+
+        if not os.path.exists(config_file_path):
+            logging.error(f"Configuration file {config_file_path} not found.")
+            return None
+
+        with open(config_file_path, 'r') as f:
             config = yaml.safe_load(f)
-        logging.info(f"Loaded configuration from {config_file}.")
+        logging.info(f"Loaded configuration from {config_file_path}.")
         return config
     except Exception as e:
-        logging.error(f"Failed to load config file {config_file}: {e}")
+        logging.error(f"Failed to load config file {config_file_path}: {e}")
         return None
+
 
 
 ### IMAGE PROCESSING FUNCTIONS ###
@@ -110,7 +124,6 @@ def normalize_grayscale_image(gray_image, config):
     return normalized_image
 
 
-
 ### DYNAMIC THRESHOLDING BASED ON CONFIGURATION ###
 
 def apply_threshold(normalized_image, config):
@@ -122,7 +135,7 @@ def apply_threshold(normalized_image, config):
     :return: Thresholded image.
     """
     try:
-        method = config['thresholding']['method']
+        method = config['thresholding'].get('method', 'default')
         max_value = config['thresholding'].get('max_value', 255)
 
         # Apply Gaussian blur for noise reduction before thresholding
@@ -242,15 +255,16 @@ def preprocess_image(image_path, config):
     if image is None:
         return None
 
-    gray_image = convert_to_grayscale(image)
+    # Pass the config object when calling convert_to_grayscale
+    gray_image = convert_to_grayscale(image, config)
     if gray_image is None:
         return None
 
-    normalized_image = normalize_grayscale_image(gray_image)
+    normalized_image = normalize_grayscale_image(gray_image, config)  # Pass config here too
     if normalized_image is None:
         return None
 
-    thresholded_image = apply_threshold(normalized_image, config)
+    thresholded_image = apply_threshold(normalized_image, config)  # And here
     if thresholded_image is None:
         return None
 
@@ -270,7 +284,10 @@ def import_images(data_dir, meta_file, save_processed_images=False):
     scales_dir = os.path.join(data_dir, 'scales')
 
     # Load configuration from file
-    config = load_config("config.json")
+    config = load_config("config.yaml")
+    if config is None:
+        logging.error("Configuration could not be loaded. Exiting.")
+        return
 
     # Load metadata
     metadata = read_metadata(meta_file)
