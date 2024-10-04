@@ -19,7 +19,7 @@ def main():
     parser.add_argument('--log_level', choices=["DEBUG", "INFO", "WARNING", "ERROR"], help="Logging level to override config.")
 
     # Option to save processed images
-    parser.add_argument('--save_processed_images', action='store_true', help="Save processed images to disk.")
+    parser.add_argument('--show_thresholded_images', action='store_true', help="Save processed images to disk.")
 
     args = parser.parse_args()
 
@@ -36,7 +36,7 @@ def main():
     logging.basicConfig(level=getattr(logging, config['logging']['level'].upper(), 'INFO'))
 
     # Call the import_images function with the modified config
-    import_images(args.data_dir, args.meta_file, save_processed_images=args.save_processed_images)
+    import_images(args.data_dir, args.meta_file, show_thresholded_images=args.show_thresholded_images)
 
 if __name__ == "__main__":
     main()
