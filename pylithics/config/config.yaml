@@ -1,18 +1,52 @@
+# PyLithics Configuration File
+# This file allows you to customize the behavior of PyLithics.
+# Below are descriptions of each section and how to modify them to fit your needs.
+
 thresholding:
-  method: adaptive  # Options: "adaptive", "simple", "otsu", "default"
-  threshold_value: 127  # Only used for "simple" thresholding
-  max_value: 255  # Maximum pixel value after thresholding
+  method: adaptive  # Choose the thresholding method:
+                    # - "adaptive" adjusts the threshold based on local image regions.
+                    # - "simple" uses a fixed threshold value (see threshold_value below).
+                    # - "otsu" calculates the optimal threshold value automatically.
+                    # - "default" is the fallback, which uses adaptive thresholding.
+
+  threshold_value: 127  # Only used for "simple" thresholding. This sets the threshold value.
+                        # Any pixel intensity above this value is set to max_value, and below this is set to 0.
+
+  max_value: 255  # Maximum pixel intensity after thresholding.
+                  # Typically set to 255 (for binary images), but you can change this if needed.
 
 normalization:
-  enabled: true  # Enable or disable normalization
-  method: minmax  # Options: "minmax", "zscore", "custom"
-  clip_values: [0, 255]  # Clip intensity values to this range after normalization
+  enabled: true  # Enable or disable image normalization (contrast adjustment).
+                 # - true: Normalization is applied.
+                 # - false: Normalization is skipped.
+
+  method: minmax  # Choose the normalization method:
+                  # - "minmax" rescales pixel intensities to the range specified by clip_values.
+                  # - "zscore" standardizes the image (mean 0, standard deviation 1).
+                  # - "custom" is reserved for advanced users who define custom methods.
+
+  clip_values: [0, 255]  # The range to which pixel values are scaled during normalization.
+                         # By default, values are scaled to between 0 and 255.
 
 grayscale_conversion:
-  enabled: true  # Enable grayscale conversion step
-  method: standard  # Options: "standard", "clahe"
+  enabled: true  # Enable or disable grayscale conversion.
+                 # - true: Converts the image to grayscale before further processing.
+                 # - false: Skips grayscale conversion.
+
+  method: standard  # Choose the grayscale conversion method:
+                    # - "standard" converts RGB images to grayscale.
+                    # - "clahe" enhances image contrast using localized histogram equalization.
 
 logging:
-  level: INFO  # Log level, e.g., DEBUG, INFO, WARNING, ERROR
-  log_to_file: true  # Enable logging to a file
-  log_file: logs/pylithics.log  # File path for log output
+  level: INFO  # Set the logging level:
+               # - "DEBUG" provides detailed logs for troubleshooting.
+               # - "INFO" provides general logs (recommended for most users).
+               # - "WARNING" logs potential issues.
+               # - "ERROR" logs only critical errors that prevent PyLithics from running.
+
+  log_to_file: true  # Enable or disable logging to a file.
+                     # - true: Logs will be saved to the file specified below.
+                     # - false: Logs will only appear in the console.
+
+  log_file: logs/pylithics.log  # File path for saving logs.
+                                # By default, logs are saved in "logs/pylithics.log".
