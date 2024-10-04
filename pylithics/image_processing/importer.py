@@ -1,10 +1,32 @@
+"""
+PyLithics: Image Import and Preprocessing Module
+
+This module provides functions for importing, preprocessing, and validating
+images of stone tools for the PyLithics project. It supports image loading,
+grayscale conversion, contrast normalization, and various thresholding methods.
+
+The module also includes functionality for reading a configuration file
+and applying settings from it during image processing. Configuration can
+be provided via command-line arguments, environment variables, or default
+bundled configurations.
+
+Usage:
+    - load_config(): Load configuration from a YAML file.
+    - load_image(): Load an image using OpenCV.
+    - convert_to_grayscale(): Convert an image to grayscale.
+    - normalize_grayscale_image(): Normalize a grayscale image.
+    - apply_threshold(): Apply various thresholding methods to an image.
+    - validate_image_scale_dpi(): Validate image DPI and calculate pixel-to-mm conversion.
+    - preprocess_image(): Preprocess images by chaining the above functions.
+    - import_images(): Import images and apply the preprocessing pipeline.
+"""
+
 import os
 import logging
 import cv2  # Using OpenCV for image preprocessing
 from PIL import Image
 import yaml
 from pkg_resources import resource_filename
-from pylithics.image_processing.measurement import Measurement
 from pylithics.image_processing.utils import read_metadata
 
 
@@ -27,21 +49,24 @@ def load_config(config_file=None):
         # Fallback to the bundled default config inside the package
         config_path = resource_filename(__name__, '../config/config.yaml')
 
-    # Logging the correct config path that is being used
-    logging.info(f"Attempting to load config file from: {config_path}")
+    logging.info("Attempting to load config file from: %s", config_path)
 
     # Attempt to load the config file
     try:
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:  # Specify encoding
             config = yaml.safe_load(f)
-        logging.info(f"Loaded configuration from {config_path}.")
+        logging.info("Loaded configuration from %s.", config_path)
         return config
     except FileNotFoundError:
-        logging.error(f"Configuration file {config_path} not found.")
+        logging.error("Configuration file %s not found.", config_path)
         return None
-    except Exception as e:
-        logging.error(f"Failed to load config file {config_path}: {e}")
+    except yaml.YAMLError as yaml_error:
+        logging.error("Failed to parse YAML file %s: %s", config_path, yaml_error)
         return None
+    except OSError as os_error:
+        logging.error("Failed to load config file %s due to OS error: %s", config_path, os_error)
+        return None
+
 
 ### IMAGE PROCESSING FUNCTIONS ###
 
@@ -50,11 +75,14 @@ def load_image(image_path):
     try:
         image = cv2.imread(image_path)
         if image is None:
-            raise ValueError(f"Image at {image_path} could not be loaded.")
-        logging.info(f"Loaded image: {image_path}")
+            raise ValueError("Image at %s could not be loaded." % image_path)
+        logging.info("Loaded image: %s", image_path)
         return image
-    except Exception as e:
-        logging.error(f"Failed to load image {image_path}: {e}")
+    except ValueError as value_error:
+        logging.error("Image loading error: %s", value_error)
+        return None
+    except OSError as os_error:
+        logging.error("Failed to load image %s due to OS error: %s", image_path, os_error)
         return None
 
 def convert_to_grayscale(image, config):
@@ -63,16 +91,19 @@ def convert_to_grayscale(image, config):
         return image  # If grayscale conversion is disabled, return the original image
 
     method = config['grayscale_conversion'].get('method', 'standard')
-    if method == "standard":
-        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        logging.info("Converted image to standard grayscale.")
-    elif method == "clahe":
-        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        gray_image = clahe.apply(gray_image)
-        logging.info("Converted image to CLAHE grayscale.")
-    else:
-        logging.error(f"Unsupported grayscale conversion method: {method}")
+    try:
+        if method == "standard":
+            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            logging.info("Converted image to standard grayscale.")
+        elif method == "clahe":
+            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            gray_image = clahe.apply(gray_image)
+            logging.info("Converted image to CLAHE grayscale.")
+        else:
+            raise ValueError(f"Unsupported grayscale conversion method: {method}")
+    except ValueError as value_error:
+        logging.error("Error in grayscale conversion: %s", value_error)
         return None
 
     return gray_image
@@ -83,19 +114,22 @@ def normalize_grayscale_image(gray_image, config):
         return gray_image  # Skip normalization if disabled
 
     method = config['normalization'].get('method', 'minmax')
-    if method == "minmax":
-        normalized_image = cv2.normalize(
-            gray_image, None, alpha=config['normalization'].get('clip_values', [0, 255])[0],
-            beta=config['normalization'].get('clip_values', [0, 255])[1], norm_type=cv2.NORM_MINMAX
-        )
-        logging.info("Applied Min-Max normalization.")
-    elif method == "zscore":
-        mean = gray_image.mean()
-        std = gray_image.std()
-        normalized_image = (gray_image - mean) / std
-        logging.info("Applied Z-score normalization.")
-    else:
-        logging.error(f"Unsupported normalization method: {method}")
+    try:
+        if method == "minmax":
+            normalized_image = cv2.normalize(
+                gray_image, None, alpha=config['normalization'].get('clip_values', [0, 255])[0],
+                beta=config['normalization'].get('clip_values', [0, 255])[1], norm_type=cv2.NORM_MINMAX
+            )
+            logging.info("Applied Min-Max normalization.")
+        elif method == "zscore":
+            mean = gray_image.mean()
+            std = gray_image.std()
+            normalized_image = (gray_image - mean) / std
+            logging.info("Applied Z-score normalization.")
+        else:
+            raise ValueError(f"Unsupported normalization method: {method}")
+    except ValueError as value_error:
+        logging.error("Normalization error: %s", value_error)
         return None
 
     return normalized_image
@@ -124,11 +158,14 @@ def apply_threshold(normalized_image, config):
             raise ValueError(f"Unsupported thresholding method: {method}")
 
         thresholded_image = threshold_methods[method]()
-        logging.info(f"Applied {method} thresholding.")
+        logging.info("Applied %s thresholding.", method)
         return thresholded_image
 
-    except Exception as e:
-        logging.error(f"Failed to apply thresholding: {e}")
+    except ValueError as value_error:
+        logging.error("Thresholding error: %s", value_error)
+        return None
+    except OSError as os_error:
+        logging.error("OS error during thresholding: %s", os_error)
         return None
 
 
@@ -140,17 +177,17 @@ def validate_image_scale_dpi(image_path, real_world_scale_mm):
         with Image.open(image_path) as img:
             dpi = img.info.get('dpi')
             if dpi is None:
-                logging.warning(f"DPI information missing for {image_path}")
+                logging.warning("DPI information missing for %s", image_path)
                 return None
 
             pixels_per_mm = dpi[0] / 25.4
             scale_length_pixels = real_world_scale_mm * pixels_per_mm
-            logging.info(f"Image DPI: {dpi[0]}, Real-world scale (mm): {real_world_scale_mm}, "
-                         f"Scale bar in pixels: {scale_length_pixels}")
+            logging.info("Image DPI: %f, Real-world scale (mm): %f, Scale bar in pixels: %f",
+                         dpi[0], real_world_scale_mm, scale_length_pixels)
 
             return pixels_per_mm
-    except Exception as e:
-        logging.error(f"Failed to load image {image_path}: {e}")
+    except OSError as os_error:
+        logging.error("OS error loading image %s: %s", image_path, os_error)
         return None
 
 
@@ -196,7 +233,6 @@ def preprocess_image(image_path, config):
 
     thresholded_image = apply_threshold(normalized_image, config)
 
-    # Fix: Check if thresholded_image is valid (use .any() or .all() depending on your logic)
     if thresholded_image is not None and thresholded_image.any():
         return thresholded_image
     else:
@@ -205,12 +241,11 @@ def preprocess_image(image_path, config):
 
 ### MAIN IMAGE IMPORT FUNCTION ###
 
-def import_images(data_dir, meta_file, show_thresholded_images=False):
+def import_images(data_dir, meta_file):
     """
     Import images from the specified directory, preprocess each image, and measure features from the processed image.
     :param data_dir: Directory containing the images and scale images.
     :param meta_file: Path to the metadata file.
-    :param show_thresholded_images: Flag to determine whether to show thresholded images (no longer used).
     """
     images_dir = os.path.join(data_dir, 'images')
     scales_dir = os.path.join(data_dir, 'scales')
@@ -235,26 +270,26 @@ def import_images(data_dir, meta_file, show_thresholded_images=False):
 
         # Validate if files exist
         if not image_path:
-            logging.error(f"Image file not found: {os.path.join(images_dir, image_id)}")
+            logging.error("Image file not found: %s", os.path.join(images_dir, image_id))
             continue
         if not scale_path:
-            logging.error(f"Scale file not found: {os.path.join(scales_dir, scale_id)}")
+            logging.error("Scale file not found: %s", os.path.join(scales_dir, scale_id))
             continue
 
         # Preprocess the image
         processed_image = preprocess_image(image_path, config)
         if processed_image is None:
-            logging.error(f"Skipping measurement for {image_id} due to preprocessing failure.")
+            logging.error("Skipping measurement for %s due to preprocessing failure.", image_id)
             continue
 
         # Validate the image DPI and calculate the conversion factor
         conversion_factor = validate_image_scale_dpi(image_path, real_world_scale_mm)
         if conversion_factor is None:
-            logging.error(f"Skipping measurement for {image_id} due to DPI mismatch or missing information.")
+            logging.error("Skipping measurement for %s due to DPI mismatch or missing information.", image_id)
             continue
 
         # Save the processed image
         processed_image_path = os.path.join(data_dir, 'processed', f"{image_id}_processed.png")
         os.makedirs(os.path.dirname(processed_image_path), exist_ok=True)
         cv2.imwrite(processed_image_path, processed_image)
-        logging.info(f"Saved preprocessed image: {processed_image_path}")
+        logging.info("Saved preprocessed image: %s", processed_image_path)
