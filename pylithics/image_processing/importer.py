@@ -241,7 +241,7 @@ def preprocess_image(image_path, config):
 
 ### MAIN IMAGE IMPORT FUNCTION ###
 
-def import_images(data_dir, meta_file):
+def import_images(data_dir, meta_file, show_thresholded_images):
     """
     Import images from the specified directory, preprocess each image, and measure features from the processed image.
     :param data_dir: Directory containing the images and scale images.

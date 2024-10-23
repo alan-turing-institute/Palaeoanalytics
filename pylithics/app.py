@@ -26,6 +26,7 @@ import logging
 from pylithics.image_processing.importer import import_images, load_config
 
 
+
 def setup_logging(level):
     """
     Set up logging configuration with the specified logging level.
