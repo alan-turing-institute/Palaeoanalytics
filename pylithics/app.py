@@ -23,8 +23,7 @@ Options:
 
 import argparse
 import logging
-from pylithics.image_processing.importer import import_images, load_config
-
+from pylithics.image_processing.importer import preprocess_images, load_preprocessing_config
 
 
 def setup_logging(level):
@@ -47,7 +46,7 @@ def setup_logging(level):
 
 def main():
     """
-    Main function to parse command-line arguments and initiate the image import process.
+    Main function to parse command-line arguments and initiate the image preprocessing process.
     """
     parser = argparse.ArgumentParser(description="PyLithics: Stone Tool Image Analysis")
 
@@ -69,12 +68,12 @@ def main():
 
     # Option to save processed images
     parser.add_argument('--show_thresholded_images', action='store_true',
-                        help="Save processed images to disk.")
+                        help="Display processed images after preprocessing.")
 
     args = parser.parse_args()
 
     # Load the config file (default or custom)
-    config = load_config(args.config_file)
+    config = load_preprocessing_config(args.config_file)
 
     # Override config settings with command-line arguments
     if args.threshold_method:
@@ -88,9 +87,9 @@ def main():
     logging.info("Logging level set to %s", log_level.upper())
     logging.info("Configuration loaded from: %s", args.config_file)
 
-    # Call the import_images function with the modified config
-    import_images(args.data_dir, args.meta_file,
-                  show_thresholded_images=args.show_thresholded_images)
+    # Call the preprocess_images function with the modified config
+    preprocess_images(args.data_dir, args.meta_file,
+                      show_thresholded_images=args.show_thresholded_images)
 
 
 if __name__ == "__main__":

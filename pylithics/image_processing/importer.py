@@ -11,14 +11,14 @@ be provided via command-line arguments, environment variables, or default
 bundled configurations.
 
 Usage:
-    - load_config(): Load configuration from a YAML file.
-    - load_image(): Load an image using OpenCV.
-    - convert_to_grayscale(): Convert an image to grayscale.
-    - normalize_grayscale_image(): Normalize a grayscale image.
-    - apply_threshold(): Apply various thresholding methods to an image.
-    - validate_image_scale_dpi(): Validate image DPI and calculate pixel-to-mm conversion.
-    - preprocess_image(): Preprocess images by chaining the above functions.
-    - import_images(): Import images and apply the preprocessing pipeline.
+    - load_preprocessing_config(): Load configuration from a YAML file.
+    - read_image_from_path(): Load an image using OpenCV.
+    - apply_grayscale_conversion(): Convert an image to grayscale.
+    - apply_contrast_normalization(): Normalize a grayscale image.
+    - perform_thresholding(): Apply various thresholding methods to an image.
+    - verify_image_dpi_and_scale(): Validate image DPI and calculate pixel-to-mm conversion.
+    - execute_preprocessing_pipeline(): Preprocess images by chaining the above functions.
+    - preprocess_images(): Import images and apply the preprocessing pipeline.
 """
 
 import os
@@ -32,7 +32,7 @@ from pylithics.image_processing.utils import read_metadata
 
 ### CONFIGURATION LOADER ###
 
-def load_config(config_file=None):
+def load_preprocessing_config(config_file=None):
     """
     Load configuration settings from a YAML file. The config file can be provided as a
     command-line argument, environment variable, or default to a bundled file.
@@ -40,20 +40,17 @@ def load_config(config_file=None):
     :param config_file: Path to the configuration file, optional.
     :return: A dictionary containing configuration settings.
     """
-    # If a config file is provided via argument or environment variable, use it
     if config_file and os.path.isabs(config_file):
         config_path = config_file
     elif os.getenv('PYLITHICS_CONFIG'):
         config_path = os.getenv('PYLITHICS_CONFIG')
     else:
-        # Fallback to the bundled default config inside the package
         config_path = resource_filename(__name__, '../config/config.yaml')
 
     logging.info("Attempting to load config file from: %s", config_path)
 
-    # Attempt to load the config file
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:  # Specify encoding
+        with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
         logging.info("Loaded configuration from %s.", config_path)
         return config
@@ -70,7 +67,7 @@ def load_config(config_file=None):
 
 ### IMAGE PROCESSING FUNCTIONS ###
 
-def load_image(image_path):
+def read_image_from_path(image_path):
     """Load an image from the specified path using OpenCV."""
     try:
         image = cv2.imread(image_path)
@@ -85,10 +82,10 @@ def load_image(image_path):
         logging.error("Failed to load image %s due to OS error: %s", image_path, os_error)
         return None
 
-def convert_to_grayscale(image, config):
+def apply_grayscale_conversion(image, config):
     """Convert the input image to grayscale based on config settings."""
     if not config.get('grayscale_conversion', {}).get('enabled', True):
-        return image  # If grayscale conversion is disabled, return the original image
+        return image
 
     method = config['grayscale_conversion'].get('method', 'standard')
     try:
@@ -108,10 +105,10 @@ def convert_to_grayscale(image, config):
 
     return gray_image
 
-def normalize_grayscale_image(gray_image, config):
+def apply_contrast_normalization(gray_image, config):
     """Normalize the grayscale image by stretching contrast based on config settings."""
     if not config.get('normalization', {}).get('enabled', True):
-        return gray_image  # Skip normalization if disabled
+        return gray_image
 
     method = config['normalization'].get('method', 'minmax')
     try:
@@ -135,7 +132,7 @@ def normalize_grayscale_image(gray_image, config):
     return normalized_image
 
 
-def apply_threshold(normalized_image, config):
+def perform_thresholding(normalized_image, config):
     """Apply various thresholding methods based on the configuration."""
     try:
         method = config['thresholding'].get('method', 'default')
@@ -171,7 +168,7 @@ def apply_threshold(normalized_image, config):
 
 ### IMAGE VALIDATION ###
 
-def validate_image_scale_dpi(image_path, real_world_scale_mm):
+def verify_image_dpi_and_scale(image_path, real_world_scale_mm):
     """Validate the DPI of the image and calculate the conversion factor between pixels and millimeters."""
     try:
         with Image.open(image_path) as img:
@@ -195,7 +192,7 @@ def validate_image_scale_dpi(image_path, real_world_scale_mm):
 
 COMMON_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.tiff', '.bmp', '.gif']
 
-def find_image_file(image_dir, image_name):
+def locate_image_file(image_dir, image_name):
     """Find the image file in the directory, allowing the file extension to be omitted in the input."""
     if '.' in image_name:
         image_path = os.path.join(image_dir, image_name)
@@ -211,7 +208,7 @@ def find_image_file(image_dir, image_name):
 
 ### IMAGE PREPROCESSING PIPELINE ###
 
-def preprocess_image(image_path, config):
+def execute_preprocessing_pipeline(image_path, config):
     """
     A high-level function to preprocess an image by loading, converting to grayscale,
     normalizing, and applying thresholding.
@@ -219,19 +216,19 @@ def preprocess_image(image_path, config):
     :param config: Configuration dictionary for preprocessing.
     :return: The processed image or None if any step fails.
     """
-    image = load_image(image_path)
+    image = read_image_from_path(image_path)
     if image is None:
         return None
 
-    gray_image = convert_to_grayscale(image, config)
+    gray_image = apply_grayscale_conversion(image, config)
     if gray_image is None:
         return None
 
-    normalized_image = normalize_grayscale_image(gray_image, config)
+    normalized_image = apply_contrast_normalization(gray_image, config)
     if normalized_image is None:
         return None
 
-    thresholded_image = apply_threshold(normalized_image, config)
+    thresholded_image = perform_thresholding(normalized_image, config)
 
     if thresholded_image is not None and thresholded_image.any():
         return thresholded_image
@@ -241,7 +238,7 @@ def preprocess_image(image_path, config):
 
 ### MAIN IMAGE IMPORT FUNCTION ###
 
-def import_images(data_dir, meta_file, show_thresholded_images):
+def preprocess_images(data_dir, meta_file, show_thresholded_images):
     """
     Import images from the specified directory, preprocess each image, and measure features from the processed image.
     :param data_dir: Directory containing the images and scale images.
@@ -250,25 +247,21 @@ def import_images(data_dir, meta_file, show_thresholded_images):
     images_dir = os.path.join(data_dir, 'images')
     scales_dir = os.path.join(data_dir, 'scales')
 
-    # Load configuration from file
-    config = load_config("config.yaml")
+    config = load_preprocessing_config("config.yaml")
     if config is None:
         logging.error("Configuration could not be loaded. Exiting.")
         return
 
-    # Load metadata
     metadata = read_metadata(meta_file)
 
     for entry in metadata:
         image_id = entry['image_id']
         scale_id = entry['scale_id']
-        real_world_scale_mm = float(entry['scale']) if entry['scale'] else None  # This is in mm, not DPI
+        real_world_scale_mm = float(entry['scale']) if entry['scale'] else None
 
-        # Find the image and scale files
-        image_path = find_image_file(images_dir, image_id)
-        scale_path = find_image_file(scales_dir, scale_id)
+        image_path = locate_image_file(images_dir, image_id)
+        scale_path = locate_image_file(scales_dir, scale_id)
 
-        # Validate if files exist
         if not image_path:
             logging.error("Image file not found: %s", os.path.join(images_dir, image_id))
             continue
@@ -276,19 +269,16 @@ def import_images(data_dir, meta_file, show_thresholded_images):
             logging.error("Scale file not found: %s", os.path.join(scales_dir, scale_id))
             continue
 
-        # Preprocess the image
-        processed_image = preprocess_image(image_path, config)
+        processed_image = execute_preprocessing_pipeline(image_path, config)
         if processed_image is None:
             logging.error("Skipping measurement for %s due to preprocessing failure.", image_id)
             continue
 
-        # Validate the image DPI and calculate the conversion factor
-        conversion_factor = validate_image_scale_dpi(image_path, real_world_scale_mm)
+        conversion_factor = verify_image_dpi_and_scale(image_path, real_world_scale_mm)
         if conversion_factor is None:
             logging.error("Skipping measurement for %s due to DPI mismatch or missing information.", image_id)
             continue
 
-        # Save the processed image
         processed_image_path = os.path.join(data_dir, 'processed', f"{image_id}_processed.png")
         os.makedirs(os.path.dirname(processed_image_path), exist_ok=True)
         cv2.imwrite(processed_image_path, processed_image)
