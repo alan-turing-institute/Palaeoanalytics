@@ -2,13 +2,13 @@
 PyLithics: Image Analysis Module
 
 This module provides functions for performing contour analysis on
-preprocessed images. It reads thresholded images, finds contours,
-and calculates measurements such as area, centroid, maximum height,
-and width for each contour.
+preprocessed images. It accepts thresholded images from the preprocessing
+pipeline, finds contours, and calculates measurements such as area, centroid,
+maximum height, and width for each contour.
 
 Usage:
-    - analyze_contours(): Find contours and calculate measurements.
-    - load_processed_images(): Load preprocessed images from a specified directory.
+    - analyze_image_contours(): Perform contour analysis on a given image.
+    - save_measurements_to_csv(): Save the contour measurements to a CSV file.
 """
 
 import os
@@ -16,102 +16,59 @@ import cv2
 import logging
 import pandas as pd
 
-def load_processed_images(processed_dir):
+
+def analyze_image_contours(thresholded_image, image_id, conversion_factor):
     """
-    Load preprocessed images from the specified directory.
-
-    :param processed_dir: Directory containing processed images.
-    :return: List of image file paths.
+    Perform contour analysis on the thresholded image.
     """
-    if not os.path.exists(processed_dir):
-        logging.error("Processed directory not found: %s", processed_dir)
-        return []
-
-    # Get all image file paths in the directory
-    image_files = [os.path.join(processed_dir, f) for f in os.listdir(processed_dir)
-                   if f.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif'))]
-
-    if not image_files:
-        logging.warning("No processed images found in: %s", processed_dir)
-
-    return image_files
-
-def analyze_contours(image_path):
-    """
-    Analyze contours in the given preprocessed image.
-
-    :param image_path: Path to the thresholded image.
-    :return: DataFrame containing contour measurements (area, centroid, height, width).
-    """
-    # Load the image in grayscale mode
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    if image is None:
-        logging.error("Could not load image: %s", image_path)
-        return pd.DataFrame()
-
-    # Find contours
-    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Data to be stored in the DataFrame
+    contours, _ = cv2.findContours(thresholded_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     measurements = []
 
-    for i, contour in enumerate(contours):
-        # Calculate contour area
-        area = cv2.contourArea(contour)
-
-        # Calculate contour centroid
+    for idx, contour in enumerate(contours):
+        area = cv2.contourArea(contour) * (conversion_factor ** 2)
         moments = cv2.moments(contour)
         if moments["m00"] != 0:
-            cx = int(moments["m10"] / moments["m00"])
-            cy = int(moments["m01"] / moments["m00"])
+            centroid_x = (moments["m10"] / moments["m00"]) * conversion_factor
+            centroid_y = (moments["m01"] / moments["m00"]) * conversion_factor
         else:
-            cx, cy = 0, 0
+            centroid_x, centroid_y = 0, 0
 
-        # Calculate bounding box (for width and height)
-        x, y, w, h = cv2.boundingRect(contour)
+        x, y, width, height = cv2.boundingRect(contour)
+        width = width * conversion_factor
+        height = height * conversion_factor
 
-        # Store the data in a dictionary
         measurements.append({
-            "label": f"contour_{i+1}",
+            "label": f"contour_{idx + 1}",
             "area": area,
-            "centroid_x": cx,
-            "centroid_y": cy,
-            "width": w,
-            "height": h
+            "centroid_x": centroid_x,
+            "centroid_y": centroid_y,
+            "width": width,
+            "height": height,
+            "image_id": image_id
         })
 
-    # Convert the list of dictionaries to a DataFrame
-    df_measurements = pd.DataFrame(measurements)
+    return pd.DataFrame(measurements)
 
-    return df_measurements
+
+def save_measurements_to_csv(df_measurements, output_dir, output_filename="contour_measurements.csv"):
+    """
+    Save the contour measurements to a CSV file.
+    """
+    output_csv = os.path.join(output_dir, output_filename)
+    os.makedirs(output_dir, exist_ok=True)
+    df_measurements.to_csv(output_csv, index=False)
+    logging.info("Saved contour measurements to: %s", output_csv)
+
+
 
 def main(data_dir):
     """
-    Main function to perform image analysis on all processed images in a directory.
+    Main function to perform image analysis. This function remains for backward compatibility.
 
     :param data_dir: The root data directory containing a 'processed' subdirectory.
     """
-    processed_dir = os.path.join(data_dir, 'processed')
-    image_files = load_processed_images(processed_dir)
+    logging.info("This version of main is deprecated. Direct calls from preprocessing are recommended.")
 
-    all_measurements = []
-
-    for image_file in image_files:
-        logging.info("Analyzing contours in image: %s", image_file)
-        df = analyze_contours(image_file)
-        if not df.empty:
-            df["image"] = os.path.basename(image_file)  # Add image name to DataFrame
-            all_measurements.append(df)
-
-    if all_measurements:
-        # Concatenate all measurements into a single DataFrame
-        final_df = pd.concat(all_measurements, ignore_index=True)
-        # Save the results to a CSV file
-        output_csv = os.path.join(data_dir, "contour_measurements.csv")
-        final_df.to_csv(output_csv, index=False)
-        logging.info("Saved contour measurements to: %s", output_csv)
-    else:
-        logging.warning("No contours found in any processed images.")
 
 if __name__ == "__main__":
     # Example usage

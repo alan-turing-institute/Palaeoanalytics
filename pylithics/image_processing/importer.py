@@ -28,17 +28,14 @@ from PIL import Image
 import yaml
 from pkg_resources import resource_filename
 from pylithics.image_processing.utils import read_metadata
+from pylithics.image_processing.image_analysis import analyze_image_contours
 
 
 ### CONFIGURATION LOADER ###
 
 def load_preprocessing_config(config_file=None):
     """
-    Load configuration settings from a YAML file. The config file can be provided as a
-    command-line argument, environment variable, or default to a bundled file.
-
-    :param config_file: Path to the configuration file, optional.
-    :return: A dictionary containing configuration settings.
+    Load configuration settings from a YAML file.
     """
     if config_file and os.path.isabs(config_file):
         config_path = config_file
@@ -240,46 +237,32 @@ def execute_preprocessing_pipeline(image_path, config):
 
 def preprocess_images(data_dir, meta_file, show_thresholded_images):
     """
-    Import images from the specified directory, preprocess each image, and measure features from the processed image.
-    :param data_dir: Directory containing the images and scale images.
-    :param meta_file: Path to the metadata file.
+    Preprocess each image and return a dictionary of processed images and their conversion factors.
     """
     images_dir = os.path.join(data_dir, 'images')
-    scales_dir = os.path.join(data_dir, 'scales')
-
     config = load_preprocessing_config("config.yaml")
     if config is None:
         logging.error("Configuration could not be loaded. Exiting.")
-        return
+        return {}
 
     metadata = read_metadata(meta_file)
+    preprocessed_images = {}
 
     for entry in metadata:
         image_id = entry['image_id']
-        scale_id = entry['scale_id']
         real_world_scale_mm = float(entry['scale']) if entry['scale'] else None
-
-        image_path = locate_image_file(images_dir, image_id)
-        scale_path = locate_image_file(scales_dir, scale_id)
-
-        if not image_path:
-            logging.error("Image file not found: %s", os.path.join(images_dir, image_id))
-            continue
-        if not scale_path:
-            logging.error("Scale file not found: %s", os.path.join(scales_dir, scale_id))
-            continue
+        image_path = os.path.join(images_dir, image_id)
 
         processed_image = execute_preprocessing_pipeline(image_path, config)
         if processed_image is None:
-            logging.error("Skipping measurement for %s due to preprocessing failure.", image_id)
+            logging.error("Skipping analysis for %s due to preprocessing failure.", image_id)
             continue
 
         conversion_factor = verify_image_dpi_and_scale(image_path, real_world_scale_mm)
         if conversion_factor is None:
-            logging.error("Skipping measurement for %s due to DPI mismatch or missing information.", image_id)
+            logging.error("Skipping analysis for %s due to DPI mismatch.", image_id)
             continue
 
-        processed_image_path = os.path.join(data_dir, 'processed', f"{image_id}_processed.png")
-        os.makedirs(os.path.dirname(processed_image_path), exist_ok=True)
-        cv2.imwrite(processed_image_path, processed_image)
-        logging.info("Saved preprocessed image: %s", processed_image_path)
+        preprocessed_images[image_id] = (processed_image, conversion_factor)
+
+    return preprocessed_images
