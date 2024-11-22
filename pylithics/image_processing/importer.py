@@ -28,7 +28,7 @@ from PIL import Image
 import yaml
 from pkg_resources import resource_filename
 from pylithics.image_processing.utils import read_metadata
-from pylithics.image_processing.image_analysis import analyze_image_contours
+from pylithics.image_processing.image_analysis import analyze_image_contours_with_hierarchy
 
 
 ### CONFIGURATION LOADER ###
@@ -176,8 +176,9 @@ def verify_image_dpi_and_scale(image_path, real_world_scale_mm):
 
             pixels_per_mm = dpi[0] / 25.4
             scale_length_pixels = real_world_scale_mm * pixels_per_mm
-            logging.info("Image DPI: %f, Real-world scale (mm): %f, Scale bar in pixels: %f",
-                         dpi[0], real_world_scale_mm, scale_length_pixels)
+            logging.info("Image DPI: %.2f, Real-world scale (mm): %.2f, Scale bar in pixels: %.2f",
+                        round(dpi[0], 2), round(real_world_scale_mm, 2), round(scale_length_pixels, 2))
+
 
             return pixels_per_mm
     except OSError as os_error:
@@ -190,17 +191,29 @@ def verify_image_dpi_and_scale(image_path, real_world_scale_mm):
 COMMON_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.tiff', '.bmp', '.gif']
 
 def locate_image_file(image_dir, image_name):
-    """Find the image file in the directory, allowing the file extension to be omitted in the input."""
-    if '.' in image_name:
+    """
+    Find the image file in the directory, allowing the file extension to be omitted in the input.
+
+    :param image_dir: Directory containing the images.
+    :param image_name: Name of the image file (with or without an extension).
+    :return: Full path to the located image file, or None if not found.
+    """
+    # Check if the input includes an extension
+    if '.' in os.path.basename(image_name):
         image_path = os.path.join(image_dir, image_name)
         if os.path.exists(image_path):
             return image_path
-    else:
-        for ext in COMMON_EXTENSIONS:
-            image_path = os.path.join(image_dir, image_name + ext)
-            if os.path.exists(image_path):
-                return image_path
+
+    # If no extension is included or the file wasn't found, try appending common extensions
+    for ext in COMMON_EXTENSIONS:
+        image_path = os.path.join(image_dir, image_name + ext)
+        if os.path.exists(image_path):
+            return image_path
+
+    # If no file is found, return None
+    logging.error("Image file not found for: %s (with or without extension).", image_name)
     return None
+
 
 
 ### IMAGE PREPROCESSING PIPELINE ###

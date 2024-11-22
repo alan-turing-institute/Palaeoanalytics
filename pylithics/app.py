@@ -1,8 +1,9 @@
 import argparse
 import logging
 import os
+import pandas as pd
 from pylithics.image_processing.importer import preprocess_images, load_preprocessing_config
-from pylithics.image_processing.image_analysis import analyze_image_contours, save_measurements_to_csv
+from pylithics.image_processing.image_analysis import analyze_image_contours_with_hierarchy, save_measurements_to_csv
 
 
 def setup_logging(level):
@@ -28,28 +29,44 @@ def preprocess_and_analyze_images(data_dir, meta_file, config, show_thresholded_
     :param config: Configuration dictionary.
     :param show_thresholded_images: Boolean indicating whether to display thresholded images.
     """
-    # Step 1: Preprocess the images
-    logging.info("Starting image preprocessing...")
-    preprocess_images(data_dir, meta_file, show_thresholded_images)
+    from pylithics.image_processing.importer import execute_preprocessing_pipeline, verify_image_dpi_and_scale
+    from pylithics.image_processing.utils import read_metadata
 
-    # Step 2: Perform analysis on the preprocessed images
-    logging.info("Starting image analysis...")
-    processed_dir = os.path.join(data_dir, 'processed')
+    images_dir = os.path.join(data_dir, 'images')
+    processed_dir = os.path.join(data_dir, 'processed')  # Directory for processed images
+    metadata = read_metadata(meta_file)
 
     all_measurements = []
 
-    for image_file in os.listdir(processed_dir):
-        image_path = os.path.join(processed_dir, image_file)
-        if image_file.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif')):
-            logging.info("Analyzing contours in: %s", image_file)
-            df_measurements = analyze_image_contours(processed_image, image_id, conversion_factor)
-            if not df_measurements.empty:
-                all_measurements.append(df_measurements)
+    for entry in metadata:
+        image_id = entry['image_id']
+        real_world_scale_mm = float(entry['scale']) if entry['scale'] else None
 
-    # If there are measurements, export them to CSV
+        image_path = os.path.join(images_dir, image_id)
+
+        # Step 1: Preprocess the image
+        processed_image = execute_preprocessing_pipeline(image_path, config)
+        if processed_image is None:
+            logging.error("Skipping analysis for %s due to preprocessing failure.", image_id)
+            continue
+
+        conversion_factor = verify_image_dpi_and_scale(image_path, real_world_scale_mm)
+        if conversion_factor is None:
+            logging.error("Skipping analysis for %s due to DPI mismatch or missing information.", image_id)
+            continue
+
+        # Step 2: Analyze the preprocessed image
+        logging.info("Analyzing contours in: %s", image_id)
+        df_measurements = analyze_image_contours_with_hierarchy(
+            processed_image, image_id, conversion_factor, processed_dir
+        )
+        if not df_measurements.empty:
+            all_measurements.append(df_measurements)
+
+    # Step 3: Save measurements to CSV
     if all_measurements:
         final_df = pd.concat(all_measurements, ignore_index=True)
-        export_measurements_to_csv(final_df, data_dir)
+        save_measurements_to_csv(final_df, data_dir)
         logging.info("Contour analysis complete and measurements saved.")
     else:
         logging.warning("No contour measurements were found in the processed images.")
