@@ -45,6 +45,7 @@ def preprocess_and_analyze_images(data_dir, meta_file, config, show_thresholded_
         image_path = os.path.join(images_dir, image_id)
 
         # Step 1: Preprocess the image
+        logging.info(f"Processing image: {image_id}")
         processed_image = execute_preprocessing_pipeline(image_path, config)
         if processed_image is None:
             logging.error("Skipping analysis for %s due to preprocessing failure.", image_id)
@@ -56,12 +57,18 @@ def preprocess_and_analyze_images(data_dir, meta_file, config, show_thresholded_
             continue
 
         # Step 2: Analyze the preprocessed image
-        logging.info("Analyzing contours in: %s", image_id)
-        df_measurements = analyze_image_contours_with_hierarchy(
-            processed_image, image_id, conversion_factor, processed_dir
-        )
-        if not df_measurements.empty:
-            all_measurements.append(df_measurements)
+        try:
+            logging.info("Analyzing contours and hierarchy in: %s", image_id)
+            df_measurements = analyze_image_contours_with_hierarchy(
+                processed_image, image_id, conversion_factor, processed_dir
+            )
+            if not df_measurements.empty:
+                all_measurements.append(df_measurements)
+                logging.info("Analysis complete for image: %s", image_id)
+            else:
+                logging.warning("No contours detected for image: %s", image_id)
+        except Exception as e:
+            logging.error("Error analyzing image %s: %s", image_id, str(e))
 
     # Step 3: Save measurements to CSV
     if all_measurements:
