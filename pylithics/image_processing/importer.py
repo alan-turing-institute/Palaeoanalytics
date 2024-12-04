@@ -1,26 +1,3 @@
-"""
-PyLithics: Image Import and Preprocessing Module
-
-This module provides functions for importing, preprocessing, and validating
-images of stone tools for the PyLithics project. It supports image loading,
-grayscale conversion, contrast normalization, and various thresholding methods.
-
-The module also includes functionality for reading a configuration file
-and applying settings from it during image processing. Configuration can
-be provided via command-line arguments, environment variables, or default
-bundled configurations.
-
-Usage:
-    - load_preprocessing_config(): Load configuration from a YAML file.
-    - read_image_from_path(): Load an image using OpenCV.
-    - apply_grayscale_conversion(): Convert an image to grayscale.
-    - apply_contrast_normalization(): Normalize a grayscale image.
-    - perform_thresholding(): Apply various thresholding methods to an image.
-    - verify_image_dpi_and_scale(): Validate image DPI and calculate pixel-to-mm conversion.
-    - execute_preprocessing_pipeline(): Preprocess images by chaining the above functions.
-    - preprocess_images(): Import images and apply the preprocessing pipeline.
-"""
-
 import os
 import logging
 import cv2  # Using OpenCV for image preprocessing
@@ -79,6 +56,7 @@ def read_image_from_path(image_path):
         logging.error("Failed to load image %s due to OS error: %s", image_path, os_error)
         return None
 
+
 def apply_grayscale_conversion(image, config):
     """Convert the input image to grayscale based on config settings."""
     if not config.get('grayscale_conversion', {}).get('enabled', True):
@@ -101,6 +79,7 @@ def apply_grayscale_conversion(image, config):
         return None
 
     return gray_image
+
 
 def apply_contrast_normalization(gray_image, config):
     """Normalize the grayscale image by stretching contrast based on config settings."""
@@ -163,57 +142,11 @@ def perform_thresholding(normalized_image, config):
         return None
 
 
-### IMAGE VALIDATION ###
-
-def verify_image_dpi_and_scale(image_path, real_world_scale_mm):
-    """Validate the DPI of the image and calculate the conversion factor between pixels and millimeters."""
-    try:
-        with Image.open(image_path) as img:
-            dpi = img.info.get('dpi')
-            if dpi is None:
-                logging.warning("DPI information missing for %s", image_path)
-                return None
-
-            pixels_per_mm = dpi[0] / 25.4
-            scale_length_pixels = real_world_scale_mm * pixels_per_mm
-            logging.info("Image DPI: %.2f, Real-world scale (mm): %.2f, Scale bar in pixels: %.2f",
-                        round(dpi[0], 2), round(real_world_scale_mm, 2), round(scale_length_pixels, 2))
-
-
-            return pixels_per_mm
-    except OSError as os_error:
-        logging.error("OS error loading image %s: %s", image_path, os_error)
-        return None
-
-
-### FILE MANAGEMENT ###
-
-COMMON_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.tiff', '.bmp', '.gif']
-
-def locate_image_file(image_dir, image_name):
-    """
-    Find the image file in the directory, allowing the file extension to be omitted in the input.
-
-    :param image_dir: Directory containing the images.
-    :param image_name: Name of the image file (with or without an extension).
-    :return: Full path to the located image file, or None if not found.
-    """
-    # Check if the input includes an extension
-    if '.' in os.path.basename(image_name):
-        image_path = os.path.join(image_dir, image_name)
-        if os.path.exists(image_path):
-            return image_path
-
-    # If no extension is included or the file wasn't found, try appending common extensions
-    for ext in COMMON_EXTENSIONS:
-        image_path = os.path.join(image_dir, image_name + ext)
-        if os.path.exists(image_path):
-            return image_path
-
-    # If no file is found, return None
-    logging.error("Image file not found for: %s (with or without extension).", image_name)
-    return None
-
+def invert_image(thresholded_image):
+    """Invert a thresholded image."""
+    inverted_image = cv2.bitwise_not(thresholded_image)
+    logging.info("Inverted the thresholded image.")
+    return inverted_image
 
 
 ### IMAGE PREPROCESSING PIPELINE ###
@@ -221,7 +154,7 @@ def locate_image_file(image_dir, image_name):
 def execute_preprocessing_pipeline(image_path, config):
     """
     A high-level function to preprocess an image by loading, converting to grayscale,
-    normalizing, and applying thresholding.
+    normalizing, thresholding, and inverting the image.
     :param image_path: Path to the image file.
     :param config: Configuration dictionary for preprocessing.
     :return: The processed image or None if any step fails.
@@ -239,11 +172,11 @@ def execute_preprocessing_pipeline(image_path, config):
         return None
 
     thresholded_image = perform_thresholding(normalized_image, config)
-
-    if thresholded_image is not None and thresholded_image.any():
-        return thresholded_image
-    else:
+    if thresholded_image is None:
         return None
+
+    inverted_image = invert_image(thresholded_image)
+    return inverted_image
 
 
 ### MAIN IMAGE IMPORT FUNCTION ###
