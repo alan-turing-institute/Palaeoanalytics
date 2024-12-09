@@ -5,7 +5,7 @@ from PIL import Image
 import yaml
 from pkg_resources import resource_filename
 from pylithics.image_processing.utils import read_metadata
-from pylithics.image_processing.image_analysis import analyze_image_contours_with_hierarchy
+from pylithics.image_processing.image_analysis import extract_contours_with_hierarchy
 
 
 ### CONFIGURATION LOADER ###
@@ -149,15 +149,34 @@ def invert_image(thresholded_image):
     return inverted_image
 
 
+### IMAGE VALIDATION ###
+
+def verify_image_dpi_and_scale(image_path, real_world_scale_mm):
+    """Validate the DPI of the image and calculate the conversion factor between pixels and millimeters."""
+    try:
+        with Image.open(image_path) as img:
+            dpi = img.info.get('dpi')
+            if dpi is None:
+                logging.warning("DPI information missing for %s", image_path)
+                return None
+
+            pixels_per_mm = dpi[0] / 25.4
+            scale_length_pixels = real_world_scale_mm * pixels_per_mm
+            logging.info("Image DPI: %.2f, Real-world scale (mm): %.2f, Scale bar in pixels: %.2f",
+                        round(dpi[0], 2), round(real_world_scale_mm, 2), round(scale_length_pixels, 2))
+
+            return pixels_per_mm
+    except OSError as os_error:
+        logging.error("OS error loading image %s: %s", image_path, os_error)
+        return None
+
+
 ### IMAGE PREPROCESSING PIPELINE ###
 
 def execute_preprocessing_pipeline(image_path, config):
     """
     A high-level function to preprocess an image by loading, converting to grayscale,
     normalizing, thresholding, and inverting the image.
-    :param image_path: Path to the image file.
-    :param config: Configuration dictionary for preprocessing.
-    :return: The processed image or None if any step fails.
     """
     image = read_image_from_path(image_path)
     if image is None:
@@ -178,8 +197,6 @@ def execute_preprocessing_pipeline(image_path, config):
     inverted_image = invert_image(thresholded_image)
     return inverted_image
 
-
-### MAIN IMAGE IMPORT FUNCTION ###
 
 def preprocess_images(data_dir, meta_file, show_thresholded_images):
     """
