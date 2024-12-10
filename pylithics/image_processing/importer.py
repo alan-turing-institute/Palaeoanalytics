@@ -123,8 +123,8 @@ def perform_thresholding(normalized_image, config):
             "simple": lambda: cv2.threshold(blurred_image, config['thresholding'].get('threshold_value', 127),
                                             max_value, cv2.THRESH_BINARY)[1],
             "otsu": lambda: cv2.threshold(blurred_image, 0, max_value, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1],
-            "default": lambda: cv2.adaptiveThreshold(
-                blurred_image, max_value, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+            "default": lambda: cv2.threshold(blurred_image, config['thresholding'].get('threshold_value', 127),
+                                            max_value, cv2.THRESH_BINARY)[1]
         }
 
         if method not in threshold_methods:

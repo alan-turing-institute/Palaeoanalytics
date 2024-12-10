@@ -72,8 +72,10 @@ def main():
     # Optional argument to specify a custom config file
     parser.add_argument('--config_file', default="pylithics/config/config.yaml", help="Path to the configuration file.")
 
-    # Command-line overrides for thresholding and logging
+    # Command-line overrides for thresholding
     parser.add_argument('--threshold_method', choices=["adaptive", "simple", "otsu", "default"], help="Thresholding method to override config.")
+
+    # Command-line overrides for logging
     parser.add_argument('--log_level', choices=["DEBUG", "INFO", "WARNING", "ERROR"], help="Logging level to override config.")
 
     # Option to show processed images
