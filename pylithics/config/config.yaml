@@ -37,6 +37,10 @@ grayscale_conversion:
                     # - "standard" converts RGB images to grayscale.
                     # - "clahe" enhances image contrast using localized histogram equalization.
 
+morphological_closing:
+  enabled: true  # Enable or disable morphological closing.
+  kernel_size: 3  # Size of the kernel for morphological closing (default is 3x3).
+
 logging:
   level: INFO  # Set the logging level:
                # - "DEBUG" provides detailed logs for troubleshooting.

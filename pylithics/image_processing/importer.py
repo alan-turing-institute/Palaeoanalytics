@@ -56,7 +56,6 @@ def read_image_from_path(image_path):
         logging.error("Failed to load image %s due to OS error: %s", image_path, os_error)
         return None
 
-
 def apply_grayscale_conversion(image, config):
     """Convert the input image to grayscale based on config settings."""
     if not config.get('grayscale_conversion', {}).get('enabled', True):
@@ -79,7 +78,6 @@ def apply_grayscale_conversion(image, config):
         return None
 
     return gray_image
-
 
 def apply_contrast_normalization(gray_image, config):
     """Normalize the grayscale image by stretching contrast based on config settings."""
@@ -106,7 +104,6 @@ def apply_contrast_normalization(gray_image, config):
         return None
 
     return normalized_image
-
 
 def perform_thresholding(normalized_image, config):
     """Apply various thresholding methods based on the configuration."""
@@ -141,13 +138,35 @@ def perform_thresholding(normalized_image, config):
         logging.error("OS error during thresholding: %s", os_error)
         return None
 
-
 def invert_image(thresholded_image):
     """Invert a thresholded image."""
     inverted_image = cv2.bitwise_not(thresholded_image)
     logging.info("Inverted the thresholded image.")
     return inverted_image
 
+def morphological_closing(inverted_image, config):
+    """
+    Apply morphological closing to the image.
+
+    This function uses a kernel defined in the configuration file (config.yaml)
+    to perform the morphological closing operation. Morphological closing is
+    typically used to fill small holes in binary images or smooth boundaries.
+
+    Args:
+        inverted_image (numpy.ndarray): Input inverted binary image.
+        config (dict): Configuration dictionary loaded from config.yaml.
+
+    Returns:
+        numpy.ndarray: Image after morphological closing.
+    """
+    kernel_size = config['morphological_closing'].get('kernel_size', 3)
+
+    # Define the kernel for morphological closing
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
+    closed_image = cv2.morphologyEx(inverted_image, cv2.MORPH_CLOSE, kernel)
+    logging.info("Applied morphological closing with kernel size %d.", kernel_size)
+
+    return closed_image
 
 ### IMAGE VALIDATION ###
 
@@ -176,7 +195,7 @@ def verify_image_dpi_and_scale(image_path, real_world_scale_mm):
 def execute_preprocessing_pipeline(image_path, config):
     """
     A high-level function to preprocess an image by loading, converting to grayscale,
-    normalizing, thresholding, and inverting the image.
+    normalizing, thresholding, inverting, and applying morphological closing.
     """
     image = read_image_from_path(image_path)
     if image is None:
@@ -195,8 +214,11 @@ def execute_preprocessing_pipeline(image_path, config):
         return None
 
     inverted_image = invert_image(thresholded_image)
-    return inverted_image
+    if inverted_image is None:
+        return None
 
+    closed_image = morphological_closing(inverted_image, config)
+    return closed_image
 
 def preprocess_images(data_dir, meta_file, show_thresholded_images):
     """

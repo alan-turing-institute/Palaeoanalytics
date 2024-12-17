@@ -20,12 +20,12 @@ import os
 import pandas as pd
 
 
-def extract_contours_with_hierarchy(inverted_image, image_id, conversion_factor, output_dir):
+def extract_contours_with_hierarchy(preprocessed_images, image_id, conversion_factor, output_dir):
     """
     Extract contours and hierarchy using cv2.RETR_TREE, excluding the image border.
 
     Args:
-        inverted_image (numpy.ndarray): Inverted binary thresholded image.
+        preprocessed_images (numpy.ndarray): Inverted binary thresholded image.
         image_id (str): Unique identifier for the image.
         conversion_factor (float): Conversion factor for pixels to real-world units.
         output_dir (str): Directory to save processed outputs.
@@ -35,7 +35,7 @@ def extract_contours_with_hierarchy(inverted_image, image_id, conversion_factor,
             - valid_contours (list): List of detected contours excluding borders.
             - valid_hierarchy (numpy.ndarray): Hierarchy array corresponding to valid contours.
     """
-    contours, hierarchy = cv2.findContours(inverted_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(preprocessed_images, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     hierarchy = hierarchy[0] if hierarchy is not None else None
 
     if contours is None or len(contours) == 0:
@@ -43,7 +43,7 @@ def extract_contours_with_hierarchy(inverted_image, image_id, conversion_factor,
         return [], None
 
     # Exclude the border by filtering out contours touching the edges of the image
-    height, width = inverted_image.shape
+    height, width = preprocessed_images.shape
     valid_contours = []
     valid_hierarchy = []
 
@@ -93,7 +93,7 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor):
 
         if hierarchy[i][3] == -1:  # Parent contour
             parent_count += 1
-            label = f"parent_{parent_count}"
+            label = f"parent {parent_count}"
             metrics.append({
                 "parent": label,
                 "scar": label,
@@ -105,9 +105,9 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor):
             })
             child_count_map[label] = 0
         else:  # Child contour
-            parent_label = f"parent_{parent_count}"
+            parent_label = f"parent {parent_count}"
             child_count_map[parent_label] += 1
-            child_label = f"scar_{child_count_map[parent_label]}"
+            child_label = f"scar {child_count_map[parent_label]}"
             metrics.append({
                 "parent": parent_label,
                 "scar": child_label,
@@ -121,7 +121,7 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor):
     logging.info("Calculated metrics for %d contours with rounded values.", len(metrics))
     return metrics
 
-def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_image, output_path):
+def visualize_contours_with_hierarchy(contours, hierarchy, metrics, preprocessed_images, output_path):
     """
     Visualize contours with hierarchy, label them, and include a red dot at the centroid on the original image background.
 
@@ -129,14 +129,14 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         contours (list): List of detected contours.
         hierarchy (numpy.ndarray): Contour hierarchy array.
         metrics (list): List of contour metrics containing labels and other information.
-        inverted_image (numpy.ndarray): Inverted binary thresholded image.
+        preprocessed_images (numpy.ndarray): Inverted binary thresholded image.
         output_path (str): Path to save the labeled image.
 
     Returns:
         None
     """
     # Invert the image back to its original form (black illustration on white background)
-    original_image = cv2.bitwise_not(inverted_image)
+    original_image = cv2.bitwise_not(preprocessed_images)
 
     # Convert the image to a BGR image for visualization
     labeled_image = cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR)
@@ -278,19 +278,19 @@ def filter_single_child_contours(metrics, contours, hierarchy):
     return filtered_metrics, filtered_contours, filtered_hierarchy
 
 
-def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id):
+def process_and_save_contours(preprocessed_images, conversion_factor, output_dir, image_id):
     """
     Process contours, calculate metrics, and append results to a single CSV file.
 
     Args:
-        inverted_image (numpy.ndarray): Inverted binary thresholded image.
+        preprocessed_images (numpy.ndarray): Inverted binary thresholded image.
         conversion_factor (float): Conversion factor for pixels to real-world units.
         output_dir (str): Directory to save processed outputs.
         image_id (str): Name of the image being processed.
     """
     # Extract contours
     contours, hierarchy = extract_contours_with_hierarchy(
-        inverted_image,
+        preprocessed_images,
         image_id,
         conversion_factor,
         output_dir
@@ -315,4 +315,4 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
 
     # Visualize contours
     visualization_path = os.path.join(output_dir, f"{image_id}_labeled.png")
-    visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_image, visualization_path)
+    visualize_contours_with_hierarchy(contours, hierarchy, metrics, preprocessed_images, visualization_path)

@@ -81,6 +81,9 @@ def main():
     # Option to show processed images
     parser.add_argument('--show_thresholded_images', action='store_true', help="Display processed images after preprocessing.")
 
+    # Turn on/off morphological closing (on by default)
+    parser.add_argument("--closing", type=bool, default=True, help="Apply morphological closing (default: True)")
+
     args = parser.parse_args()
 
     # Load the config file (default or custom)
