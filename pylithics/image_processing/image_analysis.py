@@ -245,11 +245,11 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
 
         # Determine the color and text label for parent and child contours
         if parent_label == scar_label:  # Parent contour
-            color = (153, 60, 94)  # Blue
+            color = (153, 60, 94)  # Color safe purple
             text_label = f"{contour_metric['surface_type']}"  # e.g., "Dorsal"
 
         else:  # Child contour
-            color = (99, 184, 253)  # Green
+            color = (99, 184, 253)  # Color safe orange
             text_label = scar_label  # e.g., "scar_1"
 
         # Draw the contour on the image
@@ -267,7 +267,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
             centroid_y = y + h // 2
 
         # Draw a red dot at the centroid
-        cv2.circle(labeled_image, (centroid_x, centroid_y), 5, (1, 97, 230), -1)
+        cv2.circle(labeled_image, (centroid_x, centroid_y), 5, (1, 97, 230), -1) # Color safe red
 
         # Adjust label position to prevent overlap with the centroid
         label_x = centroid_x + 10  # Offset horizontally
@@ -296,7 +296,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
             (label_x, label_y),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,  # Font scale
-            (186, 186, 186),  # Text color (red)
+            (186, 186, 186),  # Text color (Color safe gray)
             2,  # Thickness
             cv2.LINE_AA
         )
@@ -308,30 +308,63 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
 
 def save_measurements_to_csv(metrics, output_path, append=False):
     """
-    Save contour metrics to a single CSV file in the specified column order.
+    Save contour metrics to a CSV file with updated column structure.
 
     Args:
         metrics (list): List of dictionaries containing contour metrics.
         output_path (str): Path to save the CSV file.
-        append (bool): Whether to append to an existing CSV file. Defaults to False.
+        append (bool): Whether to append to an existing file. Defaults to False.
 
     Returns:
         None
     """
     # Convert metrics to DataFrame
-    columns = ["image_id", "parent", "scar", "centroid_x", "centroid_y", "width", "height", "area", "surface_type"]
-    df = pd.DataFrame(metrics, columns=columns)
+    updated_data = []
+    for metric in metrics:
+        # If it's a parent, set `scar` as the same as `surface_type`
+        if metric["parent"] == metric["scar"]:
+            updated_data.append({
+                "image_id": metric["image_id"],
+                "surface_type": metric["surface_type"],
+                "scar": metric["surface_type"],  # Parent uses its surface type as scar
+                "centroid_x": metric["centroid_x"],
+                "centroid_y": metric["centroid_y"],
+                "width": metric["width"],
+                "height": metric["height"],
+                "area": metric["area"]
+            })
+        else:
+            # For scars, repeat the parent's surface type
+            parent_surface_type = next(
+                (m["surface_type"] for m in metrics if m["parent"] == metric["parent"] and m["parent"] == m["scar"]),
+                "Unknown"
+            )
+            updated_data.append({
+                "image_id": metric["image_id"],
+                "surface_type": parent_surface_type,
+                "scar": metric["scar"],
+                "centroid_x": metric["centroid_x"],
+                "centroid_y": metric["centroid_y"],
+                "width": metric["width"],
+                "height": metric["height"],
+                "area": metric["area"]
+            })
+
+    # Convert updated data to a DataFrame
+    columns = ["image_id", "surface_type", "scar", "centroid_x", "centroid_y", "width", "height", "area"]
+    df = pd.DataFrame(updated_data, columns=columns)
 
     # Ensure directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     # Write or append data
     if append and os.path.exists(output_path):
-        df.to_csv(output_path, mode='a', header=False, index=False)
+        df.to_csv(output_path, mode="a", header=False, index=False)
         logging.info("Appended metrics to existing CSV file: %s", output_path)
     else:
         df.to_csv(output_path, index=False)
         logging.info("Saved metrics to new CSV file: %s", output_path)
+
 
 
 def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id):
