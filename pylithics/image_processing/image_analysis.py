@@ -59,13 +59,13 @@ def extract_contours_with_hierarchy(inverted_image, image_id, conversion_factor,
 
 def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_child_contours=None):
     """
-    Calculate metrics for each contour (e.g., area, centroid, width, height) and round values to two decimal places.
+    Calculate metrics for each contour, excluding nested and single child contours.
 
     Args:
         contours (list): List of valid contours.
         hierarchy (numpy.ndarray): Hierarchy array corresponding to valid contours.
         conversion_factor (float): Conversion factor for pixels to real-world units.
-        nested_child_contours (list): Optional list of booleans indicating nested contours to exclude from reporting.
+        nested_child_contours (list): Optional list of booleans indicating nested or single child contours to exclude.
 
     Returns:
         list: A list of dictionaries containing rounded contour metrics.
@@ -79,7 +79,7 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_chi
 
     for i, (contour, h) in enumerate(zip(contours, hierarchy)):
         if nested_child_contours[i]:
-            continue  # Skip nested contours
+            continue  # Skip nested or single child contours
 
         # Calculate contour area (converted to real-world units)
         area = round(cv2.contourArea(contour) * (conversion_factor ** 2), 2)
@@ -127,33 +127,40 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_chi
     logging.info("Calculated metrics for %d contours with rounded values.", len(metrics))
     return metrics
 
+
 def hide_nested_child_contours(contours, hierarchy):
     """
-    Flag nested contours by analyzing the hierarchy and area relationships.
-    Only exclude second-level (or deeper) nested contours.
+    Flag nested contours and single child contours for exclusion.
 
     Args:
         contours (list): List of detected contours.
         hierarchy (numpy.ndarray): Hierarchy array corresponding to contours.
 
     Returns:
-        list: A list of booleans where True indicates a contour is nested and should be excluded from reporting.
+        list: A list of booleans where True indicates a contour is nested or a single child and should be excluded.
     """
-    nested_child_contours = [False] * len(contours)  # Initialize all contours as not nested
+    nested_child_contours = [False] * len(contours)  # Initialize all contours as not nested or single child
+    parent_child_count = {}  # Track number of children for each parent
 
     for i, h in enumerate(hierarchy):
         parent_idx = h[3]  # Parent index
         if parent_idx != -1:  # If the contour has a parent
+            parent_child_count[parent_idx] = parent_child_count.get(parent_idx, 0) + 1
+
+    for i, h in enumerate(hierarchy):
+        parent_idx = h[3]  # Parent index
+        if parent_idx != -1:
             grandparent_idx = hierarchy[parent_idx][3]  # Parent's parent index
             if grandparent_idx != -1:  # If the parent itself has a parent
                 # This is a second-level nested contour, mark it as nested
                 nested_child_contours[i] = True
-            else:
-                # First-level child, retain it
-                nested_child_contours[i] = False
+            elif parent_child_count[parent_idx] == 1:
+                # Mark single child contours for exclusion
+                nested_child_contours[i] = True
 
-    logging.info("Flagged %d nested contours (second-level or deeper) for exclusion from reporting.", sum(nested_child_contours))
+    logging.info("Flagged %d nested or single child contours for exclusion.", sum(nested_child_contours))
     return nested_child_contours
+
 
 def classify_parent_contours(metrics, tolerance=0.1):
     """
@@ -388,10 +395,10 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         logging.warning("No valid contours found for image: %s", image_id)
         return
 
-    # Flag nested contours
+    # Flag nested and single child contours
     nested_child_contours = hide_nested_child_contours(contours, hierarchy)
 
-    # Calculate metrics (excluding nested contours)
+    # Calculate metrics (excluding nested and single child contours)
     metrics = calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_child_contours)
 
     # Classify surfaces
@@ -405,7 +412,7 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
     combined_csv_path = os.path.join(output_dir, "processed_metrics.csv")
     save_measurements_to_csv(metrics, combined_csv_path, append=True)
 
-    # Visualize contours (excluding nested contours)
+    # Visualize contours (excluding nested and single child contours)
     filtered_contours = [c for i, c in enumerate(contours) if not nested_child_contours[i]]
     visualization_path = os.path.join(output_dir, f"{image_id}_labeled.png")
     visualize_contours_with_hierarchy(filtered_contours, hierarchy, metrics, inverted_image, visualization_path)
