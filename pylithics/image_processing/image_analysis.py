@@ -57,7 +57,7 @@ def extract_contours_with_hierarchy(inverted_image, image_id, conversion_factor,
     logging.info("Extracted %d valid contours (excluding borders).", len(valid_contours))
     return valid_contours, np.array(valid_hierarchy) if valid_hierarchy else None
 
-def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_flags=None):
+def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_child_contours=None):
     """
     Calculate metrics for each contour (e.g., area, centroid, width, height) and round values to two decimal places.
 
@@ -65,7 +65,7 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_fla
         contours (list): List of valid contours.
         hierarchy (numpy.ndarray): Hierarchy array corresponding to valid contours.
         conversion_factor (float): Conversion factor for pixels to real-world units.
-        nested_flags (list): Optional list of booleans indicating nested contours to exclude from reporting.
+        nested_child_contours (list): Optional list of booleans indicating nested contours to exclude from reporting.
 
     Returns:
         list: A list of dictionaries containing rounded contour metrics.
@@ -74,11 +74,11 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_fla
     parent_count = 0
     child_count_map = {}
 
-    if nested_flags is None:
-        nested_flags = [False] * len(contours)  # Default: No exclusions
+    if nested_child_contours is None:
+        nested_child_contours = [False] * len(contours)  # Default: No exclusions
 
     for i, (contour, h) in enumerate(zip(contours, hierarchy)):
-        if nested_flags[i]:
+        if nested_child_contours[i]:
             continue  # Skip nested contours
 
         # Calculate contour area (converted to real-world units)
@@ -127,7 +127,7 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_fla
     logging.info("Calculated metrics for %d contours with rounded values.", len(metrics))
     return metrics
 
-def flag_nested_contours(contours, hierarchy):
+def hide_nested_child_contours(contours, hierarchy):
     """
     Flag nested contours by analyzing the hierarchy and area relationships.
     Only exclude second-level (or deeper) nested contours.
@@ -139,7 +139,7 @@ def flag_nested_contours(contours, hierarchy):
     Returns:
         list: A list of booleans where True indicates a contour is nested and should be excluded from reporting.
     """
-    nested_flags = [False] * len(contours)  # Initialize all contours as not nested
+    nested_child_contours = [False] * len(contours)  # Initialize all contours as not nested
 
     for i, h in enumerate(hierarchy):
         parent_idx = h[3]  # Parent index
@@ -147,13 +147,71 @@ def flag_nested_contours(contours, hierarchy):
             grandparent_idx = hierarchy[parent_idx][3]  # Parent's parent index
             if grandparent_idx != -1:  # If the parent itself has a parent
                 # This is a second-level nested contour, mark it as nested
-                nested_flags[i] = True
+                nested_child_contours[i] = True
             else:
                 # First-level child, retain it
-                nested_flags[i] = False
+                nested_child_contours[i] = False
 
-    logging.info("Flagged %d nested contours (second-level or deeper) for exclusion from reporting.", sum(nested_flags))
-    return nested_flags
+    logging.info("Flagged %d nested contours (second-level or deeper) for exclusion from reporting.", sum(nested_child_contours))
+    return nested_child_contours
+
+def classify_parent_contours(metrics, tolerance=0.1):
+    """
+    Classify parent contours into surfaces: Dorsal, Ventral, Platform, Lateral.
+
+    Args:
+        metrics (list): List of dictionaries containing contour metrics.
+        tolerance (float): Dimensional tolerance for surface comparison.
+
+    Returns:
+        list: Updated metrics with surface classifications.
+    """
+    # Extract parent contours
+    parents = [m for m in metrics if m["parent"] == m["scar"]]
+
+    # Initialize classification
+    for parent in parents:
+        parent["surface_type"] = None
+
+    # Identify Dorsal Surface (A)
+    dorsal = max(parents, key=lambda p: p["area"])
+    dorsal["surface_type"] = "Dorsal"
+
+    # Identify Ventral Surface (B)
+    for parent in parents:
+        if parent["surface_type"] is None:  # Skip already classified surfaces
+            # Check dimensional similarity to Dorsal
+            if (
+                abs(parent["height"] - dorsal["height"]) <= tolerance * dorsal["height"]
+                and abs(parent["width"] - dorsal["width"]) <= tolerance * dorsal["width"]
+                and abs(parent["area"] - dorsal["area"]) <= tolerance * dorsal["area"]
+            ):
+                parent["surface_type"] = "Ventral"
+                break
+
+    # Identify Platform Surface (C)
+    platform_candidates = [
+        p for p in parents if p["surface_type"] is None and p["height"] < dorsal["height"] and p["width"] < dorsal["width"]
+    ]
+    if platform_candidates:
+        platform = min(platform_candidates, key=lambda p: p["area"])
+        platform["surface_type"] = "Platform"
+
+    # Identify Lateral Surface (D)
+    for parent in parents:
+        if parent["surface_type"] is None:  # Skip already classified surfaces
+            if (
+                abs(parent["height"] - dorsal["height"]) <= tolerance * dorsal["height"]
+                and abs(parent["height"] - platform["height"]) > tolerance * platform["height"]
+                and parent["width"] != dorsal["width"]
+            ):
+                parent["surface_type"] = "Lateral"
+                break
+
+    logging.info("Classified parent contours into surfaces: Dorsal, Ventral, Platform, and Lateral.")
+    return metrics
+
+
 
 def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_image, output_path):
     """
@@ -187,10 +245,11 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
 
         # Determine the color and text label for parent and child contours
         if parent_label == scar_label:  # Parent contour
-            color = (255, 0, 0)  # Blue
-            text_label = parent_label  # e.g., "parent_1"
+            color = (153, 60, 94)  # Blue
+            text_label = f"{contour_metric['surface_type']}"  # e.g., "Dorsal"
+
         else:  # Child contour
-            color = (0, 255, 0)  # Green
+            color = (99, 184, 253)  # Green
             text_label = scar_label  # e.g., "scar_1"
 
         # Draw the contour on the image
@@ -208,7 +267,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
             centroid_y = y + h // 2
 
         # Draw a red dot at the centroid
-        cv2.circle(labeled_image, (centroid_x, centroid_y), 5, (0, 0, 255), -1)
+        cv2.circle(labeled_image, (centroid_x, centroid_y), 5, (1, 97, 230), -1)
 
         # Adjust label position to prevent overlap with the centroid
         label_x = centroid_x + 10  # Offset horizontally
@@ -233,11 +292,11 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         # Draw the label on the image at the adjusted position
         cv2.putText(
             labeled_image,
-            text_label,  # Text to display (e.g., "parent_1", "scar_1")
+            text_label,  # Text to display (e.g., "Dorsal", "scar 1")
             (label_x, label_y),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,  # Font scale
-            (0, 0, 255),  # Text color (red)
+            (186, 186, 186),  # Text color (red)
             2,  # Thickness
             cv2.LINE_AA
         )
@@ -250,7 +309,6 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
 def save_measurements_to_csv(metrics, output_path, append=False):
     """
     Save contour metrics to a single CSV file in the specified column order.
-    If append is True, add to an existing file.
 
     Args:
         metrics (list): List of dictionaries containing contour metrics.
@@ -261,7 +319,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
         None
     """
     # Convert metrics to DataFrame
-    columns = ["image_id", "parent", "scar", "centroid_x", "centroid_y", "width", "height", "area"]
+    columns = ["image_id", "parent", "scar", "centroid_x", "centroid_y", "width", "height", "area", "surface_type"]
     df = pd.DataFrame(metrics, columns=columns)
 
     # Ensure directory exists
@@ -276,10 +334,9 @@ def save_measurements_to_csv(metrics, output_path, append=False):
         logging.info("Saved metrics to new CSV file: %s", output_path)
 
 
-
 def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id):
     """
-    Process contours, calculate metrics, and append results to a single CSV file.
+    Process contours, calculate metrics, classify surfaces, and append results to a single CSV file.
 
     Args:
         inverted_image (numpy.ndarray): Inverted binary thresholded image.
@@ -299,10 +356,13 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         return
 
     # Flag nested contours
-    nested_flags = flag_nested_contours(contours, hierarchy)
+    nested_child_contours = hide_nested_child_contours(contours, hierarchy)
 
     # Calculate metrics (excluding nested contours)
-    metrics = calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_flags)
+    metrics = calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_child_contours)
+
+    # Classify surfaces
+    metrics = classify_parent_contours(metrics)
 
     # Add image_id to each metric entry
     for metric in metrics:
@@ -313,6 +373,6 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
     save_measurements_to_csv(metrics, combined_csv_path, append=True)
 
     # Visualize contours (excluding nested contours)
-    filtered_contours = [c for i, c in enumerate(contours) if not nested_flags[i]]
+    filtered_contours = [c for i, c in enumerate(contours) if not nested_child_contours[i]]
     visualization_path = os.path.join(output_dir, f"{image_id}_labeled.png")
     visualize_contours_with_hierarchy(filtered_contours, hierarchy, metrics, inverted_image, visualization_path)
