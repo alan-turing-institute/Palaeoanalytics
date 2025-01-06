@@ -54,8 +54,13 @@ def extract_contours_with_hierarchy(inverted_image, image_id, conversion_factor,
             valid_contours.append(contour)
             valid_hierarchy.append(hierarchy[i])
 
-    logging.info("Extracted %d valid contours.", len(valid_contours))
+    # Count parent and child contours based on hierarchy
+    parent_count = sum(1 for h in valid_hierarchy if h[3] == -1)  # h[3] == -1 means no parent
+    child_count = len(valid_hierarchy) - parent_count
+
+    logging.info("Extracted %d valid contours: %d parent(s) and %d child(ren).", len(valid_contours), parent_count, child_count)
     return valid_contours, np.array(valid_hierarchy) if valid_hierarchy else None
+
 
 def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_child_contours=None):
     """
@@ -72,6 +77,7 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_chi
     """
     metrics = []
     parent_count = 0
+    child_count = 0  # Count for child contours
     child_count_map = {}
 
     if nested_child_contours is None:
@@ -111,6 +117,7 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_chi
             })
             child_count_map[label] = 0
         else:  # Child contour
+            child_count += 1  # Increment child count
             parent_label = f"parent {parent_count}"
             child_count_map[parent_label] += 1
             child_label = f"scar {child_count_map[parent_label]}"
@@ -124,8 +131,9 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_chi
                 "area": area,
             })
 
-    logging.info("Calculated metrics for %d contours.", len(metrics))
+    logging.info("Calculated metrics for %d contours: %d parent(s) and %d child(ren).", len(metrics), parent_count, child_count)
     return metrics
+
 
 
 def hide_nested_child_contours(contours, hierarchy):
@@ -161,7 +169,6 @@ def hide_nested_child_contours(contours, hierarchy):
     logging.info("Flagged %d nested or single child contours for exclusion.", sum(nested_child_contours))
     return nested_child_contours
 
-
 def classify_parent_contours(metrics, tolerance=0.1):
     """
     Classify parent contours into surfaces: Dorsal, Ventral, Platform, Lateral.
@@ -176,6 +183,10 @@ def classify_parent_contours(metrics, tolerance=0.1):
     # Extract parent contours
     parents = [m for m in metrics if m["parent"] == m["scar"]]
 
+    if not parents:
+        logging.warning("No parent contours found for classification.")
+        return metrics
+
     # Initialize classification
     for parent in parents:
         parent["surface_type"] = None
@@ -183,10 +194,13 @@ def classify_parent_contours(metrics, tolerance=0.1):
     surfaces_identified = []  # Track the surfaces identified for this image
 
     # Identify Dorsal Surface (A)
-    if parents:
+    try:
         dorsal = max(parents, key=lambda p: p["area"])
         dorsal["surface_type"] = "Dorsal"
         surfaces_identified.append("Dorsal")
+    except ValueError:
+        logging.error("Unable to identify the dorsal surface due to missing or invalid parent metrics.")
+        return metrics
 
     # Identify Ventral Surface (B)
     for parent in parents:
@@ -221,10 +235,27 @@ def classify_parent_contours(metrics, tolerance=0.1):
                 surfaces_identified.append("Lateral")
                 break
 
+    # Log the classified surfaces
     logging.info("Classified parent contours into surfaces: %s.", ", ".join(surfaces_identified))
+
+    # Handle unclassified parents
+    unclassified_parents = [p for p in parents if p["surface_type"] is None]
+    if unclassified_parents:
+        logging.warning("Unclassified parent contours found: %d.", len(unclassified_parents))
+        for unclassified in unclassified_parents:
+            logging.debug("Unclassified parent details: %s", unclassified)
+
+    # Validate completeness
+    classified_parents = [p for p in parents if p["surface_type"] is not None]
+    if len(classified_parents) != len(parents):
+        logging.warning(
+            "Not all parent contours were classified: %d out of %d classified.",
+            len(classified_parents), len(parents)
+        )
+    else:
+        logging.info("All parent contours successfully classified.")
+
     return metrics
-
-
 
 
 def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_image, output_path):
