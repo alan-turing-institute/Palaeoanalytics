@@ -54,7 +54,7 @@ def extract_contours_with_hierarchy(inverted_image, image_id, conversion_factor,
             valid_contours.append(contour)
             valid_hierarchy.append(hierarchy[i])
 
-    logging.info("Extracted %d valid contours (excluding borders).", len(valid_contours))
+    logging.info("Extracted %d valid contours.", len(valid_contours))
     return valid_contours, np.array(valid_hierarchy) if valid_hierarchy else None
 
 def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_child_contours=None):
@@ -124,7 +124,7 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_chi
                 "area": area,
             })
 
-    logging.info("Calculated metrics for %d contours with rounded values.", len(metrics))
+    logging.info("Calculated metrics for %d contours.", len(metrics))
     return metrics
 
 
@@ -180,20 +180,24 @@ def classify_parent_contours(metrics, tolerance=0.1):
     for parent in parents:
         parent["surface_type"] = None
 
+    surfaces_identified = []  # Track the surfaces identified for this image
+
     # Identify Dorsal Surface (A)
-    dorsal = max(parents, key=lambda p: p["area"])
-    dorsal["surface_type"] = "Dorsal"
+    if parents:
+        dorsal = max(parents, key=lambda p: p["area"])
+        dorsal["surface_type"] = "Dorsal"
+        surfaces_identified.append("Dorsal")
 
     # Identify Ventral Surface (B)
     for parent in parents:
         if parent["surface_type"] is None:  # Skip already classified surfaces
-            # Check dimensional similarity to Dorsal
             if (
                 abs(parent["height"] - dorsal["height"]) <= tolerance * dorsal["height"]
                 and abs(parent["width"] - dorsal["width"]) <= tolerance * dorsal["width"]
                 and abs(parent["area"] - dorsal["area"]) <= tolerance * dorsal["area"]
             ):
                 parent["surface_type"] = "Ventral"
+                surfaces_identified.append("Ventral")
                 break
 
     # Identify Platform Surface (C)
@@ -203,6 +207,7 @@ def classify_parent_contours(metrics, tolerance=0.1):
     if platform_candidates:
         platform = min(platform_candidates, key=lambda p: p["area"])
         platform["surface_type"] = "Platform"
+        surfaces_identified.append("Platform")
 
     # Identify Lateral Surface (D)
     for parent in parents:
@@ -213,10 +218,12 @@ def classify_parent_contours(metrics, tolerance=0.1):
                 and parent["width"] != dorsal["width"]
             ):
                 parent["surface_type"] = "Lateral"
+                surfaces_identified.append("Lateral")
                 break
 
-    logging.info("Classified parent contours into surfaces: Dorsal, Ventral, Platform, and Lateral.")
+    logging.info("Classified parent contours into surfaces: %s.", ", ".join(surfaces_identified))
     return metrics
+
 
 
 

@@ -141,7 +141,6 @@ def perform_thresholding(normalized_image, config):
 def invert_image(thresholded_image):
     """Invert a thresholded image."""
     inverted_image = cv2.bitwise_not(thresholded_image)
-    logging.info("Inverted the thresholded image.")
     return inverted_image
 
 def morphological_closing(inverted_image, config):
