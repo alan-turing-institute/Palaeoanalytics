@@ -19,15 +19,13 @@ import logging
 import os
 import pandas as pd
 
-
-def extract_contours_with_hierarchy(inverted_image, image_id, conversion_factor, output_dir):
+def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     """
     Extract contours and hierarchy using cv2.RETR_TREE, excluding the image border.
 
     Args:
         inverted_image (numpy.ndarray): Inverted binary thresholded image.
         image_id (str): Unique identifier for the image.
-        conversion_factor (float): Conversion factor for pixels to real-world units.
         output_dir (str): Directory to save processed outputs.
 
     Returns:
@@ -49,59 +47,52 @@ def extract_contours_with_hierarchy(inverted_image, image_id, conversion_factor,
 
     for i, contour in enumerate(contours):
         x, y, w, h = cv2.boundingRect(contour)
-        # If the contour does not touch the border, add it to the valid contours
         if not (x == 0 or y == 0 or x + w == width or y + h == height):
             valid_contours.append(contour)
             valid_hierarchy.append(hierarchy[i])
 
-    # Count parent and child contours based on hierarchy
-    parent_count = sum(1 for h in valid_hierarchy if h[3] == -1)  # h[3] == -1 means no parent
+    parent_count = sum(1 for h in valid_hierarchy if h[3] == -1)  # No parent
     child_count = len(valid_hierarchy) - parent_count
 
     logging.info("Extracted %d valid contours: %d parent(s) and %d child(ren).", len(valid_contours), parent_count, child_count)
     return valid_contours, np.array(valid_hierarchy) if valid_hierarchy else None
 
-
-def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_child_contours=None):
+def calculate_contour_metrics(contours, hierarchy, nested_child_contours=None):
     """
     Calculate metrics for each contour, excluding nested and single child contours.
 
     Args:
         contours (list): List of valid contours.
         hierarchy (numpy.ndarray): Hierarchy array corresponding to valid contours.
-        conversion_factor (float): Conversion factor for pixels to real-world units.
         nested_child_contours (list): Optional list of booleans indicating nested or single child contours to exclude.
 
     Returns:
-        list: A list of dictionaries containing rounded contour metrics.
+        list: A list of dictionaries containing raw contour metrics in pixel units.
     """
     metrics = []
     parent_count = 0
-    child_count = 0  # Count for child contours
+    child_count = 0
     child_count_map = {}
 
     if nested_child_contours is None:
-        nested_child_contours = [False] * len(contours)  # Default: No exclusions
+        nested_child_contours = [False] * len(contours)
 
     for i, (contour, h) in enumerate(zip(contours, hierarchy)):
         if nested_child_contours[i]:
             continue  # Skip nested or single child contours
 
-        # Calculate contour area (converted to real-world units)
-        area = round(cv2.contourArea(contour) * (conversion_factor ** 2), 2)
-
-        # Calculate centroid using image moments
+        # Calculate raw pixel-based metrics
+        area = round(cv2.contourArea(contour), 2)
         moments = cv2.moments(contour)
         if moments["m00"] != 0:
-            centroid_x = round((moments["m10"] / moments["m00"]) * conversion_factor, 2)
-            centroid_y = round((moments["m01"] / moments["m00"]) * conversion_factor, 2)
+            centroid_x = round(moments["m10"] / moments["m00"], 2)
+            centroid_y = round(moments["m01"] / moments["m00"], 2)
         else:
             centroid_x, centroid_y = 0.0, 0.0
 
-        # Calculate bounding box dimensions (converted to real-world units)
         x, y, w, h = cv2.boundingRect(contour)
-        width = round(w * conversion_factor, 2)
-        height = round(h * conversion_factor, 2)
+        width = round(w, 2)
+        height = round(h, 2)
 
         if hierarchy[i][3] == -1:  # Parent contour
             parent_count += 1
@@ -117,7 +108,7 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_chi
             })
             child_count_map[label] = 0
         else:  # Child contour
-            child_count += 1  # Increment child count
+            child_count += 1
             parent_label = f"parent {parent_count}"
             child_count_map[parent_label] += 1
             child_label = f"scar {child_count_map[parent_label]}"
@@ -133,8 +124,6 @@ def calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_chi
 
     logging.info("Calculated metrics for %d contours: %d parent(s) and %d child(ren).", len(metrics), parent_count, child_count)
     return metrics
-
-
 
 def hide_nested_child_contours(contours, hierarchy):
     """
@@ -180,7 +169,7 @@ def classify_parent_contours(metrics, tolerance=0.1):
     Returns:
         list: Updated metrics with surface classifications.
     """
-    # Extract parent contours
+    # Extract parent contours only
     parents = [m for m in metrics if m["parent"] == m["scar"]]
 
     if not parents:
@@ -191,9 +180,9 @@ def classify_parent_contours(metrics, tolerance=0.1):
     for parent in parents:
         parent["surface_type"] = None
 
-    surfaces_identified = []  # Track the surfaces identified for this image
+    surfaces_identified = []
 
-    # Identify Dorsal Surface (A)
+    # Identify Dorsal Surface
     try:
         dorsal = max(parents, key=lambda p: p["area"])
         dorsal["surface_type"] = "Dorsal"
@@ -202,9 +191,9 @@ def classify_parent_contours(metrics, tolerance=0.1):
         logging.error("Unable to identify the dorsal surface due to missing or invalid parent metrics.")
         return metrics
 
-    # Identify Ventral Surface (B)
+    # Identify Ventral Surface
     for parent in parents:
-        if parent["surface_type"] is None:  # Skip already classified surfaces
+        if parent["surface_type"] is None:
             if (
                 abs(parent["height"] - dorsal["height"]) <= tolerance * dorsal["height"]
                 and abs(parent["width"] - dorsal["width"]) <= tolerance * dorsal["width"]
@@ -214,7 +203,7 @@ def classify_parent_contours(metrics, tolerance=0.1):
                 surfaces_identified.append("Ventral")
                 break
 
-    # Identify Platform Surface (C)
+    # Identify Platform Surface
     platform_candidates = [
         p for p in parents if p["surface_type"] is None and p["height"] < dorsal["height"] and p["width"] < dorsal["width"]
     ]
@@ -223,9 +212,9 @@ def classify_parent_contours(metrics, tolerance=0.1):
         platform["surface_type"] = "Platform"
         surfaces_identified.append("Platform")
 
-    # Identify Lateral Surface (D)
+    # Identify Lateral Surface
     for parent in parents:
-        if parent["surface_type"] is None:  # Skip already classified surfaces
+        if parent["surface_type"] is None:
             if (
                 abs(parent["height"] - dorsal["height"]) <= tolerance * dorsal["height"]
                 and abs(parent["height"] - platform["height"]) > tolerance * platform["height"]
@@ -235,27 +224,14 @@ def classify_parent_contours(metrics, tolerance=0.1):
                 surfaces_identified.append("Lateral")
                 break
 
-    # Log the classified surfaces
+    # Assign default surface type if still None
+    for parent in parents:
+        if parent["surface_type"] is None:
+            parent["surface_type"] = "Unclassified"
+
     logging.info("Classified parent contours into surfaces: %s.", ", ".join(surfaces_identified))
-
-    # Handle unclassified parents
-    unclassified_parents = [p for p in parents if p["surface_type"] is None]
-    if unclassified_parents:
-        logging.warning("Unclassified parent contours found: %d.", len(unclassified_parents))
-        for unclassified in unclassified_parents:
-            logging.debug("Unclassified parent details: %s", unclassified)
-
-    # Validate completeness
-    classified_parents = [p for p in parents if p["surface_type"] is not None]
-    if len(classified_parents) != len(parents):
-        logging.warning(
-            "Not all parent contours were classified: %d out of %d classified.",
-            len(classified_parents), len(parents)
-        )
-    else:
-        logging.info("All parent contours successfully classified.")
-
     return metrics
+
 
 
 def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_image, output_path):
@@ -366,38 +342,47 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     # Convert metrics to DataFrame
     updated_data = []
     for metric in metrics:
-        # If it's a parent, set `scar` as the same as `surface_type`
-        if metric["parent"] == metric["scar"]:
-            updated_data.append({
-                "image_id": metric["image_id"],
-                "surface_type": metric["surface_type"],
-                "scar": metric["surface_type"],  # Parent uses its surface type as scar
-                "centroid_x": metric["centroid_x"],
-                "centroid_y": metric["centroid_y"],
-                "width": metric["width"],
-                "height": metric["height"],
-                "area": metric["area"]
-            })
-        else:
-            # For scars, repeat the parent's surface type
+        # Determine the surface type for scars based on their parent's surface type
+        if metric["parent"] != metric["scar"]:
+            # Find the parent's surface type
             parent_surface_type = next(
                 (m["surface_type"] for m in metrics if m["parent"] == metric["parent"] and m["parent"] == m["scar"]),
                 "Unknown"
             )
-            updated_data.append({
-                "image_id": metric["image_id"],
-                "surface_type": parent_surface_type,
-                "scar": metric["scar"],
-                "centroid_x": metric["centroid_x"],
-                "centroid_y": metric["centroid_y"],
-                "width": metric["width"],
-                "height": metric["height"],
-                "area": metric["area"]
-            })
+        else:
+            # Parent entries keep their own surface type
+            parent_surface_type = metric.get("surface_type", "")
+
+        # Prepare the data entry
+        data_entry = {
+            "image_id": metric["image_id"],
+            "surface_type": parent_surface_type,
+            "scar": metric["scar"],
+            "centroid_x": metric.get("centroid_x", "NA"),
+            "centroid_y": metric.get("centroid_y", "NA"),
+            "width": metric.get("width", "NA"),
+            "height": metric.get("height", "NA"),
+            "area": metric.get("area", "NA"),
+            "top_area": metric.get("top_area", "NA"),
+            "bottom_area": metric.get("bottom_area", "NA"),
+            "left_area": metric.get("left_area", "NA"),
+            "right_area": metric.get("right_area", "NA"),
+        }
+        updated_data.append(data_entry)
+
+    # Define columns dynamically
+    base_columns = [
+        "image_id", "surface_type", "scar", "centroid_x", "centroid_y",
+        "width", "height", "area"
+    ]
+    symmetry_columns = ["top_area", "bottom_area", "left_area", "right_area"]
+    all_columns = base_columns + symmetry_columns
 
     # Convert updated data to a DataFrame
-    columns = ["image_id", "surface_type", "scar", "centroid_x", "centroid_y", "width", "height", "area"]
-    df = pd.DataFrame(updated_data, columns=columns)
+    df = pd.DataFrame(updated_data, columns=all_columns)
+
+    # Ensure all `NA` replacements are applied
+    df.fillna("NA", inplace=True)
 
     # Ensure directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -412,23 +397,75 @@ def save_measurements_to_csv(metrics, output_path, append=False):
 
 
 
-def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id):
+def analyze_dorsal_symmetry(metrics, contours, inverted_image):
     """
-    Process contours, calculate metrics, classify surfaces, and append results to a single CSV file.
+    Perform symmetry analysis for the Dorsal surface and calculate areas for its halves.
+
+    Args:
+        metrics (list): List of dictionaries containing contour metrics.
+        contours (list): List of valid contours.
+        inverted_image (numpy.ndarray): Inverted binary thresholded image.
+
+    Returns:
+        dict: Symmetry areas for the Dorsal surface (top, bottom, left, right).
+    """
+    # Find the Dorsal surface from metrics
+    dorsal_metric = next((m for m in metrics if m.get("surface_type") == "Dorsal"), None)
+    if not dorsal_metric:
+        logging.warning("No Dorsal surface found for symmetry analysis.")
+        return {"top_area": None, "bottom_area": None, "left_area": None, "right_area": None}
+
+    # Get the Dorsal contour using its parent label
+    dorsal_parent = dorsal_metric["parent"]
+    dorsal_contour = next((c for i, c in enumerate(contours) if metrics[i]["parent"] == dorsal_parent), None)
+
+    if dorsal_contour is None:
+        logging.error("Dorsal contour not found for symmetry analysis.")
+        return {"top_area": None, "bottom_area": None, "left_area": None, "right_area": None}
+
+    # Extract centroid
+    centroid_x = int(dorsal_metric["centroid_x"])
+    centroid_y = int(dorsal_metric["centroid_y"])
+
+    # Create a binary mask for the Dorsal contour
+    mask = np.zeros_like(inverted_image, dtype=np.uint8)
+    cv2.drawContours(mask, [dorsal_contour], -1, 255, thickness=cv2.FILLED)
+
+    # Split the mask into regions
+    top_half = mask[:centroid_y, :]
+    bottom_half = mask[centroid_y:, :]
+    left_half = mask[:, :centroid_x]
+    right_half = mask[:, centroid_x:]
+
+    # Calculate areas (number of non-zero pixels)
+    top_area = np.sum(top_half == 255)
+    bottom_area = np.sum(bottom_half == 255)
+    left_area = np.sum(left_half == 255)
+    right_area = np.sum(right_half == 255)
+
+    logging.info(
+        "Symmetry areas for Dorsal surface calculated: Top: %d, Bottom: %d, Left: %d, Right: %d",
+        top_area, bottom_area, left_area, right_area
+    )
+
+    return {
+        "top_area": top_area,
+        "bottom_area": bottom_area,
+        "left_area": left_area,
+        "right_area": right_area,
+    }
+
+def process_and_save_contours(inverted_image, conversion_factor,output_dir, image_id):
+    """
+    Process contours, calculate metrics, classify surfaces, analyze symmetry, and append results to a single CSV file.
 
     Args:
         inverted_image (numpy.ndarray): Inverted binary thresholded image.
-        conversion_factor (float): Conversion factor for pixels to real-world units.
         output_dir (str): Directory to save processed outputs.
         image_id (str): Name of the image being processed.
     """
     # Extract contours
-    contours, hierarchy = extract_contours_with_hierarchy(
-        inverted_image,
-        image_id,
-        conversion_factor,
-        output_dir
-    )
+    contours, hierarchy = extract_contours_with_hierarchy(inverted_image, image_id, output_dir)
     if not contours:
         logging.warning("No valid contours found for image: %s", image_id)
         return
@@ -436,21 +473,54 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
     # Flag nested and single child contours
     nested_child_contours = hide_nested_child_contours(contours, hierarchy)
 
-    # Calculate metrics (excluding nested and single child contours)
-    metrics = calculate_contour_metrics(contours, hierarchy, conversion_factor, nested_child_contours)
+    # Calculate metrics (in pixels)
+    metrics = calculate_contour_metrics(contours, hierarchy, nested_child_contours)
 
-    # Classify surfaces
+    # Classify surfaces for parent contours only
     metrics = classify_parent_contours(metrics)
 
     # Add image_id to each metric entry
     for metric in metrics:
         metric["image_id"] = image_id
 
-    # Save metrics to the combined CSV file
+    # Analyze symmetry for the dorsal surface
+    symmetry_scores = analyze_dorsal_symmetry(metrics, contours, inverted_image)
+
+    # Add symmetry scores to the metrics
+    for metric in metrics:
+        if metric.get("surface_type") == "Dorsal":
+            metric.update(symmetry_scores)
+
+    # Save metrics to CSV
     combined_csv_path = os.path.join(output_dir, "processed_metrics.csv")
     save_measurements_to_csv(metrics, combined_csv_path, append=True)
 
-    # Visualize contours (excluding nested and single child contours)
+    # Visualize contours
     filtered_contours = [c for i, c in enumerate(contours) if not nested_child_contours[i]]
     visualization_path = os.path.join(output_dir, f"{image_id}_labeled.png")
     visualize_contours_with_hierarchy(filtered_contours, hierarchy, metrics, inverted_image, visualization_path)
+
+
+def convert_metrics_to_real_world(metrics, conversion_factor):
+    """
+    Convert metrics from pixel values to real-world units.
+
+    Args:
+        metrics (list): List of dictionaries containing raw metrics in pixel units.
+        conversion_factor (float): Conversion factor for pixels to real-world units.
+
+    Returns:
+        list: Converted metrics in real-world units.
+    """
+    converted_metrics = []
+    for metric in metrics:
+        converted_metrics.append({
+            "parent": metric["parent"],
+            "scar": metric["scar"],
+            "centroid_x": round(metric["centroid_x"] * conversion_factor, 2),
+            "centroid_y": round(metric["centroid_y"] * conversion_factor, 2),
+            "width": round(metric["width"] * conversion_factor, 2),
+            "height": round(metric["height"] * conversion_factor, 2),
+            "area": round(metric["area"] * (conversion_factor ** 2), 2),  # Area scales quadratically
+        })
+    return converted_metrics
