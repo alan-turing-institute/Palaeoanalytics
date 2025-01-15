@@ -57,6 +57,7 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     logging.info("Extracted %d valid contours: %d parent(s) and %d child(ren).", len(valid_contours), parent_count, child_count)
     return valid_contours, np.array(valid_hierarchy) if valid_hierarchy else None
 
+
 def calculate_contour_metrics(contours, hierarchy, nested_child_contours=None):
     """
     Calculate metrics for each contour, excluding nested and single child contours.
@@ -125,6 +126,7 @@ def calculate_contour_metrics(contours, hierarchy, nested_child_contours=None):
     logging.info("Calculated metrics for %d contours: %d parent(s) and %d child(ren).", len(metrics), parent_count, child_count)
     return metrics
 
+
 def hide_nested_child_contours(contours, hierarchy):
     """
     Flag nested contours and single child contours for exclusion.
@@ -157,6 +159,7 @@ def hide_nested_child_contours(contours, hierarchy):
 
     logging.info("Flagged %d nested or single child contours for exclusion.", sum(nested_child_contours))
     return nested_child_contours
+
 
 def classify_parent_contours(metrics, tolerance=0.1):
     """
@@ -231,7 +234,6 @@ def classify_parent_contours(metrics, tolerance=0.1):
 
     logging.info("Classified parent contours into surfaces: %s.", ", ".join(surfaces_identified))
     return metrics
-
 
 
 def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_image, output_path):
@@ -327,6 +329,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
     cv2.imwrite(output_path, labeled_image)
     logging.info("Saved visualized contours with labels to: %s", output_path)
 
+
 def save_measurements_to_csv(metrics, output_path, append=False):
     """
     Save contour metrics to a CSV file with updated column structure.
@@ -347,22 +350,25 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             # Find the parent's surface type
             parent_surface_type = next(
                 (m["surface_type"] for m in metrics if m["parent"] == metric["parent"] and m["parent"] == m["scar"]),
-                "Unknown"
+                "NA"
             )
         else:
             # Parent entries keep their own surface type
-            parent_surface_type = metric.get("surface_type", "")
+            parent_surface_type = metric.get("surface_type", "NA")
+
+        # Set the scar value to the surface_type for parent contours
+        scar_value = parent_surface_type if metric["parent"] == metric["scar"] else metric["scar"]
 
         # Prepare the data entry
         data_entry = {
             "image_id": metric["image_id"],
             "surface_type": parent_surface_type,
-            "scar": metric["scar"],
+            "surface_feature": scar_value,
             "centroid_x": metric.get("centroid_x", "NA"),
             "centroid_y": metric.get("centroid_y", "NA"),
             "width": metric.get("width", "NA"),
             "height": metric.get("height", "NA"),
-            "area": metric.get("area", "NA"),
+            "total_area": metric.get("area", "NA"),
             "top_area": metric.get("top_area", "NA"),
             "bottom_area": metric.get("bottom_area", "NA"),
             "left_area": metric.get("left_area", "NA"),
@@ -372,8 +378,8 @@ def save_measurements_to_csv(metrics, output_path, append=False):
 
     # Define columns dynamically
     base_columns = [
-        "image_id", "surface_type", "scar", "centroid_x", "centroid_y",
-        "width", "height", "area"
+        "image_id", "surface_type", "surface_feature", "centroid_x", "centroid_y",
+        "width", "height", "total_area"
     ]
     symmetry_columns = ["top_area", "bottom_area", "left_area", "right_area"]
     all_columns = base_columns + symmetry_columns
@@ -394,6 +400,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     else:
         df.to_csv(output_path, index=False)
         logging.info("Saved metrics to new CSV file: %s", output_path)
+
 
 def analyze_dorsal_symmetry(metrics, contours, inverted_image):
     """
@@ -457,7 +464,6 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
     }
 
 
-
 def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id):
     """
     Process contours, calculate metrics, classify surfaces, analyze symmetry, and append results to a single CSV file.
@@ -506,7 +512,6 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
     # Step 10: Visualize contours with hierarchy
     visualization_path = os.path.join(output_dir, f"{image_id}_labeled.png")
     visualize_contours_with_hierarchy(filtered_contours, hierarchy, filtered_metrics, inverted_image, visualization_path)
-
 
 
 def convert_metrics_to_real_world(metrics, conversion_factor):
