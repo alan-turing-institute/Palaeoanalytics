@@ -123,7 +123,6 @@ def calculate_contour_metrics(contours, hierarchy, nested_child_contours=None):
             })
 
     logging.info("Calculated metrics for %d contours: %d parent(s) and %d child(ren).", len(metrics), parent_count, child_count)
-    print(metrics)
     return metrics
 
 def hide_nested_child_contours(contours, hierarchy):
@@ -399,7 +398,6 @@ def save_measurements_to_csv(metrics, output_path, append=False):
 def analyze_dorsal_symmetry(metrics, contours, inverted_image):
     """
     Perform symmetry analysis for the Dorsal surface and calculate areas for its halves.
-    Includes verification of the contour being analyzed.
 
     Args:
         metrics (list): List of dictionaries containing contour metrics.
@@ -412,51 +410,29 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
     # Find the Dorsal surface from metrics
     dorsal_metric = next((m for m in metrics if m.get("surface_type") == "Dorsal"), None)
     if not dorsal_metric:
-        logging.warning("No Dorsal surface found for symmetry analysis.")
         return {"top_area": None, "bottom_area": None, "left_area": None, "right_area": None}
 
     # Extract Dorsal contour based on parent label
     dorsal_parent = dorsal_metric["parent"]
-    dorsal_contour = None
-    for i, contour in enumerate(contours):
-        if metrics[i]["parent"] == dorsal_parent:
-            dorsal_contour = contour
-            logging.info(f"Selected Contour Index: {i} for Dorsal Surface. Contour: {contour[:10]} (truncated)")
-            break
+    dorsal_contour = next(
+        (contour for i, contour in enumerate(contours) if metrics[i]["parent"] == dorsal_parent),
+        None
+    )
 
     if dorsal_contour is None or len(dorsal_contour) < 3:
-        logging.error("Dorsal contour not found or is invalid.")
         return {"top_area": None, "bottom_area": None, "left_area": None, "right_area": None}
 
     # Extract centroid from the metrics
     centroid_x = int(dorsal_metric["centroid_x"])
     centroid_y = int(dorsal_metric["centroid_y"])
 
-    # Log centroid and the selected contour for verification
-    logging.info(f"Dorsal Metric Centroid: ({centroid_x}, {centroid_y})")
-    logging.info(f"Full Selected Contour for Dorsal Surface: {dorsal_contour}")
-
     # Verify that the centroid belongs to the selected contour
-    point_test_result = cv2.pointPolygonTest(dorsal_contour, (centroid_x, centroid_y), measureDist=False)
-    if point_test_result < 0:
-        logging.error(
-            f"Centroid ({centroid_x}, {centroid_y}) lies outside the selected contour for Dorsal surface. "
-            f"Point Test Result: {point_test_result}. Contour: {dorsal_contour[:10]} (truncated)."
-        )
+    if cv2.pointPolygonTest(dorsal_contour, (centroid_x, centroid_y), measureDist=False) < 0:
         return {"top_area": None, "bottom_area": None, "left_area": None, "right_area": None}
-    elif point_test_result == 0:
-        logging.warning(
-            f"Centroid ({centroid_x}, {centroid_y}) lies exactly on the edge of the selected Dorsal contour. "
-            f"Proceeding with symmetry analysis."
-        )
 
     # Create a binary mask for the Dorsal contour
     mask = np.zeros_like(inverted_image, dtype=np.uint8)
     cv2.drawContours(mask, [dorsal_contour], -1, 255, thickness=cv2.FILLED)
-
-    # Log the bounding box of the Dorsal contour for debugging
-    x, y, w, h = cv2.boundingRect(dorsal_contour)
-    logging.info(f"Dorsal contour bounding box: x={x}, y={y}, width={w}, height={h}")
 
     # Split the mask into regions
     top_half = mask[:centroid_y, :]
@@ -470,11 +446,8 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
     left_area = round(float(np.sum(left_half == 255)), 2)
     right_area = round(float(np.sum(right_half == 255)), 2)
 
-    # Log symmetry areas for verification
-    logging.info(
-        f"Symmetry areas for Dorsal surface calculated: Top: {top_area}, Bottom: {bottom_area}, "
-        f"Left: {left_area}, Right: {right_area}"
-    )
+    # Logging for analysis completion
+    logging.info("Symmetry analysis complete for Dorsal surface.")
 
     return {
         "top_area": top_area,
@@ -482,6 +455,7 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
         "left_area": left_area,
         "right_area": right_area,
     }
+
 
 
 def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id):
