@@ -94,8 +94,9 @@ def calculate_contour_metrics(contours, hierarchy, nested_child_contours=None):
         x, y, w, h = cv2.boundingRect(contour)
         width = round(w, 2)
         height = round(h, 2)
+        aspect_ratio = round(height/width, 2)
 
-        if hierarchy[i][3] == -1:  # Parent contour
+        if hierarchy[i][3] == -1:  # Parent contours
             parent_count += 1
             label = f"parent {parent_count}"
             metrics.append({
@@ -106,9 +107,10 @@ def calculate_contour_metrics(contours, hierarchy, nested_child_contours=None):
                 "width": width,
                 "height": height,
                 "area": area,
+                "aspect_ratio": aspect_ratio
             })
             child_count_map[label] = 0
-        else:  # Child contour
+        else:  # Child contours (scars)
             child_count += 1
             parent_label = f"parent {parent_count}"
             child_count_map[parent_label] += 1
@@ -121,6 +123,7 @@ def calculate_contour_metrics(contours, hierarchy, nested_child_contours=None):
                 "width": width,
                 "height": height,
                 "area": area,
+               "aspect_ratio": aspect_ratio
             })
 
     logging.info("Calculated metrics for %d contours: %d parent(s) and %d child(ren).", len(metrics), parent_count, child_count)
@@ -369,13 +372,13 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             "width": metric.get("width", "NA"),
             "height": metric.get("height", "NA"),
             "total_area": metric.get("area", "NA"),
+           "aspect_ratio": metric.get("aspect_ratio", "NA"),
             "top_area": metric.get("top_area", "NA"),
             "bottom_area": metric.get("bottom_area", "NA"),
             "left_area": metric.get("left_area", "NA"),
             "right_area": metric.get("right_area", "NA"),
             "vertical_symmetry": metric.get("vertical_symmetry", "NA"),
-            "horizontal_symmetry": metric.get("horizontal_symmetry", "NA"),
-            "lithic_symmetry": metric.get("lithic_symmetry", "NA")
+            "horizontal_symmetry": metric.get("horizontal_symmetry", "NA")
 
         }
         updated_data.append(data_entry)
@@ -383,10 +386,10 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     # Define columns dynamically
     base_columns = [
         "image_id", "surface_type", "surface_feature", "centroid_x", "centroid_y",
-        "width", "height", "total_area"
+        "width", "height", "total_area","aspect_ratio"
     ]
     symmetry_columns = ["top_area", "bottom_area", "left_area", "right_area",
-                        "vertical_symmetry", "horizontal_symmetry", "lithic_symmetry"]
+                        "vertical_symmetry", "horizontal_symmetry"]
     all_columns = base_columns + symmetry_columns
 
     # Convert updated data to a DataFrame
@@ -471,9 +474,6 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
         ) if (left_area + right_area) > 0 else None
     )
 
-    lithic_symmetry = (vertical_symmetry + horizontal_symmetry) / 2
-
-
     # Logging for analysis completion
     logging.info("Symmetry analysis complete for Dorsal surface.")
 
@@ -483,8 +483,7 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
         "left_area": left_area,
         "right_area": right_area,
         "vertical_symmetry": vertical_symmetry,
-        "horizontal_symmetry": horizontal_symmetry,
-        "lithic_symmetry": lithic_symmetry
+        "horizontal_symmetry": horizontal_symmetry
     }
 
 
