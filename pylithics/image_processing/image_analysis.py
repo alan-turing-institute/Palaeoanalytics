@@ -464,11 +464,11 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
     left_half = mask[:, :centroid_x]
     right_half = mask[:, centroid_x:]
 
-    # Calculate areas (number of non-zero pixels)
-    top_area = np.sum(top_half == 255)
-    bottom_area = np.sum(bottom_half == 255)
-    left_area = np.sum(left_half == 255)
-    right_area = np.sum(right_half == 255)
+    # Calculate areas (number of non-zero pixels) and convert to floats
+    top_area = round(float(np.sum(top_half == 255)), 2)
+    bottom_area = round(float(np.sum(bottom_half == 255)), 2)
+    left_area = round(float(np.sum(left_half == 255)), 2)
+    right_area = round(float(np.sum(right_half == 255)), 2)
 
     # Log symmetry areas for verification
     logging.info(
