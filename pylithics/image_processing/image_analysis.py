@@ -373,6 +373,10 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             "bottom_area": metric.get("bottom_area", "NA"),
             "left_area": metric.get("left_area", "NA"),
             "right_area": metric.get("right_area", "NA"),
+            "vertical_symmetry": metric.get("vertical_symmetry", "NA"),
+            "horizontal_symmetry": metric.get("horizontal_symmetry", "NA"),
+            "lithic_symmetry": metric.get("lithic_symmetry", "NA")
+
         }
         updated_data.append(data_entry)
 
@@ -381,7 +385,8 @@ def save_measurements_to_csv(metrics, output_path, append=False):
         "image_id", "surface_type", "surface_feature", "centroid_x", "centroid_y",
         "width", "height", "total_area"
     ]
-    symmetry_columns = ["top_area", "bottom_area", "left_area", "right_area"]
+    symmetry_columns = ["top_area", "bottom_area", "left_area", "right_area",
+                        "vertical_symmetry", "horizontal_symmetry", "lithic_symmetry"]
     all_columns = base_columns + symmetry_columns
 
     # Convert updated data to a DataFrame
@@ -452,6 +457,22 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
     bottom_area = round(float(np.sum(bottom_half == 255)), 2)
     left_area = round(float(np.sum(left_half == 255)), 2)
     right_area = round(float(np.sum(right_half == 255)), 2)
+    # Vertical symmetry calculation
+    vertical_symmetry = (
+        round(
+            1 - abs(top_area - bottom_area) / (top_area + bottom_area), 2
+        ) if (top_area + bottom_area) > 0 else None
+    )
+
+    # Horizontal symmetry calculation
+    horizontal_symmetry = (
+        round(
+            1 - abs(left_area - right_area) / (left_area + right_area), 2
+        ) if (left_area + right_area) > 0 else None
+    )
+
+    lithic_symmetry = (vertical_symmetry + horizontal_symmetry) / 2
+
 
     # Logging for analysis completion
     logging.info("Symmetry analysis complete for Dorsal surface.")
@@ -461,6 +482,9 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
         "bottom_area": bottom_area,
         "left_area": left_area,
         "right_area": right_area,
+        "vertical_symmetry": vertical_symmetry,
+        "horizontal_symmetry": horizontal_symmetry,
+        "lithic_symmetry": lithic_symmetry
     }
 
 
