@@ -58,75 +58,146 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     return valid_contours, np.array(valid_hierarchy) if valid_hierarchy else None
 
 
-def calculate_contour_metrics(contours, hierarchy, nested_child_contours=None):
+def sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None):
     """
-    Calculate metrics for each contour, excluding nested and single child contours.
+    Sort contours into parents, children, and nested children based on hierarchy.
 
     Args:
-        contours (list): List of valid contours.
-        hierarchy (numpy.ndarray): Hierarchy array corresponding to valid contours.
-        nested_child_contours (list): Optional list of booleans indicating nested or single child contours to exclude.
+        contours (list): List of detected contours.
+        hierarchy (numpy.ndarray): Hierarchy array corresponding to contours.
+        exclude_nested_flags (list): List of booleans where True indicates contours to exclude.
 
     Returns:
-        list: A list of dictionaries containing raw contour metrics in pixel units.
+        dict: A dictionary with sorted contours:
+            - "parents": List of parent contours.
+            - "children": List of child contours.
+            - "nested_children": List of nested child contours (if any).
+    """
+    # Initialize categories
+    parents = []
+    children = []
+    nested_children = []
+
+    # Apply exclusion flags if provided
+    if exclude_nested_flags is None:
+        exclude_nested_flags = [False] * len(contours)
+
+    # Traverse the hierarchy to sort contours
+    for i, h in enumerate(hierarchy):
+        if exclude_nested_flags[i]:
+            continue  # Skip excluded contours
+
+        parent_idx = h[3]  # Parent index
+        if parent_idx == -1:  # Parent contour (no parent)
+            parents.append(contours[i])
+        else:
+            grandparent_idx = hierarchy[parent_idx][3]  # Check if the parent has a parent
+            if grandparent_idx == -1:  # Child contour (parent is a top-level parent)
+                children.append(contours[i])
+            else:  # Nested child contour (parent is a child contour)
+                nested_children.append(contours[i])
+
+    logging.info(
+        "Sorted contours: %d parent(s), %d child(ren), %d nested child(ren).",
+        len(parents), len(children), len(nested_children)
+    )
+
+    return {"parents": parents, "children": children, "nested_children": nested_children}
+
+
+def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
+    """
+    Calculate metrics for contours in a sorted order (parents first, children second),
+    ensuring children are correctly grouped with their respective parents.
+
+    Args:
+        sorted_contours (dict): Dictionary with sorted contours:
+            - "parents": List of parent contours.
+            - "children": List of child contours.
+            - "nested_children": List of nested child contours (will be excluded).
+        hierarchy (numpy.ndarray): Hierarchy array corresponding to the contours.
+        original_contours (list): Original list of all contours.
+
+    Returns:
+        list: A list of dictionaries containing raw contour metrics for parents and children.
     """
     metrics = []
     parent_count = 0
     child_count = 0
-    child_count_map = {}
 
-    if nested_child_contours is None:
-        nested_child_contours = [False] * len(contours)
+    # Create a mapping of parent indices to labels
+    parent_index_to_label = {}
 
-    for i, (contour, h) in enumerate(zip(contours, hierarchy)):
-        if nested_child_contours[i]:
-            continue  # Skip nested or single child contours
+    # Process parents first
+    for parent_contour in sorted_contours["parents"]:
+        # Find the index of the parent contour in the original list
+        parent_index = next(i for i, c in enumerate(original_contours) if np.array_equal(c, parent_contour))
+        parent_count += 1
+        parent_label = f"parent {parent_count}"
+        parent_index_to_label[parent_index] = parent_label
 
-        # Calculate raw pixel-based metrics
-        area = round(cv2.contourArea(contour), 2)
-        moments = cv2.moments(contour)
+        # Calculate metrics for the parent contour
+        area = round(cv2.contourArea(parent_contour), 2)
+        moments = cv2.moments(parent_contour)
+        centroid_x, centroid_y = (0.0, 0.0)
         if moments["m00"] != 0:
             centroid_x = round(moments["m10"] / moments["m00"], 2)
             centroid_y = round(moments["m01"] / moments["m00"], 2)
-        else:
-            centroid_x, centroid_y = 0.0, 0.0
 
-        x, y, w, h = cv2.boundingRect(contour)
+        x, y, w, h = cv2.boundingRect(parent_contour)
         width = round(w, 2)
         height = round(h, 2)
-        aspect_ratio = round(height/width, 2)
+        aspect_ratio = round(height / width, 2)
 
-        if hierarchy[i][3] == -1:  # Parent contours
-            parent_count += 1
-            label = f"parent {parent_count}"
-            metrics.append({
-                "parent": label,
-                "scar": label,
-                "centroid_x": centroid_x,
-                "centroid_y": centroid_y,
-                "width": width,
-                "height": height,
-                "area": area,
-                "aspect_ratio": aspect_ratio
-            })
-            child_count_map[label] = 0
-        else:  # Child contours (scars)
-            child_count += 1
-            parent_label = f"parent {parent_count}"
-            child_count_map[parent_label] += 1
-            child_label = f"scar {child_count_map[parent_label]}"
-            metrics.append({
-                "parent": parent_label,
-                "scar": child_label,
-                "centroid_x": centroid_x,
-                "centroid_y": centroid_y,
-                "width": width,
-                "height": height,
-                "area": area,
-               "aspect_ratio": aspect_ratio
-            })
+        metrics.append({
+            "parent": parent_label,
+            "scar": parent_label,
+            "centroid_x": centroid_x,
+            "centroid_y": centroid_y,
+            "width": width,
+            "height": height,
+            "area": area,
+            "aspect_ratio": aspect_ratio
+        })
 
-    logging.info("Calculated metrics for %d contours: %d parent(s) and %d child(ren).", len(metrics), parent_count, child_count)
+    # Process children next
+    for child_contour in sorted_contours["children"]:
+        # Find the index of the child contour in the original list
+        child_index = next(i for i, c in enumerate(original_contours) if np.array_equal(c, child_contour))
+        parent_index = hierarchy[child_index][3]  # Get the parent index from the hierarchy
+        parent_label = parent_index_to_label.get(parent_index, "Unknown")  # Get the parent label
+
+        child_count += 1
+        child_label = f"scar {child_count}"
+
+        # Calculate metrics for the child contour
+        area = round(cv2.contourArea(child_contour), 2)
+        moments = cv2.moments(child_contour)
+        centroid_x, centroid_y = (0.0, 0.0)
+        if moments["m00"] != 0:
+            centroid_x = round(moments["m10"] / moments["m00"], 2)
+            centroid_y = round(moments["m01"] / moments["m00"], 2)
+
+        x, y, w, h = cv2.boundingRect(child_contour)
+        width = round(w, 2)
+        height = round(h, 2)
+        aspect_ratio = round(height / width, 2)
+
+        metrics.append({
+            "parent": parent_label,
+            "scar": child_label,
+            "centroid_x": centroid_x,
+            "centroid_y": centroid_y,
+            "width": width,
+            "height": height,
+            "area": area,
+            "aspect_ratio": aspect_ratio
+        })
+
+    logging.info(
+        "Calculated metrics for %d contours: %d parent(s) and %d child(ren).",
+        len(metrics), parent_count, child_count
+    )
     return metrics
 
 
@@ -236,6 +307,7 @@ def classify_parent_contours(metrics, tolerance=0.1):
             parent["surface_type"] = "Unclassified"
 
     logging.info("Classified parent contours into surfaces: %s.", ", ".join(surfaces_identified))
+    print(metrics)
     return metrics
 
 
@@ -345,51 +417,51 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     Returns:
         None
     """
-    # Convert metrics to DataFrame
+    # Prepare data for the DataFrame
     updated_data = []
     for metric in metrics:
-        # Determine the surface type for scars based on their parent's surface type
-        if metric["parent"] != metric["scar"]:
-            # Find the parent's surface type
+        if metric["parent"] == metric["scar"]:
+            # Parent contours: use their own surface_type
+            surface_type = metric.get("surface_type", "NA")
+            surface_feature = surface_type
+        else:
+            # Child contours: inherit surface_type from their parent
             parent_surface_type = next(
                 (m["surface_type"] for m in metrics if m["parent"] == metric["parent"] and m["parent"] == m["scar"]),
                 "NA"
             )
-        else:
-            # Parent entries keep their own surface type
-            parent_surface_type = metric.get("surface_type", "NA")
-
-        # Set the scar value to the surface_type for parent contours
-        scar_value = parent_surface_type if metric["parent"] == metric["scar"] else metric["scar"]
+            surface_type = parent_surface_type
+            surface_feature = metric["scar"]
 
         # Prepare the data entry
         data_entry = {
             "image_id": metric["image_id"],
-            "surface_type": parent_surface_type,
-            "surface_feature": scar_value,
+            "surface_type": surface_type,
+            "surface_feature": surface_feature,
             "centroid_x": metric.get("centroid_x", "NA"),
             "centroid_y": metric.get("centroid_y", "NA"),
             "width": metric.get("width", "NA"),
             "height": metric.get("height", "NA"),
             "total_area": metric.get("area", "NA"),
-           "aspect_ratio": metric.get("aspect_ratio", "NA"),
+            "aspect_ratio": metric.get("aspect_ratio", "NA"),
             "top_area": metric.get("top_area", "NA"),
             "bottom_area": metric.get("bottom_area", "NA"),
             "left_area": metric.get("left_area", "NA"),
             "right_area": metric.get("right_area", "NA"),
             "vertical_symmetry": metric.get("vertical_symmetry", "NA"),
-            "horizontal_symmetry": metric.get("horizontal_symmetry", "NA")
-
+            "horizontal_symmetry": metric.get("horizontal_symmetry", "NA"),
         }
         updated_data.append(data_entry)
 
     # Define columns dynamically
     base_columns = [
         "image_id", "surface_type", "surface_feature", "centroid_x", "centroid_y",
-        "width", "height", "total_area","aspect_ratio"
+        "width", "height", "total_area", "aspect_ratio"
     ]
-    symmetry_columns = ["top_area", "bottom_area", "left_area", "right_area",
-                        "vertical_symmetry", "horizontal_symmetry"]
+    symmetry_columns = [
+        "top_area", "bottom_area", "left_area", "right_area",
+        "vertical_symmetry", "horizontal_symmetry"
+    ]
     all_columns = base_columns + symmetry_columns
 
     # Convert updated data to a DataFrame
@@ -401,7 +473,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     # Ensure directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    # Write or append data
+    # Write or append data to the CSV
     if append and os.path.exists(output_path):
         df.to_csv(output_path, mode="a", header=False, index=False)
         logging.info("Appended metrics to existing CSV file: %s", output_path)
@@ -503,38 +575,43 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         logging.warning("No valid contours found for image: %s", image_id)
         return
 
-    # Step 2: Flag nested contours but do not filter yet
-    nested_child_flags = hide_nested_child_contours(contours, hierarchy)
+    # Step 2: Flag nested and single child contours
+    exclude_nested_flags = hide_nested_child_contours(contours, hierarchy)
 
-    # Step 3: Calculate metrics for all contours
-    metrics = calculate_contour_metrics(contours, hierarchy)
+    # Step 3: Sort contours by hierarchy, excluding flagged nested contours
+    sorted_contours = sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags)
 
-    # Step 4: Classify parent contours into surfaces
+    # Step 4: Calculate metrics for parents and children only
+    metrics = calculate_contour_metrics(sorted_contours, hierarchy, contours)
+
+    # Step 5: Classify parent contours into surfaces
     metrics = classify_parent_contours(metrics)
 
-    # Step 5: Filter contours and metrics based on nested_child_flags
-    filtered_contours = [c for i, c in enumerate(contours) if not nested_child_flags[i]]
-    filtered_metrics = [m for i, m in enumerate(metrics) if not nested_child_flags[i]]
-
     # Step 6: Add image_id to each metric entry
-    for metric in filtered_metrics:
+    for metric in metrics:
         metric["image_id"] = image_id
 
     # Step 7: Perform symmetry analysis for the dorsal surface
-    symmetry_scores = analyze_dorsal_symmetry(filtered_metrics, filtered_contours, inverted_image)
+    symmetry_scores = analyze_dorsal_symmetry(metrics, sorted_contours["parents"], inverted_image)
 
     # Step 8: Add symmetry scores to the metrics
-    for metric in filtered_metrics:
+    for metric in metrics:
         if metric.get("surface_type") == "Dorsal":
             metric.update(symmetry_scores)
 
     # Step 9: Save metrics to CSV
     combined_csv_path = os.path.join(output_dir, "processed_metrics.csv")
-    save_measurements_to_csv(filtered_metrics, combined_csv_path, append=True)
+    save_measurements_to_csv(metrics, combined_csv_path, append=True)
 
     # Step 10: Visualize contours with hierarchy
     visualization_path = os.path.join(output_dir, f"{image_id}_labeled.png")
-    visualize_contours_with_hierarchy(filtered_contours, hierarchy, filtered_metrics, inverted_image, visualization_path)
+    visualize_contours_with_hierarchy(
+        sorted_contours["parents"] + sorted_contours["children"],
+        hierarchy,
+        metrics,
+        inverted_image,
+        visualization_path
+    )
 
 
 def convert_metrics_to_real_world(metrics, conversion_factor):
