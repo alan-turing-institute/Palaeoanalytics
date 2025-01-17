@@ -146,20 +146,22 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
             centroid_x = round(moments["m10"] / moments["m00"], 2)
             centroid_y = round(moments["m01"] / moments["m00"], 2)
 
+        # Calculate bounding box for the parent contour
         x, y, w, h = cv2.boundingRect(parent_contour)
-        width = round(w, 2)
-        height = round(h, 2)
-        aspect_ratio = round(height / width, 2)
 
         metrics.append({
             "parent": parent_label,
             "scar": parent_label,
             "centroid_x": centroid_x,
             "centroid_y": centroid_y,
-            "width": width,
-            "height": height,
+            "width": round(w, 2),
+            "height": round(h, 2),
             "area": area,
-            "aspect_ratio": aspect_ratio
+            "aspect_ratio": round(h / w, 2),
+            "bounding_box_x": x,
+            "bounding_box_y": y,
+            "bounding_box_width": w,
+            "bounding_box_height": h
         })
 
     # Process children next
@@ -180,27 +182,24 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
             centroid_x = round(moments["m10"] / moments["m00"], 2)
             centroid_y = round(moments["m01"] / moments["m00"], 2)
 
-        x, y, w, h = cv2.boundingRect(child_contour)
-        width = round(w, 2)
-        height = round(h, 2)
-        aspect_ratio = round(height / width, 2)
-
         metrics.append({
             "parent": parent_label,
             "scar": child_label,
             "centroid_x": centroid_x,
             "centroid_y": centroid_y,
-            "width": width,
-            "height": height,
+            "width": round(w, 2),
+            "height": round(h, 2),
             "area": area,
-            "aspect_ratio": aspect_ratio
+            "aspect_ratio": round(h / w, 2)
         })
 
     logging.info(
         "Calculated metrics for %d contours: %d parent(s) and %d child(ren).",
         len(metrics), parent_count, child_count
     )
+    print(metrics)
     return metrics
+
 
 
 def hide_nested_child_contours(contours, hierarchy):
