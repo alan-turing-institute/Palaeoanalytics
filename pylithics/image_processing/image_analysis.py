@@ -18,6 +18,8 @@ import numpy as np
 import logging
 import os
 import pandas as pd
+from scipy.spatial import Voronoi, voronoi_plot_2d
+import matplotlib.pyplot as plt
 
 def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     """
@@ -307,7 +309,6 @@ def classify_parent_contours(metrics, tolerance=0.1):
             parent["surface_type"] = "Unclassified"
 
     logging.info("Classified parent contours into surfaces: %s.", ", ".join(surfaces_identified))
-    print(metrics)
     return metrics
 
 
@@ -558,6 +559,75 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
         "horizontal_symmetry": horizontal_symmetry
     }
 
+def generate_voronoi_diagram(metrics, inverted_image, output_path):
+    """
+    Generate and visualize a Voronoi diagram for Dorsal surface contours,
+    including centroids from associated child contours.
+
+    Args:
+        metrics (list): List of contour metrics containing centroids and surface types.
+        inverted_image (numpy.ndarray): Inverted binary thresholded image.
+        output_path (str): Path to save the Voronoi diagram visualization.
+
+    Returns:
+        None
+    """
+    # Filter metrics for Dorsal surface
+    dorsal_metrics = [m for m in metrics if m.get("surface_type") == "Dorsal"]
+
+    if not dorsal_metrics:
+        logging.warning("No Dorsal surface metrics available for Voronoi diagram.")
+        return
+
+    # Collect centroids for Dorsal parents and their associated children
+    centroids = []
+    for dorsal_metric in dorsal_metrics:
+        # Add centroid of the parent dorsal contour
+        centroids.append((dorsal_metric["centroid_x"], dorsal_metric["centroid_y"]))
+
+        # Add centroids of child contours linked to this parent
+        child_metrics = [m for m in metrics if m["parent"] == dorsal_metric["parent"] and m["parent"] != m["scar"]]
+        centroids.extend((child["centroid_x"], child["centroid_y"]) for child in child_metrics)
+
+    centroids = np.array(centroids)
+
+    # Check if there are enough points for Voronoi
+    if len(centroids) < 4:
+        logging.warning(
+            "Insufficient centroids (%d points) for Voronoi diagram. At least 4 points are required.", len(centroids)
+        )
+        return
+
+    # Generate Voronoi diagram
+    vor = Voronoi(centroids)
+
+    # Create a plot for visualization
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    # Draw the original inverted image as the background
+    ax.imshow(cv2.cvtColor(cv2.bitwise_not(inverted_image), cv2.COLOR_GRAY2RGB))
+
+    # Plot the Voronoi diagram
+    voronoi_plot_2d(vor, ax=ax, show_vertices=False, line_colors='blue', line_width=2, point_size=5)
+
+    # Highlight centroids
+    ax.plot(centroids[:, 0], centroids[:, 1], 'ro', label='Dorsal Centroids')
+
+    # Annotate centroids with labels
+    for i, (x, y) in enumerate(centroids):
+        ax.text(x + 5, y - 5, f"C{i+1}", color="grey", fontsize=12, fontweight="bold")
+
+    # Set title and legend
+    ax.set_title("Voronoi Diagram for Dorsal Surface and Associated Children")
+    ax.legend()
+
+    # Save the plot
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    plt.savefig(output_path, bbox_inches='tight', dpi=300)
+    plt.close()
+
+    logging.info("Saved Voronoi diagram visualization to: %s", output_path)
+
 
 def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id):
     """
@@ -612,6 +682,11 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         inverted_image,
         visualization_path
     )
+
+    # Step 11: Generate and visualize Voronoi diagram for the Dorsal surface and its children
+    voronoi_output_path = os.path.join(output_dir, f"{image_id}_voronoi.png")
+    generate_voronoi_diagram(metrics, inverted_image, voronoi_output_path)
+
 
 
 def convert_metrics_to_real_world(metrics, conversion_factor):
