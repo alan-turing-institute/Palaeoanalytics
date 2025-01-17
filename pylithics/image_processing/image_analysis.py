@@ -197,9 +197,7 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
         "Calculated metrics for %d contours: %d parent(s) and %d child(ren).",
         len(metrics), parent_count, child_count
     )
-    print(metrics)
     return metrics
-
 
 
 def hide_nested_child_contours(contours, hierarchy):
@@ -558,15 +556,18 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
         "horizontal_symmetry": horizontal_symmetry
     }
 
-def generate_voronoi_diagram(metrics, inverted_image, output_path):
+
+def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_factor=0.05):
     """
     Generate and visualize a Voronoi diagram for Dorsal surface contours,
-    including centroids from associated child contours.
+    including centroids from associated child contours, dynamically adjusting
+    the plot bounds to the dorsal surface bounding box with padding.
 
     Args:
         metrics (list): List of contour metrics containing centroids and surface types.
         inverted_image (numpy.ndarray): Inverted binary thresholded image.
         output_path (str): Path to save the Voronoi diagram visualization.
+        padding_factor (float): Percentage of padding to add to the bounding box.
 
     Returns:
         None
@@ -578,15 +579,28 @@ def generate_voronoi_diagram(metrics, inverted_image, output_path):
         logging.warning("No Dorsal surface metrics available for Voronoi diagram.")
         return
 
-    # Collect centroids for Dorsal parents and their associated children
+    # Collect centroids for Dorsal surface and associated scars
     centroids = []
+    bounding_box_x, bounding_box_y, bounding_box_width, bounding_box_height = None, None, None, None
+
     for dorsal_metric in dorsal_metrics:
         # Add centroid of the parent dorsal contour
         centroids.append((dorsal_metric["centroid_x"], dorsal_metric["centroid_y"]))
 
-        # Add centroids of child contours linked to this parent
+        # Extract bounding box for the Dorsal parent contour
+        if bounding_box_x is None:
+            bounding_box_x = dorsal_metric["bounding_box_x"]
+            bounding_box_y = dorsal_metric["bounding_box_y"]
+            bounding_box_width = dorsal_metric["bounding_box_width"]
+            bounding_box_height = dorsal_metric["bounding_box_height"]
+
+        # Add centroids of child contours (scars) linked to this parent contour (surface)
         child_metrics = [m for m in metrics if m["parent"] == dorsal_metric["parent"] and m["parent"] != m["scar"]]
         centroids.extend((child["centroid_x"], child["centroid_y"]) for child in child_metrics)
+
+    if bounding_box_x is None:
+        logging.warning("No bounding box data available for the Dorsal surface.")
+        return
 
     centroids = np.array(centroids)
 
@@ -600,24 +614,45 @@ def generate_voronoi_diagram(metrics, inverted_image, output_path):
     # Generate Voronoi diagram
     vor = Voronoi(centroids)
 
-    # Create a plot for visualization
-    fig, ax = plt.subplots(figsize=(8, 8))
+    # Calculate bounding box limits from dorsal surface data
+    x_min = bounding_box_x
+    x_max = bounding_box_x + bounding_box_width
+    y_min = bounding_box_y
+    y_max = bounding_box_y + bounding_box_height
 
-    # Draw the original inverted image as the background
+    # Add padding to the bounding box
+    padding_x = bounding_box_width * padding_factor
+    padding_y = bounding_box_height * padding_factor
+
+    x_min_padded = x_min - padding_x
+    x_max_padded = x_max + padding_x
+    y_min_padded = y_min - padding_y
+    y_max_padded = y_max + padding_y
+
+    # Create a plot for visualization
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    # Include the original image as the background
     ax.imshow(cv2.cvtColor(cv2.bitwise_not(inverted_image), cv2.COLOR_GRAY2RGB))
 
     # Plot the Voronoi diagram
-    voronoi_plot_2d(vor, ax=ax, show_vertices=False, line_colors='blue', line_width=2, point_size=5)
+    voronoi_plot_2d(vor, ax=ax, show_vertices=False, line_colors='blue', line_width=1, point_size=2)
 
     # Highlight centroids
-    ax.plot(centroids[:, 0], centroids[:, 1], 'ro', label='Dorsal Centroids')
+    ax.plot(centroids[:, 0], centroids[:, 1], 'ro', label='Dorsal Surface Centroids')
 
     # Annotate centroids with labels
     for i, (x, y) in enumerate(centroids):
-        ax.text(x + 5, y - 5, f"C{i+1}", color="grey", fontsize=12, fontweight="bold")
+        ax.text(x + 5, y - 5, f"C{i+1}", color="grey", fontsize=12)
 
-    # Set title and legend
-    ax.set_title("Voronoi Diagram for Dorsal Surface and Associated Children")
+    # Adjust plot limits dynamically to match the padded bounding box
+    ax.set_xlim(x_min_padded, x_max_padded)
+    ax.set_ylim(y_max_padded, y_min_padded)  # Invert y-axis to match image coordinates
+
+    # Set title, labels, and legend
+    ax.set_title("Voronoi Diagram for Dorsal Surface and Associated Scars")
+    ax.set_xlabel("Horizontal Distance")
+    ax.set_ylabel("Vertical Distance")
     ax.legend()
 
     # Save the plot
