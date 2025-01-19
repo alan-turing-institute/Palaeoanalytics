@@ -129,6 +129,39 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
     Returns:
         list: A list of dictionaries containing raw contour metrics for parents and children.
     """
+    def calculate_max_length_and_width(contour):
+        # Compute the maximum distance (max_length) and its perpendicular max_width
+        max_length = 0
+        max_width = 0
+        point1, point2 = None, None
+
+        # Find the two points with the maximum distance
+        for i in range(len(contour)):
+            for j in range(i + 1, len(contour)):
+                p1 = contour[i][0]
+                p2 = contour[j][0]
+                distance = np.linalg.norm(p1 - p2)
+                if distance > max_length:
+                    max_length = distance
+                    point1, point2 = p1, p2
+
+        # Calculate max_width as the greatest distance perpendicular to max_length
+        if point1 is not None and point2 is not None:
+            direction_vector = point2 - point1
+            norm_vector = np.array([-direction_vector[1], direction_vector[0]])  # Perpendicular vector
+            norm_vector = norm_vector / np.linalg.norm(norm_vector)  # Normalize
+
+            # Project all points onto the perpendicular vector
+            projections = []
+            for point in contour:
+                vector_to_point = point[0] - point1
+                projection = np.abs(np.dot(vector_to_point, norm_vector))
+                projections.append(projection)
+
+            max_width = max(projections)
+
+        return round(max_length, 2), round(max_width, 2)
+
     metrics = []
     parent_count = 0
     child_count = 0
@@ -155,19 +188,24 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
         # Calculate bounding box for the parent contour
         x, y, w, h = cv2.boundingRect(parent_contour)
 
+        # Calculate max_length and max_width
+        max_length, max_width = calculate_max_length_and_width(parent_contour)
+
         metrics.append({
             "parent": parent_label,
             "scar": parent_label,
             "centroid_x": centroid_x,
             "centroid_y": centroid_y,
-            "width": round(w, 2),
-            "height": round(h, 2),
+            "width": w,
+            "height": h,
             "area": area,
             "aspect_ratio": round(h / w, 2),
             "bounding_box_x": x,
             "bounding_box_y": y,
             "bounding_box_width": w,
-            "bounding_box_height": h
+            "bounding_box_height": h,
+            "max_length": max_length,
+            "max_width": max_width
         })
 
     # Process children next
@@ -188,6 +226,12 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
             centroid_x = round(moments["m10"] / moments["m00"], 2)
             centroid_y = round(moments["m01"] / moments["m00"], 2)
 
+        # Calculate bounding box for the child contour
+        x, y, w, h = cv2.boundingRect(child_contour)
+
+        # Calculate max_length and max_width
+        max_length, max_width = calculate_max_length_and_width(child_contour)
+
         metrics.append({
             "parent": parent_label,
             "scar": child_label,
@@ -195,8 +239,14 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
             "centroid_y": centroid_y,
             "width": round(w, 2),
             "height": round(h, 2),
+            "max_length": round(max_length, 2),
+            "max_width": round(max_width, 2),
             "area": area,
-            "aspect_ratio": round(h / w, 2)
+            "aspect_ratio": round(h / w, 2),
+            "bounding_box_x": x,
+            "bounding_box_y": y,
+            "bounding_box_width": w,
+            "bounding_box_height": h
         })
 
     logging.info(
@@ -439,13 +489,15 @@ def save_measurements_to_csv(metrics, output_path, append=False):
 
         # Prepare the data entry
         data_entry = {
-            "image_id": metric["image_id"],
+            "image_id": metric.get("image_id", "NA"),
             "surface_type": surface_type,
             "surface_feature": surface_feature,
             "centroid_x": metric.get("centroid_x", "NA"),
             "centroid_y": metric.get("centroid_y", "NA"),
             "width": metric.get("width", "NA"),
             "height": metric.get("height", "NA"),
+            "max_width": metric.get("max_width", "NA"),
+            "max_length": metric.get("max_length", "NA"),
             "total_area": metric.get("area", "NA"),
             "aspect_ratio": metric.get("aspect_ratio", "NA"),
             "top_area": metric.get("top_area", "NA"),
@@ -460,7 +512,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     # Define columns dynamically
     base_columns = [
         "image_id", "surface_type", "surface_feature", "centroid_x", "centroid_y",
-        "width", "height", "total_area", "aspect_ratio"
+        "width", "height", "max_width", "max_length", "total_area", "aspect_ratio"
     ]
     symmetry_columns = [
         "top_area", "bottom_area", "left_area", "right_area",
@@ -484,6 +536,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     else:
         df.to_csv(output_path, index=False)
         logging.info("Saved metrics to new CSV file: %s", output_path)
+
 
 
 def analyze_dorsal_symmetry(metrics, contours, inverted_image):
