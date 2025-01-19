@@ -18,7 +18,13 @@ import numpy as np
 import logging
 import os
 import pandas as pd
-from scipy.spatial import Voronoi, voronoi_plot_2d
+from scipy.spatial import Voronoi, voronoi_plot_2d, ConvexHull
+from scipy.spatial import ConvexHull
+from shapely.geometry import Polygon
+from shapely.geometry.polygon import LinearRing
+from shapely.ops import unary_union
+import matplotlib.patches as patches
+from matplotlib.collections import PatchCollection
 import matplotlib.pyplot as plt
 
 def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
@@ -561,7 +567,7 @@ def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_facto
     """
     Generate and visualize a Voronoi diagram for Dorsal surface contours,
     including centroids from associated child contours, dynamically adjusting
-    the plot bounds to the dorsal surface bounding box with padding.
+    the plot bounds to the dorsal surface bounding box with padding, and overlaying a Convex Hull.
 
     Args:
         metrics (list): List of contour metrics containing centroids and surface types.
@@ -572,6 +578,9 @@ def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_facto
     Returns:
         None
     """
+    from scipy.spatial import ConvexHull
+    from matplotlib.patches import Polygon as MplPolygon
+
     # Filter metrics for Dorsal surface
     dorsal_metrics = [m for m in metrics if m.get("surface_type") == "Dorsal"]
 
@@ -638,12 +647,22 @@ def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_facto
     # Plot the Voronoi diagram
     voronoi_plot_2d(vor, ax=ax, show_vertices=False, line_colors='blue', line_width=1, point_size=2)
 
+    # Overlay the Convex Hull
+    hull = ConvexHull(centroids)
+    hull_vertices = centroids[hull.vertices]
+    hull_polygon = MplPolygon(hull_vertices, closed=True, edgecolor="green", fill=False, linewidth=2, label="Convex Hull")
+    ax.add_patch(hull_polygon)
+
     # Highlight centroids
     ax.plot(centroids[:, 0], centroids[:, 1], 'ro', label='Dorsal Surface Centroids')
 
     # Annotate centroids with labels
     for i, (x, y) in enumerate(centroids):
-        ax.text(x + 5, y - 5, f"C{i+1}", color="grey", fontsize=12)
+        if i == 0:
+            label = "Surface Center"
+        else:
+            label = f"C{i}"  # Start numbering from 1 for subsequent centroids
+        ax.text(x + 5, y - 5, label, color="grey", fontsize=12)
 
     # Adjust plot limits dynamically to match the padded bounding box
     ax.set_xlim(x_min_padded, x_max_padded)
@@ -661,6 +680,7 @@ def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_facto
     plt.close()
 
     logging.info("Saved Voronoi diagram visualization to: %s", output_path)
+
 
 
 def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id):
