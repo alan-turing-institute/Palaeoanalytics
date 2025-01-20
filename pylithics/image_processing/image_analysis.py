@@ -205,7 +205,8 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
             "bounding_box_width": w,
             "bounding_box_height": h,
             "max_length": max_length,
-            "max_width": max_width
+            "max_width": max_width,
+            "contour": parent_contour.tolist()  # Store the parent contour points
         })
 
     # Process children next
@@ -616,7 +617,7 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
     }
 
 
-def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_factor=0.05):
+def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_factor=0.10):
     """
     Generate and visualize a Voronoi diagram for Dorsal surface contours,
     including centroids from associated child contours, dynamically adjusting
