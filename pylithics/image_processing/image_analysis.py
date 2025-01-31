@@ -625,6 +625,7 @@ def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_facto
     including centroids from associated child contours, dynamically adjusting
     the plot bounds to the dorsal surface bounding box with padding. The diagram
     is clipped to the Dorsal surface contour using shapely's voronoi_diagram.
+    Additionally, overlays the convex hull of the centroids.
 
     Args:
         metrics (list): List of contour metrics containing centroids and surface types.
@@ -673,6 +674,9 @@ def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_facto
     # Generate Voronoi polygons clipped to the dorsal contour
     voronoi = voronoi_diagram(points, envelope=dorsal_contour)
 
+    # Calculate the convex hull of the centroids
+    convex_hull = points.convex_hull
+
     # Calculate bounding box of the dorsal contour with padding
     x_min, y_min, x_max, y_max = dorsal_contour.bounds
     x_padding = (x_max - x_min) * padding_factor
@@ -702,41 +706,45 @@ def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_facto
                     patches.append(MplPolygon(np.array(sub_region.exterior.coords), closed=True))
 
     # Create a color-blind-friendly colormap like 'tab10'
-    colormap = get_cmap('tab10')  # Alternatives: 'tab20', 'Set1'
-    norm = Normalize(vmin=0, vmax=len(patches))  # Normalize indices to colormap range
-    colors = [colormap(norm(i)) for i in range(len(patches))]  # Generate unique colors
+    colormap = get_cmap('tab10')
+    norm = Normalize(vmin=0, vmax=len(patches))
+    colors = [colormap(norm(i)) for i in range(len(patches))]
 
     # Create the PatchCollection with the color-blind-safe colors
     patch_collection = PatchCollection(
         patches,
-        alpha=0.8,  # Adjust transparency for better visibility
-        facecolor=colors,  # Use the generated colors
-        edgecolor="black",  # Edge color for boundary lines
-        linewidths=0.8
+        alpha=0.6,
+        facecolor=colors,
+        edgecolor="white",
+        linewidths=2
     )
 
     # Add the PatchCollection to the plot
     ax.add_collection(patch_collection)
 
+    # Overlay the convex hull
+    if not convex_hull.is_empty:
+        hull_coords = np.array(convex_hull.exterior.coords)
+        ax.plot(hull_coords[:, 0], hull_coords[:, 1], color="black", linewidth=2, label="Convex Hull")
 
     # Highlight centroids
     ax.plot(
-        [p.x for p in points.geoms],  # Access individual points using .geoms
+        [p.x for p in points.geoms],
         [p.y for p in points.geoms],
         'ro', label='Dorsal Surface Centroids'
     )
 
     # Annotate centroids with labels
-    for i, p in enumerate(points.geoms):  # Access individual points using .geoms
+    for i, p in enumerate(points.geoms):
         label = "Surface Center" if i == 0 else f"C{i}"
-        ax.text(p.x + 5, p.y - 5, label, color="black", fontsize=12)
+        ax.text(p.x + 10, p.y + 2, label, color="black", fontsize=12)
 
     # Adjust plot limits dynamically to match the padded bounding box
     ax.set_xlim(x_min_padded, x_max_padded)
     ax.set_ylim(y_max_padded, y_min_padded)  # Invert y-axis to match image coordinates
 
     # Set title, labels, and legend
-    ax.set_title("Voronoi Diagram for Dorsal Surface and Associated Scars")
+    ax.set_title("Voronoi Diagram with Convex Hull")
     ax.set_xlabel("Horizontal Distance")
     ax.set_ylabel("Vertical Distance")
     ax.legend()
