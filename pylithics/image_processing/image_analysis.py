@@ -503,6 +503,10 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             "max_length": metric.get("max_length", "NA"),
             "total_area": metric.get("area", "NA"),
             "aspect_ratio": metric.get("aspect_ratio", "NA"),
+            "voronoi_num_cells": metric.get("voronoi_num_cells", "NA"),
+            "convex_hull_width": metric.get("convex_hull_width", "NA"),
+            "convex_hull_height": metric.get("convex_hull_height", "NA"),
+            "convex_hull_area": metric.get("convex_hull_area", "NA"),
             "top_area": metric.get("top_area", "NA"),
             "bottom_area": metric.get("bottom_area", "NA"),
             "left_area": metric.get("left_area", "NA"),
@@ -512,10 +516,11 @@ def save_measurements_to_csv(metrics, output_path, append=False):
         }
         updated_data.append(data_entry)
 
-    # Define columns dynamically
+    # Define columns dynamically; note the new voronoi/convex hull columns are included here.
     base_columns = [
         "image_id", "surface_type", "surface_feature", "centroid_x", "centroid_y",
-        "width", "height", "max_width", "max_length", "total_area", "aspect_ratio"
+        "width", "height", "max_width", "max_length", "total_area", "aspect_ratio",
+        "voronoi_num_cells", "convex_hull_width", "convex_hull_height", "convex_hull_area"
     ]
     symmetry_columns = [
         "top_area", "bottom_area", "left_area", "right_area",
@@ -539,7 +544,6 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     else:
         df.to_csv(output_path, index=False)
         logging.info("Saved metrics to new CSV file: %s", output_path)
-
 
 
 def analyze_dorsal_symmetry(metrics, contours, inverted_image):
@@ -903,16 +907,37 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
     # Step 7: Perform symmetry analysis for the dorsal surface
     symmetry_scores = analyze_dorsal_symmetry(metrics, sorted_contours["parents"], inverted_image)
 
-    # Step 8: Add symmetry scores to the metrics
+    # Step 8: Add symmetry scores to the dorsal metrics only (as symmetry applies to the dorsal surface)
     for metric in metrics:
         if metric.get("surface_type") == "Dorsal":
             metric.update(symmetry_scores)
 
-    # Step 9: Save metrics to CSV
+    # *** NEW STEP 9: Calculate Voronoi diagram and convex hull metrics ***
+    # Note: These are computed using the dorsal surface metrics, so they represent image-level values.
+    voronoi_data = calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02)
+    if voronoi_data is not None:
+        vor_num_cells = voronoi_data['voronoi_metrics']['num_cells']
+        ch_width = round(voronoi_data['convex_hull_metrics']['width'], 2)
+        ch_height = round(voronoi_data['convex_hull_metrics']['height'], 2)
+        ch_area = round(voronoi_data['convex_hull_metrics']['area'], 2)
+    else:
+        vor_num_cells = "NA"
+        ch_width = "NA"
+        ch_height = "NA"
+        ch_area = "NA"
+
+    # Append these new metrics to EVERY metric entry—even if the entry is not dorsal.
+    for metric in metrics:
+        metric['voronoi_num_cells'] = vor_num_cells
+        metric['convex_hull_width'] = ch_width
+        metric['convex_hull_height'] = ch_height
+        metric['convex_hull_area'] = ch_area
+
+    # Step 10: Save metrics to CSV (now with additional voronoi/hull fields)
     combined_csv_path = os.path.join(output_dir, "processed_metrics.csv")
     save_measurements_to_csv(metrics, combined_csv_path, append=True)
 
-    # Step 10: Visualize contours with hierarchy
+    # Step 11: Visualize contours with hierarchy
     visualization_path = os.path.join(output_dir, f"{image_id}_labeled.png")
     visualize_contours_with_hierarchy(
         sorted_contours["parents"] + sorted_contours["children"],
@@ -922,12 +947,10 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         visualization_path
     )
 
-    # Step 11: Generate and visualize Voronoi diagram for the Dorsal surface and its children
-    voronoi_data = calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02)
+    # Step 12: Generate and visualize Voronoi diagram for the Dorsal surface and its children
     if voronoi_data is not None:
         voronoi_output_path = os.path.join(output_dir, f"{image_id}_voronoi.png")
         visualize_voronoi_diagram(voronoi_data, inverted_image, voronoi_output_path)
-
 
 
 def convert_metrics_to_real_world(metrics, conversion_factor):
