@@ -619,29 +619,43 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
     }
 
 
-def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_factor=0.02):
+def calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02):
     """
-    Generate and visualize a Voronoi diagram for Dorsal surface contours,
-    including centroids from associated child contours, dynamically adjusting
-    the plot bounds to the dorsal surface bounding box with padding. The diagram
-    is clipped to the Dorsal surface contour using shapely's voronoi_diagram.
-    Additionally, overlays the convex hull of the centroids.
+    Calculate Voronoi diagram polygons and convex hull from dorsal surface centroids.
+    Also computes metrics for the Voronoi cells (number of cells, area of each cell,
+    and number of shared edges) as well as the convex hull metrics (width, height, area).
+
+    This function filters the input metrics to include only those with a dorsal surface
+    classification, extracts centroids from both the dorsal parent and its child contours,
+    creates a shapely MultiPoint, and then computes a Voronoi diagram clipped to the dorsal
+    contour. It also calculates the convex hull of the centroids and a padded bounding box
+    based on the dorsal contour bounds.
 
     Args:
-        metrics (list): List of contour metrics containing centroids and surface types.
+        metrics (list): List of contour metrics containing centroids, contours, and surface types.
         inverted_image (numpy.ndarray): Inverted binary thresholded image.
-        output_path (str): Path to save the Voronoi diagram visualization.
-        padding_factor (float): Percentage of padding to add to the bounding box.
+        padding_factor (float): Percentage of padding to add to the dorsal contour bounding box.
+                                  Defaults to 0.02 (i.e., 2%).
 
     Returns:
-        None
+        dict: A dictionary containing:
+            - 'voronoi_diagram': Shapely GeometryCollection of the Voronoi cells.
+            - 'voronoi_cells': List of dictionaries for each Voronoi cell with keys:
+                  'polygon' (shapely Polygon), 'area' (float), 'shared_edges' (int)
+            - 'voronoi_metrics': Dictionary with overall Voronoi metrics (e.g., 'num_cells').
+            - 'convex_hull': Shapely Geometry representing the convex hull of the centroids.
+            - 'convex_hull_metrics': Dictionary with keys 'width', 'height', and 'area'.
+            - 'points': Shapely MultiPoint object of the dorsal centroids.
+            - 'bounding_box': Dictionary with padded bounding box values:
+                  'x_min', 'x_max', 'y_min', 'y_max'.
+            - 'dorsal_contour': Shapely Polygon for the dorsal contour.
     """
     # Filter metrics for Dorsal surface
     dorsal_metrics = [m for m in metrics if m.get("surface_type") == "Dorsal"]
 
     if not dorsal_metrics:
         logging.warning("No Dorsal surface metrics available for Voronoi diagram.")
-        return
+        return None
 
     # Collect centroids and process the dorsal contour
     centroids = []
@@ -651,7 +665,7 @@ def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_facto
         # Add centroid of the parent dorsal contour
         centroids.append(Point(dorsal_metric["centroid_x"], dorsal_metric["centroid_y"]))
 
-        # Extract the dorsal surface contour
+        # Extract the dorsal surface contour (only once)
         if dorsal_contour is None and "contour" in dorsal_metric:
             raw_contour = dorsal_metric["contour"]
             if isinstance(raw_contour, list) and isinstance(raw_contour[0], list):
@@ -666,51 +680,144 @@ def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_facto
 
     if dorsal_contour is None:
         logging.warning("No dorsal contour data available for the Dorsal surface.")
-        return
+        return None
 
-    # Create a Shapely MultiPoint for the centroids
+    # Create a Shapely MultiPoint from the centroids
     points = MultiPoint(centroids)
 
     # Generate Voronoi polygons clipped to the dorsal contour
-    voronoi = voronoi_diagram(points, envelope=dorsal_contour)
+    vor = voronoi_diagram(points, envelope=dorsal_contour)
 
     # Calculate the convex hull of the centroids
     convex_hull = points.convex_hull
 
-    # Calculate bounding box of the dorsal contour with padding
+    # Calculate padded bounding box of the dorsal contour
     x_min, y_min, x_max, y_max = dorsal_contour.bounds
     x_padding = (x_max - x_min) * padding_factor
     y_padding = (y_max - y_min) * padding_factor
+    bounding_box = {
+        'x_min': x_min - x_padding,
+        'x_max': x_max + x_padding,
+        'y_min': y_min - y_padding,
+        'y_max': y_max + y_padding
+    }
 
-    x_min_padded = x_min - x_padding
-    x_max_padded = x_max + x_padding
-    y_min_padded = y_min - y_padding
-    y_max_padded = y_max + y_padding
-
-    # Create a plot for visualization
-    fig, ax = plt.subplots(figsize=(10, 10))
-
-    # Include the original image as the background
-    ax.imshow(cv2.cvtColor(cv2.bitwise_not(inverted_image), cv2.COLOR_GRAY2RGB))
-
-    # Plot the clipped Voronoi polygons
-    patches = []
-    for region in voronoi.geoms:
+    # Process each Voronoi region: clip to the dorsal contour and collect valid polygons
+    voronoi_cells = []
+    for region in vor.geoms:
         clipped_region = region.intersection(dorsal_contour)
         if not clipped_region.is_empty:
-            if isinstance(clipped_region, Polygon):
-                patches.append(MplPolygon(np.array(clipped_region.exterior.coords), closed=True))
+            if clipped_region.geom_type == 'Polygon':
+                cell_polygon = clipped_region
+            elif clipped_region.geom_type == 'MultiPolygon':
+                cell_polygon = max(clipped_region.geoms, key=lambda p: p.area)
             else:
-                # Handle MultiPolygons by iterating over individual polygons
-                for sub_region in clipped_region.geoms:
-                    patches.append(MplPolygon(np.array(sub_region.exterior.coords), closed=True))
+                continue  # Skip geometries that are not polygons
+            voronoi_cells.append(cell_polygon)
 
-    # Create a color-blind-friendly colormap like 'tab10'
+    num_cells = len(voronoi_cells)
+
+    # Calculate shared edges between Voronoi cells
+    shared_edges_counts = [0] * num_cells
+    tolerance = 1e-6  # small tolerance for geometric comparisons
+    for i in range(num_cells):
+        for j in range(i + 1, num_cells):
+            inter = voronoi_cells[i].exterior.intersection(voronoi_cells[j].exterior)
+            if not inter.is_empty:
+                if inter.geom_type == 'LineString':
+                    if inter.length > tolerance:
+                        shared_edges_counts[i] += 1
+                        shared_edges_counts[j] += 1
+                elif inter.geom_type == 'MultiLineString':
+                    total_length = sum(line.length for line in inter.geoms)
+                    if total_length > tolerance:
+                        shared_edges_counts[i] += 1
+                        shared_edges_counts[j] += 1
+
+    # Assemble the metrics for each Voronoi cell
+    voronoi_cell_metrics = []
+    for idx, cell in enumerate(voronoi_cells):
+        cell_dict = {
+            'polygon': cell,
+            'area': cell.area,
+            'shared_edges': shared_edges_counts[idx]
+        }
+        voronoi_cell_metrics.append(cell_dict)
+
+    # Calculate convex hull metrics based on its bounding box and area
+    ch_minx, ch_miny, ch_maxx, ch_maxy = convex_hull.bounds
+    ch_width = ch_maxx - ch_minx
+    ch_height = ch_maxy - ch_miny
+    convex_hull_metrics = {
+        'width': ch_width,
+        'height': ch_height,
+        'area': convex_hull.area
+    }
+
+    result = {
+        'voronoi_diagram': vor,
+        'voronoi_cells': voronoi_cell_metrics,
+        'voronoi_metrics': {
+            'num_cells': num_cells
+        },
+        'convex_hull': convex_hull,
+        'convex_hull_metrics': convex_hull_metrics,
+        'points': points,
+        'bounding_box': bounding_box,
+        'dorsal_contour': dorsal_contour
+    }
+    return result
+
+
+def visualize_voronoi_diagram(voronoi_data, inverted_image, output_path):
+    """
+    Visualize the Voronoi diagram and convex hull on the dorsal surface. This function replicates
+    the visualization features from the original generate_voronoi_diagram() function:
+      - Displays the original (inverted back) image as a background.
+      - Plots the Voronoi cells (clipped to the dorsal contour) as colored patches using a color-blind-friendly colormap.
+      - Overlays the convex hull of the centroids.
+      - Highlights and annotates all centroids (both dorsal surface and child contours) with labels.
+      - Dynamically adjusts the plot bounds using the padded bounding box.
+      - Does not display cell metrics on the image.
+
+    Args:
+        voronoi_data (dict): Dictionary produced by calculate_voronoi_points() containing:
+            - 'voronoi_cells': List of dicts (each with 'polygon', 'area', 'shared_edges').
+            - 'convex_hull': Shapely Geometry for the convex hull.
+            - 'points': Shapely MultiPoint of the centroids.
+            - 'bounding_box': Dict with keys 'x_min', 'x_max', 'y_min', 'y_max'.
+        inverted_image (numpy.ndarray): Inverted binary thresholded image.
+        output_path (str): Path to save the generated Voronoi diagram visualization.
+
+    Returns:
+        None
+    """
+    # Invert the image back to its original form (black illustration on white background)
+    original_image = cv2.bitwise_not(inverted_image)
+    background_image = cv2.cvtColor(original_image, cv2.COLOR_GRAY2RGB)
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    ax.imshow(background_image)
+
+    # Prepare a list to hold matplotlib polygon patches for the Voronoi cells
+    patches = []
+    for cell_dict in voronoi_data['voronoi_cells']:
+        cell_polygon = cell_dict['polygon']
+        if cell_polygon.geom_type == 'Polygon':
+            patch = MplPolygon(np.array(cell_polygon.exterior.coords), closed=True)
+            patches.append(patch)
+        elif cell_polygon.geom_type == 'MultiPolygon':
+            largest = max(cell_polygon.geoms, key=lambda p: p.area)
+            patch = MplPolygon(np.array(largest.exterior.coords), closed=True)
+            patches.append(patch)
+        else:
+            logging.warning("Skipping Voronoi cell with unsupported geometry type: %s", cell_polygon.geom_type)
+
+    # Use a color-blind-friendly colormap (e.g., 'tab10') and normalization
     colormap = get_cmap('tab10')
     norm = Normalize(vmin=0, vmax=len(patches))
     colors = [colormap(norm(i)) for i in range(len(patches))]
 
-    # Create the PatchCollection with the color-blind-safe colors
     patch_collection = PatchCollection(
         patches,
         alpha=0.6,
@@ -718,30 +825,35 @@ def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_facto
         edgecolor="white",
         linewidths=2
     )
-
-    # Add the PatchCollection to the plot
     ax.add_collection(patch_collection)
 
     # Overlay the convex hull
+    convex_hull = voronoi_data['convex_hull']
     if not convex_hull.is_empty:
-        hull_coords = np.array(convex_hull.exterior.coords)
-        ax.plot(hull_coords[:, 0], hull_coords[:, 1], color="black", linewidth=2, label="Convex Hull")
+        if convex_hull.geom_type == 'Polygon':
+            hull_coords = np.array(convex_hull.exterior.coords)
+            ax.plot(hull_coords[:, 0], hull_coords[:, 1], color="black", linewidth=2, label="Convex Hull")
+        elif convex_hull.geom_type == 'LineString':
+            hull_coords = np.array(convex_hull.coords)
+            ax.plot(hull_coords[:, 0], hull_coords[:, 1], color="black", linewidth=2, label="Convex Hull")
+        elif convex_hull.geom_type == 'Point':
+            ax.plot(convex_hull.x, convex_hull.y, 'ko', label="Convex Hull")
+        else:
+            logging.warning("Convex hull has unsupported geometry type: %s", convex_hull.geom_type)
 
-    # Highlight centroids
-    ax.plot(
-        [p.x for p in points.geoms],
-        [p.y for p in points.geoms],
-        'ro', label='Dorsal Surface Centroids'
-    )
-
-    # Annotate centroids with labels
+    # Highlight all centroids from the MultiPoint object and annotate them.
+    points = voronoi_data['points']
+    centroid_xs = [p.x for p in points.geoms]
+    centroid_ys = [p.y for p in points.geoms]
+    ax.plot(centroid_xs, centroid_ys, 'ro', markersize=5, label='Dorsal Surface Centroids')
     for i, p in enumerate(points.geoms):
         label = "Surface Center" if i == 0 else f"C{i}"
         ax.text(p.x + 10, p.y + 2, label, color="black", fontsize=12)
 
-    # Adjust plot limits dynamically to match the padded bounding box
-    ax.set_xlim(x_min_padded, x_max_padded)
-    ax.set_ylim(y_max_padded, y_min_padded)  # Invert y-axis to match image coordinates
+    # Adjust plot limits using the padded bounding box
+    bbox = voronoi_data['bounding_box']
+    ax.set_xlim(bbox['x_min'], bbox['x_max'])
+    ax.set_ylim(bbox['y_max'], bbox['y_min'])  # Invert y-axis to match image coordinates
 
     # Set title, labels, and legend
     ax.set_title("Voronoi Diagram with Convex Hull")
@@ -749,7 +861,6 @@ def generate_voronoi_diagram(metrics, inverted_image, output_path, padding_facto
     ax.set_ylabel("Vertical Distance")
     ax.legend()
 
-    # Save the plot
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     plt.savefig(output_path, bbox_inches='tight', dpi=300)
     plt.close()
@@ -812,8 +923,10 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
     )
 
     # Step 11: Generate and visualize Voronoi diagram for the Dorsal surface and its children
-    voronoi_output_path = os.path.join(output_dir, f"{image_id}_voronoi.png")
-    generate_voronoi_diagram(metrics, inverted_image, voronoi_output_path)
+    voronoi_data = calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02)
+    if voronoi_data is not None:
+        voronoi_output_path = os.path.join(output_dir, f"{image_id}_voronoi.png")
+        visualize_voronoi_diagram(voronoi_data, inverted_image, voronoi_output_path)
 
 
 
