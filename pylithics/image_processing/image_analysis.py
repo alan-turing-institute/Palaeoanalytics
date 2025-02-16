@@ -926,12 +926,19 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         ch_height = "NA"
         ch_area = "NA"
 
-    # Append these new metrics to EVERY metric entry—even if the entry is not dorsal.
+# Append Voronoi and convex hull metrics only for the Dorsal surface;
+# for non-dorsal entries, mark as "NA".
     for metric in metrics:
-        metric['voronoi_num_cells'] = vor_num_cells
-        metric['convex_hull_width'] = ch_width
-        metric['convex_hull_height'] = ch_height
-        metric['convex_hull_area'] = ch_area
+        if metric.get("surface_type") == "Dorsal":
+            metric['voronoi_num_cells'] = vor_num_cells
+            metric['convex_hull_width'] = ch_width
+            metric['convex_hull_height'] = ch_height
+            metric['convex_hull_area'] = ch_area
+        else:
+            metric['voronoi_num_cells'] = "NA"
+            metric['convex_hull_width'] = "NA"
+            metric['convex_hull_height'] = "NA"
+            metric['convex_hull_area'] = "NA"
 
     # Step 10: Save metrics to CSV (now with additional voronoi/hull fields)
     combined_csv_path = os.path.join(output_dir, "processed_metrics.csv")
