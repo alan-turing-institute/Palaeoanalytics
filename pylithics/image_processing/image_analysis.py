@@ -119,25 +119,12 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
     """
     Calculate metrics for contours in a sorted order (parents first, children second),
     ensuring children are correctly grouped with their respective parents.
-
-    Args:
-        sorted_contours (dict): Dictionary with sorted contours:
-            - "parents": List of parent contours.
-            - "children": List of child contours.
-            - "nested_children": List of nested child contours (will be excluded).
-        hierarchy (numpy.ndarray): Hierarchy array corresponding to the contours.
-        original_contours (list): Original list of all contours.
-
-    Returns:
-        list: A list of dictionaries containing raw contour metrics for parents and children.
     """
     def calculate_max_length_and_width(contour):
         # Compute the maximum distance (max_length) and its perpendicular max_width
         max_length = 0
         max_width = 0
         point1, point2 = None, None
-
-        # Find the two points with the maximum distance
         for i in range(len(contour)):
             for j in range(i + 1, len(contour)):
                 p1 = contour[i][0]
@@ -146,34 +133,21 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
                 if distance > max_length:
                     max_length = distance
                     point1, point2 = p1, p2
-
-        # Calculate max_width as the greatest distance perpendicular to max_length
         if point1 is not None and point2 is not None:
             direction_vector = point2 - point1
-            norm_vector = np.array([-direction_vector[1], direction_vector[0]])  # Perpendicular vector
-            norm_vector = norm_vector / np.linalg.norm(norm_vector)  # Normalize
-
-            # Project all points onto the perpendicular vector
-            projections = []
-            for point in contour:
-                vector_to_point = point[0] - point1
-                projection = np.abs(np.dot(vector_to_point, norm_vector))
-                projections.append(projection)
-
+            norm_vector = np.array([-direction_vector[1], direction_vector[0]])
+            norm_vector = norm_vector / np.linalg.norm(norm_vector)
+            projections = [abs(np.dot(point[0] - point1, norm_vector)) for point in contour]
             max_width = max(projections)
-
         return round(max_length, 2), round(max_width, 2)
 
     metrics = []
     parent_count = 0
     child_count = 0
-
-    # Create a mapping of parent indices to labels
     parent_index_to_label = {}
 
-    # Process parents first
+    # Process parent contours first
     for parent_contour in sorted_contours["parents"]:
-        # Find the index of the parent contour in the original list
         parent_index = next(i for i, c in enumerate(original_contours) if np.array_equal(c, parent_contour))
         parent_count += 1
         parent_label = f"parent {parent_count}"
@@ -181,16 +155,15 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
 
         # Calculate metrics for the parent contour
         area = round(cv2.contourArea(parent_contour), 2)
+        # --- New: Compute the perimeter (arc length) of the contour ---
+        perimeter = round(cv2.arcLength(parent_contour, True), 2)
+
         moments = cv2.moments(parent_contour)
         centroid_x, centroid_y = (0.0, 0.0)
         if moments["m00"] != 0:
             centroid_x = round(moments["m10"] / moments["m00"], 2)
             centroid_y = round(moments["m01"] / moments["m00"], 2)
-
-        # Calculate bounding box for the parent contour
         x, y, w, h = cv2.boundingRect(parent_contour)
-
-        # Calculate max_length and max_width
         max_length, max_width = calculate_max_length_and_width(parent_contour)
 
         metrics.append({
@@ -208,31 +181,25 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
             "bounding_box_height": h,
             "max_length": max_length,
             "max_width": max_width,
-            "contour": parent_contour.tolist()  # Store the parent contour points
+            "contour": parent_contour.tolist(),
+            "perimeter": perimeter
         })
 
-    # Process children next
+    # Process child contours
     for child_contour in sorted_contours["children"]:
-        # Find the index of the child contour in the original list
         child_index = next(i for i, c in enumerate(original_contours) if np.array_equal(c, child_contour))
-        parent_index = hierarchy[child_index][3]  # Get the parent index from the hierarchy
-        parent_label = parent_index_to_label.get(parent_index, "Unknown")  # Get the parent label
-
+        parent_index = hierarchy[child_index][3]
+        parent_label = parent_index_to_label.get(parent_index, "Unknown")
         child_count += 1
         child_label = f"scar {child_count}"
 
-        # Calculate metrics for the child contour
         area = round(cv2.contourArea(child_contour), 2)
         moments = cv2.moments(child_contour)
         centroid_x, centroid_y = (0.0, 0.0)
         if moments["m00"] != 0:
             centroid_x = round(moments["m10"] / moments["m00"], 2)
             centroid_y = round(moments["m01"] / moments["m00"], 2)
-
-        # Calculate bounding box for the child contour
         x, y, w, h = cv2.boundingRect(child_contour)
-
-        # Calculate max_length and max_width
         max_length, max_width = calculate_max_length_and_width(child_contour)
 
         metrics.append({
@@ -250,6 +217,7 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
             "bounding_box_y": y,
             "bounding_box_width": w,
             "bounding_box_height": h
+            # No perimeter for child contours (unless you choose to compute it)
         })
 
     logging.info(
@@ -465,24 +433,13 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
 def save_measurements_to_csv(metrics, output_path, append=False):
     """
     Save contour metrics to a CSV file with updated column structure.
-
-    Args:
-        metrics (list): List of dictionaries containing contour metrics.
-        output_path (str): Path to save the CSV file.
-        append (bool): Whether to append to an existing file. Defaults to False.
-
-    Returns:
-        None
     """
-    # Prepare data for the DataFrame
     updated_data = []
     for metric in metrics:
         if metric["parent"] == metric["scar"]:
-            # Parent contours: use their own surface_type
             surface_type = metric.get("surface_type", "NA")
             surface_feature = surface_type
         else:
-            # Child contours: inherit surface_type from their parent
             parent_surface_type = next(
                 (m["surface_type"] for m in metrics if m["parent"] == metric["parent"] and m["parent"] == m["scar"]),
                 "NA"
@@ -490,7 +447,6 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             surface_type = parent_surface_type
             surface_feature = metric["scar"]
 
-        # Prepare the data entry
         data_entry = {
             "image_id": metric.get("image_id", "NA"),
             "surface_type": surface_type,
@@ -503,6 +459,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             "max_length": metric.get("max_length", "NA"),
             "total_area": metric.get("area", "NA"),
             "aspect_ratio": metric.get("aspect_ratio", "NA"),
+            "perimeter": metric.get("perimeter", "NA"),  # <-- New perimeter field
             "voronoi_num_cells": metric.get("voronoi_num_cells", "NA"),
             "convex_hull_width": metric.get("convex_hull_width", "NA"),
             "convex_hull_height": metric.get("convex_hull_height", "NA"),
@@ -516,10 +473,10 @@ def save_measurements_to_csv(metrics, output_path, append=False):
         }
         updated_data.append(data_entry)
 
-    # Define columns dynamically; note the new voronoi/convex hull columns are included here.
     base_columns = [
         "image_id", "surface_type", "surface_feature", "centroid_x", "centroid_y",
         "width", "height", "max_width", "max_length", "total_area", "aspect_ratio",
+        "perimeter",  # <-- New column
         "voronoi_num_cells", "convex_hull_width", "convex_hull_height", "convex_hull_area"
     ]
     symmetry_columns = [
@@ -528,16 +485,10 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     ]
     all_columns = base_columns + symmetry_columns
 
-    # Convert updated data to a DataFrame
     df = pd.DataFrame(updated_data, columns=all_columns)
-
-    # Ensure all `NA` replacements are applied
     df.fillna("NA", inplace=True)
-
-    # Ensure directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    # Write or append data to the CSV
     if append and os.path.exists(output_path):
         df.to_csv(output_path, mode="a", header=False, index=False)
         logging.info("Appended metrics to existing CSV file: %s", output_path)
