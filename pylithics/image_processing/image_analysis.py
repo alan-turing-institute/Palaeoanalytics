@@ -1,33 +1,74 @@
 """
 PyLithics: Image Analysis Module
+=================================
 
-This module provides functions for extracting contours and hierarchy
-relationships from preprocessed images, calculating metrics, visualizing results,
-and saving data to a CSV file.
+This module provides a comprehensive toolkit for the quantitative analysis of lithic artifacts
+via image processing. It is designed for researchers in archaeology, lithic analysis, and related
+fields, enabling objective, reproducible, and detailed assessment of artifact features.
 
-Usage:
-    - extract_contours_with_hierarchy(): Extract contours and their hierarchy.
-    - analyze_image_contours_with_hierarchy(): Perform contour analysis and exclude border contours.
-    - calculate_contour_metrics(): Compute metrics for parent and child contours.
-    - extract_contours_with_hierarchy(): Visualize contours and save labeled images.
-    - save_measurements_to_csv(): Save contour metrics to a CSV file.
+Key functionalities include:
+    - Extracting contours from preprocessed (inverted binary) images and determining their hierarchical
+      relationships.
+    - Calculating geometric and spatial metrics (e.g., area, perimeter, aspect ratio, bounding box dimensions,
+      and symmetry) for both parent and child contours.
+    - Classifying parent contours into surface categories (e.g., Dorsal, Ventral, Platform, Lateral) based on
+      dimensional tolerances.
+    - Visualizing results by overlaying contour hierarchies, Voronoi diagrams, and convex hulls on the original
+      images.
+    - Exporting computed metrics to CSV files for further analysis.
+    - Converting pixel-based measurements into real-world units.
+
+The module includes the following key functions:
+    * extract_contours_with_hierarchy(inverted_image, image_id, output_dir)
+          - Extracts valid contours (excluding those touching the image border) and computes their hierarchy.
+    * sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None)
+          - Organizes contours into parent, child, and nested child categories.
+    * calculate_contour_metrics(sorted_contours, hierarchy, original_contours)
+          - Computes geometric metrics for contours, including area, perimeter (for parent contours), maximum
+            dimensions, and centroid coordinates.
+    * hide_nested_child_contours(contours, hierarchy)
+          - Flags nested or single-child contours for exclusion.
+    * classify_parent_contours(metrics, tolerance=0.1)
+          - Classifies parent contours into surface types such as Dorsal, Ventral, Platform, and Lateral.
+    * visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_image, output_path)
+          - Overlays contours, centroids, and labels on the original image.
+    * save_measurements_to_csv(metrics, output_path, append=False)
+          - Saves computed contour metrics to a CSV file.
+    * analyze_dorsal_symmetry(metrics, contours, inverted_image)
+          - Performs symmetry analysis on the dorsal surface, calculating areas and symmetry indices.
+    * calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02)
+          - Generates a Voronoi diagram and convex hull from dorsal surface centroids, and computes related metrics.
+    * visualize_voronoi_diagram(voronoi_data, inverted_image, output_path)
+          - Visualizes the Voronoi diagram and convex hull overlaid on the original image.
+    * process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id)
+          - Integrates all steps from contour extraction to CSV export and visualization.
+    * convert_metrics_to_real_world(metrics, conversion_factor)
+          - Converts pixel-based measurements to real-world units.
+
+Usage Example:
+    >>> from pylithics import process_and_save_contours
+    >>> process_and_save_contours(inverted_image, 0.01, "/path/to/output", "artifact_001")
+
+All functions are fully documented and include robust logging for debugging and traceability.
 """
 
-import cv2
-import numpy as np
+
 import logging
 import os
+import cv2
+import numpy as np
 import pandas as pd
-from scipy.spatial import Voronoi, voronoi_plot_2d, ConvexHull
+from scipy.spatial import ConvexHull, Voronoi, voronoi_plot_2d
+from shapely.geometry import MultiPoint, Point, Polygon
 from shapely.geometry.polygon import LinearRing
 from shapely.ops import unary_union, voronoi_diagram
-from shapely.geometry import Polygon, MultiPoint, Point
+import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.patches import Polygon as MplPolygon
 from matplotlib.collections import PatchCollection
 from matplotlib.cm import get_cmap
 from matplotlib.colors import Normalize
-import matplotlib.pyplot as plt
+
 
 def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     """
