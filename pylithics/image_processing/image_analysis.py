@@ -505,6 +505,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             "convex_hull_width": metric.get("convex_hull_width", "NA"),
             "convex_hull_height": metric.get("convex_hull_height", "NA"),
             "convex_hull_area": metric.get("convex_hull_area", "NA"),
+            "voronoi_cell_area": metric.get("voronoi_cell_area", "NA"),  # <-- New voronoi_cell_area field
             "top_area": metric.get("top_area", "NA"),
             "bottom_area": metric.get("bottom_area", "NA"),
             "left_area": metric.get("left_area", "NA"),
@@ -517,14 +518,20 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     base_columns = [
         "image_id", "surface_type", "surface_feature", "centroid_x", "centroid_y",
         "width", "height", "max_width", "max_length", "total_area", "aspect_ratio",
-        "perimeter",  # <-- New column
-        "voronoi_num_cells", "convex_hull_width", "convex_hull_height", "convex_hull_area"
+        "perimeter"
     ]
+
+    voronoi_columns = [
+        "voronoi_num_cells", "convex_hull_width", "convex_hull_height", "convex_hull_area",
+        "voronoi_cell_area"  # <-- Include in voronoi_columns
+    ]
+
     symmetry_columns = [
         "top_area", "bottom_area", "left_area", "right_area",
         "vertical_symmetry", "horizontal_symmetry"
     ]
-    all_columns = base_columns + symmetry_columns
+
+    all_columns = base_columns + voronoi_columns + symmetry_columns
 
     df = pd.DataFrame(updated_data, columns=all_columns)
     df.fillna("NA", inplace=True)
@@ -637,7 +644,8 @@ def calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02):
         dict: A dictionary containing:
             - 'voronoi_diagram': Shapely GeometryCollection of the Voronoi cells.
             - 'voronoi_cells': List of dictionaries for each Voronoi cell with keys:
-                  'polygon' (shapely Polygon), 'area' (float), 'shared_edges' (int)
+                  'polygon' (shapely Polygon), 'area' (float), 'shared_edges' (int),
+                  'metric_index' (int) - index of the corresponding metric in the input list.
             - 'voronoi_metrics': Dictionary with overall Voronoi metrics (e.g., 'num_cells').
             - 'convex_hull': Shapely Geometry representing the convex hull of the centroids.
             - 'convex_hull_metrics': Dictionary with keys 'width', 'height', and 'area'.
@@ -646,8 +654,29 @@ def calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02):
                   'x_min', 'x_max', 'y_min', 'y_max'.
             - 'dorsal_contour': Shapely Polygon for the dorsal contour.
     """
-    # Filter metrics for Dorsal surface
-    dorsal_metrics = [m for m in metrics if m.get("surface_type") == "Dorsal"]
+    # Find all metrics related to the dorsal surface (parent and scars)
+    dorsal_metrics = []
+    dorsal_metric_indices = []
+
+    # First, find the parent dorsal surface
+    dorsal_parent = None
+    for i, m in enumerate(metrics):
+        if m.get("surface_type") == "Dorsal" and m["parent"] == m["scar"]:
+            dorsal_parent = m["parent"]
+            dorsal_metrics.append(m)
+            dorsal_metric_indices.append(i)
+            break
+
+    if dorsal_parent is None:
+        logging.warning("No Dorsal surface parent found.")
+        return None
+
+    # Then, find all scars on the dorsal surface
+    for i, m in enumerate(metrics):
+        # Skip the parent (already added)
+        if m["parent"] == dorsal_parent and m["parent"] != m["scar"]:
+            dorsal_metrics.append(m)
+            dorsal_metric_indices.append(i)
 
     if not dorsal_metrics:
         logging.warning("No Dorsal surface metrics available for Voronoi diagram.")
@@ -655,24 +684,27 @@ def calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02):
 
     # Collect centroids and process the dorsal contour
     centroids = []
+    centroid_to_metric_idx = {}  # Maps centroid coordinates to original metric index
     dorsal_contour = None
 
-    for dorsal_metric in dorsal_metrics:
-        # Add centroid of the parent dorsal contour
-        centroids.append(Point(dorsal_metric["centroid_x"], dorsal_metric["centroid_y"]))
+    for i, dorsal_metric in enumerate(dorsal_metrics):
+        # Add centroid and track which metric it came from
+        cx = dorsal_metric["centroid_x"]
+        cy = dorsal_metric["centroid_y"]
+        centroids.append(Point(cx, cy))
+
+        # Store original index in the metrics list
+        original_idx = dorsal_metric_indices[i]
+        centroid_to_metric_idx[(cx, cy)] = original_idx
 
         # Extract the dorsal surface contour (only once)
-        if dorsal_contour is None and "contour" in dorsal_metric:
+        if dorsal_contour is None and "contour" in dorsal_metric and dorsal_metric["parent"] == dorsal_metric["scar"]:
             raw_contour = dorsal_metric["contour"]
             if isinstance(raw_contour, list) and isinstance(raw_contour[0], list):
                 flat_contour = [(point[0][0], point[0][1]) for point in raw_contour]
                 dorsal_contour = Polygon(flat_contour)
             else:
                 raise ValueError("Contour format is not as expected. Please check the metrics data structure.")
-
-        # Add centroids of child contours (scars) linked to this parent contour (surface)
-        child_metrics = [m for m in metrics if m["parent"] == dorsal_metric["parent"] and m["parent"] != m["scar"]]
-        centroids.extend(Point(child["centroid_x"], child["centroid_y"]) for child in child_metrics)
 
     if dorsal_contour is None:
         logging.warning("No dorsal contour data available for the Dorsal surface.")
@@ -700,8 +732,19 @@ def calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02):
 
     # Process each Voronoi region: clip to the dorsal contour and collect valid polygons
     voronoi_cells = []
-    for region in vor.geoms:
+
+    # Convert points to list for indexed access
+    point_list = list(points.geoms)
+
+    for i, region in enumerate(vor.geoms):
+        if i >= len(point_list):  # Safety check
+            continue
+
+        point = point_list[i]
+        point_key = (point.x, point.y)
+
         clipped_region = region.intersection(dorsal_contour)
+
         if not clipped_region.is_empty:
             if clipped_region.geom_type == 'Polygon':
                 cell_polygon = clipped_region
@@ -709,7 +752,14 @@ def calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02):
                 cell_polygon = max(clipped_region.geoms, key=lambda p: p.area)
             else:
                 continue  # Skip geometries that are not polygons
-            voronoi_cells.append(cell_polygon)
+
+            # Store the polygon, its area, and original metric index
+            metric_idx = centroid_to_metric_idx.get(point_key, -1)
+            voronoi_cells.append({
+                'polygon': cell_polygon,
+                'area': cell_polygon.area,
+                'metric_index': metric_idx  # Track which metric this cell belongs to
+            })
 
     num_cells = len(voronoi_cells)
 
@@ -718,7 +768,7 @@ def calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02):
     tolerance = 1e-6  # small tolerance for geometric comparisons
     for i in range(num_cells):
         for j in range(i + 1, num_cells):
-            inter = voronoi_cells[i].exterior.intersection(voronoi_cells[j].exterior)
+            inter = voronoi_cells[i]['polygon'].exterior.intersection(voronoi_cells[j]['polygon'].exterior)
             if not inter.is_empty:
                 if inter.geom_type == 'LineString':
                     if inter.length > tolerance:
@@ -734,9 +784,10 @@ def calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02):
     voronoi_cell_metrics = []
     for idx, cell in enumerate(voronoi_cells):
         cell_dict = {
-            'polygon': cell,
-            'area': cell.area,
-            'shared_edges': shared_edges_counts[idx]
+            'polygon': cell['polygon'],
+            'area': cell['area'],
+            'shared_edges': shared_edges_counts[idx],
+            'metric_index': cell['metric_index']  # Include the metric index
         }
         voronoi_cell_metrics.append(cell_dict)
 
@@ -749,6 +800,38 @@ def calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02):
         'height': ch_height,
         'area': convex_hull.area
     }
+
+    # # Voronoi cell debugging. Re-work for logging
+    # print("=====================================")
+    # # Print the Voronoi debug info
+    # print("\n=== VORONOI DIAGRAM DEBUG INFO ===")
+    # print(f"Total number of cells: {num_cells}")
+
+    # # Print the point coordinates used to generate the Voronoi diagram
+    # print("\nCentroids used to generate Voronoi cells:")
+    # point_coords = [(p.x, p.y) for p in points.geoms]
+    # for i, coord in enumerate(point_coords):
+    #     print(f"  Point {i+1}: ({coord[0]:.2f}, {coord[1]:.2f})")
+
+    # # Print the cell areas with corresponding point coordinates
+    # print("\nVoronoi cell areas with their corresponding centroids:")
+    # for i, cell in enumerate(voronoi_cell_metrics):
+    #     if i < len(point_coords):
+    #         print(f"  Cell {i+1}: Area = {cell['area']:.2f}, Centroid = ({point_coords[i][0]:.2f}, {point_coords[i][1]:.2f})")
+    #     else:
+    #         print(f"  Cell {i+1}: Area = {cell['area']:.2f}, Centroid = Unknown")
+
+    # # Also print the mapping information for verification
+    # print("\nMapping between cells and metrics:")
+    # for i, cell in enumerate(voronoi_cell_metrics):
+    #     metric_idx = cell['metric_index']
+    #     if metric_idx != -1 and metric_idx < len(metrics):
+    #         metric = metrics[metric_idx]
+    #         print(f"  Cell {i+1}: Mapped to metric index {metric_idx}, Feature = {metric.get('scar', 'Unknown')}")
+    #     else:
+    #         print(f"  Cell {i+1}: No valid metric mapping")
+
+    # print("=====================================")
 
     result = {
         'voronoi_diagram': vor,
@@ -904,22 +987,33 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         if metric.get("surface_type") == "Dorsal":
             metric.update(symmetry_scores)
 
-    # *** NEW STEP 9: Calculate Voronoi diagram and convex hull metrics ***
-    # Note: These are computed using the dorsal surface metrics, so they represent image-level values.
+    # Step 9: Calculate Voronoi diagram and convex hull metrics
     voronoi_data = calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02)
+
+    # Initialize voronoi_cell_area field for all metrics with "NA"
+    for metric in metrics:
+        metric['voronoi_cell_area'] = "NA"
+
     if voronoi_data is not None:
         vor_num_cells = voronoi_data['voronoi_metrics']['num_cells']
         ch_width = round(voronoi_data['convex_hull_metrics']['width'], 2)
         ch_height = round(voronoi_data['convex_hull_metrics']['height'], 2)
         ch_area = round(voronoi_data['convex_hull_metrics']['area'], 2)
+
+        # Use the metric_index from each cell to directly update the corresponding metric
+        for cell in voronoi_data['voronoi_cells']:
+            metric_idx = cell.get('metric_index', -1)
+            if metric_idx != -1 and metric_idx < len(metrics):
+                # Round the area to 2 decimal places
+                cell_area = round(cell['area'], 2)
+                metrics[metric_idx]['voronoi_cell_area'] = cell_area
     else:
         vor_num_cells = "NA"
         ch_width = "NA"
         ch_height = "NA"
         ch_area = "NA"
 
-# Append Voronoi and convex hull metrics only for the Dorsal surface;
-# for non-dorsal entries, mark as "NA".
+    # Append Voronoi and convex hull metrics to all dorsal metrics
     for metric in metrics:
         if metric.get("surface_type") == "Dorsal":
             metric['voronoi_num_cells'] = vor_num_cells
@@ -931,6 +1025,7 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
             metric['convex_hull_width'] = "NA"
             metric['convex_hull_height'] = "NA"
             metric['convex_hull_area'] = "NA"
+            # Non-dorsal metrics already have voronoi_cell_area set to "NA"
 
     # Step 10: Save metrics to CSV (now with additional voronoi/hull fields)
     combined_csv_path = os.path.join(output_dir, "processed_metrics.csv")
