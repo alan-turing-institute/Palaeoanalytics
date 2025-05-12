@@ -582,9 +582,9 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             "horizontal_symmetry": metric.get("horizontal_symmetry", "NA"),
             # Enhanced arrow data with explicit type handling
             "is_arrow": is_arrow,
-            "arrow_angle_rad": round(metric.get("arrow_angle_rad", "NA"), 2) if metric.get("arrow_angle_rad", "NA") != "NA" else "NA",
-            "arrow_angle_deg": round(metric.get("arrow_angle_deg", "NA"), 2) if metric.get("arrow_angle_deg", "NA") != "NA" else "NA",
-            "arrow_compass_deg": round(metric.get("arrow_compass_deg", "NA"), 2) if metric.get("arrow_compass_deg", "NA") != "NA" else "NA",
+            "arrow_angle_rad": metric.get("arrow_angle_rad", "NA"),
+            "arrow_angle_deg": metric.get("arrow_angle_deg", "NA"),
+            "arrow_compass_deg": metric.get("arrow_compass_deg", "NA"),
             "arrow_tip_x": arrow_tip_x,
             "arrow_tip_y": arrow_tip_y,
             "arrow_back_x": arrow_back_x,
