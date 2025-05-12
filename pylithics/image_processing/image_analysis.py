@@ -68,45 +68,73 @@ from matplotlib.patches import Polygon as MplPolygon
 from matplotlib.collections import PatchCollection
 from matplotlib.cm import get_cmap
 from matplotlib.colors import Normalize
-
+from .arrow_detection import analyze_child_contour_for_arrow
 
 def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     """
-    Extract contours and hierarchy using cv2.RETR_TREE, excluding the image border.
+    Extract contours and hierarchy using cv2.RETR_TREE, exclude the image border.
 
-    Args:
-        inverted_image (numpy.ndarray): Inverted binary thresholded image.
-        image_id (str): Unique identifier for the image.
-        output_dir (str): Directory to save processed outputs.
+    Parameters
+    ----------
+    inverted_image : ndarray
+        Preprocessed binary/grayscale image in which to find contours.
+    image_id : str
+        Unique identifier for this image (used for debug directory naming).
+    output_dir : str
+        Base path under which per‐image debug folders will be created.
 
-    Returns:
-        tuple: A tuple containing:
-            - valid_contours (list): List of detected contours excluding borders.
-            - valid_hierarchy (numpy.ndarray): Hierarchy array corresponding to valid contours.
+    Returns
+    -------
+    valid_contours : list of ndarray
+        All contours whose bounding box does not touch the image border.
+    valid_hierarchy : ndarray
+        Corresponding hierarchy entries for valid_contours.
     """
-    contours, hierarchy = cv2.findContours(inverted_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # 1) find all contours + raw hierarchy
+    contours, hierarchy = cv2.findContours(
+        inverted_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+    )
     hierarchy = hierarchy[0] if hierarchy is not None else None
 
-    if contours is None or len(contours) == 0:
-        logging.warning("No contours found in the image.")
+    if not contours:
+        logging.warning("No contours found in image %s", image_id)
         return [], None
 
-    # Exclude the border by filtering out contours touching the edges of the image
+    # 2) filter out those touching the border
     height, width = inverted_image.shape
-    valid_contours = []
-    valid_hierarchy = []
+    valid_contours, valid_hierarchy = [], []
 
-    for i, contour in enumerate(contours):
-        x, y, w, h = cv2.boundingRect(contour)
-        if not (x == 0 or y == 0 or x + w == width or y + h == height):
-            valid_contours.append(contour)
-            valid_hierarchy.append(hierarchy[i])
+    # Create index mapping from old to new indices
+    old_to_new_idx = {}
+    new_idx = 0
 
-    parent_count = sum(1 for h in valid_hierarchy if h[3] == -1)  # No parent
-    child_count = len(valid_hierarchy) - parent_count
+    for old_idx, (cnt, h) in enumerate(zip(contours, hierarchy)):
+        x, y, w, h_box = cv2.boundingRect(cnt)
+        if x > 0 and y > 0 and x + w < width and y + h_box < height:
+            valid_contours.append(cnt)
+            valid_hierarchy.append(h.copy())  # Copy to avoid modifying original
+            old_to_new_idx[old_idx] = new_idx
+            new_idx += 1
 
-    logging.info("Extracted %d valid contours: %d parent(s) and %d child(ren).", len(valid_contours), parent_count, child_count)
-    return valid_contours, np.array(valid_hierarchy) if valid_hierarchy else None
+    # Update parent indices in the hierarchy to reflect new indexing
+    for i, h in enumerate(valid_hierarchy):
+        if h[3] != -1:  # If has a parent
+            if h[3] in old_to_new_idx:
+                valid_hierarchy[i][3] = old_to_new_idx[h[3]]
+            else:
+                # Parent was filtered out, make this a root
+                valid_hierarchy[i][3] = -1
+
+    valid_hierarchy = np.array(valid_hierarchy)
+    logging.info(
+        "Extracted %d valid contours: %d parents/%d children total",
+        len(valid_contours),
+        np.sum(valid_hierarchy[:, 3] == -1),
+        np.sum(valid_hierarchy[:, 3] != -1)
+    )
+
+    return valid_contours, valid_hierarchy
+
 
 
 def sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None):
@@ -124,182 +152,205 @@ def sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None):
             - "children": List of child contours.
             - "nested_children": List of nested child contours (if any).
     """
-    # Initialize categories
-    parents = []
-    children = []
-    nested_children = []
 
-    # Apply exclusion flags if provided
+    parents, children, nested = [], [], []
     if exclude_nested_flags is None:
         exclude_nested_flags = [False] * len(contours)
-
-    # Traverse the hierarchy to sort contours
     for i, h in enumerate(hierarchy):
         if exclude_nested_flags[i]:
-            continue  # Skip excluded contours
-
-        parent_idx = h[3]  # Parent index
-        if parent_idx == -1:  # Parent contour (no parent)
+            continue
+        parent_idx = h[3]
+        if parent_idx == -1:
             parents.append(contours[i])
         else:
-            grandparent_idx = hierarchy[parent_idx][3]  # Check if the parent has a parent
-            if grandparent_idx == -1:  # Child contour (parent is a top-level parent)
+            grandparent = hierarchy[parent_idx][3]
+            if grandparent == -1:
                 children.append(contours[i])
-            else:  # Nested child contour (parent is a child contour)
-                nested_children.append(contours[i])
-
+            else:
+                nested.append(contours[i])
     logging.info(
-        "Sorted contours: %d parent(s), %d child(ren), %d nested child(ren).",
-        len(parents), len(children), len(nested_children)
+        "Sorted contours: %d parents, %d children, %d nested",
+        len(parents), len(children), len(nested)
     )
+    return {"parents": parents, "children": children, "nested_children": nested}
 
-    return {"parents": parents, "children": children, "nested_children": nested_children}
-
-
-def calculate_contour_metrics(sorted_contours, hierarchy, original_contours):
+def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, image_shape):
     """
-    Calculate metrics for contours in a sorted order (parents first, children second),
-    ensuring children are correctly grouped with their respective parents.
+    Calculate metrics for parent, first-level child, and nested (second-level) child contours.
+    Nested contours are immediately processed for arrow detection rather than being hidden.
+
+    Args:
+        sorted_contours (dict): {"parents":…, "children":…, "nested_children":…}
+        hierarchy (np.ndarray): contour hierarchy array
+        original_contours (list): list of all extracted contours
+        image_shape (tuple): shape of the source image (h, w)
+
+    Returns:
+        metrics (list of dict): consolidated metrics including arrow info for nested children
     """
-    def calculate_max_length_and_width(contour):
-        # Compute the maximum distance (max_length) and its perpendicular max_width
-        max_length = 0
-        max_width = 0
-        point1, point2 = None, None
-        for i in range(len(contour)):
-            for j in range(i + 1, len(contour)):
-                p1 = contour[i][0]
-                p2 = contour[j][0]
-                distance = np.linalg.norm(p1 - p2)
-                if distance > max_length:
-                    max_length = distance
-                    point1, point2 = p1, p2
-        if point1 is not None and point2 is not None:
-            direction_vector = point2 - point1
-            norm_vector = np.array([-direction_vector[1], direction_vector[0]])
-            norm_vector = norm_vector / np.linalg.norm(norm_vector)
-            projections = [abs(np.dot(point[0] - point1, norm_vector)) for point in contour]
-            max_width = max(projections)
-        return round(max_length, 2), round(max_width, 2)
+    import cv2, numpy as np, logging
+    # helper: maximum length and perpendicular width
+    def _max_len_width(cnt):
+        max_len = max_wid = 0
+        p1 = p2 = None
+        for i in range(len(cnt)):
+            for j in range(i+1, len(cnt)):
+                a = cnt[i][0]; b = cnt[j][0]
+                d = np.linalg.norm(a - b)
+                if d > max_len:
+                    max_len, p1, p2 = d, a, b
+        if p1 is not None and p2 is not None:
+            v = p2 - p1
+            perp = np.array([-v[1], v[0]], dtype=float)
+            perp /= np.linalg.norm(perp)
+            widths = [abs(np.dot(pt[0]-p1, perp)) for pt in cnt]
+            max_wid = max(widths)
+        return round(max_len, 2), round(max_wid, 2)
 
     metrics = []
-    parent_count = 0
-    child_count = 0
-    parent_index_to_label = {}
+    parent_map = {}
 
-    # Process parent contours first
-    for parent_contour in sorted_contours["parents"]:
-        parent_index = next(i for i, c in enumerate(original_contours) if np.array_equal(c, parent_contour))
-        parent_count += 1
-        parent_label = f"parent {parent_count}"
-        parent_index_to_label[parent_index] = parent_label
-
-        # Calculate metrics for the parent contour
-        area = round(cv2.contourArea(parent_contour), 2)
-        # --- New: Compute the perimeter (arc length) of the contour ---
-        perimeter = round(cv2.arcLength(parent_contour, True), 2)
-
-        moments = cv2.moments(parent_contour)
-        centroid_x, centroid_y = (0.0, 0.0)
-        if moments["m00"] != 0:
-            centroid_x = round(moments["m10"] / moments["m00"], 2)
-            centroid_y = round(moments["m01"] / moments["m00"], 2)
-        x, y, w, h = cv2.boundingRect(parent_contour)
-        max_length, max_width = calculate_max_length_and_width(parent_contour)
-
+    # Process parents
+    for pi, cnt in enumerate(sorted_contours["parents"]):
+        idx = next(i for i,c in enumerate(original_contours) if np.array_equal(c, cnt))
+        lab = f"parent {pi+1}"
+        parent_map[idx] = lab
+        area = round(cv2.contourArea(cnt), 2)
+        peri = round(cv2.arcLength(cnt, True), 2)
+        M = cv2.moments(cnt)
+        cx = round(M.get("m10",0)/M.get("m00",1),2)
+        cy = round(M.get("m01",0)/M.get("m00",1),2)
+        x,y,w,h = cv2.boundingRect(cnt)
+        ml, mw = _max_len_width(cnt)
         metrics.append({
-            "parent": parent_label,
-            "scar": parent_label,
-            "centroid_x": centroid_x,
-            "centroid_y": centroid_y,
-            "width": w,
-            "height": h,
-            "area": area,
-            "aspect_ratio": round(h / w, 2),
-            "bounding_box_x": x,
-            "bounding_box_y": y,
-            "bounding_box_width": w,
-            "bounding_box_height": h,
-            "max_length": max_length,
-            "max_width": max_width,
-            "contour": parent_contour.tolist(),
-            "perimeter": perimeter
+            "parent": lab, "scar": lab,
+            "centroid_x": cx, "centroid_y": cy,
+            "width": w, "height": h,
+            "area": area, "aspect_ratio": round(h/w,2) if w else None,
+            "bounding_box_x": x, "bounding_box_y": y,
+            "bounding_box_width": w, "bounding_box_height": h,
+            "max_length": ml, "max_width": mw,
+            "contour": cnt.tolist(),
+            "perimeter": peri,
+            # arrow defaults
+            "is_arrow": False, "arrow_angle_rad": None,
+            "arrow_angle_deg": None, "arrow_compass_deg": None
         })
 
-    # Process child contours
-    for child_contour in sorted_contours["children"]:
-        child_index = next(i for i, c in enumerate(original_contours) if np.array_equal(c, child_contour))
-        parent_index = hierarchy[child_index][3]
-        parent_label = parent_index_to_label.get(parent_index, "Unknown")
-        child_count += 1
-        child_label = f"scar {child_count}"
-
-        area = round(cv2.contourArea(child_contour), 2)
-        moments = cv2.moments(child_contour)
-        centroid_x, centroid_y = (0.0, 0.0)
-        if moments["m00"] != 0:
-            centroid_x = round(moments["m10"] / moments["m00"], 2)
-            centroid_y = round(moments["m01"] / moments["m00"], 2)
-        x, y, w, h = cv2.boundingRect(child_contour)
-        max_length, max_width = calculate_max_length_and_width(child_contour)
-
+    # Process first-level children (scars)
+    for ci, cnt in enumerate(sorted_contours["children"]):
+        idx = next(i for i,c in enumerate(original_contours) if np.array_equal(c, cnt))
+        pl = parent_map.get(hierarchy[idx][3], "Unknown")
+        lab = f"scar {ci+1}"
+        area = round(cv2.contourArea(cnt), 2)
+        M = cv2.moments(cnt)
+        cx = round(M.get("m10",0)/M.get("m00",1),2)
+        cy = round(M.get("m01",0)/M.get("m00",1),2)
+        x,y,w,h = cv2.boundingRect(cnt)
+        ml, mw = _max_len_width(cnt)
         metrics.append({
-            "parent": parent_label,
-            "scar": child_label,
-            "centroid_x": centroid_x,
-            "centroid_y": centroid_y,
-            "width": round(w, 2),
-            "height": round(h, 2),
-            "max_length": round(max_length, 2),
-            "max_width": round(max_width, 2),
-            "area": area,
-            "aspect_ratio": round(h / w, 2),
-            "bounding_box_x": x,
-            "bounding_box_y": y,
-            "bounding_box_width": w,
-            "bounding_box_height": h
-            # No perimeter for child contours (unless you choose to compute it)
+            "parent": pl, "scar": lab,
+            "centroid_x": cx, "centroid_y": cy,
+            "width": w, "height": h,
+            "area": area, "aspect_ratio": round(h/w,2) if w else None,
+            "max_length": ml, "max_width": mw,
+            "bounding_box_x": x, "bounding_box_y": y,
+            "bounding_box_width": w, "bounding_box_height": h,
+            "is_arrow": False, "arrow_angle_rad": None,
+            "arrow_angle_deg": None, "arrow_compass_deg": None
         })
+
+    # In calculate_contour_metrics, update the nested contour processing section:
+
+  # Process nested (depth-2) children as arrows
+    for ni, cnt in enumerate(sorted_contours["nested_children"]):
+        logging.debug(f"Processing nested contour {ni}")
+        idx = next(i for i,c in enumerate(original_contours) if np.array_equal(c, cnt))
+        pl = parent_map.get(hierarchy[idx][3], "Unknown")
+        lab = f"nested {ni+1}"
+        area = round(cv2.contourArea(cnt), 2)
+        M = cv2.moments(cnt)
+        cx = round(M.get("m10",0)/M.get("m00",1),2)
+        cy = round(M.get("m01",0)/M.get("m00",1),2)
+        x,y,w,h = cv2.boundingRect(cnt)
+        ml, mw = _max_len_width(cnt)
+        entry = {
+            "parent": pl, "scar": lab,
+            "centroid_x": cx, "centroid_y": cy,
+            "width": w, "height": h,
+            "area": area, "aspect_ratio": round(h/w,2) if w else None,
+            "max_length": ml, "max_width": mw,
+            "bounding_box_x": x, "bounding_box_y": y,
+            "bounding_box_width": w, "bounding_box_height": h,
+        }
+
+        # Ensure debug directory exists
+        if hasattr(entry, 'debug_dir') and entry['debug_dir']:
+            os.makedirs(entry['debug_dir'], exist_ok=True)
+        else:
+            # Create a default debug directory if needed
+            image_name = getattr(image_shape, 'filename', f"image_{ni}")
+            entry['debug_dir'] = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                                            "debug", "arrows", image_name, f"nested_{ni}")
+            os.makedirs(entry['debug_dir'], exist_ok=True)
+
+        # Run arrow detection
+        logging.debug(f"Running arrow detection on nested contour {ni}")
+        result = analyze_child_contour_for_arrow(cnt, entry, image_shape)
+        if result:
+            logging.info(f"Arrow detected in nested contour {ni} with angle {result.get('compass_angle', 'unknown')}")
+            entry.update({
+                "is_arrow": True,
+                "arrow_angle_rad": result["angle_rad"],
+                "arrow_angle_deg": result["angle_deg"],
+                "arrow_compass_deg": result["compass_angle"],
+                "arrow_tip": result["arrow_tip"],
+                "arrow_back": result["arrow_back"]
+            })
+        else:
+            logging.debug(f"No arrow detected in nested contour {ni}")
+            entry.update({
+                "is_arrow": False,
+                "arrow_angle_rad": None,
+                "arrow_angle_deg": None,
+                "arrow_compass_deg": None
+            })
+        metrics.append(entry)
 
     logging.info(
-        "Calculated metrics for %d contours: %d parent(s) and %d child(ren).",
-        len(metrics), parent_count, child_count
+        "Calculated metrics: %d parents, %d scars, %d nested arrows.",
+        len(sorted_contours["parents"]),
+        len(sorted_contours["children"]),
+        len(sorted_contours["nested_children"]),
     )
     return metrics
 
 
+
 def hide_nested_child_contours(contours, hierarchy):
     """
-    Flag nested contours and single child contours for exclusion.
-
-    Args:
-        contours (list): List of detected contours.
-        hierarchy (numpy.ndarray): Hierarchy array corresponding to contours.
-
-    Returns:
-        list: A list of booleans where True indicates a contour is nested or a single child and should be excluded.
+    Flag only first-level child contours whose parent has exactly one child.
+    Do not flag nested (depth ≥2) contours so they can be processed for arrow detection.
     """
-    nested_child_contours = [False] * len(contours)  # Initialize all contours as not nested or single child
-    parent_child_count = {}  # Track number of children for each parent
+    flags = [False] * len(contours)
+    # Count direct children for each parent
+    child_counts = {}
+    for h in hierarchy:
+        p = h[3]
+        if p != -1:
+            child_counts[p] = child_counts.get(p, 0) + 1
 
+    # Flag single-child first-level scars only
     for i, h in enumerate(hierarchy):
-        parent_idx = h[3]  # Parent index
-        if parent_idx != -1:  # If the contour has a parent
-            parent_child_count[parent_idx] = parent_child_count.get(parent_idx, 0) + 1
+        parent_idx = h[3]
+        # only flag if it's a first-level child and its parent has exactly one child
+        if parent_idx != -1 and hierarchy[parent_idx][3] == -1 and child_counts.get(parent_idx, 0) == 1:
+            flags[i] = True
 
-    for i, h in enumerate(hierarchy):
-        parent_idx = h[3]  # Parent index
-        if parent_idx != -1:
-            grandparent_idx = hierarchy[parent_idx][3]  # Parent's parent index
-            if grandparent_idx != -1:  # If the parent itself has a parent
-                # This is a second-level nested contour, mark it as nested
-                nested_child_contours[i] = True
-            elif parent_child_count[parent_idx] == 1:
-                # Mark single child contours for exclusion
-                nested_child_contours[i] = True
+    logging.info("Flagged %d single-child contours for exclusion.", sum(flags))
+    return flags
 
-    logging.info("Flagged %d nested or single child contours for exclusion.", sum(nested_child_contours))
-    return nested_child_contours
+
 
 
 def classify_parent_contours(metrics, tolerance=0.1):
@@ -379,101 +430,107 @@ def classify_parent_contours(metrics, tolerance=0.1):
 
 def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_image, output_path):
     """
-    Visualize contours with hierarchy, label them, and include a red dot at the centroid on the original image background.
+    Visualize contours with hierarchy, label them, and overlay detected arrows (if any).
 
     Args:
-        contours (list): List of detected contours.
-        hierarchy (numpy.ndarray): Contour hierarchy array.
-        metrics (list): List of contour metrics containing labels and other information.
-        inverted_image (numpy.ndarray): Inverted binary thresholded image.
-        output_path (str): Path to save the labeled image.
-
-    Returns:
-        None
+        contours (list): List of contours (parents + children) in display order.
+        hierarchy (ndarray): Contour hierarchy array.
+        metrics (list): List of metric dicts, each may contain 'is_arrow', 'arrow_back', 'arrow_tip', 'arrow_compass_deg'.
+        inverted_image (ndarray): Inverted binary image (0=foreground, 255=background).
+        output_path (str): File path to write the labeled image.
     """
-    # Invert the image back to its original form (black illustration on white background)
-    original_image = cv2.bitwise_not(inverted_image)
+    # Invert back to white background
+    original = cv2.bitwise_not(inverted_image)
+    # Make BGR image for color drawing
+    labeled = cv2.cvtColor(original, cv2.COLOR_GRAY2BGR)
 
-    # Convert the image to a BGR image for visualization
-    labeled_image = cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR)
-
-    # Track label bounding boxes to avoid overlap
+    # Draw contours, centroids, and labels
     label_positions = []
+    for i, cnt in enumerate(contours):
+        if i >= len(metrics):
+            continue
 
-    # Iterate over contours and draw them with labels and centroids
-    for i, contour in enumerate(contours):
-        # Get metrics for the current contour
-        contour_metric = metrics[i]
-        parent_label = contour_metric["parent"]
-        scar_label = contour_metric["scar"]
+        m = metrics[i]
+        parent_label = m["parent"]
+        scar_label   = m["scar"]
 
-        # Determine the color and text label for parent and child contours
-        if parent_label == scar_label:  # Parent contour
-            color = (153, 60, 94)  # Color safe purple
-            text_label = f"{contour_metric['surface_type']}"  # e.g., "Dorsal"
-
-        else:  # Child contour
-            color = (99, 184, 253)  # Color safe orange
-            text_label = scar_label  # e.g., "scar_1"
-
-        # Draw the contour on the image
-        cv2.drawContours(labeled_image, [contour], -1, color, 2)
-
-        # Use moments to find the centroid for the current contour
-        moments = cv2.moments(contour)
-        if moments["m00"] != 0:
-            centroid_x = int(moments["m10"] / moments["m00"])
-            centroid_y = int(moments["m01"] / moments["m00"])
+        # Color & text
+        if parent_label == scar_label:
+            color = (153, 60, 94)   # purple for parents
+            text  = m.get("surface_type", parent_label)
         else:
-            # Fallback if centroid can't be calculated
-            x, y, w, h = cv2.boundingRect(contour)
-            centroid_x = x + w // 2
-            centroid_y = y + h // 2
+            color = (99, 184, 253)  # orange for children
+            text  = scar_label
 
-        # Draw a red dot at the centroid
-        cv2.circle(labeled_image, (centroid_x, centroid_y), 5, (1, 97, 230), -1) # Color safe red
+        # Draw the contour
+        cv2.drawContours(labeled, [cnt], -1, color, 2)
 
-        # Adjust label position to prevent overlap with the centroid
-        label_x = centroid_x + 10  # Offset horizontally
-        label_y = centroid_y - 10  # Offset vertically
+        # Compute and draw centroid
+        M = cv2.moments(cnt)
+        if M.get("m00", 0) != 0:
+            cx = int(M["m10"]/M["m00"])
+            cy = int(M["m01"]/M["m00"])
+        else:
+            x,y,w,h = cv2.boundingRect(cnt)
+            cx,cy = x + w//2, y + h//2
+        cv2.circle(labeled, (cx, cy), 4, (1, 97, 230), -1)
 
-        # Ensure the label does not overlap with any existing label
-        label_width, label_height = cv2.getTextSize(text_label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
-        adjusted = False
-        for (existing_x, existing_y, existing_width, existing_height) in label_positions:
-            if (
-                label_x < existing_x + existing_width and
-                label_x + label_width > existing_x and
-                label_y < existing_y + existing_height and
-                label_y + label_height > existing_y
-            ):
-                label_y += existing_height + 10  # Shift the label down to avoid overlap
-                adjusted = True
+        # Place label (avoid overlaps)
+        ts = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
+        tx, ty = cx + 10, cy - 10
+        for lx, ly, lw, lh in label_positions:
+            if tx < lx+lw and tx+ts[0] > lx and ty < ly+lh and ty+ts[1] > ly:
+                ty = ly + lh + 10
+        label_positions.append((tx, ty, ts[0], ts[1]))
+        cv2.putText(labeled, text, (tx, ty),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (186,186,186), 2)
 
-        # Store the label position
-        label_positions.append((label_x, label_y, label_width, label_height))
 
-        # Draw the label on the image at the adjusted position
-        cv2.putText(
-            labeled_image,
-            text_label,  # Text to display (e.g., "Dorsal", "scar 1")
-            (label_x, label_y),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,  # Font scale
-            (186, 186, 186),  # Text color (Color safe gray)
-            2,  # Thickness
-            cv2.LINE_AA
-        )
+    # Draw arrows for all detected arrow features
+    for m in metrics:
+        if m.get("is_arrow") and m.get("arrow_back") and m.get("arrow_tip"):
+            # Convert to integer tuples if needed
+            back = tuple(int(v) for v in m["arrow_back"])
+            tip = tuple(int(v) for v in m["arrow_tip"])
 
-    # Save the labeled image to the output path
+            # Draw arrowed line (red)
+            cv2.arrowedLine(
+                labeled,
+                back,
+                tip,
+                color=(0, 0, 255),
+                thickness=2,
+                tipLength=0.2
+            )
+
+            # Mark back & tip (yellow)
+            cv2.circle(labeled, back, 4, (0, 255, 255), -1)
+            cv2.circle(labeled, tip, 4, (0, 255, 255), -1)
+
+            # Annotate compass bearing
+            angle = m.get("arrow_compass_deg", None)
+            if angle is not None:
+                cv2.putText(
+                    labeled,
+                    f"{int(angle)}°",
+                    (tip[0] + 5, tip[1] - 5),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    (0, 255, 255),
+                    1,
+                    cv2.LINE_AA
+                )
+
+    # Save the labeled image
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    cv2.imwrite(output_path, labeled_image)
-    logging.info("Saved visualized contours with labels to: %s", output_path)
+    cv2.imwrite(output_path, labeled)
+    logging.info("Saved visualized contours with arrows to %s", output_path)
 
 
 def save_measurements_to_csv(metrics, output_path, append=False):
     """
     Save contour metrics to a CSV file with updated column structure.
+    Includes detailed arrow measurements and coordinates.
     """
     updated_data = []
     for metric in metrics:
@@ -488,6 +545,17 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             surface_type = parent_surface_type
             surface_feature = metric["scar"]
 
+        # Process arrow-specific data with proper handling of coordinates
+        is_arrow = metric.get("is_arrow", False)
+        arrow_tip = metric.get("arrow_tip", None)
+        arrow_back = metric.get("arrow_back", None)
+
+        # Extract coordinates safely
+        arrow_tip_x = arrow_tip[0] if isinstance(arrow_tip, (list, tuple)) and len(arrow_tip) >= 1 else "NA"
+        arrow_tip_y = arrow_tip[1] if isinstance(arrow_tip, (list, tuple)) and len(arrow_tip) >= 2 else "NA"
+        arrow_back_x = arrow_back[0] if isinstance(arrow_back, (list, tuple)) and len(arrow_back) >= 1 else "NA"
+        arrow_back_y = arrow_back[1] if isinstance(arrow_back, (list, tuple)) and len(arrow_back) >= 2 else "NA"
+
         data_entry = {
             "image_id": metric.get("image_id", "NA"),
             "surface_type": surface_type,
@@ -500,21 +568,42 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             "max_length": metric.get("max_length", "NA"),
             "total_area": metric.get("area", "NA"),
             "aspect_ratio": metric.get("aspect_ratio", "NA"),
-            "perimeter": metric.get("perimeter", "NA"),  # <-- New perimeter field
+            "perimeter": metric.get("perimeter", "NA"),
             "voronoi_num_cells": metric.get("voronoi_num_cells", "NA"),
             "convex_hull_width": metric.get("convex_hull_width", "NA"),
             "convex_hull_height": metric.get("convex_hull_height", "NA"),
             "convex_hull_area": metric.get("convex_hull_area", "NA"),
-            "voronoi_cell_area": metric.get("voronoi_cell_area", "NA"),  # <-- New voronoi_cell_area field
+            "voronoi_cell_area": metric.get("voronoi_cell_area", "NA"),
             "top_area": metric.get("top_area", "NA"),
             "bottom_area": metric.get("bottom_area", "NA"),
             "left_area": metric.get("left_area", "NA"),
             "right_area": metric.get("right_area", "NA"),
             "vertical_symmetry": metric.get("vertical_symmetry", "NA"),
             "horizontal_symmetry": metric.get("horizontal_symmetry", "NA"),
+            # Enhanced arrow data with explicit type handling
+            "is_arrow": is_arrow,
+            "arrow_angle_rad": round(metric.get("arrow_angle_rad", "NA"), 2) if metric.get("arrow_angle_rad", "NA") != "NA" else "NA",
+            "arrow_angle_deg": round(metric.get("arrow_angle_deg", "NA"), 2) if metric.get("arrow_angle_deg", "NA") != "NA" else "NA",
+            "arrow_compass_deg": round(metric.get("arrow_compass_deg", "NA"), 2) if metric.get("arrow_compass_deg", "NA") != "NA" else "NA",
+            "arrow_tip_x": arrow_tip_x,
+            "arrow_tip_y": arrow_tip_y,
+            "arrow_back_x": arrow_back_x,
+            "arrow_back_y": arrow_back_y,
         }
+
+        # Add additional arrow metrics if available
+        if "triangle_base_length" in metric:
+            data_entry["triangle_base_length"] = metric["triangle_base_length"]
+        if "triangle_height" in metric:
+            data_entry["triangle_height"] = metric["triangle_height"]
+        if "shaft_solidity" in metric:
+            data_entry["shaft_solidity"] = metric["shaft_solidity"]
+        if "tip_solidity" in metric:
+            data_entry["tip_solidity"] = metric["tip_solidity"]
+
         updated_data.append(data_entry)
 
+    # Define column order for the CSV
     base_columns = [
         "image_id", "surface_type", "surface_feature", "centroid_x", "centroid_y",
         "width", "height", "max_width", "max_length", "total_area", "aspect_ratio",
@@ -523,7 +612,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
 
     voronoi_columns = [
         "voronoi_num_cells", "convex_hull_width", "convex_hull_height", "convex_hull_area",
-        "voronoi_cell_area"  # <-- Include in voronoi_columns
+        "voronoi_cell_area"
     ]
 
     symmetry_columns = [
@@ -531,14 +620,72 @@ def save_measurements_to_csv(metrics, output_path, append=False):
         "vertical_symmetry", "horizontal_symmetry"
     ]
 
-    all_columns = base_columns + voronoi_columns + symmetry_columns
+    # Expanded arrow columns to include additional metrics
+    arrow_columns = [
+        "is_arrow",
+        "arrow_angle_rad",
+        "arrow_angle_deg",
+        "arrow_compass_deg",
+        "arrow_tip_x",
+        "arrow_tip_y",
+        "arrow_back_x",
+        "arrow_back_y",
+    ]
 
-    df = pd.DataFrame(updated_data, columns=all_columns)
+    # Check if any metrics have the additional arrow fields
+    if any("triangle_base_length" in m for m in metrics):
+        arrow_columns.append("triangle_base_length")
+    if any("triangle_height" in m for m in metrics):
+        arrow_columns.append("triangle_height")
+    if any("shaft_solidity" in m for m in metrics):
+        arrow_columns.append("shaft_solidity")
+    if any("tip_solidity" in m for m in metrics):
+        arrow_columns.append("tip_solidity")
+
+    all_columns = base_columns + voronoi_columns + symmetry_columns + arrow_columns
+
+    # Create DataFrame with all columns, handling any missing columns gracefully
+    df = pd.DataFrame(updated_data)
+
+    # Ensure all required columns exist, adding empty ones if needed
+    for col in all_columns:
+        if col not in df.columns:
+            df[col] = "NA"
+
+    # Reorder columns to match expected order
+    # Only include columns that exist in the DataFrame
+    existing_columns = [col for col in all_columns if col in df.columns]
+    df = df[existing_columns]
+
+    # Fill any NaN values
     df.fillna("NA", inplace=True)
+
+    # Create output directory if needed
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
+    # Write to CSV
     if append and os.path.exists(output_path):
-        df.to_csv(output_path, mode="a", header=False, index=False)
+        # Read existing CSV to get its columns
+        try:
+            existing_df = pd.read_csv(output_path)
+            existing_columns = existing_df.columns.tolist()
+
+            # Align columns with existing file
+            combined_columns = list(set(existing_columns) | set(df.columns))
+            for col in combined_columns:
+                if col not in df.columns:
+                    df[col] = "NA"
+                if col not in existing_columns:
+                    existing_df[col] = "NA"
+
+            # Write with matching columns
+            df = df[existing_columns]
+            df.to_csv(output_path, mode="a", header=False, index=False)
+        except Exception as e:
+            # If there's an error reading the existing file, just append
+            logging.warning(f"Error aligning columns with existing CSV: {e}")
+            df.to_csv(output_path, mode="a", header=False, index=False)
+
         logging.info("Appended metrics to existing CSV file: %s", output_path)
     else:
         df.to_csv(output_path, index=False)
@@ -969,8 +1116,17 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
     # Step 3: Sort contours by hierarchy, excluding flagged nested contours
     sorted_contours = sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags)
 
-    # Step 4: Calculate metrics for parents and children only
-    metrics = calculate_contour_metrics(sorted_contours, hierarchy, contours)
+    # Create image-specific debug directory
+    image_debug_dir = os.path.join(output_dir, image_id)
+    os.makedirs(image_debug_dir, exist_ok=True)
+
+    # Step 4: Calculate metrics for all contours
+    metrics = calculate_contour_metrics(
+        sorted_contours,
+        hierarchy,
+        contours,
+        inverted_image  # Pass the actual image for visualization
+    )
 
     # Step 5: Classify parent contours into surfaces
     metrics = classify_parent_contours(metrics)
@@ -1025,16 +1181,22 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
             metric['convex_hull_width'] = "NA"
             metric['convex_hull_height'] = "NA"
             metric['convex_hull_area'] = "NA"
-            # Non-dorsal metrics already have voronoi_cell_area set to "NA"
 
     # Step 10: Save metrics to CSV (now with additional voronoi/hull fields)
     combined_csv_path = os.path.join(output_dir, "processed_metrics.csv")
     save_measurements_to_csv(metrics, combined_csv_path, append=True)
 
     # Step 11: Visualize contours with hierarchy
+    # Collect all contours to visualize (parents + children + nested)
+    all_visualization_contours = (
+        sorted_contours["parents"] +
+        sorted_contours["children"] +
+        sorted_contours.get("nested_children", [])
+    )
+
     visualization_path = os.path.join(output_dir, f"{image_id}_labeled.png")
     visualize_contours_with_hierarchy(
-        sorted_contours["parents"] + sorted_contours["children"],
+        all_visualization_contours,
         hierarchy,
         metrics,
         inverted_image,
@@ -1059,6 +1221,7 @@ def convert_metrics_to_real_world(metrics, conversion_factor):
         list: Converted metrics in real-world units.
     """
     converted_metrics = []
+
     for metric in metrics:
         converted_metrics.append({
             "parent": metric["parent"],
