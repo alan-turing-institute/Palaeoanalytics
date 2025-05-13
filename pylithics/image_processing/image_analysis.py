@@ -233,8 +233,8 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
             "contour": cnt.tolist(),
             "perimeter": peri,
             # arrow defaults
-            "is_arrow": False, "arrow_angle_rad": None,
-            "arrow_angle_deg": None, "arrow_compass_deg": None
+            "has_arrow": False, "arrow_angle_rad": None,
+            "arrow_angle_deg": None, "arrow_angle": None
         })
 
     # Process children/scars with mapping for arrow integration
@@ -276,8 +276,8 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
             "max_length": ml, "max_width": mw,
             "bounding_box_x": x, "bounding_box_y": y,
             "bounding_box_width": w, "bounding_box_height": h,
-            "is_arrow": False, "arrow_angle_rad": None,
-            "arrow_angle_deg": None, "arrow_compass_deg": None
+            "has_arrow": False, "arrow_angle_rad": None,
+            "arrow_angle_deg": None, "arrow_angle": None
         }
         metrics.append(entry)
         scar_metrics[idx] = entry  # Store by contour index
@@ -307,12 +307,33 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
             logging.warning(f"Could not find parent scar for nested contour {ni}")
             continue
 
-        # Create debug directory for this nested contour
+        # Get image name without extension
+        if hasattr(image_shape, 'filename'):
+            image_name = os.path.splitext(image_shape.filename)[0]
+        elif isinstance(image_shape, str):
+            image_name = os.path.splitext(image_shape)[0]
+        else:
+            # If no filename attribute or string, use a placeholder with the image index
+            image_name = f"image_{ni}"
+
+        # Create a consolidated debug directory structure
         debug_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                               "debug", "arrows",
-                               getattr(image_shape, 'filename', f"image_{ni}"),
-                               f"{parent_scar['scar']}_nested_{ni}")
+                                "image_debug",  # 1st level
+                                image_name)     # 2nd level - just the image name
+
+        # Create the directory only once per image
         os.makedirs(debug_dir, exist_ok=True)
+
+        # Create a descriptive filename for this specific arrow debug info
+        arrow_debug_filename = f"arrow_{parent_scar['scar']}_nested_{ni}.png"
+        arrow_debug_path = os.path.join(debug_dir, arrow_debug_filename)
+
+        # Store the debug paths in the temporary entry
+        temp_entry = {
+            "scar": f"nested_{ni}",
+            "debug_dir": debug_dir,
+            "debug_file": arrow_debug_path
+        }
 
         # Create temporary entry for arrow detection
         temp_entry = {
@@ -328,10 +349,10 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
         if result:
             logging.info(f"Arrow detected in nested contour {ni} (parent: {parent_scar['scar']}) with angle {result.get('compass_angle', 'unknown')}")
             parent_scar.update({
-                "is_arrow": True,
-                "arrow_angle_rad": result["angle_rad"],
-                "arrow_angle_deg": result["angle_deg"],
-                "arrow_compass_deg": result["compass_angle"],
+                "has_arrow": True,
+                "arrow_angle_rad": round(result["angle_rad"], 0),
+                "arrow_angle_deg": round(result["angle_deg"], 0),
+                "arrow_angle": round(result["compass_angle"], 0),
                 "arrow_tip": result["arrow_tip"],
                 "arrow_back": result["arrow_back"]
             })
@@ -450,7 +471,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
     Args:
         contours (list): List of contours (parents + children) in display order.
         hierarchy (ndarray): Contour hierarchy array.
-        metrics (list): List of metric dicts, each may contain 'is_arrow', 'arrow_back', 'arrow_tip', 'arrow_compass_deg'.
+        metrics (list): List of metric dicts, each may contain 'has_arrow', 'arrow_back', 'arrow_tip', 'arrow_angle'.
         inverted_image (ndarray): Inverted binary image (0=foreground, 255=background).
         output_path (str): File path to write the labeled image.
     """
@@ -503,7 +524,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
 
     # Draw arrows for all detected arrow features
     for m in metrics:
-        if m.get("is_arrow") and m.get("arrow_back") and m.get("arrow_tip"):
+        if m.get("has_arrow") and m.get("arrow_back") and m.get("arrow_tip"):
             # Convert to integer tuples if needed
             back = tuple(int(v) for v in m["arrow_back"])
             tip = tuple(int(v) for v in m["arrow_tip"])
@@ -524,7 +545,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
             # cv2.circle(labeled, tip, 4, (0, 255, 255), -1)
 
             # Annotate compass bearing with better positioning
-            angle = m.get("arrow_compass_deg", None)
+            angle = m.get("arrow_angle", None)
             if angle is not None:
                 # Calculate shaft vector
                 shaft_vector = np.array([tip[0] - back[0], tip[1] - back[1]])
@@ -604,7 +625,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             surface_feature = metric["scar"]
 
         # Process arrow-specific data with proper handling of coordinates
-        is_arrow = metric.get("is_arrow", False)
+        has_arrow = metric.get("has_arrow", False)
         arrow_tip = metric.get("arrow_tip", None)
         arrow_back = metric.get("arrow_back", None)
 
@@ -638,15 +659,15 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             "right_area": metric.get("right_area", "NA"),
             "vertical_symmetry": metric.get("vertical_symmetry", "NA"),
             "horizontal_symmetry": metric.get("horizontal_symmetry", "NA"),
-            # Enhanced arrow data with explicit type handling
-            "is_arrow": is_arrow,
-            "arrow_angle_rad": metric.get("arrow_angle_rad", "NA"),
-            "arrow_angle_deg": metric.get("arrow_angle_deg", "NA"),
-            "arrow_compass_deg": metric.get("arrow_compass_deg", "NA"),
-            "arrow_tip_x": arrow_tip_x,
-            "arrow_tip_y": arrow_tip_y,
-            "arrow_back_x": arrow_back_x,
-            "arrow_back_y": arrow_back_y,
+            # arrow data with explicit type handling
+            "has_arrow": has_arrow,
+            # "arrow_angle_rad": metric.get("arrow_angle_rad", "NA"), # angle of the arrow in radians
+            # "arrow_angle_deg": metric.get("arrow_angle_deg", "NA"), # same angle as arrow_angle_rad, but converted to degrees for easier human interpretation.
+            "arrow_angle": metric.get("arrow_angle", "NA"), # Rob's arrow angles schema
+            #"arrow_tip_x": arrow_tip_x, # x pixel coordinates of the arrow's tip point
+            #"arrow_tip_y": arrow_tip_y, # y pixel coordinates of the arrow's tip point
+            #"arrow_back_x": arrow_back_x, # x pixel coordinates of the arrow's tail point
+            #"arrow_back_y": arrow_back_y, # y pixel coordinates of the arrow's tail point
         }
 
         # Add additional arrow metrics if available
@@ -680,14 +701,14 @@ def save_measurements_to_csv(metrics, output_path, append=False):
 
     # Expanded arrow columns to include additional metrics
     arrow_columns = [
-        "is_arrow",
-        "arrow_angle_rad",
-        "arrow_angle_deg",
-        "arrow_compass_deg",
-        "arrow_tip_x",
-        "arrow_tip_y",
-        "arrow_back_x",
-        "arrow_back_y",
+        "has_arrow",
+        # "arrow_angle_rad",
+        # "arrow_angle_deg",
+        "arrow_angle", # Rob's arrow angle schema
+        # "arrow_tip_x",
+        # "arrow_tip_y",
+        # "arrow_back_x",
+        # "arrow_back_y",
     ]
 
     # Check if any metrics have the additional arrow fields
@@ -1173,10 +1194,6 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
 
     # Step 3: Sort contours by hierarchy, excluding flagged nested contours
     sorted_contours = sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags)
-
-    # Create image-specific debug directory
-    image_debug_dir = os.path.join(output_dir, image_id)
-    os.makedirs(image_debug_dir, exist_ok=True)
 
     # Step 4: Calculate metrics for all contours
     metrics = calculate_contour_metrics(
