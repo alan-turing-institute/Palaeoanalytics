@@ -502,8 +502,6 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
 
 
     # Draw arrows for all detected arrow features
-    # Update this section in visualize_contours_with_hierarchy function
-# Update the arrow drawing code in visualize_contours_with_hierarchy
     for m in metrics:
         if m.get("is_arrow") and m.get("arrow_back") and m.get("arrow_tip"):
             # Convert to integer tuples if needed
@@ -520,11 +518,12 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
                 tipLength=0.2
             )
 
-            # Mark back & tip (yellow)
-            cv2.circle(labeled, back, 4, (0, 255, 255), -1)
-            cv2.circle(labeled, tip, 4, (0, 255, 255), -1)
+            # Remove the yellow dots at back and tip
+            # (Comment out or remove these lines)
+            # cv2.circle(labeled, back, 4, (0, 255, 255), -1)
+            # cv2.circle(labeled, tip, 4, (0, 255, 255), -1)
 
-            # Annotate compass bearing perpendicular to the shaft
+            # Annotate compass bearing with better positioning
             angle = m.get("arrow_compass_deg", None)
             if angle is not None:
                 # Calculate shaft vector
@@ -535,30 +534,40 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
                     # Calculate perpendicular vector (90 degrees clockwise from shaft)
                     perp_vector = np.array([shaft_vector[1], -shaft_vector[0]]) / shaft_length
 
-                    # Scale perpendicular vector to a reasonable offset distance (20 pixels)
-                    offset_distance = 20
+                    # Use a larger offset distance (40 pixels) for better separation
+                    offset_distance = 40
                     perp_offset = perp_vector * offset_distance
 
-                    # Calculate text position at mid-shaft, offset perpendicular
-                    mid_shaft = ((back[0] + tip[0]) // 2, (back[1] + tip[1]) // 2)
-                    text_pos = (int(mid_shaft[0] + perp_offset[0]), int(mid_shaft[1] + perp_offset[1]))
+                    # Calculate text position at 1/3 of the shaft from the back, offset perpendicular
+                    shaft_fraction = 1/3
+                    text_base_pos = (
+                        int(back[0] + shaft_vector[0] * shaft_fraction),
+                        int(back[1] + shaft_vector[1] * shaft_fraction)
+                    )
+                    text_pos = (
+                        int(text_base_pos[0] + perp_offset[0]),
+                        int(text_base_pos[1] + perp_offset[1])
+                    )
 
-                    # Draw text with black background for visibility
-                    text = f"{int(angle)}°"
+
+                    text = f"{int(angle)} deg"
                     font = cv2.FONT_HERSHEY_SIMPLEX
-                    font_scale = 0.5
-                    thickness = 1
+                    font_scale = 0.7
+                    thickness = 2
 
                     # Get text size
                     (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
 
-                    # Create background rectangle for better visibility
-                    text_bg_pt1 = (text_pos[0] - 2, text_pos[1] - text_height - 2)
-                    text_bg_pt2 = (text_pos[0] + text_width + 2, text_pos[1] + 2)
+                    # Create bigger background rectangle with padding
+                    padding = 4
+                    text_bg_pt1 = (text_pos[0] - padding, text_pos[1] - text_height - padding)
+                    text_bg_pt2 = (text_pos[0] + text_width + padding, text_pos[1] + padding)
 
-                    cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (255, 255, 255), -1)  # White background
+                    # Draw white background with black border
+                    cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (255, 255, 255), -1)  # White fill
+                    cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (0, 0, 0), 1)        # Black border
 
-                    # Draw text in black on the white background
+                    # Draw text in black
                     cv2.putText(
                         labeled,
                         text,
