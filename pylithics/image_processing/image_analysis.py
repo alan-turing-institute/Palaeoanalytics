@@ -90,6 +90,9 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     valid_hierarchy : ndarray
         Corresponding hierarchy entries for valid_contours.
     """
+    # Import the utility function
+    from pylithics.image_processing.utils import filter_contours_by_min_area
+
     # 1) find all contours + raw hierarchy
     contours, hierarchy = cv2.findContours(
         inverted_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
@@ -126,6 +129,17 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
                 valid_hierarchy[i][3] = -1
 
     valid_hierarchy = np.array(valid_hierarchy)
+
+    # 3) filter out zero-area contours
+    min_contour_area = 1.0  # Minimum area in pixels
+    valid_contours, valid_hierarchy = filter_contours_by_min_area(
+        valid_contours, valid_hierarchy, min_contour_area
+    )
+
+    if not valid_contours:
+        logging.warning("No valid contours remain after filtering in image %s", image_id)
+        return [], None
+
     logging.info(
         "Extracted %d valid contours: %d parents/%d children total",
         len(valid_contours),
@@ -188,7 +202,6 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
     Returns:
         metrics (list of dict): consolidated metrics including arrow info for nested children
     """
-    import cv2, numpy as np, logging
 
     metrics = []
     parent_map = {}

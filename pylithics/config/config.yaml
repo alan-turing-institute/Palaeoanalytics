@@ -54,3 +54,7 @@ logging:
 
   log_file: logs/pylithics.log  # File path for saving logs.
                                 # By default, logs are saved in "logs/pylithics.log".
+
+contour_filtering:
+  min_area: 1.0  # Minimum contour area in pixels
+  exclude_border: true  # Whether to exclude contours touching the image border

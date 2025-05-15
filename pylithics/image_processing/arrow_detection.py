@@ -152,9 +152,9 @@ def analyze_child_contour_for_arrow(contour, entry, image):
         return {
             'arrow_back': arrow_back,
             'arrow_tip': arrow_tip,
-            'angle_rad': angle_rad,
-            'angle_deg': angle_deg,
-            'compass_angle': compass_angle
+            'angle_rad': round(angle_rad, 0),
+            'angle_deg': round(angle_deg, 0),
+            'compass_angle': round(compass_angle, 0),
         }
 
     except Exception as e:
