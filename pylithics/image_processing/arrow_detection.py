@@ -3,15 +3,61 @@ import cv2
 import numpy as np
 import math
 from collections import defaultdict
+import logging
 
-# Module‐level constants for easy tuning
-MIN_AREA = 50                # minimum contour area (in pixels)
-MIN_DEFECT_DEPTH = 5         # minimum depth of convexity defect (in pixels)
-SOLIDITY_BOUNDS = (0.3, 0.95) # acceptable solidity range for shape
-MIN_TRIANGLE_HEIGHT = 10     # minimum height of triangular head
-MIN_SIGNIFICANT_DEFECTS = 2   # minimum number of significant defects to consider
+# Module‐level constants (reference values calibrated for 300 DPI)
+REFERENCE_DPI = 300.0              # reference DPI for threshold calibration
+REF_MIN_AREA = 50                  # reference minimum contour area (in pixels)
+REF_MIN_DEFECT_DEPTH = 5           # reference minimum depth of convexity defect (in pixels)
+REF_SOLIDITY_BOUNDS = (0.3, 0.95)  # reference acceptable solidity range for shape
+REF_MIN_TRIANGLE_HEIGHT = 10       # reference minimum height of triangular head
+REF_MIN_SIGNIFICANT_DEFECTS = 2    # reference minimum number of significant defects to consider
 
-def analyze_child_contour_for_arrow(contour, entry, image):
+# These will be set dynamically based on image DPI
+MIN_AREA = REF_MIN_AREA
+MIN_DEFECT_DEPTH = REF_MIN_DEFECT_DEPTH
+SOLIDITY_BOUNDS = REF_SOLIDITY_BOUNDS
+MIN_TRIANGLE_HEIGHT = REF_MIN_TRIANGLE_HEIGHT
+MIN_SIGNIFICANT_DEFECTS = REF_MIN_SIGNIFICANT_DEFECTS
+
+def scale_parameters_for_dpi(image_dpi):
+    """
+    Scale detection parameters based on image DPI relative to reference DPI.
+
+    Parameters
+    ----------
+    image_dpi : float
+        DPI of the current image being processed
+
+    Returns
+    -------
+    dict
+        Dictionary of scaled parameters
+    """
+    if image_dpi is None or image_dpi <= 0:
+        logging.warning("Invalid DPI value. Using reference thresholds.")
+        return {
+            "min_area": REF_MIN_AREA,
+            "min_defect_depth": REF_MIN_DEFECT_DEPTH,
+            "solidity_bounds": REF_SOLIDITY_BOUNDS,
+            "min_triangle_height": REF_MIN_TRIANGLE_HEIGHT,
+            "min_significant_defects": REF_MIN_SIGNIFICANT_DEFECTS
+        }
+
+    # Calculate scaling factors
+    linear_scale = REFERENCE_DPI / image_dpi
+    area_scale = linear_scale * linear_scale
+
+    # Scale parameters
+    return {
+        "min_area": REF_MIN_AREA * area_scale,
+        "min_defect_depth": REF_MIN_DEFECT_DEPTH * linear_scale,
+        "solidity_bounds": REF_SOLIDITY_BOUNDS,  # Solidity is a ratio, so no scaling needed
+        "min_triangle_height": REF_MIN_TRIANGLE_HEIGHT * linear_scale,
+        "min_significant_defects": REF_MIN_SIGNIFICANT_DEFECTS  # Count-based, no scaling needed
+    }
+
+def analyze_child_contour_for_arrow(contour, entry, image, image_dpi=None):
     """
     Detect an arrow within a given contour and compute its orientation.
 
@@ -24,27 +70,35 @@ def analyze_child_contour_for_arrow(contour, entry, image):
         writing debug images.
     image : ndarray
         Original image (grayscale or BGR) for overlaying debug visualizations.
+    image_dpi : float, optional
+        DPI of the image being processed. If provided, detection thresholds will be scaled.
 
     Returns
     -------
     dict or None
-        If a valid arrow head is found, returns a dict with keys:
-          - 'arrow_back' : (x, y) apex point of the arrow head
-          - 'arrow_tip'  : (x, y) midpoint of the base of the arrow head
-          - 'angle_rad'  : float, orientation in radians (-π to π)
-          - 'angle_deg'  : float, orientation in degrees [0, 360)
-          - 'compass_angle' : float, 0 = North, clockwise [0, 360)
-
+        If a valid arrow head is found, returns a dict with arrow properties.
         Returns None if no valid arrow is detected.
     """
     debug_dir = entry.get('debug_dir')
     contour_id = entry.get('scar', 'unknown')
+
+    # Scale parameters based on image DPI
+    params = scale_parameters_for_dpi(image_dpi)
+    min_area = params["min_area"]
+    min_defect_depth = params["min_defect_depth"]
+    solidity_bounds = params["solidity_bounds"]
+    min_triangle_height = params["min_triangle_height"]
+    min_significant_defects = params["min_significant_defects"]
 
     # Create debug directory if needed
     if debug_dir:
         os.makedirs(debug_dir, exist_ok=True)
         debug_log = open(os.path.join(debug_dir, 'arrow_detection_log.txt'), 'w')
         debug_log.write(f"Arrow detection analysis for contour {contour_id}\n")
+        if image_dpi:
+            debug_log.write(f"Image DPI: {image_dpi}, scaling applied\n")
+            debug_log.write(f"Scaled thresholds: min_area={min_area:.2f}, min_defect_depth={min_defect_depth:.2f}, " +
+                          f"min_triangle_height={min_triangle_height:.2f}\n")
     else:
         debug_log = None
 
@@ -54,10 +108,10 @@ def analyze_child_contour_for_arrow(contour, entry, image):
             debug_log.write(f"{message}\n")
 
     try:
-        # Step 1: Basic area filtering
+        # Step 1: Basic area filtering (using scaled min_area)
         area = cv2.contourArea(contour)
-        if area < MIN_AREA:
-            debug(f"Failed: Area too small ({area} < {MIN_AREA})")
+        if area < min_area:
+            debug(f"Failed: Area too small ({area:.2f} < {min_area:.2f})")
             return None
 
         debug(f"Area: {area:.2f} pixels")
@@ -69,14 +123,14 @@ def analyze_child_contour_for_arrow(contour, entry, image):
 
         debug(f"Solidity: {solidity:.2f}")
 
-        if solidity < SOLIDITY_BOUNDS[0] or solidity > SOLIDITY_BOUNDS[1]:
-            debug(f"Failed: Solidity outside range {SOLIDITY_BOUNDS}")
+        if solidity < solidity_bounds[0] or solidity > solidity_bounds[1]:
+            debug(f"Failed: Solidity outside range {solidity_bounds}")
             return None
 
-        # Step 3: Find significant convexity defects
-        significant_defects = find_significant_defects(contour)
-        if significant_defects is None or len(significant_defects) < MIN_SIGNIFICANT_DEFECTS:
-            debug(f"Failed: Not enough significant defects ({len(significant_defects) if significant_defects else 0} < {MIN_SIGNIFICANT_DEFECTS})")
+        # Step 3: Find significant convexity defects (using scaled min_defect_depth)
+        significant_defects = find_significant_defects(contour, min_defect_depth)
+        if significant_defects is None or len(significant_defects) < min_significant_defects:
+            debug(f"Failed: Not enough significant defects ({len(significant_defects) if significant_defects else 0} < {min_significant_defects})")
             return None
 
         debug(f"Found {len(significant_defects)} significant defects")
@@ -116,8 +170,8 @@ def analyze_child_contour_for_arrow(contour, entry, image):
 
         debug(f"Triangle height: {triangle_height:.2f} pixels")
 
-        if triangle_height < MIN_TRIANGLE_HEIGHT:
-            debug(f"Failed: Triangle height too small ({triangle_height:.2f} < {MIN_TRIANGLE_HEIGHT})")
+        if triangle_height < min_triangle_height:
+            debug(f"Failed: Triangle height too small ({triangle_height:.2f} < {min_triangle_height:.2f})")
             return None
 
         # Step 9: Define arrow direction (from tip to base midpoint)
@@ -163,7 +217,7 @@ def analyze_child_contour_for_arrow(contour, entry, image):
             debug_log.close()
         return None
 
-def find_significant_defects(contour):
+def find_significant_defects(contour, min_defect_depth=MIN_DEFECT_DEPTH):
     """
     Find significant convexity defects in the contour.
 
@@ -171,6 +225,8 @@ def find_significant_defects(contour):
     ----------
     contour : ndarray
         Contour to analyze
+    min_defect_depth : float
+        Minimum depth threshold for significant defects
 
     Returns
     -------
@@ -192,7 +248,7 @@ def find_significant_defects(contour):
         for i in range(defects.shape[0]):
             s, e, f, d = defects[i, 0]
             depth = d / 256.0  # Convert to pixels
-            if depth > MIN_DEFECT_DEPTH:
+            if depth > min_defect_depth:
                 start = tuple(contour[s][0])
                 end = tuple(contour[e][0])
                 far = tuple(contour[f][0])

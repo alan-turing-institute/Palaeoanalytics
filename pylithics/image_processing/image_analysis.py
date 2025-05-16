@@ -55,6 +55,7 @@ All functions are fully documented and include robust logging for debugging and 
 
 import logging
 import os
+import sys
 import cv2
 import numpy as np
 import pandas as pd
@@ -97,6 +98,7 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     from pylithics.image_processing.importer import load_preprocessing_config
     import yaml
     import os
+
 
     # Load config to get minimum area
     try:
@@ -241,22 +243,28 @@ def sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None):
     return {"parents": parents, "children": children, "nested_children": nested}
 
 
-def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, image_shape):
+def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, image_shape, image_dpi=None):
     """
     Calculate metrics for parent, first-level child, and nested (second-level) child contours.
-    Nested contours are processed for arrow detection and their data is added to their parent scar.
-    This version safely handles filtered contours.
 
-    Args:
-        sorted_contours (dict): {"parents":…, "children":…, "nested_children":…}
-        hierarchy (np.ndarray): contour hierarchy array
-        original_contours (list): list of all extracted contours
-        image_shape (tuple): shape of the source image (h, w)
+    Parameters
+    ----------
+    sorted_contours : dict
+        {"parents":…, "children":…, "nested_children":…}
+    hierarchy : np.ndarray
+        contour hierarchy array
+    original_contours : list
+        list of all extracted contours
+    image_shape : tuple
+        shape of the source image (h, w)
+    image_dpi : float, optional
+        DPI of the image being processed, used for scaling detection parameters
 
-    Returns:
-        metrics (list of dict): consolidated metrics including arrow info for nested children
+    Returns
+    -------
+    metrics : list of dict
+        consolidated metrics including arrow info for nested children
     """
-    import cv2, numpy as np, logging, os
 
     metrics = []
     parent_map = {}
@@ -472,7 +480,7 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
 
         # Run arrow detection
         logging.debug(f"Running arrow detection on nested contour {ni}")
-        result = analyze_child_contour_for_arrow(cnt, temp_entry, image_shape)
+        result = analyze_child_contour_for_arrow(cnt, temp_entry, image_shape, image_dpi)
 
         # If arrow detected, update the parent scar's entry
         if result:
@@ -1337,19 +1345,23 @@ def visualize_voronoi_diagram(voronoi_data, inverted_image, output_path):
     logging.info("Saved Voronoi diagram visualization to: %s", output_path)
 
 
-def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id):
+def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id, image_dpi=None):
     """
-    Process contours, calculate metrics, classify surfaces, analyze symmetry, and append results to a single CSV file.
-    Includes detailed error trapping to identify exact error locations.
+    Process contours, calculate metrics, classify surfaces, analyze symmetry, and append results.
 
-    Args:
-        inverted_image (numpy.ndarray): Inverted binary thresholded image.
-        conversion_factor (float): Conversion factor for pixels to real-world units.
-        output_dir (str): Directory to save processed outputs.
-        image_id (str): Unique identifier for the image being processed.
+    Parameters
+    ----------
+    inverted_image : numpy.ndarray
+        Inverted binary thresholded image.
+    conversion_factor : float
+        Conversion factor for pixels to real-world units.
+    output_dir : str
+        Directory to save processed outputs.
+    image_id : str
+        Unique identifier for the image being processed.
+    image_dpi : float, optional
+        DPI of the image being processed, used for scaling detection parameters.
     """
-    import traceback
-    import sys
 
     try:
         # Step 1: Extract contours and hierarchy
@@ -1399,7 +1411,8 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
                 sorted_contours,
                 hierarchy,
                 contours,
-                inverted_image  # Pass the actual image for visualization
+                inverted_image,  # Pass the actual image for visualization
+                image_dpi # Pass the DPI for scaled detection
             )
         except Exception as e:
             logging.error(f"Error in calculate_contour_metrics: {e}")

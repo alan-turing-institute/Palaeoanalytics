@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+from PIL import Image
 
 from pylithics.image_processing.importer import (
     execute_preprocessing_pipeline,
@@ -70,6 +71,17 @@ def preprocess_and_analyze_images(
             logging.error("Skipping analysis for %s due to preprocessing failure.", image_id)
             continue
 
+        # Extract DPI information
+        image_dpi = None
+        try:
+            with Image.open(image_path) as img:
+                dpi_info = img.info.get('dpi')
+                if dpi_info:
+                    image_dpi = round(float(dpi_info[0]))  # Use horizontal DPI
+                    logging.info(f"Image DPI detected: {image_dpi}")
+        except Exception as e:
+            logging.warning(f"Could not extract DPI from image: {e}")
+
         conversion_factor = verify_image_dpi_and_scale(image_path, real_world_scale_mm)
         if conversion_factor is None:
             logging.error(
@@ -77,14 +89,15 @@ def preprocess_and_analyze_images(
             )
             continue
 
-        # Step 2: Analyze and save the processed image
+        # Step 2: Analyze and save the processed image (passing image_dpi)
         try:
             logging.info("Analyzing contours and hierarchy in: %s", image_id)
             process_and_save_contours(
                 processed_image,
                 conversion_factor,
                 processed_dir,
-                image_id  # Pass image_id explicitly
+                image_id,      # Pass image_id explicitly
+                image_dpi      # Pass image_dpi to enable scaled detection
             )
             logging.info("Analysis complete for image: %s", image_id)
         except Exception as e:
