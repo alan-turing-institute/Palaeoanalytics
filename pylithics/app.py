@@ -135,8 +135,5 @@ def main() -> None:
     # Run the preprocessing and analysis steps
     preprocess_and_analyze_images(args.data_dir, args.meta_file, config, args.show_thresholded_images)
 
-    logging.info("Processing and analysis complete.")
-
-
 if __name__ == "__main__":
     main()

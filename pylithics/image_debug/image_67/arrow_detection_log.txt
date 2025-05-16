@@ -1,2 +1,0 @@
-Arrow detection analysis for contour nested_67
-Failed: Area too small (14.5 < 50)

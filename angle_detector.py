@@ -526,7 +526,7 @@ if __name__ == "__main__":
     # Default test case
     if len(sys.argv) <= 1:
         print("Using default test image")
-        main("pylithics/data/images/awbari.png")
+        main("arrows/dif_arrows.png")
     else:
         image_path = sys.argv[1]
         output_dir = "image_debug/"
