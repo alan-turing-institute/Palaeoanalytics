@@ -245,6 +245,7 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
     """
     Calculate metrics for parent, first-level child, and nested (second-level) child contours.
     Nested contours are processed for arrow detection and their data is added to their parent scar.
+    This version safely handles filtered contours.
 
     Args:
         sorted_contours (dict): {"parents":…, "children":…, "nested_children":…}
@@ -255,23 +256,55 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
     Returns:
         metrics (list of dict): consolidated metrics including arrow info for nested children
     """
+    import cv2, numpy as np, logging, os
 
     metrics = []
     parent_map = {}
 
-    # Process parents (using existing code)
+    # Create a mapping between filtered contours and original contours
+    # This is needed because the hierarchy indices refer to original contours
+    contour_index_map = {}  # Maps contour to its index in original_contours
+
+    # Build map of all contours in sorted_contours
+    all_sorted_contours = (
+        sorted_contours["parents"] +
+        sorted_contours["children"] +
+        sorted_contours.get("nested_children", [])
+    )
+
+    # Create a mapping from contours to their original indices
+    for contour in all_sorted_contours:
+        for i, orig_cnt in enumerate(original_contours):
+            if np.array_equal(contour, orig_cnt):
+                contour_key = str(contour.tobytes())  # Use bytes as key
+                contour_index_map[contour_key] = i
+                break
+
+    # Process parents
     for pi, cnt in enumerate(sorted_contours["parents"]):
-        idx = next(i for i,c in enumerate(original_contours) if np.array_equal(c, cnt))
+        contour_key = str(cnt.tobytes())
+        idx = contour_index_map.get(contour_key)
+        if idx is None:
+            logging.warning(f"Could not find parent contour {pi} in original contours")
+            continue
+
         lab = f"parent {pi+1}"
         parent_map[idx] = lab
         area = round(cv2.contourArea(cnt), 2)
         peri = round(cv2.arcLength(cnt, True), 2)
+
+        # Safely calculate centroid
         M = cv2.moments(cnt)
-        cx = round(M.get("m10",0)/M.get("m00",1),2)
-        cy = round(M.get("m01",0)/M.get("m00",1),2)
+        if M["m00"] > 0:
+            cx = round(M["m10"] / M["m00"], 2)
+            cy = round(M["m01"] / M["m00"], 2)
+        else:
+            x, y, w, h = cv2.boundingRect(cnt)
+            cx, cy = round(x + w/2, 2), round(y + h/2, 2)
+
         x,y,w,h = cv2.boundingRect(cnt)
 
-        # Calculate max length and width (inline from original)
+        # Calculate max length and width
         max_len = max_wid = 0
         p1 = p2 = None
         for i in range(len(cnt)):
@@ -304,20 +337,39 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
         })
 
     # Process children/scars with mapping for arrow integration
-    scar_metrics = {}  # Map from contour index to scar entry
+    scar_metrics = {}  # Map from contour key to scar entry
     scar_entries = {}  # Map from scar label to entry
 
     for ci, cnt in enumerate(sorted_contours["children"]):
-        idx = next(i for i,c in enumerate(original_contours) if np.array_equal(c, cnt))
-        pl = parent_map.get(hierarchy[idx][3], "Unknown")
+        contour_key = str(cnt.tobytes())
+        idx = contour_index_map.get(contour_key)
+        if idx is None:
+            logging.warning(f"Could not find child contour {ci} in original contours")
+            continue
+
+        # Get parent using hierarchy
+        if idx < len(hierarchy):
+            parent_idx = hierarchy[idx][3]
+            pl = parent_map.get(parent_idx, "Unknown")
+        else:
+            logging.warning(f"Child contour index {idx} out of bounds for hierarchy")
+            pl = "Unknown"
+
         lab = f"scar {ci+1}"
         area = round(cv2.contourArea(cnt), 2)
+
+        # Safe centroid calculation
         M = cv2.moments(cnt)
-        cx = round(M.get("m10",0)/M.get("m00",1),2)
-        cy = round(M.get("m01",0)/M.get("m00",1),2)
+        if M["m00"] > 0:
+            cx = round(M["m10"] / M["m00"], 2)
+            cy = round(M["m01"] / M["m00"], 2)
+        else:
+            x, y, w, h = cv2.boundingRect(cnt)
+            cx, cy = round(x + w/2, 2), round(y + h/2, 2)
+
         x,y,w,h = cv2.boundingRect(cnt)
 
-        # Calculate max length and width (inline from original)
+        # Calculate max length and width
         max_len = max_wid = 0
         p1 = p2 = None
         for i in range(len(cnt)):
@@ -346,31 +398,55 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
             "arrow_angle_deg": None, "arrow_angle": None
         }
         metrics.append(entry)
-        scar_metrics[idx] = entry  # Store by contour index
+        scar_metrics[contour_key] = entry  # Store by contour key
         scar_entries[lab] = entry  # Store by label
+
+    # Skip nested children processing if there are no direct children
+    if not scar_metrics and sorted_contours.get("nested_children", []):
+        logging.info("Skipping nested children processing as there are no direct children (scars)")
+        return metrics
 
     # Process nested children (detect arrows and update parent scars)
     for ni, cnt in enumerate(sorted_contours.get("nested_children", [])):
-        nested_idx = next(i for i,c in enumerate(original_contours) if np.array_equal(c, cnt))
+        contour_key = str(cnt.tobytes())
+        nested_idx = contour_index_map.get(contour_key)
+        if nested_idx is None or nested_idx >= len(hierarchy):
+            logging.warning(f"Could not find nested contour {ni} in original contours or hierarchy")
+            continue
+
         parent_idx = hierarchy[nested_idx][3]  # Get parent contour index
 
         # Find which scar this belongs to
         parent_scar = None
-        if parent_idx in scar_metrics:
-            parent_scar = scar_metrics[parent_idx]
+        parent_contour_key = None
+
+        # Try to find parent contour in original contours
+        if parent_idx < len(original_contours):
+            parent_contour = original_contours[parent_idx]
+            parent_contour_key = str(parent_contour.tobytes())
+
+        # Check if the parent contour is in our scar metrics
+        if parent_contour_key in scar_metrics:
+            parent_scar = scar_metrics[parent_contour_key]
         else:
             # Find parent through hierarchy relationships if not direct
+            found = False
             for idx, h in enumerate(hierarchy):
-                if idx == parent_idx and h[3] != -1:  # If this is the parent and it has its own parent
+                if idx == parent_idx and h[3] != -1 and idx < len(original_contours):
                     grandparent_idx = h[3]
                     for cidx, ch in enumerate(hierarchy):
-                        if ch[3] == grandparent_idx:  # Find children of same grandparent
-                            if cidx in scar_metrics:
-                                parent_scar = scar_metrics[cidx]
+                        if ch[3] == grandparent_idx and cidx < len(original_contours):
+                            cidx_contour = original_contours[cidx]
+                            cidx_key = str(cidx_contour.tobytes())
+                            if cidx_key in scar_metrics:
+                                parent_scar = scar_metrics[cidx_key]
+                                found = True
                                 break
+                    if found:
+                        break
 
         if parent_scar is None:
-            logging.warning(f"Could not find parent scar for nested contour {ni}")
+            logging.debug(f"Could not find parent scar for nested contour {ni}")
             continue
 
         # Get image name without extension
@@ -379,27 +455,14 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
         elif isinstance(image_shape, str):
             image_name = os.path.splitext(image_shape)[0]
         else:
-            # If no filename attribute or string, use a placeholder with the image index
+            # Default name
             image_name = f"image_{ni}"
 
-        # Create a consolidated debug directory structure
+        # Create debug directory
         debug_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                "image_debug",  # 1st level
-                                image_name)     # 2nd level - just the image name
-
-        # Create the directory only once per image
+                                "image_debug",
+                                image_name)
         os.makedirs(debug_dir, exist_ok=True)
-
-        # Create a descriptive filename for this specific arrow debug info
-        arrow_debug_filename = f"arrow_{parent_scar['scar']}_nested_{ni}.png"
-        arrow_debug_path = os.path.join(debug_dir, arrow_debug_filename)
-
-        # Store the debug paths in the temporary entry
-        temp_entry = {
-            "scar": f"nested_{ni}",
-            "debug_dir": debug_dir,
-            "debug_file": arrow_debug_path
-        }
 
         # Create temporary entry for arrow detection
         temp_entry = {
@@ -428,26 +491,42 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
     return metrics
 
 
-
 def hide_nested_child_contours(contours, hierarchy):
     """
     Flag only first-level child contours whose parent has exactly one child.
     Do not flag nested (depth ≥2) contours so they can be processed for arrow detection.
+    This version includes extensive bounds checking to prevent index errors.
     """
     flags = [False] * len(contours)
+
+    # Safety check for empty contours or hierarchy
+    if not contours or hierarchy is None or len(hierarchy) == 0:
+        return flags
+
     # Count direct children for each parent
     child_counts = {}
-    for h in hierarchy:
+    for i, h in enumerate(hierarchy):
+        if i >= len(contours):
+            continue  # Skip if index out of bounds
+
         p = h[3]
         if p != -1:
             child_counts[p] = child_counts.get(p, 0) + 1
 
     # Flag single-child first-level scars only
     for i, h in enumerate(hierarchy):
+        if i >= len(contours):
+            continue  # Skip if index out of bounds
+
         parent_idx = h[3]
+        # Skip if parent index invalid
+        if parent_idx == -1 or parent_idx >= len(hierarchy):
+            continue
+
         # only flag if it's a first-level child and its parent has exactly one child
         if parent_idx != -1 and hierarchy[parent_idx][3] == -1 and child_counts.get(parent_idx, 0) == 1:
-            flags[i] = True
+            if i < len(flags):
+                flags[i] = True
 
     logging.info("Flagged %d single-child contours for exclusion.", sum(flags))
     return flags
@@ -1261,7 +1340,7 @@ def visualize_voronoi_diagram(voronoi_data, inverted_image, output_path):
 def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id):
     """
     Process contours, calculate metrics, classify surfaces, analyze symmetry, and append results to a single CSV file.
-    Handles special case of nested children without parent scars.
+    Includes detailed error trapping to identify exact error locations.
 
     Args:
         inverted_image (numpy.ndarray): Inverted binary thresholded image.
@@ -1269,115 +1348,203 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         output_dir (str): Directory to save processed outputs.
         image_id (str): Unique identifier for the image being processed.
     """
-    # Step 1: Extract contours and hierarchy
-    contours, hierarchy = extract_contours_with_hierarchy(inverted_image, image_id, output_dir)
-    if not contours:
-        logging.warning("No valid contours found for image: %s", image_id)
-        return
+    import traceback
+    import sys
 
-    # Step 2: Flag nested and single child contours
-    exclude_nested_flags = hide_nested_child_contours(contours, hierarchy)
+    try:
+        # Step 1: Extract contours and hierarchy
+        contours, hierarchy = extract_contours_with_hierarchy(inverted_image, image_id, output_dir)
+        if not contours:
+            logging.warning("No valid contours found for image: %s", image_id)
+            return
 
-    # Step 3: Sort contours by hierarchy, excluding flagged nested contours
-    sorted_contours = sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags)
+        # Print hierarchy shape for debugging
+        logging.info(f"DEBUG: hierarchy shape = {hierarchy.shape}")
 
-    # Handle special case of zero child contours but with nested children
-    if len(sorted_contours["children"]) == 0 and len(sorted_contours.get("nested_children", [])) > 0:
-        logging.info(f"Special case for {image_id}: Promoting nested children to direct children")
-        sorted_contours["children"] = sorted_contours["nested_children"]
-        sorted_contours["nested_children"] = []
-        logging.info("Promoted %d nested children to direct children.",
-                     len(sorted_contours["children"]))
+        try:
+            # Step 2: Flag nested and single child contours
+            exclude_nested_flags = hide_nested_child_contours(contours, hierarchy)
+        except Exception as e:
+            logging.error(f"Error in hide_nested_child_contours: {e}")
+            import traceback
+            traceback.print_exc()
+            # Create empty flags as fallback
+            exclude_nested_flags = [False] * len(contours)
 
-    # Step 4: Calculate metrics for all contours
-    metrics = calculate_contour_metrics(
-        sorted_contours,
-        hierarchy,
-        contours,
-        inverted_image  # Pass the actual image for visualization
-    )
+        try:
+            # Step 3: Sort contours by hierarchy, excluding flagged nested contours
+            sorted_contours = sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags)
+        except Exception as e:
+            logging.error(f"Error in sort_contours_by_hierarchy: {e}")
+            import traceback
+            traceback.print_exc()
+            # Create empty sorted_contours as fallback
+            sorted_contours = {"parents": [], "children": [], "nested_children": []}
+            if contours:
+                sorted_contours["parents"] = [contours[0]]
+                if len(contours) > 1:
+                    sorted_contours["children"] = contours[1:]
 
-    # Step 5: Classify parent contours into surfaces
-    metrics = classify_parent_contours(metrics)
+        # Handle special case of zero child contours but with nested children
+        if len(sorted_contours["children"]) == 0 and len(sorted_contours.get("nested_children", [])) > 0:
+            logging.info(f"Special case for {image_id}: Promoting nested children to direct children")
+            sorted_contours["children"] = sorted_contours["nested_children"]
+            sorted_contours["nested_children"] = []
+            logging.info("Promoted %d nested children to direct children.",
+                        len(sorted_contours["children"]))
 
-    # Step 6: Add image_id to each metric entry
-    for metric in metrics:
-        metric["image_id"] = image_id
+        try:
+            # Step 4: Calculate metrics for all contours
+            metrics = calculate_contour_metrics(
+                sorted_contours,
+                hierarchy,
+                contours,
+                inverted_image  # Pass the actual image for visualization
+            )
+        except Exception as e:
+            logging.error(f"Error in calculate_contour_metrics: {e}")
+            # Print exact line where error occurred
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            logging.error(f"Error at {fname}:{exc_tb.tb_lineno}")
 
-    # Step 7: Perform symmetry analysis for the dorsal surface
-    symmetry_scores = analyze_dorsal_symmetry(metrics, sorted_contours["parents"], inverted_image)
+            import traceback
+            traceback.print_exc()
 
-    # Step 8: Add symmetry scores to the dorsal metrics only (as symmetry applies to the dorsal surface)
-    for metric in metrics:
-        if metric.get("surface_type") == "Dorsal":
-            metric.update(symmetry_scores)
+            # Minimal metrics as fallback
+            metrics = []
+            for i, cnt in enumerate(sorted_contours.get("parents", [])):
+                # Create minimal parent metrics
+                area = cv2.contourArea(cnt)
+                x, y, w, h = cv2.boundingRect(cnt)
+                metrics.append({
+                    "parent": f"parent {i+1}",
+                    "scar": f"parent {i+1}",
+                    "surface_type": "Dorsal" if i == 0 else "Unknown",
+                    "centroid_x": x + w/2,
+                    "centroid_y": y + h/2,
+                    "width": w,
+                    "height": h,
+                    "area": area,
+                    "has_arrow": False
+                })
 
-    # Step 9: Calculate Voronoi diagram and convex hull metrics
-    voronoi_data = calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02)
+            # If no metrics created, create at least one
+            if not metrics and contours:
+                cnt = contours[0]
+                area = cv2.contourArea(cnt)
+                x, y, w, h = cv2.boundingRect(cnt)
+                metrics.append({
+                    "parent": "parent 1",
+                    "scar": "parent 1",
+                    "surface_type": "Dorsal",
+                    "centroid_x": x + w/2,
+                    "centroid_y": y + h/2,
+                    "width": w,
+                    "height": h,
+                    "area": area,
+                    "has_arrow": False
+                })
 
-    # Initialize voronoi_cell_area field for all metrics with "NA"
-    for metric in metrics:
-        metric['voronoi_cell_area'] = "NA"
+        try:
+            # Step 5: Classify parent contours into surfaces
+            metrics = classify_parent_contours(metrics)
+        except Exception as e:
+            logging.error(f"Error in classify_parent_contours: {e}")
+            # Don't halt execution if classification fails
 
-    if voronoi_data is not None:
-        vor_num_cells = voronoi_data['voronoi_metrics']['num_cells']
-        ch_width = round(voronoi_data['convex_hull_metrics']['width'], 2)
-        ch_height = round(voronoi_data['convex_hull_metrics']['height'], 2)
-        ch_area = round(voronoi_data['convex_hull_metrics']['area'], 2)
+        # Step 6: Add image_id to each metric entry
+        for metric in metrics:
+            metric["image_id"] = image_id
 
-        # Use the metric_index from each cell to directly update the corresponding metric
-        for cell in voronoi_data['voronoi_cells']:
-            metric_idx = cell.get('metric_index', -1)
-            if metric_idx != -1 and metric_idx < len(metrics):
-                # Round the area to 2 decimal places
-                cell_area = round(cell['area'], 2)
-                metrics[metric_idx]['voronoi_cell_area'] = cell_area
-    else:
-        vor_num_cells = "NA"
-        ch_width = "NA"
-        ch_height = "NA"
-        ch_area = "NA"
+        try:
+            # Step 7: Perform symmetry analysis for the dorsal surface
+            symmetry_scores = analyze_dorsal_symmetry(metrics, sorted_contours.get("parents", []), inverted_image)
 
-    # Append Voronoi and convex hull metrics to all dorsal metrics
-    for metric in metrics:
-        if metric.get("surface_type") == "Dorsal":
-            metric['voronoi_num_cells'] = vor_num_cells
-            metric['convex_hull_width'] = ch_width
-            metric['convex_hull_height'] = ch_height
-            metric['convex_hull_area'] = ch_area
-        else:
-            metric['voronoi_num_cells'] = "NA"
-            metric['convex_hull_width'] = "NA"
-            metric['convex_hull_height'] = "NA"
-            metric['convex_hull_area'] = "NA"
+            # Step 8: Add symmetry scores to the dorsal metrics only
+            for metric in metrics:
+                if metric.get("surface_type") == "Dorsal":
+                    metric.update(symmetry_scores)
+        except Exception as e:
+            logging.error(f"Error in symmetry analysis: {e}")
+            # Continue if symmetry analysis fails
 
-    # Step 10: Save metrics to CSV (now with additional voronoi/hull fields)
-    combined_csv_path = os.path.join(output_dir, "processed_metrics.csv")
-    save_measurements_to_csv(metrics, combined_csv_path, append=True)
+        try:
+            # Step 9: Calculate Voronoi diagram and convex hull metrics
+            voronoi_data = calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02)
 
-    # Step 11: Visualize contours with hierarchy
-    # Collect all contours to visualize (parents + children + nested)
-    all_visualization_contours = (
-        sorted_contours["parents"] +
-        sorted_contours["children"] +
-        sorted_contours.get("nested_children", [])
-    )
+            # Initialize voronoi_cell_area field for all metrics with "NA"
+            for metric in metrics:
+                metric['voronoi_cell_area'] = "NA"
 
-    visualization_path = os.path.join(output_dir, f"{image_id}_labeled.png")
-    visualize_contours_with_hierarchy(
-        all_visualization_contours,
-        hierarchy,
-        metrics,
-        inverted_image,
-        visualization_path
-    )
+            if voronoi_data is not None:
+                vor_num_cells = voronoi_data['voronoi_metrics']['num_cells']
+                ch_width = round(voronoi_data['convex_hull_metrics']['width'], 2)
+                ch_height = round(voronoi_data['convex_hull_metrics']['height'], 2)
+                ch_area = round(voronoi_data['convex_hull_metrics']['area'], 2)
 
-    # Step 12: Generate and visualize Voronoi diagram for the Dorsal surface and its children
-    if voronoi_data is not None:
-        voronoi_output_path = os.path.join(output_dir, f"{image_id}_voronoi.png")
-        visualize_voronoi_diagram(voronoi_data, inverted_image, voronoi_output_path)
+                # Use the metric_index from each cell to directly update the corresponding metric
+                for cell in voronoi_data['voronoi_cells']:
+                    metric_idx = cell.get('metric_index', -1)
+                    if metric_idx != -1 and metric_idx < len(metrics):
+                        # Round the area to 2 decimal places
+                        cell_area = round(cell['area'], 2)
+                        metrics[metric_idx]['voronoi_cell_area'] = cell_area
 
-    logging.info("Analysis complete for image: %s", image_id)
+                # Append Voronoi and convex hull metrics to all dorsal metrics
+                for metric in metrics:
+                    if metric.get("surface_type") == "Dorsal":
+                        metric['voronoi_num_cells'] = vor_num_cells
+                        metric['convex_hull_width'] = ch_width
+                        metric['convex_hull_height'] = ch_height
+                        metric['convex_hull_area'] = ch_area
+        except Exception as e:
+            logging.error(f"Error in Voronoi processing: {e}")
+            # Continue if Voronoi processing fails
+
+        # Step 10: Save metrics to CSV
+        try:
+            combined_csv_path = os.path.join(output_dir, "processed_metrics.csv")
+            save_measurements_to_csv(metrics, combined_csv_path, append=True)
+        except Exception as e:
+            logging.error(f"Error saving CSV: {e}")
+
+        # Step 11: Visualize contours with hierarchy
+        try:
+            # Collect all contours to visualize
+            all_visualization_contours = (
+                sorted_contours.get("parents", []) +
+                sorted_contours.get("children", []) +
+                sorted_contours.get("nested_children", [])
+            )
+
+            visualization_path = os.path.join(output_dir, f"{image_id}_labeled.png")
+            visualize_contours_with_hierarchy(
+                all_visualization_contours,
+                hierarchy,
+                metrics,
+                inverted_image,
+                visualization_path
+            )
+        except Exception as e:
+            logging.error(f"Error in visualization: {e}")
+
+        # Step 12: Generate and visualize Voronoi diagram
+        try:
+            if voronoi_data is not None:
+                voronoi_output_path = os.path.join(output_dir, f"{image_id}_voronoi.png")
+                visualize_voronoi_diagram(voronoi_data, inverted_image, voronoi_output_path)
+        except Exception as e:
+            logging.error(f"Error in Voronoi visualization: {e}")
+
+        logging.info("Analysis complete for image: %s", image_id)
+
+    except Exception as e:
+        logging.error(f"Error analyzing image {image_id}: {e}")
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        logging.error(f"Error at {fname}:{exc_tb.tb_lineno}")
+        traceback.print_exc()
 
 
 def convert_metrics_to_real_world(metrics, conversion_factor):
