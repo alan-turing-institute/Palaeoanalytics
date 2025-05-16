@@ -1,0 +1,11 @@
+Training Summary
+================
+Model: YOLOv7-tiny modified for keypoint detection
+Epochs: 11
+Batch size: 16
+Learning rate: 0.001
+Image size: 640x640
+Training images: 1506
+Validation images: 324
+Best validation loss: 0.0049 at epoch 6
+Total training time: 8383.91 seconds

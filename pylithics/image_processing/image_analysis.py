@@ -69,10 +69,12 @@ from matplotlib.collections import PatchCollection
 from matplotlib.cm import get_cmap
 from matplotlib.colors import Normalize
 from .arrow_detection import analyze_child_contour_for_arrow
+from pylithics.image_processing.utils import filter_contours_by_min_area
 
 def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     """
     Extract contours and hierarchy using cv2.RETR_TREE, exclude the image border.
+    Uses minimum area from the config file.
 
     Parameters
     ----------
@@ -92,6 +94,22 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     """
     # Import the utility function
     from pylithics.image_processing.utils import filter_contours_by_min_area
+    from pylithics.image_processing.importer import load_preprocessing_config
+    import yaml
+    import os
+
+    # Load config to get minimum area
+    try:
+        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "config.yaml")
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+
+        # Get minimum area from config with default fallback
+        min_contour_area = config.get('contour_filtering', {}).get('min_area', 300.0)
+        logging.info(f"Using minimum contour area: {min_contour_area} pixels for image {image_id}")
+    except Exception as e:
+        logging.warning(f"Could not load min_area from config, using default value: {e}")
+        min_contour_area = 300.0  # Default value that worked previously
 
     # 1) find all contours + raw hierarchy
     contours, hierarchy = cv2.findContours(
@@ -102,6 +120,9 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     if not contours:
         logging.warning("No contours found in image %s", image_id)
         return [], None
+
+    # Log the number of raw contours found
+    logging.info(f"Found {len(contours)} raw contours in image {image_id}")
 
     # 2) filter out those touching the border
     height, width = inverted_image.shape
@@ -130,8 +151,10 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
 
     valid_hierarchy = np.array(valid_hierarchy)
 
-    # 3) filter out zero-area contours
-    min_contour_area = 1.0  # Minimum area in pixels
+    # Log how many contours remain after border filtering
+    logging.info(f"After border filtering: {len(valid_contours)} contours remain in image {image_id}")
+
+    # 3) filter out small contours using the minimum area from config
     valid_contours, valid_hierarchy = filter_contours_by_min_area(
         valid_contours, valid_hierarchy, min_contour_area
     )
@@ -153,6 +176,7 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
 def sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None):
     """
     Sort contours into parents, children, and nested children based on hierarchy.
+    This version includes robust bounds checking.
 
     Args:
         contours (list): List of detected contours.
@@ -165,22 +189,51 @@ def sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None):
             - "children": List of child contours.
             - "nested_children": List of nested child contours (if any).
     """
+    # Handle empty contours or hierarchy
+    if not contours or hierarchy is None or len(hierarchy) == 0:
+        return {"parents": [], "children": [], "nested_children": []}
 
     parents, children, nested = [], [], []
+
+    # Create exclude_nested_flags if not provided
     if exclude_nested_flags is None:
         exclude_nested_flags = [False] * len(contours)
+
+    # Ensure exclude_nested_flags is the right length
+    if len(exclude_nested_flags) != len(contours):
+        logging.warning("exclude_nested_flags length mismatch: %d vs %d contours. Using defaults.",
+                        len(exclude_nested_flags), len(contours))
+        exclude_nested_flags = [False] * len(contours)
+
+    # First, identify parent contours (those with no parent)
     for i, h in enumerate(hierarchy):
+        if i >= len(exclude_nested_flags) or i >= len(contours):
+            continue  # Skip if index is out of bounds
+
         if exclude_nested_flags[i]:
             continue
+
         parent_idx = h[3]
-        if parent_idx == -1:
+        if parent_idx == -1:  # No parent
             parents.append(contours[i])
-        else:
-            grandparent = hierarchy[parent_idx][3]
-            if grandparent == -1:
+
+    # Second, identify direct children (first level)
+    for i, h in enumerate(hierarchy):
+        if i >= len(exclude_nested_flags) or i >= len(contours):
+            continue  # Skip if index is out of bounds
+
+        if exclude_nested_flags[i]:
+            continue
+
+        parent_idx = h[3]
+        if parent_idx != -1:  # Has a parent
+            # Check if the parent is a root contour
+            if parent_idx < len(hierarchy) and hierarchy[parent_idx][3] == -1:
                 children.append(contours[i])
             else:
+                # This is a nested child (child of a child)
                 nested.append(contours[i])
+
     logging.info(
         "Sorted contours: %d parents, %d children, %d nested",
         len(parents), len(children), len(nested)
@@ -400,11 +453,10 @@ def hide_nested_child_contours(contours, hierarchy):
     return flags
 
 
-
-
 def classify_parent_contours(metrics, tolerance=0.1):
     """
     Classify parent contours into surfaces: Dorsal, Ventral, Platform, Lateral.
+    Robustly handles cases with fewer than all four surface types.
 
     Args:
         metrics (list): List of dictionaries containing contour metrics.
@@ -426,7 +478,7 @@ def classify_parent_contours(metrics, tolerance=0.1):
 
     surfaces_identified = []
 
-    # Identify Dorsal Surface
+    # Identify Dorsal Surface (always present if any parents exist)
     try:
         dorsal = max(parents, key=lambda p: p["area"])
         dorsal["surface_type"] = "Dorsal"
@@ -435,7 +487,13 @@ def classify_parent_contours(metrics, tolerance=0.1):
         logging.error("Unable to identify the dorsal surface due to missing or invalid parent metrics.")
         return metrics
 
+    # If only one parent contour, we're done - it's the dorsal surface
+    if len(parents) == 1:
+        logging.info("Only one parent contour found, classified as Dorsal surface.")
+        return metrics
+
     # Identify Ventral Surface
+    ventral = None
     for parent in parents:
         if parent["surface_type"] is None:
             if (
@@ -444,10 +502,12 @@ def classify_parent_contours(metrics, tolerance=0.1):
                 and abs(parent["area"] - dorsal["area"]) <= tolerance * dorsal["area"]
             ):
                 parent["surface_type"] = "Ventral"
+                ventral = parent
                 surfaces_identified.append("Ventral")
                 break
 
     # Identify Platform Surface
+    platform = None
     platform_candidates = [
         p for p in parents if p["surface_type"] is None and p["height"] < dorsal["height"] and p["width"] < dorsal["width"]
     ]
@@ -456,17 +516,29 @@ def classify_parent_contours(metrics, tolerance=0.1):
         platform["surface_type"] = "Platform"
         surfaces_identified.append("Platform")
 
-    # Identify Lateral Surface
-    for parent in parents:
-        if parent["surface_type"] is None:
-            if (
-                abs(parent["height"] - dorsal["height"]) <= tolerance * dorsal["height"]
-                and abs(parent["height"] - platform["height"]) > tolerance * platform["height"]
-                and parent["width"] != dorsal["width"]
-            ):
-                parent["surface_type"] = "Lateral"
-                surfaces_identified.append("Lateral")
-                break
+    # Identify Lateral Surface - only if platform exists
+    if platform is not None:
+        for parent in parents:
+            if parent["surface_type"] is None:
+                if (
+                    abs(parent["height"] - dorsal["height"]) <= tolerance * dorsal["height"]
+                    and abs(parent["height"] - platform["height"]) > tolerance * platform["height"]
+                    and parent["width"] != dorsal["width"]
+                ):
+                    parent["surface_type"] = "Lateral"
+                    surfaces_identified.append("Lateral")
+                    break
+    # Alternative logic when platform doesn't exist but we need to classify lateral
+    elif ventral is not None:
+        for parent in parents:
+            if parent["surface_type"] is None:
+                if (
+                    abs(parent["height"] - dorsal["height"]) <= tolerance * dorsal["height"]
+                    and abs(parent["width"] - dorsal["width"]) > tolerance * dorsal["width"]
+                ):
+                    parent["surface_type"] = "Lateral"
+                    surfaces_identified.append("Lateral")
+                    break
 
     # Assign default surface type if still None
     for parent in parents:
@@ -1189,6 +1261,7 @@ def visualize_voronoi_diagram(voronoi_data, inverted_image, output_path):
 def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id):
     """
     Process contours, calculate metrics, classify surfaces, analyze symmetry, and append results to a single CSV file.
+    Handles special case of nested children without parent scars.
 
     Args:
         inverted_image (numpy.ndarray): Inverted binary thresholded image.
@@ -1207,6 +1280,14 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
 
     # Step 3: Sort contours by hierarchy, excluding flagged nested contours
     sorted_contours = sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags)
+
+    # Handle special case of zero child contours but with nested children
+    if len(sorted_contours["children"]) == 0 and len(sorted_contours.get("nested_children", [])) > 0:
+        logging.info(f"Special case for {image_id}: Promoting nested children to direct children")
+        sorted_contours["children"] = sorted_contours["nested_children"]
+        sorted_contours["nested_children"] = []
+        logging.info("Promoted %d nested children to direct children.",
+                     len(sorted_contours["children"]))
 
     # Step 4: Calculate metrics for all contours
     metrics = calculate_contour_metrics(
@@ -1295,6 +1376,8 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
     if voronoi_data is not None:
         voronoi_output_path = os.path.join(output_dir, f"{image_id}_voronoi.png")
         visualize_voronoi_diagram(voronoi_data, inverted_image, voronoi_output_path)
+
+    logging.info("Analysis complete for image: %s", image_id)
 
 
 def convert_metrics_to_real_world(metrics, conversion_factor):

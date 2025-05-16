@@ -1,0 +1,4 @@
+Arrow detection analysis for contour nested_44
+Area: 131.50 pixels
+Solidity: 0.76
+Failed: Not enough significant defects (1 < 2)

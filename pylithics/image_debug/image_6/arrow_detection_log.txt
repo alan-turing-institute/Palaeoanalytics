@@ -1,0 +1,13 @@
+Arrow detection analysis for contour nested_6
+Area: 1757.50 pixels
+Solidity: 0.71
+Found 2 significant defects
+Triangle base length: 11.66 pixels
+Half-space 1 solidity: 0.956
+Half-space 2 solidity: 0.953
+Shaft half-space: 1 (more solid)
+Tip half-space: 2 (less solid)
+Triangle height: 43.91 pixels
+Arrow direction: from ((217, 380)) to ((239, 418))
+Angle: 59.93°, Compass: 329.93°
+Arrow detection succeeded

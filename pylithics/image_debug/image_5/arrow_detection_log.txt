@@ -1,0 +1,6 @@
+Arrow detection analysis for contour nested_5
+Area: 544.50 pixels
+Solidity: 0.72
+Found 2 significant defects
+Triangle base length: 7.07 pixels
+Failed: Half-space analysis failed
