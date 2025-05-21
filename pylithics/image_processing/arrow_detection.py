@@ -7,10 +7,10 @@ import logging
 
 # Module‐level constants (reference values calibrated for 300 DPI)
 REFERENCE_DPI = 300.0              # reference DPI for threshold calibration
-REF_MIN_AREA = 50                  # reference minimum contour area (in pixels)
-REF_MIN_DEFECT_DEPTH = 5           # reference minimum depth of convexity defect (in pixels)
-REF_SOLIDITY_BOUNDS = (0.3, 0.95)  # reference acceptable solidity range for shape
-REF_MIN_TRIANGLE_HEIGHT = 10       # reference minimum height of triangular head
+REF_MIN_AREA = 1                 # reference minimum contour area (in pixels)
+REF_MIN_DEFECT_DEPTH = 2           # reference minimum depth of convexity defect (in pixels)
+REF_SOLIDITY_BOUNDS = (0.4, 1.0)  # reference acceptable solidity range for shape
+REF_MIN_TRIANGLE_HEIGHT = 8       # reference minimum height of triangular head
 REF_MIN_SIGNIFICANT_DEFECTS = 2    # reference minimum number of significant defects to consider
 
 # These will be set dynamically based on image DPI
@@ -44,16 +44,17 @@ def scale_parameters_for_dpi(image_dpi):
             "min_significant_defects": REF_MIN_SIGNIFICANT_DEFECTS
         }
 
-    # Calculate scaling factors
-    linear_scale = REFERENCE_DPI / image_dpi
+    # FIXED SCALING LOGIC: We want thresholds to be lower at lower DPIs
+    # For example, a 100 DPI image should have 1/9 the minimum area of a 300 DPI image
+    linear_scale = image_dpi / REFERENCE_DPI  # <-- This is the key change (reversed ratio)
     area_scale = linear_scale * linear_scale
 
-    # Scale parameters
+    # Scale parameters with safety factors to ensure detection works across DPIs
     return {
-        "min_area": REF_MIN_AREA * area_scale,
-        "min_defect_depth": REF_MIN_DEFECT_DEPTH * linear_scale,
+        "min_area": REF_MIN_AREA * area_scale * 0.7,  # Add 30% safety margin
+        "min_defect_depth": REF_MIN_DEFECT_DEPTH * linear_scale * 0.8,  # Add 20% safety margin
         "solidity_bounds": REF_SOLIDITY_BOUNDS,  # Solidity is a ratio, so no scaling needed
-        "min_triangle_height": REF_MIN_TRIANGLE_HEIGHT * linear_scale,
+        "min_triangle_height": REF_MIN_TRIANGLE_HEIGHT * linear_scale * 0.8,  # Add 20% safety margin
         "min_significant_defects": REF_MIN_SIGNIFICANT_DEFECTS  # Count-based, no scaling needed
     }
 
@@ -99,6 +100,14 @@ def analyze_child_contour_for_arrow(contour, entry, image, image_dpi=None):
             debug_log.write(f"Image DPI: {image_dpi}, scaling applied\n")
             debug_log.write(f"Scaled thresholds: min_area={min_area:.2f}, min_defect_depth={min_defect_depth:.2f}, " +
                           f"min_triangle_height={min_triangle_height:.2f}\n")
+        # arrow debug info
+    if debug_dir:
+        debug_log.write(f"Scaled parameters with DPI={image_dpi}:\n")
+        debug_log.write(f"  min_area={min_area:.2f}\n")
+        debug_log.write(f"  min_defect_depth={min_defect_depth:.2f}\n")
+        debug_log.write(f"  solidity_bounds={solidity_bounds}\n")
+        debug_log.write(f"  min_triangle_height={min_triangle_height:.2f}\n")
+        debug_log.write(f"  min_significant_defects={min_significant_defects}\n")
     else:
         debug_log = None
 
@@ -116,6 +125,8 @@ def analyze_child_contour_for_arrow(contour, entry, image, image_dpi=None):
 
         debug(f"Area: {area:.2f} pixels")
 
+        debug(f"Area test: PASSED ({area:.2f} >= {min_area:.2f})")
+
         # Step 2: Calculate solidity (area / convex hull area)
         hull = cv2.convexHull(contour)
         hull_area = cv2.contourArea(hull)
@@ -127,13 +138,43 @@ def analyze_child_contour_for_arrow(contour, entry, image, image_dpi=None):
             debug(f"Failed: Solidity outside range {solidity_bounds}")
             return None
 
+        hull = cv2.convexHull(contour)
+        hull_area = cv2.contourArea(hull)
+        solidity = float(area) / hull_area if hull_area > 0 else 0
+
+        debug(f"Solidity: {solidity:.2f}")
+        # ADD THIS:
+        debug(f"Solidity test: {solidity_bounds[0]:.2f} <= {solidity:.2f} <= {solidity_bounds[1]:.2f}")
+
+        if solidity < solidity_bounds[0] or solidity > solidity_bounds[1]:
+            debug(f"Failed: Solidity outside range {solidity_bounds}")
+            return None
+        # ADD THIS:
+        debug(f"Solidity test: PASSED")
+
         # Step 3: Find significant convexity defects (using scaled min_defect_depth)
         significant_defects = find_significant_defects(contour, min_defect_depth)
-        if significant_defects is None or len(significant_defects) < min_significant_defects:
-            debug(f"Failed: Not enough significant defects ({len(significant_defects) if significant_defects else 0} < {min_significant_defects})")
+        if not significant_defects or len(significant_defects) < min_significant_defects:
+            debug(f"Failed: Not enough defects ({len(significant_defects) if significant_defects else 0} < {min_significant_defects})")
             return None
 
-        debug(f"Found {len(significant_defects)} significant defects")
+        # **Keep only the two deepest defects** and reject if more/less
+        significant_defects = significant_defects[:2]  # already sorted deepest-first
+        if len(significant_defects) != min_significant_defects:
+            debug(f"Failed: Need exactly {min_significant_defects} defects, got {len(significant_defects)}")
+            return None
+
+        debug(f"Using top-two defects at depths {[d[3] for d in significant_defects]}")
+
+        significant_defects = find_significant_defects(contour, min_defect_depth)
+        if not significant_defects or len(significant_defects) < min_significant_defects:
+            debug(f"Failed: Not enough defects ({len(significant_defects) if significant_defects else 0} < {min_significant_defects})")
+            return None
+        # ADD THIS:
+        debug(f"Defect test: PASSED (found {len(significant_defects)} significant defects)")
+        # ADD THIS - print defect depths:
+        defect_depths = [defect[3] for defect in significant_defects]
+        debug(f"Defect depths: {defect_depths}")
 
         # Step 4: Identify triangle base from defect pairs
         triangle_base_info = identify_triangle_base(significant_defects)
@@ -173,6 +214,19 @@ def analyze_child_contour_for_arrow(contour, entry, image, image_dpi=None):
         if triangle_height < min_triangle_height:
             debug(f"Failed: Triangle height too small ({triangle_height:.2f} < {min_triangle_height:.2f})")
             return None
+
+        triangle_height = np.sqrt((triangle_tip[0] - base_midpoint[0])**2 +
+                          (triangle_tip[1] - base_midpoint[1])**2)
+
+        debug(f"Triangle height: {triangle_height:.2f} pixels")
+        # ADD THIS:
+        debug(f"Triangle height test: {triangle_height:.2f} >= {min_triangle_height:.2f}")
+
+        if triangle_height < min_triangle_height:
+            debug(f"Failed: Triangle height too small ({triangle_height:.2f} < {min_triangle_height:.2f})")
+            return None
+        # ADD THIS:
+        debug(f"Triangle height test: PASSED")
 
         # Step 9: Define arrow direction (from tip to base midpoint)
         arrow_tip = base_midpoint  # Base midpoint is the tip of the arrow

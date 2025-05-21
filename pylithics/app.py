@@ -13,13 +13,6 @@ from pylithics.image_processing.image_analysis import (
     visualize_contours_with_hierarchy,
 )
 
-# Place holder to integrate Arrow CNN model
-
-# from pylithics.image_processing.arrow_detection import (
-#     load_arrow_detection_model,
-#     detect_arrows_in_large_image,
-# )
-
 from pylithics.image_processing.utils import read_metadata
 
 
