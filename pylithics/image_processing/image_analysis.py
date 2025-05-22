@@ -1666,15 +1666,18 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
             # Continue if Voronoi processing fails
 
 
-        # New Step: Run independent arrow detection if needed
+        # Run independent arrow detection for scars without arrows
         try:
-            # Check if any arrows were detected through the traditional method
-            arrows_detected = any(metric.get('has_arrow', False) for metric in metrics)
+            # Check which scars don't have arrows yet
+            scars_without_arrows = [m for m in metrics if m["parent"] != m["scar"] and not m.get('has_arrow', False)]
 
-            # If no arrows were detected but the image might have them, try independent detection
-            if not arrows_detected:
-                logging.info(f"No arrows detected through traditional hierarchy. Trying independent detection.")
+            if scars_without_arrows:
+                logging.info(f"Found {len(scars_without_arrows)} scars without arrows. Running independent detection.")
+                scar_labels = [m["scar"] for m in scars_without_arrows]
+                logging.info(f"Scars without arrows: {scar_labels}")
                 metrics = detect_arrows_independently(contours, metrics, inverted_image, image_dpi)
+            else:
+                logging.info("All scars already have arrows or no scars found. Skipping independent detection.")
         except Exception as e:
             logging.error(f"Error in independent arrow detection: {e}")
             exc_type, exc_obj, exc_tb = sys.exc_info()
