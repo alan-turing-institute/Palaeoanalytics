@@ -1666,7 +1666,7 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
             # Continue if Voronoi processing fails
 
 
-        # Run independent arrow detection for scars without arrows
+        # Run secondary independent arrow detection for scars without arrows
         try:
             # Check which scars don't have arrows yet
             scars_without_arrows = [m for m in metrics if m["parent"] != m["scar"] and not m.get('has_arrow', False)]
