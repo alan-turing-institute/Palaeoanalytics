@@ -429,19 +429,28 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         for metric in metrics:
             metric["image_id"] = image_id
 
-        try:
+
             # Step 7: Perform symmetry analysis for the dorsal surface
             symmetry_scores = analyze_dorsal_symmetry(metrics, sorted_contours.get("parents", []), inverted_image)
 
             # Step 8: Add symmetry scores to the dorsal metrics only
-            for metric in metrics:
-                if metric.get("surface_type") == "Dorsal":
-                    metric.update(symmetry_scores)
-        except Exception as e:
-            logging.error(f"Error in symmetry analysis: {e}")
-            # Continue if symmetry analysis fails
+            logging.info(f"DEBUG: symmetry_scores = {symmetry_scores}")
+            logging.info(f"DEBUG: symmetry_scores type = {type(symmetry_scores)}")
+
+            if symmetry_scores:
+                for metric in metrics:
+                    if metric.get("surface_type") == "Dorsal":
+                        metric.update(symmetry_scores)
+            else:
+                logging.warning("No symmetry scores returned from analyze_dorsal_symmetry")
 
         try:
+        # Debug logging
+            logging.info(f"DEBUG: About to call analyze_dorsal_symmetry")
+            logging.info(f"DEBUG: metrics type: {type(metrics)}, length: {len(metrics) if metrics else 'None'}")
+            logging.info(f"DEBUG: sorted_contours type: {type(sorted_contours)}")
+            logging.info(f"DEBUG: parents: {sorted_contours.get('parents', [])}")
+            logging.info(f"DEBUG: inverted_image type: {type(inverted_image)}")
             # Step 9: Calculate Voronoi diagram and convex hull metrics
             voronoi_data = calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02)
 

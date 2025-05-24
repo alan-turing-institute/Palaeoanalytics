@@ -68,3 +68,11 @@ def analyze_dorsal_symmetry(metrics, contours, inverted_image):
 
     # Logging for analysis completion
     logging.info("Symmetry analysis complete for Dorsal surface.")
+    return {
+    "top_area": top_area,
+    "bottom_area": bottom_area,
+    "left_area": left_area,
+    "right_area": right_area,
+    "vertical_symmetry": vertical_symmetry,
+    "horizontal_symmetry": horizontal_symmetry
+}
