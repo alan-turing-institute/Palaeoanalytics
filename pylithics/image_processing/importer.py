@@ -1,42 +1,22 @@
-import os
+"""
+Image preprocessing and pipeline management for PyLithics.
+
+This module handles the complete image preprocessing pipeline including
+grayscale conversion, normalization, thresholding, and morphological operations.
+"""
+
+# Standard library imports
 import logging
+import os
+import yaml
+
+# Third-party imports
 import cv2
 from PIL import Image
-import yaml
-from pkg_resources import resource_filename
-from pylithics.image_processing.utils import read_metadata
-from pylithics.image_processing.image_analysis import extract_contours_with_hierarchy
+
+# Pylithics imports
 from .config import load_preprocessing_config
-
-### CONFIGURATION LOADER ###
-
-def load_preprocessing_config(config_file=None):
-    """
-    Load configuration settings from a YAML file.
-    """
-    if config_file and os.path.isabs(config_file):
-        config_path = config_file
-    elif os.getenv('PYLITHICS_CONFIG'):
-        config_path = os.getenv('PYLITHICS_CONFIG')
-    else:
-        config_path = resource_filename(__name__, '../config/config.yaml')
-
-    logging.info("Attempting to load config file from: %s", config_path)
-
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
-        logging.info("Loaded configuration from %s.", config_path)
-        return config
-    except FileNotFoundError:
-        logging.error("Configuration file %s not found.", config_path)
-        return None
-    except yaml.YAMLError as yaml_error:
-        logging.error("Failed to parse YAML file %s: %s", config_path, yaml_error)
-        return None
-    except OSError as os_error:
-        logging.error("Failed to load config file %s due to OS error: %s", config_path, os_error)
-        return None
+from .utils import read_metadata
 
 
 ### IMAGE PROCESSING FUNCTIONS ###
