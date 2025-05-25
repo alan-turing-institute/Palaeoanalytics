@@ -1,12 +1,12 @@
 import os
 import logging
-import cv2  # Using OpenCV for image preprocessing
+import cv2
 from PIL import Image
 import yaml
 from pkg_resources import resource_filename
 from pylithics.image_processing.utils import read_metadata
 from pylithics.image_processing.image_analysis import extract_contours_with_hierarchy
-
+from .config import load_preprocessing_config
 
 ### CONFIGURATION LOADER ###
 

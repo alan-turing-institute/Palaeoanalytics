@@ -5,7 +5,9 @@ import os
 import yaml
 
 # For the config loading in extract_contours_with_hierarchy
-from pylithics.image_processing.importer import load_preprocessing_config
+from ..config import get_contour_filtering_config
+# from pylithics.image_processing.utils import filter_contours_by_min_area
+
 
 def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     """
@@ -28,25 +30,11 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     valid_hierarchy : ndarray
         Corresponding hierarchy entries for valid_contours.
     """
-    # Import the utility function
-    from pylithics.image_processing.utils import filter_contours_by_min_area
-    from pylithics.image_processing.importer import load_preprocessing_config
-    import yaml
-    import os
-
 
     # Load config to get minimum area
-    try:
-        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "config.yaml")
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-
-        # Get minimum area from config with default fallback
-        min_contour_area = config.get('contour_filtering', {}).get('min_area', 300.0)
-        logging.info(f"Using minimum contour area: {min_contour_area} pixels for image {image_id}")
-    except Exception as e:
-        logging.warning(f"Could not load min_area from config, using default value: {e}")
-        min_contour_area = 300.0  # Default value that worked previously
+    filtering_config = get_contour_filtering_config()
+    min_contour_area = filtering_config['min_area']
+    logging.info(f"Using minimum contour area: {min_contour_area} pixels for image {image_id}")
 
     # 1) find all contours + raw hierarchy
     contours, hierarchy = cv2.findContours(
