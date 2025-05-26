@@ -256,3 +256,28 @@ def clear_config_cache() -> None:
     get_logging_config.cache_clear()
     get_normalization_config.cache_clear()
     get_grayscale_config.cache_clear()
+
+def get_arrow_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]:
+    """Get arrow detection configuration with defaults."""
+    if config is None:
+        config = load_preprocessing_config()
+
+    if config is None:
+        # Fallback defaults
+        return {
+            'enabled': True,
+            'reference_dpi': 300.0,
+            'min_area_scale_factor': 0.7,
+            'min_defect_depth_scale_factor': 0.8,
+            'min_triangle_height_scale_factor': 0.8,
+            'debug_enabled': False
+        }
+
+    return config.get('arrow_detection', {
+        'enabled': True,
+        'reference_dpi': 300.0,
+        'min_area_scale_factor': 0.7,
+        'min_defect_depth_scale_factor': 0.8,
+        'min_triangle_height_scale_factor': 0.8,
+        'debug_enabled': False
+    })
