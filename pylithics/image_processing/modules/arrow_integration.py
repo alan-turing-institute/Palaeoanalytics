@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import logging
 import os
-from ..arrow_detection import analyze_child_contour_for_arrow
+from .arrow_detection import analyze_child_contour_for_arrow
 
 
 def process_nested_arrows(sorted_contours, hierarchy, original_contours, metrics, image_shape, image_dpi=None):
