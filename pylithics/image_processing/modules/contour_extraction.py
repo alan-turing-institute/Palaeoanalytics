@@ -6,7 +6,6 @@ import yaml
 
 # For the config loading in extract_contours_with_hierarchy
 from ..config import get_contour_filtering_config
-# from pylithics.image_processing.utils import filter_contours_by_min_area
 
 
 def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):

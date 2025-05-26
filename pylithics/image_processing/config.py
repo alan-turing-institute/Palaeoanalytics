@@ -1,9 +1,8 @@
 """
-Enhanced Configuration Management for PyLithics
-==============================================
+Configuration Management for PyLithics
+======================================
 
-This enhanced version adds validation, caching, and better error handling
-to the configuration management system.
+Validation, caching, and error handling for the configuration management system.
 """
 
 import os

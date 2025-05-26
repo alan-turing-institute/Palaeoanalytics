@@ -79,11 +79,6 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
                 tipLength=0.2
             )
 
-            # Remove the yellow dots at back and tip
-            # (Comment out or remove these lines)
-            # cv2.circle(labeled, back, 4, (0, 255, 255), -1)
-            # cv2.circle(labeled, tip, 4, (0, 255, 255), -1)
-
             # Annotate compass bearing with better positioning
             angle = m.get("arrow_angle", None)
             if angle is not None:

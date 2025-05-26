@@ -1,9 +1,9 @@
 """
 Arrow Detection Module for PyLithics
-============================================
+====================================
 
 This integrates arrow detection with the pipeline,
-provides improved error handling, and configurable parameters.
+provides error handling, and configurable parameters.
 """
 
 import os
