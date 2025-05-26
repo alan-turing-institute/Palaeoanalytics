@@ -1,13 +1,11 @@
-# PyLithics Enhanced Configuration File
+# PyLithics Configuration File
 # This file allows you to customize the behavior of PyLithics.
-# Below are descriptions of each section and how to modify them to fit your needs.
 
 thresholding:
   method: simple  # Choose the thresholding method:
+                  # - "simple" thresholding uses a fixed threshold value (see threshold_value below) and is the "default" method.
                   # - "adaptive" adjusts the threshold based on local image regions.
-                  # - "simple" uses a fixed threshold value (see threshold_value below).
                   # - "otsu" calculates the optimal threshold value automatically.
-                  # - "default" is the fallback, which uses simple thresholding.
 
   threshold_value: 127  # Only used for "simple" thresholding. This sets the threshold value.
                         # Any pixel intensity above this value is set to max_value, and below this is set to 0.
