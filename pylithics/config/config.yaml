@@ -1,4 +1,4 @@
-# PyLithics Configuration File
+# PyLithics Enhanced Configuration File
 # This file allows you to customize the behavior of PyLithics.
 # Below are descriptions of each section and how to modify them to fit your needs.
 
@@ -58,3 +58,83 @@ logging:
 contour_filtering:
   min_area: 50.0  # Minimum contour area in pixels
   exclude_border: true  # Whether to exclude contours touching the image border
+
+# Arrow Detection Configuration
+arrow_detection:
+  enabled: true  # Enable or disable arrow detection
+                 # - true: Arrow detection will be performed on scar contours
+                 # - false: Skip arrow detection entirely
+
+  reference_dpi: 300.0  # Reference DPI for parameter calibration
+                        # Detection thresholds are calibrated for this DPI value
+                        # Parameters will be scaled for images with different DPIs
+
+  # Scale factors for adjusting detection sensitivity
+  # Values between 0 and 1 make detection more permissive
+  # Values closer to 1 make detection more restrictive
+  min_area_scale_factor: 0.7  # Safety margin for minimum area threshold
+  min_defect_depth_scale_factor: 0.8  # Safety margin for convexity defect depth
+  min_triangle_height_scale_factor: 0.8  # Safety margin for triangle height
+
+  debug_enabled: false  # Enable debug output and visualizations
+                        # - true: Creates debug images and logs for each arrow detection
+                        # - false: Standard operation without debug output
+
+  # Advanced parameters (modify with caution)
+  reference_thresholds:
+    min_area: 1  # Minimum contour area at reference DPI
+    min_defect_depth: 2  # Minimum convexity defect depth at reference DPI
+    solidity_bounds: [0.4, 1.0]  # Acceptable solidity range for arrow shapes
+    min_triangle_height: 8  # Minimum triangle height at reference DPI
+    min_significant_defects: 2  # Required number of significant defects
+
+# Surface Classification Configuration
+surface_classification:
+  enabled: true  # Enable surface type classification
+
+  # Classification rules based on contour hierarchy and properties
+  classification_rules:
+    dorsal_area_threshold: 0.6  # Minimum relative area for dorsal classification
+    platform_aspect_ratio_max: 0.3  # Maximum aspect ratio for platform classification
+    lateral_area_threshold: 0.1  # Maximum relative area for lateral classification
+
+# Symmetry Analysis Configuration
+symmetry_analysis:
+  enabled: true  # Enable symmetry analysis for dorsal surfaces
+
+  # Symmetry calculation parameters
+  reflection_axes: 8  # Number of reflection axes to test
+  symmetry_threshold: 0.7  # Minimum symmetry score to consider symmetric
+
+# Voronoi Analysis Configuration
+voronoi_analysis:
+  enabled: true  # Enable Voronoi diagram generation
+
+  # Voronoi calculation parameters
+  padding_factor: 0.02  # Padding around contours for Voronoi calculation
+  min_distance_threshold: 5.0  # Minimum distance between Voronoi points
+
+# Visualization Configuration
+visualization:
+  save_images: true  # Save visualization images
+  image_format: png  # Output image format (png, jpg, tiff)
+
+  # Color scheme for different elements
+  colors:
+    parent_contour: [0, 255, 0]  # Green for parent contours
+    child_contour: [255, 0, 0]   # Red for child contours
+    arrow: [0, 255, 255]         # Cyan for arrows
+    text: [255, 255, 255]        # White for text labels
+
+  font_scale: 0.7  # Font size for labels
+  line_thickness: 2  # Line thickness for contours and arrows
+
+# Data Export Configuration
+data_export:
+  csv_format: true  # Export data in CSV format
+  include_debug_info: false  # Include debug information in exports
+
+  # Units for measurements
+  default_units: mm  # Default units for measurements (mm, cm, inches)
+  coordinate_precision: 2  # Decimal places for coordinate values
+  measurement_precision: 3  # Decimal places for area/length measurements
