@@ -318,7 +318,7 @@ class ArrowDetector:
         if triangle_height < min_height:
             if debug_log:
                 debug_log.write("Failed: Triangle height too small\n")
-            return False
+            return None
 
         if debug_log:
             debug_log.write("Triangle analysis: PASSED\n")
