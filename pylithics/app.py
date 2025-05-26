@@ -70,7 +70,7 @@ class PyLithicsApplication:
 
         # File handler if enabled
         if logging_config.get('log_to_file', True):
-            log_file = logging_config.get('log_file', 'logs/pylithics.log')
+            log_file = logging_config.get('log_file', 'pylithics/data/processed/pylithics.log')
             log_dir = os.path.dirname(log_file)
 
             if log_dir:

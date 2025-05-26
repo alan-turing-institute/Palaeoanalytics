@@ -50,8 +50,7 @@ logging:
                      # - true: Logs will be saved to the file specified below.
                      # - false: Logs will only appear in the console.
 
-  log_file: logs/pylithics.log  # File path for saving logs.
-                                # By default, logs are saved in "logs/pylithics.log".
+  log_file: pylithics/data/processed/pylithics.log  # File path for saving logs.
 
 contour_filtering:
   min_area: 50.0  # Minimum contour area in pixels
