@@ -97,15 +97,8 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
             "bounding_box_width": w, "bounding_box_height": h,
             "max_length": ml, "max_width": mw,
             "contour": cnt.tolist(),
-            "perimeter": peri,
-            # TODO: Move arrow initialization to arrow_integration module
-            "has_arrow": False, "arrow_angle_rad": None,
-            "arrow_angle_deg": None, "arrow_angle": None
+            "perimeter": peri
         })
-
-    # TODO: Move to arrow_integration module - scar mapping for arrow detection
-    # scar_metrics = {}  # Map from contour key to scar entry
-    # scar_entries = {}  # Map from scar label to entry
 
     # Process children/scars
     for ci, cnt in enumerate(sorted_contours["children"]):
@@ -161,106 +154,9 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
             "area": area, "aspect_ratio": round(h/w,2) if w else None,
             "max_length": ml, "max_width": mw,
             "bounding_box_x": x, "bounding_box_y": y,
-            "bounding_box_width": w, "bounding_box_height": h,
-            # TODO: Move arrow initialization to arrow_integration module
-            "has_arrow": False, "arrow_angle_rad": None,
-            "arrow_angle_deg": None, "arrow_angle": None
+            "bounding_box_width": w, "bounding_box_height": h
         }
         metrics.append(entry)
-        # TODO: Move to arrow_integration module - scar tracking
-        # scar_metrics[contour_key] = entry  # Store by contour key
-        # scar_entries[lab] = entry  # Store by label
-
-    # TODO: Move entire nested children processing to arrow_integration module
-    # This section handles arrow detection in nested contours
-    """
-    # Skip nested children processing if there are no direct children
-    if not scar_metrics and sorted_contours.get("nested_children", []):
-        logging.info("Skipping nested children processing as there are no direct children (scars)")
-        return metrics
-
-    # Process nested children (detect arrows and update parent scars)
-    for ni, cnt in enumerate(sorted_contours.get("nested_children", [])):
-        contour_key = str(cnt.tobytes())
-        nested_idx = contour_index_map.get(contour_key)
-        if nested_idx is None or nested_idx >= len(hierarchy):
-            logging.warning(f"Could not find nested contour {ni} in original contours or hierarchy")
-            continue
-
-        parent_idx = hierarchy[nested_idx][3]  # Get parent contour index
-
-        # Find which scar this belongs to
-        parent_scar = None
-        parent_contour_key = None
-
-        # Try to find parent contour in original contours
-        if parent_idx < len(original_contours):
-            parent_contour = original_contours[parent_idx]
-            parent_contour_key = str(parent_contour.tobytes())
-
-        # Check if the parent contour is in our scar metrics
-        if parent_contour_key in scar_metrics:
-            parent_scar = scar_metrics[parent_contour_key]
-        else:
-            # Find parent through hierarchy relationships if not direct
-            found = False
-            for idx, h in enumerate(hierarchy):
-                if idx == parent_idx and h[3] != -1 and idx < len(original_contours):
-                    grandparent_idx = h[3]
-                    for cidx, ch in enumerate(hierarchy):
-                        if ch[3] == grandparent_idx and cidx < len(original_contours):
-                            cidx_contour = original_contours[cidx]
-                            cidx_key = str(cidx_contour.tobytes())
-                            if cidx_key in scar_metrics:
-                                parent_scar = scar_metrics[cidx_key]
-                                found = True
-                                break
-                    if found:
-                        break
-
-        if parent_scar is None:
-            logging.debug(f"Could not find parent scar for nested contour {ni}")
-            continue
-
-        # Get image name without extension
-        if hasattr(image_shape, 'filename'):
-            image_name = os.path.splitext(image_shape.filename)[0]
-        elif isinstance(image_shape, str):
-            image_name = os.path.splitext(image_shape)[0]
-        else:
-            # Default name
-            image_name = f"image_{ni}"
-
-        # Create debug directory
-        debug_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                                "image_debug",
-                                image_name)
-        os.makedirs(debug_dir, exist_ok=True)
-
-        # Create temporary entry for arrow detection
-        temp_entry = {
-            "scar": f"nested_{ni}",
-            "debug_dir": debug_dir
-        }
-
-        # Run arrow detection
-        logging.debug(f"Running arrow detection on nested contour {ni}")
-        result = analyze_child_contour_for_arrow(cnt, temp_entry, image_shape, image_dpi)
-
-        # If arrow detected, update the parent scar's entry
-        if result:
-            logging.info(f"Arrow detected in nested contour {ni} (parent: {parent_scar['scar']}) with angle {result.get('compass_angle', 'unknown')}")
-            parent_scar.update({
-                "has_arrow": True,
-                "arrow_angle_rad": round(result["angle_rad"], 0),
-                "arrow_angle_deg": round(result["angle_deg"], 0),
-                "arrow_angle": round(result["compass_angle"], 0),
-                "arrow_tip": result["arrow_tip"],
-                "arrow_back": result["arrow_back"]
-            })
-        else:
-            logging.debug(f"No arrow detected in nested contour {ni}")
-    """
 
     return metrics
 
