@@ -1,94 +1,167 @@
 """
-Configuration management for PyLithics image processing.
+Enhanced Configuration Management for PyLithics
+==============================================
 
-This module handles loading and parsing of configuration files,
-providing a centralized interface for all configuration needs.
+This enhanced version adds validation, caching, and better error handling
+to the configuration management system.
 """
 
 import os
 import logging
 import yaml
+from typing import Dict, Any, Optional
+from functools import lru_cache
 from pkg_resources import resource_filename
 
 
-def load_preprocessing_config(config_file=None):
+class ConfigurationManager:
     """
-    Load configuration settings from a YAML file.
-
-    Parameters
-    ----------
-    config_file : str, optional
-        Path to configuration file. If None, uses default locations in order:
-        1. PYLITHICS_CONFIG environment variable
-        2. pylithics/config/config.yaml (default)
-
-    Returns
-    -------
-    dict or None
-        Configuration dictionary, or None if loading fails
-
-    Raises
-    ------
-    FileNotFoundError
-        If configuration file cannot be found
-    yaml.YAMLError
-        If YAML parsing fails
+    Centralized configuration manager with validation and caching.
     """
-    # Determine config file path
-    if config_file and os.path.isabs(config_file):
-        config_path = config_file
-    elif os.getenv('PYLITHICS_CONFIG'):
-        config_path = os.getenv('PYLITHICS_CONFIG')
-    else:
-        # Default: use the config.yaml in the project root
-        config_path = resource_filename(__name__, '../config/config.yaml')
 
-    logging.info("Loading configuration from: %s", config_path)
+    def __init__(self, config_file: Optional[str] = None):
+        """
+        Initialize the configuration manager.
 
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
-        logging.info("Successfully loaded configuration from %s", config_path)
-        return config
+        Parameters
+        ----------
+        config_file : str, optional
+            Path to configuration file. If None, uses default locations.
+        """
+        self._config = None
+        self._config_file = config_file
+        self.load_config()
 
-    except FileNotFoundError:
-        logging.error("Configuration file %s not found", config_path)
-        return None
+    def load_config(self) -> None:
+        """Load configuration from file with validation."""
+        config_path = self._determine_config_path()
 
-    except yaml.YAMLError as yaml_error:
-        logging.error("Failed to parse YAML file %s: %s", config_path, yaml_error)
-        return None
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                self._config = yaml.safe_load(f)
 
-    except OSError as os_error:
-        logging.error("Failed to load config file %s due to OS error: %s", config_path, os_error)
-        return None
+            self._validate_config()
+            logging.info(f"Successfully loaded configuration from {config_path}")
 
+        except FileNotFoundError:
+            logging.error(f"Configuration file {config_path} not found")
+            self._config = self._get_default_config()
+        except yaml.YAMLError as e:
+            logging.error(f"Failed to parse YAML file {config_path}: {e}")
+            self._config = self._get_default_config()
+        except Exception as e:
+            logging.error(f"Unexpected error loading config: {e}")
+            self._config = self._get_default_config()
 
-def get_contour_filtering_config(config=None):
-    """
-    Get contour filtering configuration with defaults.
+    def _determine_config_path(self) -> str:
+        """Determine the configuration file path."""
+        if self._config_file and os.path.isabs(self._config_file):
+            return self._config_file
+        elif os.getenv('PYLITHICS_CONFIG'):
+            return os.getenv('PYLITHICS_CONFIG')
+        else:
+            return resource_filename(__name__, '../config/config.yaml')
 
-    Parameters
-    ----------
-    config : dict, optional
-        Full configuration dictionary. If None, loads default config.
+    def _validate_config(self) -> None:
+        """Validate the loaded configuration."""
+        required_sections = [
+            'thresholding', 'normalization', 'grayscale_conversion',
+            'morphological_closing', 'logging', 'contour_filtering'
+        ]
 
-    Returns
-    -------
-    dict
-        Contour filtering configuration with keys:
-        - min_area: minimum contour area in pixels (default: 50.0)
-        - exclude_border: whether to exclude border-touching contours (default: True)
-    """
-    if config is None:
-        config = load_preprocessing_config()
+        for section in required_sections:
+            if section not in self._config:
+                logging.warning(f"Missing configuration section: {section}")
+                self._config[section] = self._get_default_section(section)
 
-    if config is None:
-        logging.warning("Could not load configuration, using defaults for contour filtering")
-        return {
-            'min_area': 50.0,
-            'exclude_border': True
+    def _get_default_section(self, section: str) -> Dict[str, Any]:
+        """Get default configuration for a section."""
+        defaults = {
+            'thresholding': {
+                'method': 'simple',
+                'threshold_value': 127,
+                'max_value': 255
+            },
+            'normalization': {
+                'enabled': True,
+                'method': 'minmax',
+                'clip_values': [0, 255]
+            },
+            'grayscale_conversion': {
+                'enabled': True,
+                'method': 'standard'
+            },
+            'morphological_closing': {
+                'enabled': True,
+                'kernel_size': 3
+            },
+            'logging': {
+                'level': 'INFO',
+                'log_to_file': True,
+                'log_file': 'logs/pylithics.log'
+            },
+            'contour_filtering': {
+                'min_area': 50.0,
+                'exclude_border': True
+            }
         }
+        return defaults.get(section, {})
+
+    def _get_default_config(self) -> Dict[str, Any]:
+        """Get complete default configuration."""
+        return {
+            'thresholding': self._get_default_section('thresholding'),
+            'normalization': self._get_default_section('normalization'),
+            'grayscale_conversion': self._get_default_section('grayscale_conversion'),
+            'morphological_closing': self._get_default_section('morphological_closing'),
+            'logging': self._get_default_section('logging'),
+            'contour_filtering': self._get_default_section('contour_filtering')
+        }
+
+    @property
+    def config(self) -> Dict[str, Any]:
+        """Get the current configuration."""
+        return self._config
+
+    def get_section(self, section: str) -> Dict[str, Any]:
+        """Get a specific configuration section."""
+        return self._config.get(section, self._get_default_section(section))
+
+    def get_value(self, section: str, key: str, default: Any = None) -> Any:
+        """Get a specific configuration value."""
+        section_config = self.get_section(section)
+        return section_config.get(key, default)
+
+    def update_value(self, section: str, key: str, value: Any) -> None:
+        """Update a configuration value at runtime."""
+        if section not in self._config:
+            self._config[section] = {}
+        self._config[section][key] = value
+        logging.info(f"Updated config: {section}.{key} = {value}")
+
+
+# Global configuration manager instance
+_config_manager = None
+
+def get_config_manager(config_file: Optional[str] = None) -> ConfigurationManager:
+    """Get the global configuration manager instance."""
+    global _config_manager
+    if _config_manager is None:
+        _config_manager = ConfigurationManager(config_file)
+    return _config_manager
+
+
+# Backward compatibility functions
+def load_preprocessing_config(config_file: Optional[str] = None) -> Dict[str, Any]:
+    """Load configuration settings from a YAML file (backward compatibility)."""
+    return get_config_manager(config_file).config
+
+
+@lru_cache(maxsize=None)
+def get_contour_filtering_config(config: Optional[Dict] = None) -> Dict[str, Any]:
+    """Get contour filtering configuration with defaults."""
+    if config is None:
+        return get_config_manager().get_section('contour_filtering')
 
     contour_config = config.get('contour_filtering', {})
     return {
@@ -97,29 +170,11 @@ def get_contour_filtering_config(config=None):
     }
 
 
-def get_thresholding_config(config=None):
-    """
-    Get thresholding configuration with defaults.
-
-    Parameters
-    ----------
-    config : dict, optional
-        Full configuration dictionary. If None, loads default config.
-
-    Returns
-    -------
-    dict
-        Thresholding configuration
-    """
+@lru_cache(maxsize=None)
+def get_thresholding_config(config: Optional[Dict] = None) -> Dict[str, Any]:
+    """Get thresholding configuration with defaults."""
     if config is None:
-        config = load_preprocessing_config()
-
-    if config is None:
-        return {
-            'method': 'simple',
-            'threshold_value': 127,
-            'max_value': 255
-        }
+        return get_config_manager().get_section('thresholding')
 
     return config.get('thresholding', {
         'method': 'simple',
@@ -128,28 +183,11 @@ def get_thresholding_config(config=None):
     })
 
 
-def get_morphological_config(config=None):
-    """
-    Get morphological processing configuration.
-
-    Parameters
-    ----------
-    config : dict, optional
-        Full configuration dictionary. If None, loads default config.
-
-    Returns
-    -------
-    dict
-        Morphological processing configuration
-    """
+@lru_cache(maxsize=None)
+def get_morphological_config(config: Optional[Dict] = None) -> Dict[str, Any]:
+    """Get morphological processing configuration."""
     if config is None:
-        config = load_preprocessing_config()
-
-    if config is None:
-        return {
-            'enabled': True,
-            'kernel_size': 3
-        }
+        return get_config_manager().get_section('morphological_closing')
 
     return config.get('morphological_closing', {
         'enabled': True,
@@ -157,29 +195,11 @@ def get_morphological_config(config=None):
     })
 
 
-def get_logging_config(config=None):
-    """
-    Get logging configuration.
-
-    Parameters
-    ----------
-    config : dict, optional
-        Full configuration dictionary. If None, loads default config.
-
-    Returns
-    -------
-    dict
-        Logging configuration
-    """
+@lru_cache(maxsize=None)
+def get_logging_config(config: Optional[Dict] = None) -> Dict[str, Any]:
+    """Get logging configuration."""
     if config is None:
-        config = load_preprocessing_config()
-
-    if config is None:
-        return {
-            'level': 'INFO',
-            'log_to_file': True,
-            'log_file': 'logs/pylithics.log'
-        }
+        return get_config_manager().get_section('logging')
 
     return config.get('logging', {
         'level': 'INFO',
@@ -188,29 +208,11 @@ def get_logging_config(config=None):
     })
 
 
-def get_normalization_config(config=None):
-    """
-    Get normalization configuration.
-
-    Parameters
-    ----------
-    config : dict, optional
-        Full configuration dictionary. If None, loads default config.
-
-    Returns
-    -------
-    dict
-        Normalization configuration
-    """
+@lru_cache(maxsize=None)
+def get_normalization_config(config: Optional[Dict] = None) -> Dict[str, Any]:
+    """Get normalization configuration."""
     if config is None:
-        config = load_preprocessing_config()
-
-    if config is None:
-        return {
-            'enabled': True,
-            'method': 'minmax',
-            'clip_values': [0, 255]
-        }
+        return get_config_manager().get_section('normalization')
 
     return config.get('normalization', {
         'enabled': True,
@@ -219,30 +221,38 @@ def get_normalization_config(config=None):
     })
 
 
-def get_grayscale_config(config=None):
-    """
-    Get grayscale conversion configuration.
-
-    Parameters
-    ----------
-    config : dict, optional
-        Full configuration dictionary. If None, loads default config.
-
-    Returns
-    -------
-    dict
-        Grayscale conversion configuration
-    """
+@lru_cache(maxsize=None)
+def get_grayscale_config(config: Optional[Dict] = None) -> Dict[str, Any]:
+    """Get grayscale conversion configuration."""
     if config is None:
-        config = load_preprocessing_config()
-
-    if config is None:
-        return {
-            'enabled': True,
-            'method': 'standard'
-        }
+        return get_config_manager().get_section('grayscale_conversion')
 
     return config.get('grayscale_conversion', {
         'enabled': True,
         'method': 'standard'
     })
+
+
+def get_arrow_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]:
+    """Get arrow detection configuration with defaults."""
+    if config is None:
+        config = get_config_manager().config
+
+    return config.get('arrow_detection', {
+        'enabled': True,
+        'reference_dpi': 300.0,
+        'min_area_scale_factor': 0.7,
+        'min_defect_depth_scale_factor': 0.8,
+        'min_triangle_height_scale_factor': 0.8,
+        'debug_enabled': False
+    })
+
+
+def clear_config_cache() -> None:
+    """Clear the configuration cache (useful for testing)."""
+    get_contour_filtering_config.cache_clear()
+    get_thresholding_config.cache_clear()
+    get_morphological_config.cache_clear()
+    get_logging_config.cache_clear()
+    get_normalization_config.cache_clear()
+    get_grayscale_config.cache_clear()
