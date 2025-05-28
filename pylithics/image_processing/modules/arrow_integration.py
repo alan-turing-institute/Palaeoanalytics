@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import logging
-import os
 from .arrow_detection import analyze_child_contour_for_arrow
 
 
@@ -108,25 +107,9 @@ def process_nested_arrows(sorted_contours, hierarchy, original_contours, metrics
             logging.debug(f"Could not find parent scar for nested contour {ni}")
             continue
 
-        # Get image name without extension
-        if hasattr(image_shape, 'filename'):
-            image_name = os.path.splitext(image_shape.filename)[0]
-        elif isinstance(image_shape, str):
-            image_name = os.path.splitext(image_shape)[0]
-        else:
-            # Default name
-            image_name = f"image_{ni}"
-
-        # Create debug directory
-        debug_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-                                "image_debug",
-                                image_name)
-        os.makedirs(debug_dir, exist_ok=True)
-
         # Create temporary entry for arrow detection
         temp_entry = {
-            "scar": f"nested_{ni}",
-            "debug_dir": debug_dir
+            "scar": f"nested_{ni}"
         }
 
         # Run arrow detection
@@ -207,12 +190,6 @@ def detect_arrows_independently(original_contours, metrics, image, image_dpi=Non
                     scar_indices.append(j)
                     break
 
-    # Create debug directory for this image
-    debug_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-                        "image_debug",
-                        "independent_arrow_detection")
-    os.makedirs(debug_dir, exist_ok=True)
-
     # Prepare scar contours for containment testing
     scar_contour_map = {}  # Maps scar label to its contour
     for idx in scar_indices:
@@ -243,12 +220,9 @@ def detect_arrows_independently(original_contours, metrics, image, image_dpi=Non
         if solidity < 0.4 or solidity > 0.9:  # Solidity range for arrow shapes
             continue
 
-        # Create debug entry
         temp_entry = {
-            "scar": f"candidate_{i}",
-            "debug_dir": os.path.join(debug_dir, f"contour_{i}")
+            "scar": f"candidate_{i}"
         }
-        os.makedirs(temp_entry["debug_dir"], exist_ok=True)
 
         # Try arrow detection
         result = analyze_child_contour_for_arrow(cnt, temp_entry, image, image_dpi)
