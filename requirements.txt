@@ -1,4 +1,7 @@
-#opencv-python-headless==4.8.0.74  # For image processing (headless version, no GUI)
-Pillow==9.3.0  # For handling image files in PIL format (used for DPI checks)
-numpy>=1.21.0  # OpenCV relies on numpy for array handling
-argparse  # Built-in library, not needed to be specified for modern Python versions but included for completeness
+opencv-python-headless>=4.8.0    # For image processing (headless version, no GUI)
+Pillow>=10.0.0                    # For handling image files and DPI checks
+numpy>=1.24.0                     # Array handling and mathematical operations
+PyYAML>=6.0                       # For YAML configuration file parsing
+scipy>=1.9.0                      # Scientific computing functions
+pandas>=1.5.0                     # For CSV data processing
+argparse                          # Built-in library (Python 3.2+)
