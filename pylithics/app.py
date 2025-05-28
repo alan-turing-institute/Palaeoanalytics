@@ -319,103 +319,492 @@ class PyLithicsApplication:
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
-    """Create and configure the argument parser."""
+    """Create and configure the comprehensive argument parser with detailed help."""
+
+    # Main parser with enhanced description
     parser = argparse.ArgumentParser(
-        description="PyLithics: Enhanced Stone Tool Image Analysis",
+        prog='PyLithics',
+        description="""
+        PyLithics v2.0.0: Professional Stone Tool Image Analysis Software
+        ================================================================
+
+        PyLithics is a comprehensive archaeological tool for analyzing lithic artifacts using
+        computer vision and advanced image processing techniques. It provides:
+
+        • Automated contour detection and geometric analysis
+        • Advanced arrow detection with DPI-aware scaling
+        • Surface classification (Dorsal, Ventral, Platform, Lateral)
+        • Symmetry analysis for dorsal surfaces
+        • Voronoi diagram spatial analysis
+        • Comprehensive metric calculation and CSV export
+        • Professional error handling and batch processing
+
+        This enhanced version includes enterprise-grade configuration management,
+        robust error handling, and flexible command-line control for research workflows.
+        """.strip(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  %(prog)s --data_dir ./data --meta_file ./metadata.csv
-  %(prog)s --data_dir ./data --meta_file ./metadata.csv --config_file custom_config.yaml
-  %(prog)s --data_dir ./data --meta_file ./metadata.csv --threshold_method otsu --log_level DEBUG
-        """
+        USAGE EXAMPLES:
+        ==============
+
+        Basic Analysis:
+        %(prog)s --data_dir ./artifacts --meta_file ./metadata.csv
+
+        Advanced Configuration:
+        %(prog)s --data_dir ./artifacts --meta_file ./metadata.csv \\
+                --threshold_method otsu --log_level DEBUG \\
+                --arrow_debug --config_file custom_settings.yaml
+
+        Batch Processing with Custom Settings:
+        %(prog)s --data_dir ./large_assemblage --meta_file ./assemblage.csv \\
+                --threshold_method adaptive --output_format csv \\
+                --log_level INFO
+
+        Troubleshooting Mode:
+        %(prog)s --data_dir ./problem_images --meta_file ./metadata.csv \\
+                --log_level DEBUG --arrow_debug --show_thresholded_images
+
+        HELP OPTIONS:
+        ============
+        Use -h or --help to see this help message
+        Use --help-config for configuration file documentation
+        Use --help-examples for detailed usage examples
+        Use --help-troubleshooting for common problem solutions
+
+        For more information: https://github.com/alan-turing-institute/Palaeoanalytics
+        """)
+
+    # Required Arguments Group
+    required_group = parser.add_argument_group(
+        'REQUIRED ARGUMENTS',
+        'These arguments must be provided for PyLithics to run'
     )
 
-    # Required arguments
-    parser.add_argument(
+    required_group.add_argument(
         '--data_dir',
         required=True,
-        help="Directory containing images and scale files"
+        metavar='PATH',
+        help="""Directory containing your artifact images and associated scale files.
+             Must contain an 'images/' subdirectory with your artifact photos.
+             Example: --data_dir ./my_artifacts"""
     )
-    parser.add_argument(
+
+    required_group.add_argument(
         '--meta_file',
         required=True,
-        help="Path to the metadata CSV file"
+        metavar='FILE',
+        help="""Path to CSV metadata file containing image information.
+             Must have columns: image_id, scale_id, scale
+             Example: --meta_file ./artifact_metadata.csv"""
     )
 
-    # Configuration arguments
-    parser.add_argument(
+    # Configuration Arguments Group
+    config_group = parser.add_argument_group(
+        'CONFIGURATION OPTIONS',
+        'Control PyLithics behavior and processing methods'
+    )
+
+    config_group.add_argument(
         '--config_file',
-        default=None,
-        help="Path to the configuration file (default: use built-in config)"
+        metavar='FILE',
+        help="""Custom configuration file (YAML format).
+             If not provided, uses built-in default settings.
+             Example: --config_file ./custom_config.yaml"""
     )
 
-    # Processing options
-    parser.add_argument(
+    config_group.add_argument(
         '--threshold_method',
         choices=["adaptive", "simple", "otsu", "default"],
-        help="Thresholding method to override config"
-    )
-    parser.add_argument(
-        '--log_level',
-        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-        help="Logging level to override config"
-    )
-    parser.add_argument(
-        '--show_thresholded_images',
-        action='store_true',
-        help="Display processed images after preprocessing"
+        metavar='METHOD',
+        help="""Image thresholding method for contour detection:
+             • simple: Fixed threshold value (fast, basic)
+             • otsu: Automatic optimal threshold (recommended)
+             • adaptive: Local threshold adjustment (for varied lighting)
+             • default: Falls back to simple method
+             Default: Uses setting from configuration file"""
     )
 
-    # Morphological processing
-    parser.add_argument(
+    config_group.add_argument(
+        '--log_level',
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        metavar='LEVEL',
+        help="""Logging detail level:
+             • DEBUG: Detailed technical information (for troubleshooting)
+             • INFO: General progress information (recommended)
+             • WARNING: Only important warnings
+             • ERROR: Only critical errors
+             Default: INFO"""
+    )
+
+    # Processing Options Group
+    processing_group = parser.add_argument_group(
+        'PROCESSING OPTIONS',
+        'Control specific analysis features and behavior'
+    )
+
+    processing_group.add_argument(
+        '--show_thresholded_images',
+        action='store_true',
+        help="""Display processed images during analysis.
+             Useful for debugging image processing issues.
+             Note: Requires display capability (not for headless servers)"""
+    )
+
+    processing_group.add_argument(
         "--closing",
         type=bool,
         default=True,
-        help="Apply morphological closing (default: True)"
+        metavar='BOOL',
+        help="""Apply morphological closing to clean up contours.
+             Helps connect broken contour lines.
+             Default: True (recommended for most images)"""
     )
 
-    # Arrow detection options
-    parser.add_argument(
+    # Arrow Detection Group
+    arrow_group = parser.add_argument_group(
+        'ARROW DETECTION OPTIONS',
+        'Control advanced arrow detection features'
+    )
+
+    arrow_group.add_argument(
         '--disable_arrow_detection',
         action='store_true',
-        help="Disable arrow detection"
-    )
-    parser.add_argument(
-        '--arrow_debug',
-        action='store_true',
-        help="Enable arrow detection debug output"
+        help="""Completely disable arrow detection analysis.
+             Use if you only need basic geometric measurements.
+             Significantly speeds up processing for large batches."""
     )
 
-    # Output options
-    parser.add_argument(
+    arrow_group.add_argument(
+        '--arrow_debug',
+        action='store_true',
+        help="""Enable detailed arrow detection debugging.
+             Creates debug images and detailed logs for each detection attempt.
+             Output saved to [data_dir]/processed/arrow_debug/
+             Useful for troubleshooting detection issues."""
+    )
+
+    # Output Options Group
+    output_group = parser.add_argument_group(
+        'OUTPUT OPTIONS',
+        'Control output format and file generation'
+    )
+
+    output_group.add_argument(
         '--output_format',
         choices=['csv', 'json'],
         default='csv',
-        help="Output format for results (default: csv)"
+        metavar='FORMAT',
+        help="""Output data format:
+             • csv: Comma-separated values (recommended for Excel/R/Python)
+             • json: JavaScript Object Notation (for web applications)
+             Default: csv"""
     )
-    parser.add_argument(
+
+    output_group.add_argument(
         '--save_visualizations',
         action='store_true',
         default=True,
-        help="Save visualization images (default: True)"
+        help="""Generate visualization images showing detected features.
+             Creates *_labeled.png and *_voronoi.png files.
+             Default: True (highly recommended for result verification)"""
+    )
+
+    # Help Extensions Group
+    help_group = parser.add_argument_group(
+        'EXTENDED HELP OPTIONS',
+        'Additional documentation and examples'
+    )
+
+    help_group.add_argument(
+        '--help-config',
+        action='store_true',
+        help='Show detailed configuration file documentation'
+    )
+
+    help_group.add_argument(
+        '--help-examples',
+        action='store_true',
+        help='Show comprehensive usage examples for different scenarios'
+    )
+
+    help_group.add_argument(
+        '--help-troubleshooting',
+        action='store_true',
+        help='Show common problems and solutions'
     )
 
     return parser
 
 
+def show_config_help():
+    """Display detailed configuration file help."""
+    help_text = """
+    PYLITHICS CONFIGURATION FILE HELP
+    =================================
+
+    PyLithics uses YAML configuration files to control processing behavior.
+    The default configuration is built-in, but you can customize it with --config_file.
+
+    CONFIGURATION FILE STRUCTURE:
+    ----------------------------
+
+    # Image Processing Settings
+    thresholding:
+    method: simple          # simple, otsu, adaptive, default
+    threshold_value: 127    # Used with 'simple' method (0-255)
+    max_value: 255         # Maximum pixel value after thresholding
+
+    normalization:
+    enabled: true          # Apply contrast normalization
+    method: minmax         # minmax, zscore, custom
+    clip_values: [0, 255]  # Output range for minmax method
+
+    grayscale_conversion:
+    enabled: true          # Convert to grayscale before processing
+    method: standard       # standard, clahe
+
+    morphological_closing:
+    enabled: true          # Clean up contour breaks
+    kernel_size: 3         # Size of morphological kernel
+
+    # Arrow Detection Settings
+    arrow_detection:
+    enabled: true                      # Enable arrow detection
+    reference_dpi: 300.0              # DPI for parameter calibration
+    min_area_scale_factor: 0.7        # Detection sensitivity (0-1)
+    min_defect_depth_scale_factor: 0.8
+    min_triangle_height_scale_factor: 0.8
+    debug_enabled: false              # Create debug visualizations
+
+    # Logging Configuration
+    logging:
+    level: INFO                       # DEBUG, INFO, WARNING, ERROR
+    log_to_file: true                 # Save logs to file
+    log_file: data/processed/pylithics.log
+
+    # Analysis Parameters
+    contour_filtering:
+    min_area: 50.0         # Minimum contour size (pixels)
+    exclude_border: true   # Ignore border-touching contours
+
+    CREATING CUSTOM CONFIGURATIONS:
+    ------------------------------
+    1. Copy the default config.yaml from pylithics/config/
+    2. Modify values as needed
+    3. Use --config_file path/to/your/config.yaml
+
+    COMMON CUSTOMIZATIONS:
+    ---------------------
+    • More sensitive arrow detection: Set scale_factors to 0.5-0.6
+    • Less sensitive detection: Set scale_factors to 0.8-0.9
+    • Debug mode: Set arrow_detection.debug_enabled: true
+    • Verbose logging: Set logging.level: DEBUG
+    • Different thresholding: Change thresholding.method
+    """
+    print(help_text)
+
+
+def show_examples_help():
+    """Display comprehensive usage examples."""
+    help_text = """
+    PYLITHICS USAGE EXAMPLES
+    ========================
+
+    BASIC USAGE:
+    -----------
+    # Analyze artifacts with default settings
+    python app.py --data_dir ./my_artifacts --meta_file ./metadata.csv
+
+    # Same with explicit log level
+    python app.py --data_dir ./artifacts --meta_file ./data.csv --log_level INFO
+
+    ADVANCED IMAGE PROCESSING:
+    -------------------------
+    # Use Otsu thresholding (recommended for varied lighting)
+    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
+                --threshold_method otsu
+
+    # Use adaptive thresholding (for very uneven lighting)
+    python app.py --data_dir ./scans --meta_file ./data.csv \\
+                --threshold_method adaptive --log_level DEBUG
+
+    ARROW DETECTION OPTIONS:
+    -----------------------
+    # Enable arrow detection debugging
+    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
+                --arrow_debug --log_level DEBUG
+
+    # Disable arrow detection (faster processing)
+    python app.py --data_dir ./large_collection --meta_file ./metadata.csv \\
+                --disable_arrow_detection
+
+    CUSTOM CONFIGURATIONS:
+    ---------------------
+    # Use custom configuration file
+    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
+                --config_file ./my_settings.yaml
+
+    # Override specific settings
+    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
+                --threshold_method otsu --log_level DEBUG --arrow_debug
+
+    BATCH PROCESSING:
+    ----------------
+    # Process large dataset with progress tracking
+    python app.py --data_dir ./assemblage_2023 --meta_file ./assemblage.csv \\
+                --log_level INFO --output_format csv
+
+    # Silent processing (minimal output)
+    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
+                --log_level WARNING
+
+    TROUBLESHOOTING MODES:
+    ---------------------
+    # Maximum debug information
+    python app.py --data_dir ./problem_images --meta_file ./metadata.csv \\
+                --log_level DEBUG --arrow_debug --show_thresholded_images
+
+    # Test configuration without arrow detection
+    python app.py --data_dir ./test_images --meta_file ./test.csv \\
+                --disable_arrow_detection --log_level DEBUG
+
+    REAL-WORLD SCENARIOS:
+    --------------------
+    # Publication-quality analysis
+    python app.py --data_dir ./final_dataset --meta_file ./publication_data.csv \\
+                --threshold_method otsu --log_level INFO --save_visualizations
+
+    # Quick preliminary analysis
+    python app.py --data_dir ./preliminary --meta_file ./quick_test.csv \\
+                --disable_arrow_detection --log_level WARNING
+
+    # Comparative method testing
+    python app.py --data_dir ./comparison --meta_file ./test.csv --threshold_method simple
+    python app.py --data_dir ./comparison --meta_file ./test.csv --threshold_method otsu
+    python app.py --data_dir ./comparison --meta_file ./test.csv --threshold_method adaptive
+"""
+    print(help_text)
+
+
+def show_troubleshooting_help():
+    """Display troubleshooting guide."""
+    help_text = """
+    PYLITHICS TROUBLESHOOTING GUIDE
+    ===============================
+
+    COMMON PROBLEMS AND SOLUTIONS:
+
+    ERROR: "Data directory does not exist"
+    -------------------------------------
+    Problem: PyLithics can't find your data folder
+    Solutions:
+    • Check the path: --data_dir ./correct/path/to/data
+    • Use absolute paths: --data_dir /full/path/to/artifacts
+    • Ensure the directory exists and is accessible
+
+    ERROR: "Images directory does not exist"
+    ---------------------------------------
+    Problem: Missing 'images' subdirectory in your data folder
+    Solutions:
+    • Create subdirectory: mkdir your_data_dir/images
+    • Move images into: your_data_dir/images/
+    • Check folder structure matches: data_dir/images/your_images.png
+
+    ERROR: "Missing required column in metadata"
+    ------------------------------------------
+    Problem: CSV file doesn't have required headers
+    Solutions:
+    • Ensure CSV has headers: image_id, scale_id, scale
+    • Check for typos in column names (case-sensitive)
+    • Verify CSV format with a text editor
+
+    ERROR: "Image file does not exist"
+    ---------------------------------
+    Problem: Image files referenced in CSV don't exist
+    Solutions:
+    • Check image filenames match CSV exactly (including extensions)
+    • Verify images are in the images/ subdirectory
+    • Check for case sensitivity issues (image.PNG vs image.png)
+
+    ARROW DETECTION ISSUES:
+    ----------------------
+    Problem: Low arrow detection rates
+    Solutions:
+    • Enable debug mode: --arrow_debug --log_level DEBUG
+    • Try different thresholding: --threshold_method otsu
+    • Check image quality and resolution
+    • Adjust sensitivity in config file (lower scale_factors)
+
+    Problem: Too many false arrow detections
+    Solutions:
+    • Increase sensitivity thresholds in config file
+    • Use stricter thresholding method
+    • Check for image artifacts or noise
+
+    PERFORMANCE ISSUES:
+    ------------------
+    Problem: Processing too slow
+    Solutions:
+    • Disable arrow detection: --disable_arrow_detection
+    • Use simple thresholding: --threshold_method simple
+    • Process smaller batches
+    • Check available system memory
+
+    Problem: Running out of memory
+    Solutions:
+    • Process images in smaller batches
+    • Use lower resolution images
+    • Close other applications
+    • Increase system virtual memory
+
+    IMAGE PROCESSING ISSUES:
+    -----------------------
+    Problem: Poor contour detection
+    Solutions:
+    • Try different thresholding methods
+    • Adjust lighting/contrast in original images
+    • Enable debug mode to see processed images
+    • Check image DPI information
+
+    Problem: Inconsistent results
+    Solutions:
+    • Ensure consistent image DPI across dataset
+    • Use same thresholding method for all images
+    • Check for variations in lighting/background
+
+    GETTING HELP:
+    ------------
+    1. Enable debug logging: --log_level DEBUG
+    2. Check log files in: data_dir/processed/pylithics.log
+    3. Use arrow debug mode: --arrow_debug
+    4. Report issues with specific error messages and log files
+
+    For technical support: https://github.com/alan-turing-institute/Palaeoanalytics/issues
+"""
+    print(help_text)
+
+# Enhanced main function to handle extended help
 def main() -> int:
     """
-    Main function to parse command-line arguments and run PyLithics analysis.
-
-    Returns
-    -------
-    int
-        Exit code (0 for success, 1 for failure)
+    Main function with extended help system.
     """
     parser = create_argument_parser()
     args = parser.parse_args()
 
+    # Handle extended help options
+    if hasattr(args, 'help_config') and args.help_config:
+        show_config_help()
+        return 0
+
+    if hasattr(args, 'help_examples') and args.help_examples:
+        show_examples_help()
+        return 0
+
+    if hasattr(args, 'help_troubleshooting') and args.help_troubleshooting:
+        show_troubleshooting_help()
+        return 0
+
+    # Continue with normal processing...
     try:
         # Initialize application
         app = PyLithicsApplication(args.config_file)
@@ -471,7 +860,6 @@ def main() -> int:
         import traceback
         traceback.print_exc()
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())
