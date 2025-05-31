@@ -1,4 +1,4 @@
-opencv-python-headless>=4.8.0    # For image processing (headless version, no GUI)
+opencv-python-headless>=4.8.0     # For image processing (headless version, no GUI)
 Pillow>=10.0.0                    # For handling image files and DPI checks
 numpy>=1.24.0                     # Array handling and mathematical operations
 PyYAML>=6.0                       # For YAML configuration file parsing
