@@ -80,12 +80,16 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
                 d = np.linalg.norm(a - b)
                 if d > max_len:
                     max_len, p1, p2 = d, a, b
+
+        # Calculate perpendicular width and find center of max width
+        max_width_center = None
         if p1 is not None and p2 is not None:
             v = p2 - p1
             perp = np.array([-v[1], v[0]], dtype=float)
             perp /= np.linalg.norm(perp)
             widths = [abs(np.dot(pt[0]-p1, perp)) for pt in cnt]
             max_wid = max(widths)
+
         ml, mw = round(max_len, 2), round(max_wid, 2)
 
         metrics.append({
@@ -130,7 +134,7 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
 
         x,y,w,h = cv2.boundingRect(cnt)
 
-        # Calculate max length and width
+        # Calculate max length and width for children too
         max_len = max_wid = 0
         p1 = p2 = None
         for i in range(len(cnt)):
@@ -139,12 +143,14 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
                 d = np.linalg.norm(a - b)
                 if d > max_len:
                     max_len, p1, p2 = d, a, b
+
         if p1 is not None and p2 is not None:
             v = p2 - p1
             perp = np.array([-v[1], v[0]], dtype=float)
             perp /= np.linalg.norm(perp)
             widths = [abs(np.dot(pt[0]-p1, perp)) for pt in cnt]
             max_wid = max(widths)
+
         ml, mw = round(max_len, 2), round(max_wid, 2)
 
         entry = {

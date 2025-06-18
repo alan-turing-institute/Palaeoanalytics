@@ -4,9 +4,10 @@ import pandas as pd
 import os
 import logging
 
+
 def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_image, output_path):
     """
-    Visualize contours with hierarchy, label them, and overlay detected arrows (if any).
+    Visualize contours with hierarchy, label them, and overlay detected arrows.
 
     Args:
         contours (list): List of contours (parents + children) in display order.
@@ -143,8 +144,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
 
 def save_measurements_to_csv(metrics, output_path, append=False):
     """
-    Save contour metrics to a CSV file with updated column structure.
-    Includes detailed arrow measurements and coordinates.
+    Save contour metrics to a CSV file.
     """
     updated_data = []
     for metric in metrics:
@@ -183,6 +183,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             "total_area": metric.get("area", "NA"),
             "aspect_ratio": metric.get("aspect_ratio", "NA"),
             "perimeter": metric.get("perimeter", "NA"),
+            "distance_to_max_width": metric.get("distance_to_max_width", "NA"),
             "voronoi_num_cells": metric.get("voronoi_num_cells", "NA"),
             "convex_hull_width": metric.get("convex_hull_width", "NA"),
             "convex_hull_height": metric.get("convex_hull_height", "NA"),
@@ -194,15 +195,11 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             "right_area": metric.get("right_area", "NA"),
             "vertical_symmetry": metric.get("vertical_symmetry", "NA"),
             "horizontal_symmetry": metric.get("horizontal_symmetry", "NA"),
+            # Lateral surface measurements
+            "lateral_convexity": metric.get("lateral_convexity", "NA"),
             # arrow data with explicit type handling
             "has_arrow": has_arrow,
-            # "arrow_angle_rad": metric.get("arrow_angle_rad", "NA"), # angle of the arrow in radians
-            # "arrow_angle_deg": metric.get("arrow_angle_deg", "NA"), # same angle as arrow_angle_rad, but converted to degrees for easier human interpretation.
-            "arrow_angle": metric.get("arrow_angle", "NA"), # Rob's arrow angles schema
-            #"arrow_tip_x": arrow_tip_x, # x pixel coordinates of the arrow's tip point
-            #"arrow_tip_y": arrow_tip_y, # y pixel coordinates of the arrow's tip point
-            #"arrow_back_x": arrow_back_x, # x pixel coordinates of the arrow's tail point
-            #"arrow_back_y": arrow_back_y, # y pixel coordinates of the arrow's tail point
+            "arrow_angle": metric.get("arrow_angle", "NA"),
         }
 
         # Add additional arrow metrics if available
@@ -221,7 +218,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     base_columns = [
         "image_id", "surface_type", "surface_feature", "centroid_x", "centroid_y",
         "width", "height", "max_width", "max_length", "total_area", "aspect_ratio",
-        "perimeter"
+        "perimeter", "distance_to_max_width"
     ]
 
     voronoi_columns = [
@@ -234,16 +231,15 @@ def save_measurements_to_csv(metrics, output_path, append=False):
         "vertical_symmetry", "horizontal_symmetry"
     ]
 
-    # Expanded arrow columns to include additional metrics
+    # Lateral surface analysis columns
+    lateral_columns = [
+        "lateral_convexity"
+    ]
+
+    # Arrow columns
     arrow_columns = [
         "has_arrow",
-        # "arrow_angle_rad",
-        # "arrow_angle_deg",
-        "arrow_angle", # Rob's arrow angle schema
-        # "arrow_tip_x",
-        # "arrow_tip_y",
-        # "arrow_back_x",
-        # "arrow_back_y",
+        "arrow_angle",
     ]
 
     # Check if any metrics have the additional arrow fields
@@ -256,7 +252,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     if any("tip_solidity" in m for m in metrics):
         arrow_columns.append("tip_solidity")
 
-    all_columns = base_columns + voronoi_columns + symmetry_columns + arrow_columns
+    all_columns = base_columns + voronoi_columns + symmetry_columns + lateral_columns + arrow_columns
 
     # Create DataFrame with all columns, handling any missing columns gracefully
     df = pd.DataFrame(updated_data)

@@ -13,6 +13,7 @@ The pipeline includes:
     - Symmetry analysis
     - Arrow detection and integration
     - Voronoi diagram generation
+    - Lateral surface convexity and thickness
     - Visualization and data export
 
 Main Functions:
@@ -44,7 +45,7 @@ from .modules.symmetry_analysis import analyze_dorsal_symmetry
 from .modules.voronoi_analysis import calculate_voronoi_points, visualize_voronoi_diagram
 from .modules.arrow_integration import integrate_arrows
 from .modules.visualization import visualize_contours_with_hierarchy, save_measurements_to_csv
-
+from .modules.lateral_analysis import analyze_lateral_surface, _integrate_lateral_metrics
 
 def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id, image_dpi=None):
     """
@@ -179,7 +180,21 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         except Exception as e:
             logging.error(f"Error in Voronoi processing: {e}")
 
-        # Step 9: Integrate arrow detection
+        # Step 9: Perform lateral surface analysis
+        try:
+            lateral_results = analyze_lateral_surface(metrics, sorted_contours.get("parents", []), inverted_image)
+
+            if lateral_results:
+                _integrate_lateral_metrics(metrics, lateral_results)
+                logging.info("Lateral surface analysis completed successfully")
+            else:
+                logging.info("No lateral surface found or analysis not applicable")
+
+        except Exception as e:
+            logging.error(f"Error in lateral surface analysis: {e}")
+            traceback.print_exc()
+
+        # Step 10: Integrate arrow detection
         try:
             scars_without_arrows = [m for m in metrics
                                   if m["parent"] != m["scar"] and not m.get('has_arrow', False)]
@@ -195,14 +210,14 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
             logging.error(f"Error in arrow detection: {e}")
             traceback.print_exc()
 
-        # Step 10: Save metrics to CSV
+        # Step 11: Save metrics to CSV
         try:
             csv_path = os.path.join(output_dir, "processed_metrics.csv")
             save_measurements_to_csv(metrics, csv_path, append=True)
         except Exception as e:
             logging.error(f"Error saving CSV: {e}")
 
-        # Step 11: Generate labeled visualization
+        # Step 12: Generate labeled visualization
         try:
             all_contours = (sorted_contours.get("parents", []) +
                            sorted_contours.get("children", []) +
@@ -214,7 +229,7 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         except Exception as e:
             logging.error(f"Error in visualization: {e}")
 
-        # Step 12: Generate Voronoi diagram visualization
+        # Step 13: Generate Voronoi diagram visualization
         try:
             if 'voronoi_data' in locals() and voronoi_data is not None:
                 voronoi_path = os.path.join(output_dir, f"{image_id}_voronoi.png")
