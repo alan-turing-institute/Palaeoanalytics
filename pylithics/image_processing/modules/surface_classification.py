@@ -45,8 +45,8 @@ def classify_parent_contours(metrics, tolerance=0.1):
     for parent in parents:
         if parent["surface_type"] is None:
             if (
-                abs(parent["height"] - dorsal["height"]) <= tolerance * dorsal["height"]
-                and abs(parent["width"] - dorsal["width"]) <= tolerance * dorsal["width"]
+                abs(parent["technical_length"] - dorsal["technical_length"]) <= tolerance * dorsal["technical_length"]
+                and abs(parent["technical_width"] - dorsal["technical_width"]) <= tolerance * dorsal["technical_width"]
                 and abs(parent["area"] - dorsal["area"]) <= tolerance * dorsal["area"]
             ):
                 parent["surface_type"] = "Ventral"
@@ -57,7 +57,7 @@ def classify_parent_contours(metrics, tolerance=0.1):
     # Identify Platform Surface
     platform = None
     platform_candidates = [
-        p for p in parents if p["surface_type"] is None and p["height"] < dorsal["height"] and p["width"] < dorsal["width"]
+        p for p in parents if p["surface_type"] is None and p["technical_length"] < dorsal["technical_length"] and p["technical_width"] < dorsal["technical_width"]
     ]
     if platform_candidates:
         platform = min(platform_candidates, key=lambda p: p["area"])
@@ -69,9 +69,9 @@ def classify_parent_contours(metrics, tolerance=0.1):
         for parent in parents:
             if parent["surface_type"] is None:
                 if (
-                    abs(parent["height"] - dorsal["height"]) <= tolerance * dorsal["height"]
-                    and abs(parent["height"] - platform["height"]) > tolerance * platform["height"]
-                    and parent["width"] != dorsal["width"]
+                    abs(parent["technical_length"] - dorsal["technical_length"]) <= tolerance * dorsal["technical_length"]
+                    and abs(parent["technical_length"] - platform["technical_length"]) > tolerance * platform["technical_length"]
+                    and parent["technical_width"] != dorsal["technical_width"]
                 ):
                     parent["surface_type"] = "Lateral"
                     surfaces_identified.append("Lateral")
@@ -81,8 +81,8 @@ def classify_parent_contours(metrics, tolerance=0.1):
         for parent in parents:
             if parent["surface_type"] is None:
                 if (
-                    abs(parent["height"] - dorsal["height"]) <= tolerance * dorsal["height"]
-                    and abs(parent["width"] - dorsal["width"]) > tolerance * dorsal["width"]
+                    abs(parent["technical_length"] - dorsal["technical_length"]) <= tolerance * dorsal["technical_length"]
+                    and abs(parent["technical_width"] - dorsal["technical_width"]) > tolerance * dorsal["technical_width"]
                 ):
                     parent["surface_type"] = "Lateral"
                     surfaces_identified.append("Lateral")
