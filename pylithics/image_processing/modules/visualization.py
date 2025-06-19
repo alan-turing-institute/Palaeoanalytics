@@ -176,8 +176,8 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             "surface_feature": surface_feature,
             "centroid_x": metric.get("centroid_x", "NA"),
             "centroid_y": metric.get("centroid_y", "NA"),
-            "width": metric.get("width", "NA"),
-            "height": metric.get("height", "NA"),
+            "technical_width": metric.get("technical_width", "NA"),
+            "technical_length": metric.get("technical_length", "NA"),
             "max_width": metric.get("max_width", "NA"),
             "max_length": metric.get("max_length", "NA"),
             "total_area": metric.get("area", "NA"),
@@ -217,7 +217,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     # Define column order for the CSV
     base_columns = [
         "image_id", "surface_type", "surface_feature", "centroid_x", "centroid_y",
-        "width", "height", "max_width", "max_length", "total_area", "aspect_ratio",
+        "technical_width", "technical_length", "max_width", "max_length", "total_area", "aspect_ratio",
         "perimeter", "distance_to_max_width"
     ]
 

@@ -66,12 +66,37 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
             cx = round(M["m10"] / M["m00"], 2)
             cy = round(M["m01"] / M["m00"], 2)
         else:
-            x, y, w, h = cv2.boundingRect(cnt)
-            cx, cy = round(x + w/2, 2), round(y + h/2, 2)
+            bounding_rect = cv2.boundingRect(cnt)
+            cx, cy = round(bounding_rect[0] + bounding_rect[2]/2, 2), round(bounding_rect[1] + bounding_rect[3]/2, 2)
 
-        x,y,w,h = cv2.boundingRect(cnt)
+        # Calculate Y-axis aligned width and height
+        contour_points = cnt.reshape(-1, 2)
 
-        # Calculate max length and width
+        # Height: full Y-axis span
+        min_y = np.min(contour_points[:, 1])
+        max_y = np.max(contour_points[:, 1])
+        y_axis_height = round(max_y - min_y, 2)
+
+        # Width: maximum horizontal span at any Y-level
+        max_width_at_y = 0.0
+        unique_y_coords = np.unique(contour_points[:, 1])
+
+        for y in unique_y_coords:
+            # Find all points at this Y-coordinate
+            points_at_y = contour_points[contour_points[:, 1] == y]
+
+            if len(points_at_y) > 0:
+                # Find min and max X-coordinates at this Y-level
+                min_x = np.min(points_at_y[:, 0])
+                max_x = np.max(points_at_y[:, 0])
+                width_at_y = max_x - min_x
+
+                # Update maximum width
+                max_width_at_y = max(max_width_at_y, width_at_y)
+
+        y_axis_width = round(max_width_at_y, 2)
+
+        # Calculate max length and width (object-oriented measurements)
         max_len = max_wid = 0
         p1 = p2 = None
         for i in range(len(cnt)):
@@ -81,8 +106,7 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
                 if d > max_len:
                     max_len, p1, p2 = d, a, b
 
-        # Calculate perpendicular width and find center of max width
-        max_width_center = None
+        # Calculate perpendicular width (max_width)
         if p1 is not None and p2 is not None:
             v = p2 - p1
             perp = np.array([-v[1], v[0]], dtype=float)
@@ -92,13 +116,17 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
 
         ml, mw = round(max_len, 2), round(max_wid, 2)
 
+        # Get bounding box for legacy fields
+        x, y, bbox_w, bbox_h = cv2.boundingRect(cnt)
+
         metrics.append({
             "parent": lab, "scar": lab,
             "centroid_x": cx, "centroid_y": cy,
-            "width": w, "height": h,
-            "area": area, "aspect_ratio": round(h/w,2) if w else None,
+            "technical_width": y_axis_width,
+            "technical_length": y_axis_height,
+            "area": area, "aspect_ratio": round(y_axis_height/y_axis_width, 2) if y_axis_width > 0 else None,
             "bounding_box_x": x, "bounding_box_y": y,
-            "bounding_box_width": w, "bounding_box_height": h,
+            "bounding_box_width": bbox_w, "bounding_box_height": bbox_h,
             "max_length": ml, "max_width": mw,
             "contour": cnt.tolist(),
             "perimeter": peri
@@ -129,12 +157,37 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
             cx = round(M["m10"] / M["m00"], 2)
             cy = round(M["m01"] / M["m00"], 2)
         else:
-            x, y, w, h = cv2.boundingRect(cnt)
-            cx, cy = round(x + w/2, 2), round(y + h/2, 2)
+            bounding_rect = cv2.boundingRect(cnt)
+            cx, cy = round(bounding_rect[0] + bounding_rect[2]/2, 2), round(bounding_rect[1] + bounding_rect[3]/2, 2)
 
-        x,y,w,h = cv2.boundingRect(cnt)
+        # Calculate Y-axis aligned width and height for children
+        contour_points = cnt.reshape(-1, 2)
 
-        # Calculate max length and width for children too
+        # Height: full Y-axis span
+        min_y = np.min(contour_points[:, 1])
+        max_y = np.max(contour_points[:, 1])
+        y_axis_height = round(max_y - min_y, 2)
+
+        # Width: maximum horizontal span at any Y-level
+        max_width_at_y = 0.0
+        unique_y_coords = np.unique(contour_points[:, 1])
+
+        for y in unique_y_coords:
+            # Find all points at this Y-coordinate
+            points_at_y = contour_points[contour_points[:, 1] == y]
+
+            if len(points_at_y) > 0:
+                # Find min and max X-coordinates at this Y-level
+                min_x = np.min(points_at_y[:, 0])
+                max_x = np.max(points_at_y[:, 0])
+                width_at_y = max_x - min_x
+
+                # Update maximum width
+                max_width_at_y = max(max_width_at_y, width_at_y)
+
+        y_axis_width = round(max_width_at_y, 2)
+
+        # Calculate max length and width for children
         max_len = max_wid = 0
         p1 = p2 = None
         for i in range(len(cnt)):
@@ -153,14 +206,18 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
 
         ml, mw = round(max_len, 2), round(max_wid, 2)
 
+        # Get bounding box for legacy fields
+        x, y, bbox_w, bbox_h = cv2.boundingRect(cnt)
+
         entry = {
             "parent": pl, "scar": lab,
             "centroid_x": cx, "centroid_y": cy,
-            "width": w, "height": h,
-            "area": area, "aspect_ratio": round(h/w,2) if w else None,
+            "width": y_axis_width,  # Y-axis aligned width
+            "height": y_axis_height,  # Y-axis aligned height
+            "area": area, "aspect_ratio": round(y_axis_height/y_axis_width, 2) if y_axis_width > 0 else None,
             "max_length": ml, "max_width": mw,
             "bounding_box_x": x, "bounding_box_y": y,
-            "bounding_box_width": w, "bounding_box_height": h
+            "bounding_box_width": bbox_w, "bounding_box_height": bbox_h
         }
         metrics.append(entry)
 
@@ -185,8 +242,8 @@ def convert_metrics_to_real_world(metrics, conversion_factor):
             "scar": metric["scar"],
             "centroid_x": round(metric["centroid_x"] * conversion_factor, 2),
             "centroid_y": round(metric["centroid_y"] * conversion_factor, 2),
-            "width": round(metric["width"] * conversion_factor, 2),
-            "height": round(metric["height"] * conversion_factor, 2),
+            "technical_width": round(metric["technical_width"] * conversion_factor, 2),
+            "technical_length": round(metric["technical_length"] * conversion_factor, 2),
             "area": round(metric["area"] * (conversion_factor ** 2), 2),  # Area scales quadratically
         })
     return converted_metrics

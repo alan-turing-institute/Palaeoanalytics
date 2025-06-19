@@ -21,7 +21,6 @@ import cv2
 import numpy as np
 import logging
 from typing import Optional, Dict, Any, List, Tuple, Union
-from ..config import get_config_manager
 
 
 def analyze_lateral_surface(metrics: List[Dict[str, Any]],
@@ -113,7 +112,7 @@ def analyze_lateral_surface(metrics: List[Dict[str, Any]],
 
         # Compile results
         lateral_results = {
-            'lateral_convexity': round(convexity, 3) if convexity is not None else None,
+            'lateral_convexity': round(convexity, 2) if convexity is not None else None,
             'distance_to_max_width': round(distance_to_max_width, 2) if distance_to_max_width is not None else None
         }
 
