@@ -1,7 +1,36 @@
-opencv-python-headless>=4.8.0     # For image processing (headless version, no GUI)
-Pillow>=10.0.0                    # For handling image files and DPI checks
-numpy>=1.24.0                     # Array handling and mathematical operations
-PyYAML>=6.0                       # For YAML configuration file parsing
-scipy>=1.9.0                      # Scientific computing functions
-pandas>=1.5.0                     # For CSV data processing
-argparse                          # Built-in library (Python 3.2+)
+# Core dependencies for image processing and computer vision
+opencv-python-headless>=4.8.0,<5.0.0    # For image processing (headless version, no GUI)
+Pillow>=10.0.0,<11.0.0                   # For handling image files and DPI checks
+numpy>=1.24.0,<2.0.0                     # Array handling and mathematical operations
+
+# Configuration and data handling
+PyYAML>=6.0,<7.0                         # For YAML configuration file parsing
+pandas>=1.5.0,<3.0.0                     # For CSV data processing and DataFrame operations
+
+# Scientific computing and spatial analysis
+scipy>=1.9.0,<2.0.0                      # Scientific computing functions (Voronoi diagrams, ConvexHull)
+shapely>=2.0.0,<3.0.0                    # Geometric operations and spatial analysis
+
+# Visualization and plotting
+matplotlib>=3.6.0,<4.0.0                 # For plotting and visualization (Voronoi diagrams)
+
+# Package management utilities
+setuptools>=65.0.0                       # For package building and distribution
+wheel>=0.38.0                            # For wheel package format
+
+# Development and testing
+pytest>=7.0.0                            # For running tests
+pytest-cov>=4.0.0                        # For test coverage reports
+
+# Built-in modules (no installation needed, listed for documentation)
+# argparse    # Built-in library (Python 3.2+)
+# os          # Built-in library
+# sys         # Built-in library
+# logging     # Built-in library
+# csv         # Built-in library
+# json        # Built-in library
+# math        # Built-in library
+# collections # Built-in library
+# functools   # Built-in library
+# pathlib     # Built-in library (Python 3.4+)
+# typing      # Built-in library (Python 3.5+)

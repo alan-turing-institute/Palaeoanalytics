@@ -126,6 +126,26 @@ visualization:
   font_scale: 0.7  # Font size for labels
   line_thickness: 2  # Line thickness for contours and arrows
 
+symmetry_analysis:
+  enabled: true
+
+  # Surface types to analyze
+  surfaces:
+    dorsal: true
+    ventral: false    # You said skip ventral
+    platform: true
+    lateral: true
+
+  # Include scars on surfaces
+  include_scars:
+    dorsal: true      # All scars on dorsal surface
+    ventral: false
+    platform: false   # Platform typically has no meaningful scars
+    lateral: false    # Lateral typically has no meaningful scars
+
+  # Analysis parameters
+  calculation_method: area_based
+
 # Data Export Configuration
 data_export:
   csv_format: true  # Export data in CSV format
