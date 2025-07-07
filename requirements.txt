@@ -14,6 +14,9 @@ shapely>=2.0.0,<3.0.0                    # Geometric operations and spatial anal
 # Visualization and plotting
 matplotlib>=3.6.0,<4.0.0                 # For plotting and visualization (Voronoi diagrams)
 
+# System monitoring and resource management
+psutil>=5.9.0,<6.0.0                     # For memory usage and file handle monitoring (used in tests)
+
 # Package management utilities
 setuptools>=65.0.0                       # For package building and distribution
 wheel>=0.38.0                            # For wheel package format
@@ -34,3 +37,5 @@ pytest-cov>=4.0.0                        # For test coverage reports
 # functools   # Built-in library
 # pathlib     # Built-in library (Python 3.4+)
 # typing      # Built-in library (Python 3.5+)
+# tempfile    # Built-in library
+# unittest.mock # Built-in library (Python 3.3+)
