@@ -10,7 +10,10 @@ import logging
 import yaml
 from typing import Dict, Any, Optional
 from functools import lru_cache
-from pkg_resources import resource_filename
+try:
+    from importlib import resources
+except ImportError:
+    import importlib_resources as resources
 
 
 class ConfigurationManager:
@@ -59,7 +62,9 @@ class ConfigurationManager:
         elif os.getenv('PYLITHICS_CONFIG'):
             return os.getenv('PYLITHICS_CONFIG')
         else:
-            return resource_filename(__name__, '../config/config.yaml')
+            # Use absolute path to avoid relative path warnings
+            config_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            return os.path.join(config_dir, 'config', 'config.yaml')
 
     def _validate_config(self) -> None:
         """Validate the loaded configuration."""
@@ -255,28 +260,3 @@ def clear_config_cache() -> None:
     get_logging_config.cache_clear()
     get_normalization_config.cache_clear()
     get_grayscale_config.cache_clear()
-
-def get_arrow_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]:
-    """Get arrow detection configuration with defaults."""
-    if config is None:
-        config = load_preprocessing_config()
-
-    if config is None:
-        # Fallback defaults
-        return {
-            'enabled': True,
-            'reference_dpi': 300.0,
-            'min_area_scale_factor': 0.7,
-            'min_defect_depth_scale_factor': 0.8,
-            'min_triangle_height_scale_factor': 0.8,
-            'debug_enabled': False
-        }
-
-    return config.get('arrow_detection', {
-        'enabled': True,
-        'reference_dpi': 300.0,
-        'min_area_scale_factor': 0.7,
-        'min_defect_depth_scale_factor': 0.8,
-        'min_triangle_height_scale_factor': 0.8,
-        'debug_enabled': False
-    })

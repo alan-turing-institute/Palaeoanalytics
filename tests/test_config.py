@@ -31,6 +31,27 @@ from pylithics.image_processing.config import (
 class TestConfigurationManager:
     """Test the ConfigurationManager class."""
 
+    def _setup_test_config(self, test_config_dict):
+        """Helper method to set up a temporary config file and initialize config manager."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(test_config_dict, f)
+            temp_config_file = f.name
+
+        clear_config_cache()
+        from pylithics.image_processing.config import _config_manager
+        import pylithics.image_processing.config as config_module
+        config_module._config_manager = None
+
+        get_config_manager(temp_config_file)
+        return temp_config_file
+
+    def _reset_config_manager(self):
+        """Helper method to reset config manager to defaults."""
+        clear_config_cache()
+        from pylithics.image_processing.config import _config_manager
+        import pylithics.image_processing.config as config_module
+        config_module._config_manager = None
+
     def test_init_with_valid_config_file(self, sample_config_file):
         """Test initialization with a valid config file."""
         config_manager = ConfigurationManager(sample_config_file)
@@ -212,10 +233,29 @@ class TestConfigFunctions:
             }
         }
 
-        config = get_contour_filtering_config(test_config)
+        # Create temporary config file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(test_config, f)
+            temp_config_file = f.name
 
-        assert config['min_area'] == 100.0
-        assert config['exclude_border'] is False
+        try:
+            # Clear cache and set up config manager with test config
+            clear_config_cache()
+            # Reset the global config manager
+            from pylithics.image_processing.config import _config_manager
+            import pylithics.image_processing.config as config_module
+            config_module._config_manager = None
+
+            # Initialize with test config
+            get_config_manager(temp_config_file)
+
+            # Now call without arguments
+            config = get_contour_filtering_config()
+
+            assert config['min_area'] == 100.0
+            assert config['exclude_border'] is False
+        finally:
+            os.unlink(temp_config_file)
 
     def test_get_contour_filtering_config_without_config(self):
         """Test getting contour filtering config without provided config."""
@@ -228,8 +268,14 @@ class TestConfigFunctions:
 
     def test_get_contour_filtering_config_defaults(self):
         """Test contour filtering config falls back to defaults."""
-        empty_config = {}
-        config = get_contour_filtering_config(empty_config)
+        # Clear cache and reset config manager to use defaults
+        clear_config_cache()
+        from pylithics.image_processing.config import _config_manager
+        import pylithics.image_processing.config as config_module
+        config_module._config_manager = None
+
+        # Call without any config file (should use defaults)
+        config = get_contour_filtering_config()
 
         assert config['min_area'] == 50.0
         assert config['exclude_border'] is True
@@ -244,16 +290,33 @@ class TestConfigFunctions:
             }
         }
 
-        config = get_thresholding_config(test_config)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(test_config, f)
+            temp_config_file = f.name
 
-        assert config['method'] == 'adaptive'
-        assert config['threshold_value'] == 100
-        assert config['max_value'] == 200
+        try:
+            clear_config_cache()
+            from pylithics.image_processing.config import _config_manager
+            import pylithics.image_processing.config as config_module
+            config_module._config_manager = None
+
+            get_config_manager(temp_config_file)
+            config = get_thresholding_config()
+
+            assert config['method'] == 'adaptive'
+            assert config['threshold_value'] == 100
+            assert config['max_value'] == 200
+        finally:
+            os.unlink(temp_config_file)
 
     def test_get_thresholding_config_defaults(self):
         """Test thresholding config falls back to defaults."""
-        empty_config = {}
-        config = get_thresholding_config(empty_config)
+        clear_config_cache()
+        from pylithics.image_processing.config import _config_manager
+        import pylithics.image_processing.config as config_module
+        config_module._config_manager = None
+
+        config = get_thresholding_config()
 
         assert config['method'] == 'simple'
         assert config['threshold_value'] == 127
@@ -268,7 +331,23 @@ class TestConfigFunctions:
             }
         }
 
-        config = get_morphological_config(test_config)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(test_config, f)
+            temp_config_file = f.name
+
+        try:
+            clear_config_cache()
+            from pylithics.image_processing.config import _config_manager
+            import pylithics.image_processing.config as config_module
+            config_module._config_manager = None
+
+            get_config_manager(temp_config_file)
+            config = get_morphological_config()
+
+            assert config['enabled'] is False
+            assert config['kernel_size'] == 5
+        finally:
+            os.unlink(temp_config_file)
 
         assert config['enabled'] is False
         assert config['kernel_size'] == 5
@@ -283,11 +362,24 @@ class TestConfigFunctions:
             }
         }
 
-        config = get_logging_config(test_config)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(test_config, f)
+            temp_config_file = f.name
 
-        assert config['level'] == 'DEBUG'
-        assert config['log_to_file'] is False
-        assert config['log_file'] == 'custom.log'
+        try:
+            clear_config_cache()
+            from pylithics.image_processing.config import _config_manager
+            import pylithics.image_processing.config as config_module
+            config_module._config_manager = None
+
+            get_config_manager(temp_config_file)
+            config = get_logging_config()
+
+            assert config['level'] == 'DEBUG'
+            assert config['log_to_file'] is False
+            assert config['log_file'] == 'custom.log'
+        finally:
+            os.unlink(temp_config_file)
 
     def test_get_normalization_config(self):
         """Test getting normalization config."""
@@ -299,11 +391,24 @@ class TestConfigFunctions:
             }
         }
 
-        config = get_normalization_config(test_config)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(test_config, f)
+            temp_config_file = f.name
 
-        assert config['enabled'] is False
-        assert config['method'] == 'zscore'
-        assert config['clip_values'] == [10, 200]
+        try:
+            clear_config_cache()
+            from pylithics.image_processing.config import _config_manager
+            import pylithics.image_processing.config as config_module
+            config_module._config_manager = None
+
+            get_config_manager(temp_config_file)
+            config = get_normalization_config()
+
+            assert config['enabled'] is False
+            assert config['method'] == 'zscore'
+            assert config['clip_values'] == [10, 200]
+        finally:
+            os.unlink(temp_config_file)
 
     def test_get_grayscale_config(self):
         """Test getting grayscale conversion config."""
@@ -314,10 +419,23 @@ class TestConfigFunctions:
             }
         }
 
-        config = get_grayscale_config(test_config)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(test_config, f)
+            temp_config_file = f.name
 
-        assert config['enabled'] is False
-        assert config['method'] == 'clahe'
+        try:
+            clear_config_cache()
+            from pylithics.image_processing.config import _config_manager
+            import pylithics.image_processing.config as config_module
+            config_module._config_manager = None
+
+            get_config_manager(temp_config_file)
+            config = get_grayscale_config()
+
+            assert config['enabled'] is False
+            assert config['method'] == 'clahe'
+        finally:
+            os.unlink(temp_config_file)
 
     def test_get_arrow_detection_config_with_config(self):
         """Test getting arrow detection config with provided config dict."""
