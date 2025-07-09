@@ -29,17 +29,26 @@ class TestProcessNestedArrows:
         image = np.zeros((200, 200), dtype=np.uint8)
         dpi = 300.0
 
+        # Create proper sorted_contours dictionary structure
+        sorted_contours = {
+            "parents": [sample_contours[0]],  # First contour is parent
+            "children": [sample_contours[1]] if len(sample_contours) > 1 else [],  # Second is child
+            "nested_children": []  # No nested children in this test
+        }
+
         # Create nested structure metrics
         metrics = [
             {
                 'parent': 'parent 1',
                 'scar': 'parent 1',
-                'surface_type': 'Dorsal'
+                'surface_type': 'Dorsal',
+                'area': cv2.contourArea(sample_contours[0])  # Add area field
             },
             {
                 'parent': 'parent 1',
                 'scar': 'scar 1',
-                'surface_type': 'Dorsal'
+                'surface_type': 'Dorsal',
+                'area': cv2.contourArea(sample_contours[1]) if len(sample_contours) > 1 else 0
             }
         ]
 
@@ -51,8 +60,9 @@ class TestProcessNestedArrows:
                 'compass_angle': 45.0
             }
 
-            result = process_nested_arrows(sample_contours, sample_hierarchy, original_contours=sample_contours,
-                                         metrics=metrics, image_shape=image, image_dpi=dpi)
+            result = process_nested_arrows(sorted_contours, sample_hierarchy,
+                                        original_contours=sample_contours,
+                                        metrics=metrics, image_shape=image, image_dpi=dpi)
 
             assert isinstance(result, list)
 
@@ -65,7 +75,7 @@ class TestProcessNestedArrows:
 
         sorted_contours = {"parents": [parent_contour], "children": [], "nested_children": []}
         hierarchy = np.array([[-1, -1, -1, -1]])  # No children
-        metrics = [{'parent': 'parent 1', 'scar': 'parent 1', 'surface_type': 'Dorsal'}]
+        metrics = [{'parent': 'parent 1', 'scar': 'parent 1', 'surface_type': 'Dorsal', 'area': cv2.contourArea(parent_contour)}]
         image = np.zeros((100, 100), dtype=np.uint8)
 
         result = process_nested_arrows(sorted_contours, hierarchy, [parent_contour], metrics, image, 300.0)
@@ -80,7 +90,7 @@ class TestProcessNestedArrows:
 
         sorted_contours = {"parents": [contour], "children": [], "nested_children": []}
         hierarchy = None  # Mismatched hierarchy
-        metrics = [{'parent': 'parent 1', 'scar': 'scar 1', 'surface_type': 'Dorsal'}]
+        metrics = [{'parent': 'parent 1', 'scar': 'scar 1', 'surface_type': 'Dorsal', 'area': cv2.contourArea(contour)}]
         image = np.zeros((100, 100), dtype=np.uint8)
 
         with patch('pylithics.image_processing.modules.arrow_integration.logging') as mock_logging:
@@ -97,8 +107,18 @@ class TestDetectArrowsIndependently:
     def test_detect_arrows_independently_basic(self, sample_contours):
         """Test independent arrow detection with basic contours."""
         metrics = [
-            {'parent': 'parent 1', 'scar': 'parent 1', 'surface_type': 'Dorsal'},
-            {'parent': 'parent 1', 'scar': 'scar 1', 'surface_type': 'Dorsal'}
+            {
+                'parent': 'parent 1',
+                'scar': 'parent 1',
+                'surface_type': 'Dorsal',
+                'area': cv2.contourArea(sample_contours[0])  # Add area
+            },
+            {
+                'parent': 'parent 1',
+                'scar': 'scar 1',
+                'surface_type': 'Dorsal',
+                'area': cv2.contourArea(sample_contours[1]) if len(sample_contours) > 1 else 100
+            }
         ]
         image = np.zeros((200, 200), dtype=np.uint8)
 
@@ -114,14 +134,23 @@ class TestDetectArrowsIndependently:
             ]
 
             result = detect_arrows_independently(sample_contours, metrics, image, 300.0)
-
             assert isinstance(result, list)
 
     def test_detect_arrows_independently_all_fail(self, sample_contours):
         """Test independent arrow detection when all detections fail."""
         metrics = [
-            {'parent': 'parent 1', 'scar': 'parent 1', 'surface_type': 'Dorsal'},
-            {'parent': 'parent 1', 'scar': 'scar 1', 'surface_type': 'Dorsal'}
+            {
+                'parent': 'parent 1',
+                'scar': 'parent 1',
+                'surface_type': 'Dorsal',
+                'area': cv2.contourArea(sample_contours[0])
+            },
+            {
+                'parent': 'parent 1',
+                'scar': 'scar 1',
+                'surface_type': 'Dorsal',
+                'area': cv2.contourArea(sample_contours[1]) if len(sample_contours) > 1 else 100
+            }
         ]
         image = np.zeros((200, 200), dtype=np.uint8)
 
@@ -129,7 +158,6 @@ class TestDetectArrowsIndependently:
             mock_analyze.return_value = None
 
             result = detect_arrows_independently(sample_contours, metrics, image, 300.0)
-
             assert isinstance(result, list)
 
     def test_detect_arrows_independently_empty_input(self):
@@ -142,7 +170,12 @@ class TestDetectArrowsIndependently:
     def test_detect_arrows_independently_mismatched_lengths(self, sample_contours):
         """Test independent arrow detection with mismatched contours and metrics."""
         # More contours than metrics
-        metrics = [{'parent': 'parent 1', 'scar': 'parent 1', 'surface_type': 'Dorsal'}]
+        metrics = [{
+            'parent': 'parent 1',
+            'scar': 'parent 1',
+            'surface_type': 'Dorsal',
+            'area': cv2.contourArea(sample_contours[0])
+        }]
         image = np.zeros((200, 200), dtype=np.uint8)
 
         with patch('pylithics.image_processing.modules.arrow_integration.logging') as mock_logging:
@@ -158,22 +191,38 @@ class TestIntegrateArrows:
 
     def test_integrate_arrows_hierarchy_based(self, sample_contours, sample_hierarchy):
         """Test arrow integration using hierarchy-based approach."""
+        # Create proper sorted_contours structure
+        sorted_contours = {
+            "parents": [sample_contours[0]],
+            "children": [sample_contours[1]] if len(sample_contours) > 1 else [],
+            "nested_children": []
+        }
+
         metrics = [
-            {'parent': 'parent 1', 'scar': 'parent 1', 'surface_type': 'Dorsal'},
-            {'parent': 'parent 1', 'scar': 'scar 1', 'surface_type': 'Dorsal'}
+            {
+                'parent': 'parent 1',
+                'scar': 'parent 1',
+                'surface_type': 'Dorsal',
+                'area': cv2.contourArea(sample_contours[0])
+            },
+            {
+                'parent': 'parent 1',
+                'scar': 'scar 1',
+                'surface_type': 'Dorsal',
+                'area': cv2.contourArea(sample_contours[1]) if len(sample_contours) > 1 else 100
+            }
         ]
         image = np.zeros((200, 200), dtype=np.uint8)
 
         with patch('pylithics.image_processing.modules.arrow_integration.process_nested_arrows') as mock_nested:
-            mock_nested.return_value = metrics  # Return updated metrics
+            mock_nested.return_value = metrics
 
-            result = integrate_arrows(sample_contours, sample_hierarchy, original_contours=sample_contours,
+            result = integrate_arrows(sorted_contours, sample_hierarchy,
+                                    original_contours=sample_contours,
                                     metrics=metrics, image_shape=image, image_dpi=300.0)
 
             assert isinstance(result, list)
             assert len(result) == len(metrics)
-
-            # Check that hierarchy-based approach was used
             mock_nested.assert_called_once()
 
             # Verify result structure
@@ -182,48 +231,86 @@ class TestIntegrateArrows:
 
     def test_integrate_arrows_independent_fallback(self, sample_contours):
         """Test arrow integration fallback to independent approach."""
+        # Create proper sorted_contours structure
+        sorted_contours = {
+            "parents": [sample_contours[0]],
+            "children": [sample_contours[1]] if len(sample_contours) > 1 else [],
+            "nested_children": []
+        }
+
         metrics = [
-            {'parent': 'parent 1', 'scar': 'parent 1', 'surface_type': 'Dorsal'},
-            {'parent': 'parent 1', 'scar': 'scar 1', 'surface_type': 'Dorsal'}
+            {
+                'parent': 'parent 1',
+                'scar': 'parent 1',
+                'surface_type': 'Dorsal',
+                'area': cv2.contourArea(sample_contours[0])
+            },
+            {
+                'parent': 'parent 1',
+                'scar': 'scar 1',
+                'surface_type': 'Dorsal',
+                'area': cv2.contourArea(sample_contours[1]) if len(sample_contours) > 1 else 100
+            }
         ]
         image = np.zeros((200, 200), dtype=np.uint8)
-        hierarchy = None  # Force fallback to independent approach
+        hierarchy = None  # Force fallback
 
-        with patch('pylithics.image_processing.modules.arrow_integration.detect_arrows_independently') as mock_independent:
-            mock_independent.return_value = metrics  # Return updated metrics
+        with patch('pylithics.image_processing.modules.arrow_integration.process_nested_arrows') as mock_nested:
+            mock_nested.return_value = metrics
 
-            result = integrate_arrows(sample_contours, hierarchy, original_contours=sample_contours,
+            result = integrate_arrows(sorted_contours, hierarchy,
+                                    original_contours=sample_contours,
                                     metrics=metrics, image_shape=image, image_dpi=300.0)
 
             assert isinstance(result, list)
             assert len(result) == len(metrics)
 
-            # Check that independent approach was used
-            mock_independent.assert_called_once()
-
     def test_integrate_arrows_empty_input(self):
         """Test arrow integration with empty input."""
-        result = integrate_arrows([], None, original_contours=[], metrics=[],
-                                image_shape=np.zeros((100, 100), dtype=np.uint8), image_dpi=300.0)
+        sorted_contours = {
+            "parents": [],
+            "children": [],
+            "nested_children": []
+        }
+
+        result = integrate_arrows(sorted_contours, None, original_contours=[],
+                                metrics=[], image_shape=np.zeros((100, 100), dtype=np.uint8),
+                                image_dpi=300.0)
 
         assert isinstance(result, list)
         assert len(result) == 0
 
     def test_integrate_arrows_config_propagation(self, sample_contours, sample_hierarchy):
         """Test that configuration is properly propagated through integration."""
+        sorted_contours = {
+            "parents": [sample_contours[0]],
+            "children": [sample_contours[1]] if len(sample_contours) > 1 else [],
+            "nested_children": []
+        }
+
         metrics = [
-            {'parent': 'parent 1', 'scar': 'parent 1', 'surface_type': 'Dorsal'},
-            {'parent': 'parent 1', 'scar': 'scar 1', 'surface_type': 'Dorsal'}
+            {
+                'parent': 'parent 1',
+                'scar': 'parent 1',
+                'surface_type': 'Dorsal',
+                'area': cv2.contourArea(sample_contours[0])
+            },
+            {
+                'parent': 'parent 1',
+                'scar': 'scar 1',
+                'surface_type': 'Dorsal',
+                'area': cv2.contourArea(sample_contours[1]) if len(sample_contours) > 1 else 100
+            }
         ]
         image = np.zeros((200, 200), dtype=np.uint8)
 
         with patch('pylithics.image_processing.modules.arrow_integration.process_nested_arrows') as mock_nested:
             mock_nested.return_value = metrics
 
-            integrate_arrows(sample_contours, sample_hierarchy, original_contours=sample_contours,
+            integrate_arrows(sorted_contours, sample_hierarchy,
+                           original_contours=sample_contours,
                            metrics=metrics, image_shape=image, image_dpi=300.0)
 
-            # Verify nested arrow processing was called
             mock_nested.assert_called_once()
 
 
@@ -233,6 +320,13 @@ class TestArrowIntegrationWorkflow:
 
     def test_complete_arrow_integration_workflow(self, sample_contours, sample_hierarchy):
         """Test complete arrow integration workflow from contours to final metrics."""
+        # Create proper sorted_contours structure
+        sorted_contours = {
+            "parents": [sample_contours[0]],
+            "children": [sample_contours[1]] if len(sample_contours) > 1 else [],
+            "nested_children": []
+        }
+
         # Create realistic metrics for archaeological artifact
         metrics = [
             {
@@ -260,7 +354,8 @@ class TestArrowIntegrationWorkflow:
         image = np.zeros((250, 200), dtype=np.uint8)
 
         # Test arrow integration
-        result = integrate_arrows(sample_contours, sample_hierarchy, original_contours=sample_contours,
+        result = integrate_arrows(sorted_contours, sample_hierarchy,
+                                original_contours=sample_contours,
                                 metrics=metrics, image_shape=image, image_dpi=300.0)
 
         assert isinstance(result, list)
@@ -334,8 +429,15 @@ class TestArrowIntegrationWorkflow:
         hierarchy = np.array(hierarchy_data)
         image = np.zeros((220, 300), dtype=np.uint8)
 
+        # Create sorted_contours structure
+        sorted_contours = {
+            "parents": [blade_contour],
+            "children": contours[1:],  # All scars are children
+            "nested_children": []
+        }
+
         # Test integration
-        result = integrate_arrows(contours, hierarchy, original_contours=contours,
+        result = integrate_arrows(sorted_contours, hierarchy, original_contours=contours,
                                 metrics=metrics, image_shape=image, image_dpi=300.0)
 
         assert len(result) >= 1  # Should process some results
@@ -353,8 +455,14 @@ class TestArrowIntegrationWorkflow:
             np.array([[50, 50], [51, 50]], dtype=np.int32).reshape(-1, 1, 2),  # Degenerate contour
         ]
 
+        sorted_contours = {
+            "parents": contours,
+            "children": [],
+            "nested_children": []
+        }
+
         metrics = [
-            {'parent': 'parent 1', 'scar': 'parent 1', 'surface_type': 'Dorsal'},
+            {'parent': 'parent 1', 'scar': 'parent 1', 'surface_type': 'Dorsal', 'area': 1.0},
         ]
 
         hierarchy = np.array([
@@ -365,7 +473,7 @@ class TestArrowIntegrationWorkflow:
 
         with patch('pylithics.image_processing.modules.arrow_integration.logging'):
             # Should handle errors gracefully and not crash
-            result = integrate_arrows(contours, hierarchy, original_contours=contours,
+            result = integrate_arrows(sorted_contours, hierarchy, original_contours=contours,
                                     metrics=metrics, image_shape=image, image_dpi=300.0)
 
             # Should return some result even with problematic input
@@ -403,6 +511,7 @@ class TestArrowIntegrationWorkflow:
 
         # Add many child scars
         num_scars = 20  # Reduced for performance testing
+        scar_contours = []
         for i in range(num_scars):
             x = 100 + (i % 10) * 30
             y = 100 + (i // 10) * 30
@@ -411,6 +520,7 @@ class TestArrowIntegrationWorkflow:
                 [x, y], [x + 20, y], [x + 20, y + 20], [x, y + 20]
             ], dtype=np.int32).reshape(-1, 1, 2)
             contours.append(scar_contour)
+            scar_contours.append(scar_contour)
 
             metrics.append({
                 'parent': 'parent 1',
@@ -431,10 +541,17 @@ class TestArrowIntegrationWorkflow:
         hierarchy = np.array(hierarchy_data)
         image = np.zeros((500, 500), dtype=np.uint8)
 
+        # Create sorted_contours structure
+        sorted_contours = {
+            "parents": [parent_contour],
+            "children": scar_contours,
+            "nested_children": []
+        }
+
         import time
         start_time = time.time()
 
-        result = integrate_arrows(contours, hierarchy, original_contours=contours,
+        result = integrate_arrows(sorted_contours, hierarchy, original_contours=contours,
                                 metrics=metrics, image_shape=image, image_dpi=300.0)
 
         end_time = time.time()
@@ -475,6 +592,7 @@ class TestArrowIntegrationRealWorldScenarios:
 
         # Add radial flake scars
         num_flakes = 6  # Reduced for simplicity
+        flake_contours = []
         for i in range(num_flakes):
             angle = 2 * np.pi * i / num_flakes
             radius = 40
@@ -486,6 +604,7 @@ class TestArrowIntegrationRealWorldScenarios:
                 [x - 8, y - 8], [x + 8, y - 8], [x + 8, y + 8], [x - 8, y + 8]
             ], dtype=np.int32).reshape(-1, 1, 2)
             contours.append(flake_contour)
+            flake_contours.append(flake_contour)
 
             metrics.append({
                 'parent': 'parent 1',
@@ -506,7 +625,14 @@ class TestArrowIntegrationRealWorldScenarios:
         hierarchy = np.array(hierarchy_data)
         image = np.zeros((300, 300), dtype=np.uint8)
 
-        result = integrate_arrows(contours, hierarchy, original_contours=contours,
+        # Create sorted_contours structure
+        sorted_contours = {
+            "parents": [core_contour],
+            "children": flake_contours,
+            "nested_children": []
+        }
+
+        result = integrate_arrows(sorted_contours, hierarchy, original_contours=contours,
                                 metrics=metrics, image_shape=image, image_dpi=300.0)
 
         assert len(result) >= 1

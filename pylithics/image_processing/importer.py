@@ -138,7 +138,9 @@ def morphological_closing(inverted_image, config):
     Returns:
         numpy.ndarray: Image after morphological closing.
     """
-    kernel_size = config['morphological_closing'].get('kernel_size', 3)
+    # Get the morphological_closing section, default to empty dict if missing
+    morphological_config = config.get('morphological_closing', {})
+    kernel_size = morphological_config.get('kernel_size', 3)
 
     # Define the kernel for morphological closing
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size, kernel_size))
