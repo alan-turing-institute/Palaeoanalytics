@@ -334,26 +334,6 @@ def mock_config_manager(sample_config):
     return MockConfigManager(sample_config)
 
 
-# Custom pytest markers for test categorization
-def pytest_configure(config):
-    """Configure custom pytest markers."""
-    config.addinivalue_line(
-        "markers", "unit: mark test as a unit test"
-    )
-    config.addinivalue_line(
-        "markers", "integration: mark test as an integration test"
-    )
-    config.addinivalue_line(
-        "markers", "functional: mark test as a functional test"
-    )
-    config.addinivalue_line(
-        "markers", "slow: mark test as slow running"
-    )
-    config.addinivalue_line(
-        "markers", "requires_opencv: mark test as requiring OpenCV"
-    )
-
-
 # Utility functions for test assertions
 def assert_config_section_valid(config: Dict[str, Any], section: str, required_keys: List[str]):
     """Assert that a config section contains all required keys."""
