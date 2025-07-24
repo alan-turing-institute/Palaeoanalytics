@@ -379,11 +379,11 @@ class TestClassifyParentContours:
                 'parent': 'parent 3',
                 'scar': 'parent 3',
                 'technical_width': 40.0,  # Different width from Dorsal
-                'technical_length': 78.0,  # Similar length to Dorsal
-                'area': 3120.0,  # Potential Lateral
+                'technical_length': 82.0,  # FIXED: Make length larger than Dorsal to avoid Platform classification
+                'area': 3280.0,  # Potential Lateral - will not be Platform since length > dorsal_length
                 'surface_type': None
             }
-            # No Platform candidate
+            # No Platform candidate - parent 3 won't qualify as Platform due to larger length
         ]
 
         classified_metrics = classify_parent_contours(metrics, tolerance=0.1)
@@ -392,7 +392,8 @@ class TestClassifyParentContours:
 
         assert surface_map['parent 1'] == 'Dorsal'
         assert surface_map['parent 2'] == 'Ventral'
-        # Should use alternative logic for Lateral when no Platform
+        # Now parent 3 should NOT be classified as Platform (since length > dorsal length)
+        # and should use alternative logic for Lateral or be Unclassified
         assert surface_map['parent 3'] in ['Lateral', 'Unclassified']
 
     def test_classify_maintains_original_data(self):

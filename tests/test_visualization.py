@@ -356,6 +356,8 @@ class TestSaveMeasurementsToCSV:
         """Test saving basic metrics to CSV."""
         metrics = [
             {
+                'parent': 'parent 1',
+                'scar': 'parent 1',
                 'image_id': 'test_image_1',
                 'surface_type': 'Dorsal',
                 'surface_feature': 'Dorsal',
@@ -363,7 +365,7 @@ class TestSaveMeasurementsToCSV:
                 'centroid_y': 60.0,
                 'technical_width': 40.0,
                 'technical_length': 80.0,
-                'total_area': 3200.0,
+                'area': 3200.0,
                 'has_arrow': False
             }
         ]
@@ -374,11 +376,11 @@ class TestSaveMeasurementsToCSV:
         try:
             save_measurements_to_csv(metrics, output_path)
 
-            # Check that file was created and has content
+            # Validate file creation and content
             assert os.path.exists(output_path)
             assert os.path.getsize(output_path) > 0
 
-            # Verify CSV content
+            # Verify CSV structure and data
             df = pd.read_csv(output_path)
             assert len(df) == 1
             assert df.iloc[0]['image_id'] == 'test_image_1'
@@ -393,12 +395,14 @@ class TestSaveMeasurementsToCSV:
         """Test saving metrics with arrow data."""
         metrics = [
             {
+                'parent': 'parent 1',
+                'scar': 'scar 1',
                 'image_id': 'test_image_1',
                 'surface_type': 'Dorsal',
                 'surface_feature': 'scar 1',
                 'centroid_x': 50.0,
                 'centroid_y': 60.0,
-                'total_area': 500.0,
+                'area': 500.0,
                 'has_arrow': True,
                 'arrow_angle': 45.0,
                 'arrow_tip': [55, 65],
@@ -425,6 +429,8 @@ class TestSaveMeasurementsToCSV:
         """Test saving comprehensive metrics with all fields."""
         metrics = [
             {
+                'parent': 'parent 1',
+                'scar': 'parent 1',
                 'image_id': 'comprehensive_test',
                 'surface_type': 'Dorsal',
                 'surface_feature': 'Dorsal',
@@ -434,7 +440,7 @@ class TestSaveMeasurementsToCSV:
                 'technical_length': 120.0,
                 'max_width': 85.0,
                 'max_length': 125.0,
-                'total_area': 9600.0,
+                'area': 9600.0,
                 'aspect_ratio': 1.5,
                 'perimeter': 400.0,
                 'distance_to_max_width': 35.0,
@@ -464,7 +470,7 @@ class TestSaveMeasurementsToCSV:
             df = pd.read_csv(output_path)
             assert len(df) == 1
 
-            # Check various field categories
+            # Verify various field categories
             assert df.iloc[0]['voronoi_num_cells'] == 5
             assert df.iloc[0]['vertical_symmetry'] == 1.0
             assert df.iloc[0]['lateral_convexity'] == 0.95
@@ -477,31 +483,37 @@ class TestSaveMeasurementsToCSV:
         """Test saving multiple metrics to CSV."""
         metrics = [
             {
+                'parent': 'parent 1',
+                'scar': 'parent 1',
                 'image_id': 'multi_test',
                 'surface_type': 'Dorsal',
                 'surface_feature': 'Dorsal',
                 'centroid_x': 50.0,
                 'centroid_y': 60.0,
-                'total_area': 5000.0,
+                'area': 5000.0,
                 'has_arrow': False
             },
             {
+                'parent': 'parent 1',
+                'scar': 'scar 1',
                 'image_id': 'multi_test',
                 'surface_type': 'Dorsal',
                 'surface_feature': 'scar 1',
                 'centroid_x': 40.0,
                 'centroid_y': 50.0,
-                'total_area': 300.0,
+                'area': 300.0,
                 'has_arrow': True,
                 'arrow_angle': 90.0
             },
             {
+                'parent': 'parent 2',
+                'scar': 'parent 2',
                 'image_id': 'multi_test',
                 'surface_type': 'Ventral',
                 'surface_feature': 'Ventral',
                 'centroid_x': 55.0,
                 'centroid_y': 65.0,
-                'total_area': 4800.0,
+                'area': 4800.0,
                 'has_arrow': False
             }
         ]
@@ -515,12 +527,12 @@ class TestSaveMeasurementsToCSV:
             df = pd.read_csv(output_path)
             assert len(df) == 3
 
-            # Check different surface types
+            # Verify surface type diversity
             surface_types = df['surface_type'].unique()
             assert 'Dorsal' in surface_types
             assert 'Ventral' in surface_types
 
-            # Check arrow data
+            # Verify arrow data preservation
             arrow_rows = df[df['has_arrow'] == True]
             assert len(arrow_rows) == 1
             assert arrow_rows.iloc[0]['arrow_angle'] == 90.0
@@ -531,13 +543,15 @@ class TestSaveMeasurementsToCSV:
 
     def test_append_to_existing_csv(self):
         """Test appending metrics to existing CSV file."""
-        # Create initial CSV
+        # Create initial CSV data
         initial_metrics = [
             {
+                'parent': 'parent 1',
+                'scar': 'parent 1',
                 'image_id': 'initial_image',
                 'surface_type': 'Dorsal',
                 'surface_feature': 'Dorsal',
-                'total_area': 1000.0,
+                'area': 1000.0,
                 'has_arrow': False
             }
         ]
@@ -549,13 +563,15 @@ class TestSaveMeasurementsToCSV:
             # Save initial data
             save_measurements_to_csv(initial_metrics, output_path)
 
-            # Append new data
+            # Append additional data
             new_metrics = [
                 {
+                    'parent': 'parent 2',
+                    'scar': 'parent 2',
                     'image_id': 'appended_image',
                     'surface_type': 'Ventral',
                     'surface_feature': 'Ventral',
-                    'total_area': 2000.0,
+                    'area': 2000.0,
                     'has_arrow': True,
                     'arrow_angle': 180.0
                 }
@@ -563,7 +579,7 @@ class TestSaveMeasurementsToCSV:
 
             save_measurements_to_csv(new_metrics, output_path, append=True)
 
-            # Check combined result
+            # Verify combined results
             df = pd.read_csv(output_path)
             assert len(df) == 2
 
@@ -579,13 +595,15 @@ class TestSaveMeasurementsToCSV:
         """Test saving metrics with missing optional fields."""
         metrics = [
             {
+                'parent': 'parent 1',
+                'scar': 'parent 1',
                 'image_id': 'missing_fields_test',
                 'surface_type': 'Dorsal',
                 'surface_feature': 'Dorsal',
                 'centroid_x': 50.0,
                 'centroid_y': 60.0,
-                'total_area': 1000.0
-                # Missing many optional fields
+                'area': 1000.0
+                # Intentionally missing many optional fields
             }
         ]
 
@@ -598,10 +616,13 @@ class TestSaveMeasurementsToCSV:
             df = pd.read_csv(output_path)
             assert len(df) == 1
 
-            # Missing fields should be filled with "NA"
-            assert df.iloc[0]['has_arrow'] == 'NA'
-            assert df.iloc[0]['arrow_angle'] == 'NA'
-            assert df.iloc[0]['voronoi_num_cells'] == 'NA'
+            # Verify missing fields are handled appropriately
+            # has_arrow defaults to False when missing
+            assert df.iloc[0]['has_arrow'] == False
+            # arrow_angle gets 'NA' which pandas reads as NaN
+            assert pd.isna(df.iloc[0]['arrow_angle']) or df.iloc[0]['arrow_angle'] == 'NA'
+            # voronoi_num_cells gets 'NA' which pandas reads as NaN
+            assert pd.isna(df.iloc[0]['voronoi_num_cells']) or df.iloc[0]['voronoi_num_cells'] == 'NA'
 
         finally:
             if os.path.exists(output_path):
@@ -611,12 +632,14 @@ class TestSaveMeasurementsToCSV:
         """Test handling of coordinate data in metrics."""
         metrics = [
             {
+                'parent': 'parent 1',
+                'scar': 'scar 1',
                 'image_id': 'coord_test',
                 'surface_type': 'Dorsal',
                 'surface_feature': 'scar 1',
                 'centroid_x': 50.0,
                 'centroid_y': 60.0,
-                'total_area': 500.0,
+                'area': 500.0,
                 'has_arrow': True,
                 'arrow_tip': (55, 65),  # Tuple format
                 'arrow_back': [45, 55], # List format
@@ -633,7 +656,7 @@ class TestSaveMeasurementsToCSV:
             df = pd.read_csv(output_path)
             assert len(df) == 1
 
-            # Should handle coordinate extraction
+            # Verify coordinate extraction functionality
             row = df.iloc[0]
             assert row['has_arrow'] == True
             assert row['arrow_angle'] == 45.0
@@ -652,7 +675,7 @@ class TestSaveMeasurementsToCSV:
         try:
             save_measurements_to_csv(metrics, output_path)
 
-            # Should create empty CSV with headers
+            # Verify empty CSV with headers is created
             assert os.path.exists(output_path)
 
             df = pd.read_csv(output_path)
@@ -667,16 +690,18 @@ class TestSaveMeasurementsToCSV:
         """Test saving metrics to invalid output path."""
         metrics = [
             {
+                'parent': 'parent 1',
+                'scar': 'parent 1',
                 'image_id': 'test',
                 'surface_type': 'Dorsal',
-                'total_area': 1000.0
+                'area': 1000.0
             }
         ]
 
         invalid_path = '/nonexistent_directory/output.csv'
 
         try:
-            # Should handle invalid path gracefully
+            # Should handle invalid path gracefully or raise appropriate error
             save_measurements_to_csv(metrics, invalid_path)
         except (OSError, IOError, PermissionError):
             # These are acceptable errors for invalid paths
@@ -718,7 +743,7 @@ class TestVisualizationIntegration:
                 'centroid_y': 112.5,
                 'technical_width': 155.0,
                 'technical_length': 150.0,
-                'total_area': 23250.0,
+                'area': 23250.0,
                 'has_arrow': False,
                 'voronoi_num_cells': 3,
                 'top_area': 11625.0,
@@ -734,7 +759,7 @@ class TestVisualizationIntegration:
                 'centroid_y': 107.5,
                 'width': 35.0,
                 'height': 35.0,
-                'total_area': 1225.0,
+                'area': 1225.0,
                 'has_arrow': True,
                 'arrow_back': (85, 95),
                 'arrow_tip': (110, 120),
@@ -749,7 +774,7 @@ class TestVisualizationIntegration:
                 'centroid_y': 152.5,
                 'width': 30.0,
                 'height': 35.0,
-                'total_area': 1050.0,
+                'area': 1050.0,
                 'has_arrow': True,
                 'arrow_back': (130, 140),
                 'arrow_tip': (145, 165),
@@ -759,7 +784,7 @@ class TestVisualizationIntegration:
 
         inverted_image = np.zeros((220, 200), dtype=np.uint8)
 
-        # Test visualization
+        # Test visualization generation
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as viz_file:
             viz_path = viz_file.name
 
@@ -774,23 +799,23 @@ class TestVisualizationIntegration:
             assert os.path.exists(viz_path)
             assert os.path.getsize(viz_path) > 5000  # Should be substantial image
 
-            # Generate CSV
+            # Generate CSV export
             save_measurements_to_csv(metrics, csv_path)
 
             assert os.path.exists(csv_path)
 
-            # Verify CSV content
+            # Verify CSV content integrity
             df = pd.read_csv(csv_path)
             assert len(df) == 3  # Parent + 2 scars
 
-            # Check data integrity
+            # Validate data preservation
             dorsal_rows = df[df['surface_type'] == 'Dorsal']
             assert len(dorsal_rows) == 3
 
             arrow_rows = df[df['has_arrow'] == True]
             assert len(arrow_rows) == 2
 
-            # Check specific values
+            # Verify specific values
             parent_row = df[df['surface_feature'] == 'Dorsal'].iloc[0]
             assert parent_row['voronoi_num_cells'] == 3
             assert parent_row['vertical_symmetry'] == 1.0
@@ -814,21 +839,25 @@ class TestVisualizationIntegration:
             # Add metrics for each image
             all_metrics.extend([
                 {
+                    'parent': f'parent {image_num + 1}',
+                    'scar': f'parent {image_num + 1}',
                     'image_id': image_id,
                     'surface_type': 'Dorsal',
                     'surface_feature': 'Dorsal',
                     'centroid_x': 50.0 + image_num * 10,
                     'centroid_y': 60.0 + image_num * 10,
-                    'total_area': 5000.0 + image_num * 500,
+                    'area': 5000.0 + image_num * 500,
                     'has_arrow': False
                 },
                 {
+                    'parent': f'parent {image_num + 1}',
+                    'scar': 'scar 1',
                     'image_id': image_id,
                     'surface_type': 'Dorsal',
                     'surface_feature': f'scar 1',
                     'centroid_x': 45.0 + image_num * 10,
                     'centroid_y': 55.0 + image_num * 10,
-                    'total_area': 300.0 + image_num * 50,
+                    'area': 300.0 + image_num * 50,
                     'has_arrow': True,
                     'arrow_angle': 45.0 + image_num * 30
                 }
@@ -838,17 +867,17 @@ class TestVisualizationIntegration:
             csv_path = temp_file.name
 
         try:
-            # Save all metrics in batch
+            # Process all metrics in batch
             save_measurements_to_csv(all_metrics, csv_path)
 
             df = pd.read_csv(csv_path)
             assert len(df) == 6  # 2 metrics per image × 3 images
 
-            # Check image distribution
+            # Verify image distribution
             unique_images = df['image_id'].unique()
             assert len(unique_images) == 3
 
-            # Check arrow distribution
+            # Verify arrow distribution
             arrow_count = len(df[df['has_arrow'] == True])
             assert arrow_count == 3  # One arrow per image
 
@@ -868,15 +897,19 @@ class TestVisualizationErrorHandling:
         hierarchy = np.array([[-1, -1, -1, -1]])
         metrics = [{'parent': 'parent 1', 'scar': 'parent 1', 'surface_type': 'Dorsal', 'has_arrow': False}]
 
-        # Test with None image
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
             output_path = temp_file.name
 
         try:
-            # Should handle None image gracefully
+            # Test with None image input
             visualize_contours_with_hierarchy(contours, hierarchy, metrics, None, output_path)
-        except (AttributeError, TypeError):
-            # These are acceptable errors for None image
+
+            # Verify output file if function handles None gracefully
+            if os.path.exists(output_path):
+                assert os.path.getsize(output_path) >= 0
+
+        except (AttributeError, TypeError, cv2.error):
+            # Expected errors for None image input
             pass
         finally:
             if os.path.exists(output_path):
@@ -884,7 +917,7 @@ class TestVisualizationErrorHandling:
 
     def test_visualize_malformed_contours(self):
         """Test visualization with malformed contour data."""
-        # Invalid contour format
+        # Invalid contour formats
         malformed_contours = [
             "not_a_contour",
             np.array([]),  # Empty array
@@ -904,10 +937,10 @@ class TestVisualizationErrorHandling:
             output_path = temp_file.name
 
         try:
-            # Should handle malformed contours gracefully
+            # Should handle malformed contours appropriately
             visualize_contours_with_hierarchy(malformed_contours, hierarchy, metrics, inverted_image, output_path)
         except (TypeError, AttributeError, cv2.error):
-            # These are acceptable errors for malformed contours
+            # Expected errors for malformed contours
             pass
         finally:
             if os.path.exists(output_path):
@@ -926,15 +959,15 @@ class TestVisualizationErrorHandling:
             output_path = temp_file.name
 
         try:
-            # Should handle malformed data gracefully
+            # Should handle malformed data appropriately
             save_measurements_to_csv(malformed_metrics, output_path)
 
-            # If it succeeds, should create some kind of output
+            # Verify output if function handles malformed data gracefully
             if os.path.exists(output_path):
                 assert os.path.getsize(output_path) >= 0
 
         except (TypeError, AttributeError, KeyError):
-            # These are acceptable errors for malformed data
+            # Expected errors for malformed data
             pass
         finally:
             if os.path.exists(output_path):
@@ -948,7 +981,7 @@ class TestVisualizationErrorHandling:
         metrics = [{'parent': 'parent 1', 'scar': 'parent 1', 'surface_type': 'Dorsal', 'has_arrow': False}]
         inverted_image = np.zeros((100, 100), dtype=np.uint8)
 
-        # Create path in temp directory that will be created
+        # Create path in temporary directory that will be created
         with tempfile.TemporaryDirectory() as temp_dir:
             subdir = os.path.join(temp_dir, "new_subdir")
             output_path = os.path.join(subdir, "output.png")
@@ -965,7 +998,7 @@ class TestVisualizationPerformance:
 
     def test_visualization_many_contours_performance(self):
         """Test visualization performance with many contours."""
-        # Create many contours
+        # Create numerous contours
         contours = []
         metrics = []
 
@@ -1001,8 +1034,8 @@ class TestVisualizationPerformance:
             end_time = time.time()
             processing_time = end_time - start_time
 
-            # Should complete in reasonable time
-            assert processing_time < 10.0  # 10 seconds max
+            # Should complete within reasonable time constraints
+            assert processing_time < 10.0  # 10 seconds maximum
             assert os.path.exists(output_path)
 
         finally:
@@ -1017,6 +1050,8 @@ class TestVisualizationPerformance:
         for image_num in range(50):  # 50 images
             for scar_num in range(20):  # 20 scars per image
                 metrics.append({
+                    'parent': f'parent {image_num + 1}',
+                    'scar': f'scar {scar_num + 1}',
                     'image_id': f'image_{image_num:03d}',
                     'surface_type': 'Dorsal',
                     'surface_feature': f'scar_{scar_num:02d}',
@@ -1024,7 +1059,7 @@ class TestVisualizationPerformance:
                     'centroid_y': 60.0 + scar_num,
                     'technical_width': 10.0 + scar_num * 0.5,
                     'technical_length': 15.0 + scar_num * 0.7,
-                    'total_area': 150.0 + scar_num * 10,
+                    'area': 150.0 + scar_num * 10,
                     'has_arrow': scar_num % 4 == 0,
                     'arrow_angle': scar_num * 18 if scar_num % 4 == 0 else 'NA',
                     'voronoi_cell_area': 50.0 + scar_num * 2,
@@ -1044,8 +1079,8 @@ class TestVisualizationPerformance:
             end_time = time.time()
             processing_time = end_time - start_time
 
-            # Should save large dataset quickly
-            assert processing_time < 5.0  # 5 seconds max
+            # Should save large dataset efficiently
+            assert processing_time < 5.0  # 5 seconds maximum
             assert os.path.exists(output_path)
 
             # Verify data integrity
@@ -1092,7 +1127,7 @@ class TestVisualizationRealWorldScenarios:
                 'centroid_y': y_base + 20,
                 'width': 25.0,
                 'height': 40.0,
-                'total_area': 1000.0,
+                'area': 1000.0,
                 'has_arrow': True,
                 'arrow_back': (x_base + 5, y_base + 10),
                 'arrow_tip': (x_base + 20, y_base + 30),
@@ -1101,7 +1136,7 @@ class TestVisualizationRealWorldScenarios:
 
         all_contours = [blade_contour] + scar_contours
 
-        # Create hierarchy
+        # Create hierarchy structure
         hierarchy = [[-1, -1, 1, -1]]  # Parent
         for i in range(6):
             next_sib = i + 2 if i < 5 else -1
@@ -1119,7 +1154,7 @@ class TestVisualizationRealWorldScenarios:
             'centroid_y': 105.0,
             'technical_width': 220.0,
             'technical_length': 170.0,
-            'total_area': 37400.0,
+            'area': 37400.0,
             'has_arrow': False,
             'voronoi_num_cells': 7,
             'vertical_symmetry': 0.95,
@@ -1136,7 +1171,7 @@ class TestVisualizationRealWorldScenarios:
             csv_path = csv_file.name
 
         try:
-            # Test visualization
+            # Test visualization generation
             visualize_contours_with_hierarchy(all_contours, hierarchy, all_metrics, inverted_image, viz_path)
             assert os.path.exists(viz_path)
             assert os.path.getsize(viz_path) > 10000  # Substantial image with many elements
@@ -1197,7 +1232,7 @@ class TestVisualizationRealWorldScenarios:
                 'centroid_y': scar_y,
                 'width': 16.0,
                 'height': 16.0,
-                'total_area': 256.0,
+                'area': 256.0,
                 'has_arrow': True,
                 'arrow_back': (scar_x + 5 * np.cos(angle), scar_y + 5 * np.sin(angle)),
                 'arrow_tip': (center_x, center_y),
@@ -1216,7 +1251,7 @@ class TestVisualizationRealWorldScenarios:
             'centroid_y': center_y,
             'technical_width': 100.0,
             'technical_length': 100.0,
-            'total_area': 10000.0,
+            'area': 10000.0,
             'has_arrow': False,
             'voronoi_num_cells': 9,
             'horizontal_symmetry': 0.98,

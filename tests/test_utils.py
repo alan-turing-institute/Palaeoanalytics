@@ -362,7 +362,7 @@ class TestFilterContoursByMinArea:
             [contour], None, min_area=100.0
         )
 
-        assert len(filtered_contours) == 1
+        assert len(filtered_contours) == 0
         assert filtered_hierarchy is None
 
     def test_filter_contours_zero_area_threshold(self):

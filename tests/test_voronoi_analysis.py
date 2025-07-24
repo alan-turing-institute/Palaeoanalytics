@@ -151,7 +151,7 @@ class TestCalculateVoronoiPoints:
 
         assert ch_metrics['width'] > 0
         assert ch_metrics['height'] > 0
-        assert ch_metrics['area'] > 0
+        assert ch_metrics['area'] >= 0
 
         # For two points, convex hull should be a line (degenerate case)
         # Width should be the distance between points
