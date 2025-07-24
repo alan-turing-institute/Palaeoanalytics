@@ -152,15 +152,21 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
 
         # Step 7: Perform symmetry analysis for dorsal surface
         try:
-            symmetry_scores = analyze_dorsal_symmetry(metrics, sorted_contours.get("parents", []), inverted_image)
+            # Combine all contours to ensure indices align with metrics
+            all_contours = (sorted_contours.get("parents", []) +
+                           sorted_contours.get("children", []) +
+                           sorted_contours.get("nested_children", []))
 
-            if symmetry_scores:
+            symmetry_scores = analyze_dorsal_symmetry(metrics, all_contours, inverted_image)
+
+            if symmetry_scores and any(v is not None for v in symmetry_scores.values()):
+                # Apply symmetry data only to dorsal surface metrics
                 for metric in metrics:
                     if metric.get("surface_type") == "Dorsal":
                         metric.update(symmetry_scores)
                 logging.info("Symmetry analysis completed successfully")
             else:
-                logging.warning("No symmetry scores returned from analyze_dorsal_symmetry")
+                logging.warning("No valid symmetry scores returned from analyze_dorsal_symmetry")
 
         except Exception as e:
             logging.error(f"Error in symmetry analysis: {e}")

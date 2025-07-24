@@ -421,8 +421,19 @@ class TestPipelineIntegrationScenarios:
                 mock_save.assert_called_once()
 
                 # Verify final CSV data
+                # Debug version - add this before the assertion that's failing:
+
+                # Verify final CSV data
                 save_call_args = mock_save.call_args[0]
                 final_metrics = save_call_args[0]
+
+                # DEBUG: Print what's actually in the metrics
+                print("\n=== DEBUG: Final metrics content ===")
+                for i, metric in enumerate(final_metrics):
+                    print(f"Metric {i}: {metric.keys()}")
+                    if metric.get('surface_type') == 'Dorsal':
+                        print(f"  Dorsal metric: {metric}")
+                print("=====================================\n")
 
                 assert len(final_metrics) == 4
 

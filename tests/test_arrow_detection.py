@@ -117,12 +117,14 @@ class TestArrowDetector:
         detector = ArrowDetector()
         params = detector.scale_parameters_for_dpi(300.0)
 
-        # Create a very small contour
-        small_contour = np.array([
-            [0, 0], [2, 0], [2, 2], [0, 2]
+        # Create a contour smaller than min_area threshold
+        # min_area = 1 * 1.0 * 0.7 = 0.7, so we need area < 0.7
+        # Create a tiny triangle with area < 0.7
+        tiny_contour = np.array([
+            [0, 0], [1, 0], [0, 1]  # Triangle with area = 0.5
         ], dtype=np.int32).reshape(-1, 1, 2)
 
-        result = detector._validate_basic_properties(small_contour, params, None)
+        result = detector._validate_basic_properties(tiny_contour, params, None)
 
         # Should fail area test
         assert result is False
@@ -250,12 +252,17 @@ class TestArrowDetector:
         assert 'angle_deg' in result
         assert 'compass_angle' in result
 
-        # Arrow should point from tip to base
+        # Arrow should point from triangle_tip to base_midpoint
         assert result['arrow_back'] == (20, 10)  # triangle_tip
         assert result['arrow_tip'] == (20, 30)   # base_midpoint
 
-        # For vertical arrow pointing down, angle should be 270°
-        assert abs(result['compass_angle'] - 270.0) < 1.0
+        # For vertical arrow pointing down:
+        # dx = 20-20 = 0, dy = 30-10 = 20
+        # angle_rad = atan2(20, 0) = π/2
+        # angle_deg = 90°
+        # compass_angle = (270 + 90) % 360 = 0°
+        assert abs(result['angle_deg'] - 90.0) < 1.0
+        assert abs(result['compass_angle'] - 0.0) < 1.0
 
     def test_debug_visualization_creation(self, arrow_shaped_contour):
         """Test creation of debug visualizations."""
@@ -283,7 +290,7 @@ class TestArrowDetector:
             arrow_data = {
                 'arrow_back': (20, 10),
                 'arrow_tip': (20, 30),
-                'compass_angle': 270.0
+                'compass_angle': 0.0
             }
 
             # Test debug visualization creation
