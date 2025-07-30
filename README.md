@@ -226,8 +226,8 @@ drawing you might have to modify this configuration file. You can modify or crea
 Output images are saved in the 'processed' images directory for validation of the data extraction process. An example of these images are the following:
 
 <p float="left">
-<img src="figures/rub_al_khali_lithic_surfaces.png" width="310" />
-<img src="figures/rub_al_khali_lithium_voranoi.png" width="310" />
+<img src="figures/rub_al_khali_lithic_surfaces.png" height="310",  />
+<img src="figures/rub_al_khali_lithium_voranoi.png" height="310" />
 </p>
 
 ### Output data
