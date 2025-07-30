@@ -69,12 +69,12 @@ The inputs for `PyLithics` are images of lithic objects, images of their associa
 3. Apply noise removal and contrast stretching to images to minimize pixel variation.
 4. Pixel intensity thresholding of images to prepare for contour finding.
 5. Apply edge detection and contour finding to thresholded images.
-6. Calculate metrics of lithic surface features from found contours -- area, length, breath, shape, number of vertices.
+6. Calculate metrics of lithic surface features from found contours.
 7. Select contours which outline an entire lithic object's surfaces, or select contours of inner scars greater than 3% and less than 50% of the total size of its surface.
 8. Classify these selected surface contours as "Dorsal", "Ventral", "Lateral", and/or "Platform" depending on presence or absence. Assign scar contours to these surfaces.
-9. If present, find arrows using connected components and template matching, measure their angle and assign angle to associated scar.
+9. If present, find arrows, measure their angle and assign angle to associated scar.
 10. Plot resulting surface and scar contours on the original images for validation.
-11. Output data in a hierarchical json file detailing measurements of surface and scar contours.
+11. Output data in a CSV file detailing measurements of surface features and scar contours.
 
 Here you can find a schema of the workflow described above:
 
@@ -232,9 +232,9 @@ Output images are saved in the 'processed' images directory for validation of th
 
 ### Output data
 
-The output dataset is a JSON file with data for the lithic objects found in an image. The data is
+The output dataset is a CSV file with data for the lithic objects found in an image. The data is
 hierarchically organized by lithic surfaces (ventral, dorsal, platform). For each
-surface the metrics from its scars are recorded. In [this data output example,](output_example.md) you can find the json file
+surface the metrics from its scars are recorded. In [this data output example,](output_example.md) you can find the CSV file
 that results from running `PyLithics` on the above images, with comments to better understand the feature hierarchy and variables.
 
 # 🖌 Drawing style for `PyLithics` <a name="drawing"></a>
