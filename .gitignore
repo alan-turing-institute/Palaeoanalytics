@@ -246,3 +246,7 @@ fabric.properties
 .DS_Store
 .vscode/settings.json
 .claude/
+
+# Claude Code memory files (personal and project settings)
+CLAUDE.md
+CLAUDE.local.md
