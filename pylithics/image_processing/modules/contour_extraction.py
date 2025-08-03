@@ -264,10 +264,14 @@ def hide_nested_child_contours(contours, hierarchy):
         if parent_idx == -1 or parent_idx >= len(hierarchy):
             continue
 
-        # only flag if it's a first-level child and its parent has exactly one child
-        if parent_idx != -1 and hierarchy[parent_idx][3] == -1 and child_counts.get(parent_idx, 0) == 1:
-            if i < len(flags):
-                flags[i] = True
+        # NOTE: Disabled single-child exclusion to allow proper surface-based child classification
+        # This was excluding platform children when platform surfaces had only one child feature
+        # Let child classification handle exclusions based on surface types instead
+        # Original logic: only flag if it's a first-level child and its parent has exactly one child
+        # if parent_idx != -1 and hierarchy[parent_idx][3] == -1 and child_counts.get(parent_idx, 0) == 1:
+        #     if i < len(flags):
+        #         flags[i] = True
+        pass
 
     logging.info("Flagged %d single-child contours for exclusion.", sum(flags))
     return flags

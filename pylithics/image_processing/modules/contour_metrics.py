@@ -148,7 +148,7 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
             logging.warning(f"Child contour index {idx} out of bounds for hierarchy")
             pl = "Unknown"
 
-        lab = f"scar {ci+1}"
+        lab = f"child {ci+1}"  # Temporary label - will be updated after surface classification
         area = round(cv2.contourArea(cnt), 2)
 
         # Safe centroid calculation
@@ -217,7 +217,8 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
             "area": area, "aspect_ratio": round(y_axis_height/y_axis_width, 2) if y_axis_width > 0 else None,
             "max_length": ml, "max_width": mw,
             "bounding_box_x": x, "bounding_box_y": y,
-            "bounding_box_width": bbox_w, "bounding_box_height": bbox_h
+            "bounding_box_width": bbox_w, "bounding_box_height": bbox_h,
+            "contour": cnt.tolist()  # Store contour data for visualization
         }
         metrics.append(entry)
 

@@ -35,8 +35,17 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         if parent_label == scar_label:
             color = (153, 60, 94)   # purple for parents
             text  = m.get("surface_type", parent_label)
+        elif "scar" in scar_label.lower():
+            color = (99, 184, 253)  # orange for scars (dorsal surface only)
+            text  = scar_label
+        elif "mark_" in scar_label.lower():
+            color = (210, 171, 178)   # RGB 178,171,210 for platform marks
+            text  = scar_label
+        elif "edge_" in scar_label.lower():
+            color = (193, 205, 128)   # RGB 128,205,193 for lateral edges
+            text  = scar_label
         else:
-            color = (99, 184, 253)  # orange for children
+            color = (128, 128, 128) # gray for unknown/temporary labels
             text  = scar_label
 
         # Draw the contour
