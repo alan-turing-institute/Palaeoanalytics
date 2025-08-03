@@ -42,6 +42,7 @@ from .modules.contour_extraction import (
 )
 from .modules.contour_metrics import calculate_contour_metrics, convert_metrics_to_real_world
 from .modules.surface_classification import classify_parent_contours, classify_child_features
+from .modules.cortex_detection import detect_cortex_in_child_contours, calculate_total_cortex_metrics
 from .modules.symmetry_analysis import analyze_dorsal_symmetry
 from .modules.voronoi_analysis import calculate_voronoi_points, visualize_voronoi_diagram
 from .modules.arrow_integration import integrate_arrows
@@ -153,6 +154,20 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
             logging.info("Child feature classification completed successfully")
         except Exception as e:
             logging.error(f"Error in classify_child_features: {e}")
+
+        # Step 6b: Detect cortex in child contours
+        try:
+            metrics = detect_cortex_in_child_contours(metrics, inverted_image)
+            
+            # Calculate aggregate cortex metrics
+            cortex_stats = calculate_total_cortex_metrics(metrics)
+            if cortex_stats["cortex_count"] > 0:
+                logging.info(f"Cortex detection completed: {cortex_stats['cortex_count']} cortex areas "
+                           f"(total area: {cortex_stats['total_cortex_area']:.1f})")
+            else:
+                logging.info("No cortex detected in this artifact")
+        except Exception as e:
+            logging.error(f"Error in cortex detection: {e}")
 
         # Step 7: Add image identifier to all metrics
         for metric in metrics:

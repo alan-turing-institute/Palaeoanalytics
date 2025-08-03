@@ -483,6 +483,29 @@ def create_argument_parser() -> argparse.ArgumentParser:
              Useful for troubleshooting detection issues."""
     )
 
+    # Cortex Detection Options Group
+    cortex_group = parser.add_argument_group(
+        'CORTEX DETECTION OPTIONS',
+        'Control cortex detection and sensitivity settings'
+    )
+    cortex_group.add_argument(
+        '--disable_cortex_detection',
+        action='store_true',
+        help="""Completely disable cortex detection analysis.
+             Use if you only need basic scar detection without cortex identification.
+             Slightly speeds up processing for large batches."""
+    )
+    cortex_group.add_argument(
+        '--cortex_sensitivity',
+        type=str,
+        choices=['low', 'medium', 'high'],
+        help="""Set cortex detection sensitivity level.
+             - low: Only detect very obvious cortex (strict thresholds)
+             - medium: Standard detection (default settings)
+             - high: Detect subtle cortex patterns (permissive thresholds)
+             Overrides config file settings."""
+    )
+
     # Output Options Group
     output_group = parser.add_argument_group(
         'OUTPUT OPTIONS',
@@ -581,6 +604,13 @@ def show_config_help():
     level: INFO                       # DEBUG, INFO, WARNING, ERROR
     log_to_file: true                 # Save logs to file
     log_file: data/processed/pylithics.log
+    
+    # Cortex Detection Settings
+    cortex_detection:
+    enabled: true                      # Enable cortex detection
+    stippling_density_threshold: 0.2   # Minimum stippling density (0.1-1.0)
+    texture_variance_threshold: 100    # Minimum texture variance (50-500)
+    edge_density_threshold: 0.05       # Minimum edge density (0.01-0.2)
 
     # Analysis Parameters
     contour_filtering:
@@ -638,6 +668,20 @@ def show_examples_help():
     python app.py --data_dir ./large_collection --meta_file ./metadata.csv \\
                 --disable_arrow_detection
 
+    CORTEX DETECTION OPTIONS:
+    ------------------------
+    # Enable high sensitivity cortex detection
+    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
+                --cortex_sensitivity high
+    
+    # Disable cortex detection (faster processing)
+    python app.py --data_dir ./large_collection --meta_file ./metadata.csv \\
+                --disable_cortex_detection
+    
+    # Low sensitivity for obvious cortex only
+    python app.py --data_dir ./clean_artifacts --meta_file ./metadata.csv \\
+                --cortex_sensitivity low
+    
     CUSTOM CONFIGURATIONS:
     ---------------------
     # Use custom configuration file
@@ -823,6 +867,21 @@ def main() -> int:
 
         if args.arrow_debug:
             config_overrides['arrow_detection.debug_enabled'] = True
+
+        # Cortex detection overrides
+        if hasattr(args, 'disable_cortex_detection') and args.disable_cortex_detection:
+            config_overrides['cortex_detection.enabled'] = False
+        if hasattr(args, 'cortex_sensitivity') and args.cortex_sensitivity:
+            # Apply sensitivity presets
+            if args.cortex_sensitivity == 'low':
+                config_overrides['cortex_detection.stippling_density_threshold'] = 0.4
+                config_overrides['cortex_detection.texture_variance_threshold'] = 200
+                config_overrides['cortex_detection.edge_density_threshold'] = 0.1
+            elif args.cortex_sensitivity == 'high':
+                config_overrides['cortex_detection.stippling_density_threshold'] = 0.1
+                config_overrides['cortex_detection.texture_variance_threshold'] = 50
+                config_overrides['cortex_detection.edge_density_threshold'] = 0.02
+            # Medium sensitivity uses default config values
 
         # Apply overrides
         if config_overrides:

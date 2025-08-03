@@ -146,6 +146,24 @@ symmetry_analysis:
   # Analysis parameters
   calculation_method: area_based
 
+# Cortex Detection Configuration
+cortex_detection:
+  enabled: true  # Enable or disable cortex detection
+                 # - true: Cortex detection will be performed on child contours
+                 # - false: Skip cortex detection entirely
+
+  # Detection sensitivity parameters
+  # Lower values make detection more sensitive (detect more cortex)
+  # Higher values make detection more restrictive (detect less cortex)
+  stippling_density_threshold: 0.2  # Minimum density of small components (stippling)
+                                    # Range: 0.1-1.0, typical: 0.2
+  
+  texture_variance_threshold: 100   # Minimum texture variance for cortex
+                                    # Range: 50-500, typical: 100
+  
+  edge_density_threshold: 0.05      # Minimum edge density from stippling
+                                    # Range: 0.01-0.2, typical: 0.05
+
 # Data Export Configuration
 data_export:
   csv_format: true  # Export data in CSV format

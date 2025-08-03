@@ -35,8 +35,11 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         if parent_label == scar_label:
             color = (153, 60, 94)   # purple for parents
             text  = m.get("surface_type", parent_label)
+        elif "cortex " in scar_label.lower():
+            color = (39, 48, 215)     # RGB(215,48,39) for cortex (distinct from scars) - BGR format
+            text  = scar_label
         elif "scar" in scar_label.lower():
-            color = (99, 184, 253)  # orange for scars (dorsal surface only)
+            color = (99, 184, 253)    # orange for scars (dorsal surface only)
             text  = scar_label
         elif "mark_" in scar_label.lower():
             color = (210, 171, 178)   # RGB 178,171,210 for platform marks
@@ -45,7 +48,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
             color = (193, 205, 128)   # RGB 128,205,193 for lateral edges
             text  = scar_label
         else:
-            color = (128, 128, 128) # gray for unknown/temporary labels
+            color = (128, 128, 128)   # gray for unknown/temporary labels
             text  = scar_label
 
         # Draw the contour
@@ -61,15 +64,48 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
             cx,cy = x + w//2, y + h//2
         cv2.circle(labeled, (cx, cy), 4, (1, 97, 230), -1)
 
-        # Place label (avoid overlaps)
-        ts = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
-        tx, ty = cx + 10, cy - 10
-        for lx, ly, lw, lh in label_positions:
-            if tx < lx+lw and tx+ts[0] > lx and ty < ly+lh and ty+ts[1] > ly:
-                ty = ly + lh + 10
+        # Place label with improved positioning to avoid overlaps
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.7  # Consistent font size for ALL labels
+        thickness = 1     # Consistent thickness for ALL labels
+        ts = cv2.getTextSize(text, font, font_scale, thickness)[0]
+        
+        # Try multiple positions: right, left, above, below centroid
+        potential_positions = [
+            (cx + 15, cy - 5),   # Right of centroid
+            (cx - ts[0] - 15, cy - 5),  # Left of centroid  
+            (cx - ts[0]//2, cy - 25),   # Above centroid
+            (cx - ts[0]//2, cy + 25)    # Below centroid
+        ]
+        
+        # Find best position that avoids overlaps
+        tx, ty = potential_positions[0]  # Default to right
+        for pos_x, pos_y in potential_positions:
+            # Check if this position overlaps with existing labels
+            overlaps = False
+            for lx, ly, lw, lh in label_positions:
+                if (pos_x < lx + lw + 5 and pos_x + ts[0] + 5 > lx and 
+                    pos_y < ly + lh + 5 and pos_y + ts[1] + 5 > ly):
+                    overlaps = True
+                    break
+            if not overlaps:
+                tx, ty = pos_x, pos_y
+                break
+        
         label_positions.append((tx, ty, ts[0], ts[1]))
-        cv2.putText(labeled, text, (tx, ty),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (186,186,186), 2)
+        
+        # All labels use black text on white background for consistency
+        # Create background rectangle with padding (like arrow angles)
+        padding = 4
+        text_bg_pt1 = (tx - padding, ty - ts[1] - padding)
+        text_bg_pt2 = (tx + ts[0] + padding, ty + padding)
+        
+        # Draw white background with black border
+        cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (255, 255, 255), -1)  # White fill
+        cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (0, 0, 0), 1)        # Black border
+        
+        # Draw text in black with consistent parameters
+        cv2.putText(labeled, text, (tx, ty), font, font_scale, (0, 0, 0), thickness)
 
 
     # Draw arrows for all detected arrow features
@@ -119,7 +155,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
                     text = f"{int(angle)} deg"
                     font = cv2.FONT_HERSHEY_SIMPLEX
                     font_scale = 0.7
-                    thickness = 2
+                    thickness = 1  # Match label thickness for consistency
 
                     # Get text size
                     (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
@@ -206,6 +242,10 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             "horizontal_symmetry": metric.get("horizontal_symmetry", "NA"),
             # Lateral surface measurements
             "lateral_convexity": metric.get("lateral_convexity", "NA"),
+            # Cortex measurements
+            "is_cortex": metric.get("is_cortex", False),
+            "cortex_area": metric.get("cortex_area", "NA"),
+            "cortex_percentage": metric.get("cortex_percentage", "NA"),
             # arrow data with explicit type handling
             "has_arrow": has_arrow,
             "arrow_angle": metric.get("arrow_angle", "NA"),
@@ -245,6 +285,11 @@ def save_measurements_to_csv(metrics, output_path, append=False):
         "lateral_convexity"
     ]
 
+    # Cortex analysis columns
+    cortex_columns = [
+        "is_cortex", "cortex_area", "cortex_percentage"
+    ]
+
     # Arrow columns
     arrow_columns = [
         "has_arrow",
@@ -261,7 +306,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     if any("tip_solidity" in m for m in metrics):
         arrow_columns.append("tip_solidity")
 
-    all_columns = base_columns + voronoi_columns + symmetry_columns + lateral_columns + arrow_columns
+    all_columns = base_columns + voronoi_columns + symmetry_columns + lateral_columns + cortex_columns + arrow_columns
 
     # Create DataFrame with all columns, handling any missing columns gracefully
     df = pd.DataFrame(updated_data)

@@ -252,6 +252,18 @@ def get_arrow_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]:
     })
 
 
+def get_cortex_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]:
+    """Get cortex detection configuration with defaults."""
+    if config is None:
+        config = get_config_manager().config
+    return config.get('cortex_detection', {
+        'enabled': True,
+        'stippling_density_threshold': 0.2,
+        'texture_variance_threshold': 100,
+        'edge_density_threshold': 0.05
+    })
+
+
 def clear_config_cache() -> None:
     """Clear the configuration cache (useful for testing)."""
     get_contour_filtering_config.cache_clear()
