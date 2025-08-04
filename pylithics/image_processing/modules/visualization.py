@@ -62,7 +62,14 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         else:
             x,y,w,h = cv2.boundingRect(cnt)
             cx,cy = x + w//2, y + h//2
-        cv2.circle(labeled, (cx, cy), 4, color, -1)
+        
+        # Double size for surface centroids (purple color)
+        if color == (153, 60, 94):  # Surface centroid color (BGR format)
+            centroid_radius = 8  # Double the normal size
+        else:
+            centroid_radius = 4  # Normal size for all other centroids
+        
+        cv2.circle(labeled, (cx, cy), centroid_radius, color, -1)
         
         # Store info for label drawing phase (include contour color for border matching)
         contour_info.append((cnt, cx, cy, text, i, color))
