@@ -54,7 +54,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         # Draw the contour
         cv2.drawContours(labeled, [cnt], -1, color, 2)
 
-        # Compute and draw centroid
+        # Compute and draw centroid (using same color as contour)
         M = cv2.moments(cnt)
         if M.get("m00", 0) != 0:
             cx = int(M["m10"]/M["m00"])
@@ -62,7 +62,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         else:
             x,y,w,h = cv2.boundingRect(cnt)
             cx,cy = x + w//2, y + h//2
-        cv2.circle(labeled, (cx, cy), 4, (1, 97, 230), -1)
+        cv2.circle(labeled, (cx, cy), 4, color, -1)
         
         # Store info for label drawing phase (include contour color for border matching)
         contour_info.append((cnt, cx, cy, text, i, color))
@@ -132,13 +132,21 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         text_bg_pt1 = (tx - padding, ty - ts[1] - padding)
         text_bg_pt2 = (tx + ts[0] + padding, ty + padding)
         
+        # Clean up edge label formatting (edge_1 -> edge 1)
+        if "edge_" in text.lower():
+            text = text.replace("edge_", "edge ")
+        
         # Determine border color based on label type
         if "scar" in text.lower():
             border_color = (99, 184, 253)      # Orange border for scar labels (matches contour color)
         elif text.lower() in ['dorsal', 'ventral', 'platform', 'lateral']:
             border_color = contour_color        # Use parent contour color for surface labels
+        elif "edge " in text.lower():
+            border_color = contour_color        # Use lateral contour color for edge labels
+        elif "cortex" in text.lower():
+            border_color = contour_color        # Use red contour color for cortex labels
         else:
-            border_color = (0, 0, 0)           # Black border for all other labels (cortex, angles, etc.)
+            border_color = (0, 0, 0)           # Black border for all other labels (angles, etc.)
         
         # Draw white background with appropriate border color
         cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (255, 255, 255), -1)  # White fill
@@ -180,7 +188,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
                     offset_distance = 40
                     perp_offset = perp_vector * offset_distance
 
-                    text = f"{int(angle)} deg"
+                    text = f"{int(angle)}deg"
                     font = cv2.FONT_HERSHEY_DUPLEX
                     font_scale = 0.7  # Identical to scar/cortex labels
                     thickness = 1     # Identical to scar/cortex labels
