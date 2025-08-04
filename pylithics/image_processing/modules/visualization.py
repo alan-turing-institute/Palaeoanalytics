@@ -21,8 +21,8 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
     # Make BGR image for color drawing
     labeled = cv2.cvtColor(original, cv2.COLOR_GRAY2BGR)
 
-    # Draw contours, centroids, and labels
-    label_positions = []
+    # Phase 1: Draw ALL contours and centroids first
+    contour_info = []  # Store info for label drawing phase
     for i, cnt in enumerate(contours):
         if i >= len(metrics):
             continue
@@ -63,49 +63,89 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
             x,y,w,h = cv2.boundingRect(cnt)
             cx,cy = x + w//2, y + h//2
         cv2.circle(labeled, (cx, cy), 4, (1, 97, 230), -1)
+        
+        # Store info for label drawing phase (include contour color for border matching)
+        contour_info.append((cnt, cx, cy, text, i, color))
+
+    # Phase 2: Draw ALL labels on top of contours
+    label_positions = []
+    for cnt, cx, cy, text, i, contour_color in contour_info:
 
         # Place label with improved positioning to avoid overlaps
-        font = cv2.FONT_HERSHEY_SIMPLEX
+        font = cv2.FONT_HERSHEY_DUPLEX
         font_scale = 0.7  # Consistent font size for ALL labels
         thickness = 1     # Consistent thickness for ALL labels
         ts = cv2.getTextSize(text, font, font_scale, thickness)[0]
         
-        # Try multiple positions: right, left, above, below centroid
+        # Try multiple positions: right, left, above, below centroid with increased distances
         potential_positions = [
-            (cx + 15, cy - 5),   # Right of centroid
-            (cx - ts[0] - 15, cy - 5),  # Left of centroid  
-            (cx - ts[0]//2, cy - 25),   # Above centroid
-            (cx - ts[0]//2, cy + 25)    # Below centroid
+            (cx + 20, cy - 5),   # Right of centroid (increased distance)
+            (cx - ts[0] - 20, cy - 5),  # Left of centroid (increased distance)
+            (cx - ts[0]//2, cy - 30),   # Above centroid (increased distance)
+            (cx - ts[0]//2, cy + 30),   # Below centroid (increased distance)
+            (cx + 25, cy - 20),  # Top-right diagonal
+            (cx - ts[0] - 25, cy - 20),  # Top-left diagonal
+            (cx + 25, cy + 15),  # Bottom-right diagonal
+            (cx - ts[0] - 25, cy + 15)   # Bottom-left diagonal
         ]
         
-        # Find best position that avoids overlaps
+        # Find best position that avoids overlaps with labels and contour areas
         tx, ty = potential_positions[0]  # Default to right
         for pos_x, pos_y in potential_positions:
             # Check if this position overlaps with existing labels
             overlaps = False
+            
+            # Check overlap with existing labels
             for lx, ly, lw, lh in label_positions:
-                if (pos_x < lx + lw + 5 and pos_x + ts[0] + 5 > lx and 
-                    pos_y < ly + lh + 5 and pos_y + ts[1] + 5 > ly):
+                if (pos_x < lx + lw + 8 and pos_x + ts[0] + 8 > lx and 
+                    pos_y < ly + lh + 8 and pos_y + ts[1] + 8 > ly):
                     overlaps = True
                     break
+            
+            # Check if position is too close to contour outline (avoid contour line overlap)
+            if not overlaps:
+                # Create a small test region around the proposed label position
+                test_region = np.array([
+                    [pos_x - 5, pos_y - ts[1] - 5],
+                    [pos_x + ts[0] + 5, pos_y - ts[1] - 5],
+                    [pos_x + ts[0] + 5, pos_y + 5],
+                    [pos_x - 5, pos_y + 5]
+                ], dtype=np.int32)
+                
+                # Check if test region intersects with current contour outline
+                distance_to_contour = cv2.pointPolygonTest(cnt, (pos_x + ts[0]//2, pos_y - ts[1]//2), True)
+                if abs(distance_to_contour) < 8:  # Too close to contour edge
+                    overlaps = True
+            
             if not overlaps:
                 tx, ty = pos_x, pos_y
                 break
         
         label_positions.append((tx, ty, ts[0], ts[1]))
         
-        # All labels use black text on white background for consistency
-        # Create background rectangle with padding (like arrow angles)
+        # Ensure label stays within image bounds
+        tx = max(5, min(tx, labeled.shape[1] - ts[0] - 5))
+        ty = max(ts[1] + 5, min(ty, labeled.shape[0] - 5))
+        
+        # All labels use identical formatting (matching angle labels exactly)
         padding = 4
         text_bg_pt1 = (tx - padding, ty - ts[1] - padding)
         text_bg_pt2 = (tx + ts[0] + padding, ty + padding)
         
-        # Draw white background with black border
-        cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (255, 255, 255), -1)  # White fill
-        cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (0, 0, 0), 1)        # Black border
+        # Determine border color based on label type
+        if "scar" in text.lower():
+            border_color = (99, 184, 253)      # Orange border for scar labels (matches contour color)
+        elif text.lower() in ['dorsal', 'ventral', 'platform', 'lateral']:
+            border_color = contour_color        # Use parent contour color for surface labels
+        else:
+            border_color = (0, 0, 0)           # Black border for all other labels (cortex, angles, etc.)
         
-        # Draw text in black with consistent parameters
-        cv2.putText(labeled, text, (tx, ty), font, font_scale, (0, 0, 0), thickness)
+        # Draw white background with appropriate border color
+        cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (255, 255, 255), -1)  # White fill
+        cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, border_color, 1)      # Colored border
+        
+        # Draw text in black with anti-aliasing (identical to angle labels)
+        cv2.putText(labeled, text, (tx, ty), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
 
 
     # Draw arrows for all detected arrow features
@@ -140,36 +180,65 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
                     offset_distance = 40
                     perp_offset = perp_vector * offset_distance
 
-                    # Calculate text position at 1/3 of the shaft from the back, offset perpendicular
-                    shaft_fraction = 1/3
-                    text_base_pos = (
-                        int(back[0] + shaft_vector[0] * shaft_fraction),
-                        int(back[1] + shaft_vector[1] * shaft_fraction)
-                    )
-                    text_pos = (
-                        int(text_base_pos[0] + perp_offset[0]),
-                        int(text_base_pos[1] + perp_offset[1])
-                    )
-
-
                     text = f"{int(angle)} deg"
-                    font = cv2.FONT_HERSHEY_SIMPLEX
-                    font_scale = 0.7
-                    thickness = 1  # Match label thickness for consistency
+                    font = cv2.FONT_HERSHEY_DUPLEX
+                    font_scale = 0.7  # Identical to scar/cortex labels
+                    thickness = 1     # Identical to scar/cortex labels
 
                     # Get text size
                     (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
 
-                    # Create bigger background rectangle with padding
-                    padding = 4
+                    # Try multiple positions to avoid overlap with existing labels
+                    potential_angle_positions = []
+                    
+                    # Calculate multiple positions around the arrow shaft
+                    for shaft_fraction in [0.2, 0.4, 0.6, 0.8]:  # Different positions along shaft
+                        for offset_mult in [1, -1, 1.5, -1.5]:  # Both sides and further out
+                            text_base_pos = (
+                                int(back[0] + shaft_vector[0] * shaft_fraction),
+                                int(back[1] + shaft_vector[1] * shaft_fraction)
+                            )
+                            current_offset = perp_offset * offset_mult
+                            test_pos = (
+                                int(text_base_pos[0] + current_offset[0]),
+                                int(text_base_pos[1] + current_offset[1])
+                            )
+                            potential_angle_positions.append(test_pos)
+                    
+                    # Find best position that doesn't overlap with existing labels
+                    text_pos = potential_angle_positions[0]  # Default
+                    for candidate_pos in potential_angle_positions:
+                        # Check if this position overlaps with existing scar/cortex labels
+                        overlaps_with_existing = False
+                        for lx, ly, lw, lh in label_positions:
+                            if (candidate_pos[0] < lx + lw + 10 and candidate_pos[0] + text_width + 10 > lx and 
+                                candidate_pos[1] < ly + lh + 10 and candidate_pos[1] + text_height + 10 > ly):
+                                overlaps_with_existing = True
+                                break
+                        
+                        # Check if position is within image bounds
+                        if (candidate_pos[0] > 10 and candidate_pos[0] + text_width < labeled.shape[1] - 10 and
+                            candidate_pos[1] > text_height + 10 and candidate_pos[1] < labeled.shape[0] - 10):
+                            if not overlaps_with_existing:
+                                text_pos = candidate_pos
+                                break
+                    
+                    # Ensure final position is within bounds
+                    text_pos = (
+                        max(5, min(text_pos[0], labeled.shape[1] - text_width - 5)),
+                        max(text_height + 5, min(text_pos[1], labeled.shape[0] - 5))
+                    )
+
+                    # Create background rectangle with identical formatting to scar/cortex labels
+                    padding = 4  # Identical to scar/cortex labels
                     text_bg_pt1 = (text_pos[0] - padding, text_pos[1] - text_height - padding)
                     text_bg_pt2 = (text_pos[0] + text_width + padding, text_pos[1] + padding)
 
-                    # Draw white background with black border
+                    # Draw white background with black border (identical to scar/cortex labels)
                     cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (255, 255, 255), -1)  # White fill
                     cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (0, 0, 0), 1)        # Black border
 
-                    # Draw text in black
+                    # Draw text in black with anti-aliasing (identical to scar/cortex labels)
                     cv2.putText(
                         labeled,
                         text,
@@ -180,6 +249,9 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
                         thickness,
                         cv2.LINE_AA
                     )
+                    
+                    # Add angle label position to tracking list to prevent future overlaps
+                    label_positions.append((text_pos[0], text_pos[1], text_width, text_height))
 
     # Save the labeled image
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
