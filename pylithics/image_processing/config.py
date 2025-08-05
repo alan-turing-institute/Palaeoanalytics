@@ -264,6 +264,16 @@ def get_cortex_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]
     })
 
 
+def get_scar_complexity_config(config: Optional[Dict] = None) -> Dict[str, Any]:
+    """Get scar complexity configuration with defaults."""
+    if config is None:
+        config = get_config_manager().config
+    return config.get('scar_complexity', {
+        'enabled': True,
+        'distance_threshold': 5.0
+    })
+
+
 def clear_config_cache() -> None:
     """Clear the configuration cache (useful for testing)."""
     get_contour_filtering_config.cache_clear()

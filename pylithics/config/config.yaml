@@ -164,6 +164,18 @@ cortex_detection:
   edge_density_threshold: 0.05      # Minimum edge density from stippling
                                     # Range: 0.01-0.2, typical: 0.05
 
+# Scar Complexity Configuration
+scar_complexity:
+  enabled: true  # Enable or disable scar complexity analysis
+                 # - true: Count border-sharing relationships for dorsal scars
+                 # - false: Skip scar complexity analysis
+  
+  distance_threshold: 10.0  # Distance threshold in pixels for adjacency detection
+                            # Scars within this distance are considered adjacent
+                            # Typical range: 3.0-20.0 pixels
+                            # Lower values = stricter adjacency detection
+                            # Higher values = more permissive adjacency detection
+
 # Data Export Configuration
 data_export:
   csv_format: true  # Export data in CSV format

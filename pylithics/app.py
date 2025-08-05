@@ -506,6 +506,30 @@ def create_argument_parser() -> argparse.ArgumentParser:
              Overrides config file settings."""
     )
 
+    # Scar Complexity Options Group
+    scar_group = parser.add_argument_group(
+        'SCAR COMPLEXITY OPTIONS',
+        'Control scar complexity analysis and adjacency detection'
+    )
+    scar_group.add_argument(
+        '--disable_scar_complexity',
+        action='store_true',
+        help="""Completely disable scar complexity analysis.
+             Use if you only need basic geometric measurements without adjacency counts.
+             Slightly speeds up processing for large batches."""
+    )
+    scar_group.add_argument(
+        '--scar_complexity_distance_threshold',
+        type=float,
+        metavar='PIXELS',
+        help="""Distance threshold in pixels for scar adjacency detection.
+             Scars within this distance are considered adjacent.
+             Typical range: 3.0-20.0 pixels
+             Lower values = stricter adjacency detection
+             Higher values = more permissive adjacency detection
+             Default: 10.0 pixels"""
+    )
+
     # Output Options Group
     output_group = parser.add_argument_group(
         'OUTPUT OPTIONS',
@@ -882,6 +906,12 @@ def main() -> int:
                 config_overrides['cortex_detection.texture_variance_threshold'] = 50
                 config_overrides['cortex_detection.edge_density_threshold'] = 0.02
             # Medium sensitivity uses default config values
+
+        # Scar complexity overrides
+        if hasattr(args, 'disable_scar_complexity') and args.disable_scar_complexity:
+            config_overrides['scar_complexity.enabled'] = False
+        if hasattr(args, 'scar_complexity_distance_threshold') and args.scar_complexity_distance_threshold:
+            config_overrides['scar_complexity.distance_threshold'] = args.scar_complexity_distance_threshold
 
         # Apply overrides
         if config_overrides:

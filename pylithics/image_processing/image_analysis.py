@@ -48,6 +48,7 @@ from .modules.voronoi_analysis import calculate_voronoi_points, visualize_vorono
 from .modules.arrow_integration import integrate_arrows
 from .modules.visualization import visualize_contours_with_hierarchy, save_measurements_to_csv
 from .modules.lateral_analysis import analyze_lateral_surface, _integrate_lateral_metrics
+from .modules.scar_complexity import analyze_scar_complexity, _integrate_complexity_results
 
 def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id, image_dpi=None):
     """
@@ -169,11 +170,26 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         except Exception as e:
             logging.error(f"Error in cortex detection: {e}")
 
-        # Step 7: Add image identifier to all metrics
+        # Step 7: Perform scar complexity analysis
+        try:
+            # Pass the full config to the scar complexity module
+            # The module will internally call get_scar_complexity_config()
+            from .config import get_config_manager
+            config_manager = get_config_manager()
+            complexity_results = analyze_scar_complexity(metrics, config_manager.config)
+            if complexity_results:
+                _integrate_complexity_results(metrics, complexity_results)
+                logging.info(f"Scar complexity analysis completed for {len(complexity_results)} scars")
+            else:
+                logging.info("No scar complexity results generated")
+        except Exception as e:
+            logging.error(f"Error in scar complexity analysis: {e}")
+
+        # Step 8: Add image identifier to all metrics
         for metric in metrics:
             metric["image_id"] = image_id
 
-        # Step 8: Perform symmetry analysis for dorsal surface
+        # Step 9: Perform symmetry analysis for dorsal surface
         try:
             # Combine all contours to ensure indices align with metrics
             all_contours = (sorted_contours.get("parents", []) +
@@ -194,7 +210,7 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         except Exception as e:
             logging.error(f"Error in symmetry analysis: {e}")
 
-        # Step 9: Calculate Voronoi diagram and convex hull metrics
+        # Step 10: Calculate Voronoi diagram and convex hull metrics
         try:
             voronoi_data = calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02)
 
@@ -209,7 +225,7 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         except Exception as e:
             logging.error(f"Error in Voronoi processing: {e}")
 
-        # Step 10: Perform lateral surface analysis
+        # Step 11: Perform lateral surface analysis
         try:
             lateral_results = analyze_lateral_surface(metrics, sorted_contours.get("parents", []), inverted_image)
 
@@ -223,7 +239,7 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
             logging.error(f"Error in lateral surface analysis: {e}")
             traceback.print_exc()
 
-        # Step 11: Integrate arrow detection
+        # Step 12: Integrate arrow detection
         try:
             scars_without_arrows = [m for m in metrics
                                   if m["parent"] != m["scar"] and not m.get('has_arrow', False)]
@@ -239,14 +255,14 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
             logging.error(f"Error in arrow detection: {e}")
             traceback.print_exc()
 
-        # Step 12: Save metrics to CSV
+        # Step 13: Save metrics to CSV
         try:
             csv_path = os.path.join(output_dir, "processed_metrics.csv")
             save_measurements_to_csv(metrics, csv_path, append=True)
         except Exception as e:
             logging.error(f"Error saving CSV: {e}")
 
-        # Step 13: Generate labeled visualization
+        # Step 14: Generate labeled visualization
         try:
             # Extract contours from metrics to ensure they match the classified metrics
             # metrics now contains parents + classified_children (no nested children or excluded ventral children)
@@ -263,7 +279,7 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         except Exception as e:
             logging.error(f"Error in visualization: {e}")
 
-        # Step 14: Generate Voronoi diagram visualization
+        # Step 15: Generate Voronoi diagram visualization
         try:
             if 'voronoi_data' in locals() and voronoi_data is not None:
                 voronoi_path = os.path.join(output_dir, f"{image_id}_voronoi.png")
