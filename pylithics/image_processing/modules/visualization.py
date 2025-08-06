@@ -38,13 +38,13 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         elif "cortex " in scar_label.lower():
             color = (39, 48, 215)     # RGB(215,48,39) for cortex (distinct from scars) - BGR format
             text  = scar_label
-        elif "scar" in scar_label.lower():
+        elif "scar " in scar_label.lower():
             color = (99, 184, 253)    # orange for scars (dorsal surface only)
             text  = scar_label
-        elif "mark_" in scar_label.lower():
+        elif "mark " in scar_label.lower():
             color = (210, 171, 178)   # RGB 178,171,210 for platform marks
             text  = scar_label
-        elif "edge_" in scar_label.lower():
+        elif "edge" in scar_label.lower():
             color = (193, 205, 128)   # RGB 128,205,193 for lateral edges
             text  = scar_label
         else:
@@ -62,15 +62,15 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         else:
             x,y,w,h = cv2.boundingRect(cnt)
             cx,cy = x + w//2, y + h//2
-        
+
         # Double size for surface centroids (purple color)
         if color == (153, 60, 94):  # Surface centroid color (BGR format)
             centroid_radius = 8  # Double the normal size
         else:
             centroid_radius = 4  # Normal size for all other centroids
-        
+
         cv2.circle(labeled, (cx, cy), centroid_radius, color, -1)
-        
+
         # Store info for label drawing phase (include contour color for border matching)
         contour_info.append((cnt, cx, cy, text, i, color))
 
@@ -83,7 +83,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         font_scale = 0.7  # Consistent font size for ALL labels
         thickness = 1     # Consistent thickness for ALL labels
         ts = cv2.getTextSize(text, font, font_scale, thickness)[0]
-        
+
         # Try multiple positions: right, left, above, below centroid with increased distances
         potential_positions = [
             (cx + 20, cy - 5),   # Right of centroid (increased distance)
@@ -95,20 +95,20 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
             (cx + 25, cy + 15),  # Bottom-right diagonal
             (cx - ts[0] - 25, cy + 15)   # Bottom-left diagonal
         ]
-        
+
         # Find best position that avoids overlaps with labels and contour areas
         tx, ty = potential_positions[0]  # Default to right
         for pos_x, pos_y in potential_positions:
             # Check if this position overlaps with existing labels
             overlaps = False
-            
+
             # Check overlap with existing labels
             for lx, ly, lw, lh in label_positions:
-                if (pos_x < lx + lw + 8 and pos_x + ts[0] + 8 > lx and 
+                if (pos_x < lx + lw + 8 and pos_x + ts[0] + 8 > lx and
                     pos_y < ly + lh + 8 and pos_y + ts[1] + 8 > ly):
                     overlaps = True
                     break
-            
+
             # Check if position is too close to contour outline (avoid contour line overlap)
             if not overlaps:
                 # Create a small test region around the proposed label position
@@ -118,47 +118,43 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
                     [pos_x + ts[0] + 5, pos_y + 5],
                     [pos_x - 5, pos_y + 5]
                 ], dtype=np.int32)
-                
+
                 # Check if test region intersects with current contour outline
                 distance_to_contour = cv2.pointPolygonTest(cnt, (pos_x + ts[0]//2, pos_y - ts[1]//2), True)
                 if abs(distance_to_contour) < 8:  # Too close to contour edge
                     overlaps = True
-            
+
             if not overlaps:
                 tx, ty = pos_x, pos_y
                 break
-        
+
         label_positions.append((tx, ty, ts[0], ts[1]))
-        
+
         # Ensure label stays within image bounds
         tx = max(5, min(tx, labeled.shape[1] - ts[0] - 5))
         ty = max(ts[1] + 5, min(ty, labeled.shape[0] - 5))
-        
+
         # All labels use identical formatting (matching angle labels exactly)
         padding = 4
         text_bg_pt1 = (tx - padding, ty - ts[1] - padding)
         text_bg_pt2 = (tx + ts[0] + padding, ty + padding)
-        
-        # Clean up edge label formatting (edge_1 -> edge 1)
-        if "edge_" in text.lower():
-            text = text.replace("edge_", "edge ")
-        
+
         # Determine border color based on label type
         if "scar" in text.lower():
             border_color = (99, 184, 253)      # Orange border for scar labels (matches contour color)
         elif text.lower() in ['dorsal', 'ventral', 'platform', 'lateral']:
             border_color = contour_color        # Use parent contour color for surface labels
-        elif "edge " in text.lower():
+        elif "edge" in text.lower():
             border_color = contour_color        # Use lateral contour color for edge labels
         elif "cortex" in text.lower():
             border_color = contour_color        # Use red contour color for cortex labels
         else:
             border_color = (0, 0, 0)           # Black border for all other labels (angles, etc.)
-        
+
         # Draw white background with appropriate border color
         cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (255, 255, 255), -1)  # White fill
-        cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, border_color, 1)      # Colored border
-        
+        cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, border_color, 2)      # Colored border
+
         # Draw text in black with anti-aliasing (identical to angle labels)
         cv2.putText(labeled, text, (tx, ty), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
 
@@ -195,7 +191,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
                     offset_distance = 40
                     perp_offset = perp_vector * offset_distance
 
-                    text = f"{int(angle)}deg"
+                    text = f"{int(angle)} deg"
                     font = cv2.FONT_HERSHEY_DUPLEX
                     font_scale = 0.7  # Identical to scar/cortex labels
                     thickness = 1     # Identical to scar/cortex labels
@@ -205,7 +201,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
 
                     # Try multiple positions to avoid overlap with existing labels
                     potential_angle_positions = []
-                    
+
                     # Calculate multiple positions around the arrow shaft
                     for shaft_fraction in [0.2, 0.4, 0.6, 0.8]:  # Different positions along shaft
                         for offset_mult in [1, -1, 1.5, -1.5]:  # Both sides and further out
@@ -219,25 +215,25 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
                                 int(text_base_pos[1] + current_offset[1])
                             )
                             potential_angle_positions.append(test_pos)
-                    
+
                     # Find best position that doesn't overlap with existing labels
                     text_pos = potential_angle_positions[0]  # Default
                     for candidate_pos in potential_angle_positions:
                         # Check if this position overlaps with existing scar/cortex labels
                         overlaps_with_existing = False
                         for lx, ly, lw, lh in label_positions:
-                            if (candidate_pos[0] < lx + lw + 10 and candidate_pos[0] + text_width + 10 > lx and 
+                            if (candidate_pos[0] < lx + lw + 10 and candidate_pos[0] + text_width + 10 > lx and
                                 candidate_pos[1] < ly + lh + 10 and candidate_pos[1] + text_height + 10 > ly):
                                 overlaps_with_existing = True
                                 break
-                        
+
                         # Check if position is within image bounds
                         if (candidate_pos[0] > 10 and candidate_pos[0] + text_width < labeled.shape[1] - 10 and
                             candidate_pos[1] > text_height + 10 and candidate_pos[1] < labeled.shape[0] - 10):
                             if not overlaps_with_existing:
                                 text_pos = candidate_pos
                                 break
-                    
+
                     # Ensure final position is within bounds
                     text_pos = (
                         max(5, min(text_pos[0], labeled.shape[1] - text_width - 5)),
@@ -264,7 +260,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
                         thickness,
                         cv2.LINE_AA
                     )
-                    
+
                     # Add angle label position to tracking list to prevent future overlaps
                     label_positions.append((text_pos[0], text_pos[1], text_width, text_height))
 
@@ -336,6 +332,8 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             # arrow data with explicit type handling
             "has_arrow": has_arrow,
             "arrow_angle": metric.get("arrow_angle", "NA"),
+            # scar complexity data
+            "scar_complexity": metric.get("scar_complexity", "NA"),
         }
 
         # Add additional arrow metrics if available
@@ -377,6 +375,11 @@ def save_measurements_to_csv(metrics, output_path, append=False):
         "is_cortex", "cortex_area", "cortex_percentage"
     ]
 
+    # Scar complexity columns
+    scar_complexity_columns = [
+        "scar_complexity"
+    ]
+
     # Arrow columns
     arrow_columns = [
         "has_arrow",
@@ -393,7 +396,7 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     if any("tip_solidity" in m for m in metrics):
         arrow_columns.append("tip_solidity")
 
-    all_columns = base_columns + voronoi_columns + symmetry_columns + lateral_columns + cortex_columns + arrow_columns
+    all_columns = base_columns + voronoi_columns + symmetry_columns + lateral_columns + cortex_columns + scar_complexity_columns + arrow_columns
 
     # Create DataFrame with all columns, handling any missing columns gracefully
     df = pd.DataFrame(updated_data)

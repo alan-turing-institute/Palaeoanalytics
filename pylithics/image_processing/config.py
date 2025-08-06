@@ -258,9 +258,18 @@ def get_cortex_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]
         config = get_config_manager().config
     return config.get('cortex_detection', {
         'enabled': True,
-        'stippling_density_threshold': 0.2,
-        'texture_variance_threshold': 100,
-        'edge_density_threshold': 0.05
+        'stippling_density_threshold': 0.2, # Minimum density of small dots/stipples per 1000 pixels
+                                            # Higher values = more restrictive cortex detection
+                                            # Lower values = more sensitive cortex detection
+                                            # Range: 0.1-1.0, typical: 0.2
+        'texture_variance_threshold': 100,  # Minimum texture roughness/irregularity for cortex
+                                            # Higher values = requires more textured surfaces
+                                            # Lower values = detects smoother surfaces as cortex
+                                            # Range: 50-500, typical: 100
+        'edge_density_threshold': 0.05      # Minimum proportion of edge pixels from stippling
+                                            # Higher values = requires more detailed edge patterns
+                                            # Lower values = accepts simpler edge patterns
+                                            # Range: 0.01-0.2, typical: 0.05
     })
 
 

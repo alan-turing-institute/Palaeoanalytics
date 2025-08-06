@@ -133,8 +133,8 @@ def detect_cortex_in_child_contours(metrics: List[Dict[str, Any]], inverted_imag
 
         # Lateral children → edges (excluding cortex)
         for i, child in enumerate(surface_children["Lateral"]):
-            child["scar"] = f"edge_{i+1}"
-            child["surface_feature"] = f"edge_{i+1}"
+            child["scar"] = f"edge {i+1}"
+            child["surface_feature"] = f"edge {i+1}"
             child["is_cortex"] = False
             final_non_cortex_children.append(child)
 
