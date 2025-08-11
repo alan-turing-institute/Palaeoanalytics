@@ -77,6 +77,10 @@ arrow_detection:
                         # - true: Creates debug images and logs for each arrow detection
                         # - false: Standard operation without debug output
 
+  show_arrow_lines: false  # Draw red arrow lines on detected arrows
+                           # - true: Draw both light blue contour outlines AND red arrow lines
+                           # - false: Draw only light blue contour outlines (default)
+
   # Advanced parameters (modify with caution)
   reference_thresholds:
     min_area: 1  # Minimum contour area at reference DPI

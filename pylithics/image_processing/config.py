@@ -248,7 +248,8 @@ def get_arrow_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]:
         'min_area_scale_factor': 0.7,
         'min_defect_depth_scale_factor': 0.8,
         'min_triangle_height_scale_factor': 0.8,
-        'debug_enabled': False
+        'debug_enabled': False,
+        'show_arrow_lines': False
     })
 
 

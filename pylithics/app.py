@@ -483,6 +483,15 @@ def create_argument_parser() -> argparse.ArgumentParser:
              Useful for troubleshooting detection issues."""
     )
 
+    arrow_group.add_argument(
+        '--show-arrow-lines',
+        action='store_true',
+        help="""Draw red arrow lines on detected arrows in visualization.
+             By default, only light blue contour outlines are shown for arrows.
+             Enable this flag to also draw the traditional red arrow lines
+             showing direction and angle. Useful for detailed directional analysis."""
+    )
+
     # Cortex Detection Options Group
     cortex_group = parser.add_argument_group(
         'CORTEX DETECTION OPTIONS',
@@ -688,6 +697,10 @@ def show_examples_help():
     python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
                 --arrow_debug --log_level DEBUG
 
+    # Show red arrow lines on detected arrows (default: only blue contours)
+    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
+                --show-arrow-lines
+
     # Disable arrow detection (faster processing)
     python app.py --data_dir ./large_collection --meta_file ./metadata.csv \\
                 --disable_arrow_detection
@@ -891,6 +904,9 @@ def main() -> int:
 
         if args.arrow_debug:
             config_overrides['arrow_detection.debug_enabled'] = True
+
+        if args.show_arrow_lines:
+            config_overrides['arrow_detection.show_arrow_lines'] = True
 
         # Cortex detection overrides
         if hasattr(args, 'disable_cortex_detection') and args.disable_cortex_detection:

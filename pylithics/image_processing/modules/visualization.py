@@ -3,9 +3,10 @@ import numpy as np
 import pandas as pd
 import os
 import logging
+from ..config import get_arrow_detection_config
 
 
-def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_image, output_path, arrow_contours=None):
+def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_image, output_path, arrow_contours=None, config=None):
     """
     Visualize contours with hierarchy, label them, and overlay detected arrows.
 
@@ -16,6 +17,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         inverted_image (ndarray): Inverted binary image (0=foreground, 255=background).
         output_path (str): File path to write the labeled image.
         arrow_contours (list, optional): List of grandchild contours that contain detected arrows.
+        config (dict, optional): Configuration dictionary for controlling visualization options.
     """
     # Invert back to white background
     original = cv2.bitwise_not(inverted_image)
@@ -184,22 +186,27 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         # Draw text in black with anti-aliasing (identical to angle labels)
         cv2.putText(labeled, text, (tx, ty), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
 
-    # Draw arrows for all detected arrow features
+    # Draw arrows for all detected arrow features (conditionally based on config)
+    arrow_config = get_arrow_detection_config(config)
+    show_arrow_lines = arrow_config.get('show_arrow_lines', False)
+    
     for m in metrics:
         if m.get("has_arrow") and m.get("arrow_back") and m.get("arrow_tip"):
             # Convert to integer tuples if needed
             back = tuple(int(v) for v in m["arrow_back"])
             tip = tuple(int(v) for v in m["arrow_tip"])
 
-            # Draw arrowed line (red)
-            cv2.arrowedLine(
-                labeled,
-                back,
-                tip,
-                color=(0, 0, 255),
-                thickness=2,
-                tipLength=0.2
-            )
+            # Only draw red arrow lines if enabled in configuration
+            if show_arrow_lines:
+                # Draw arrowed line (red)
+                cv2.arrowedLine(
+                    labeled,
+                    back,
+                    tip,
+                    color=(0, 0, 255),
+                    thickness=2,
+                    tipLength=0.2
+                )
 
             # Annotate compass bearing with better positioning
             angle = m.get("arrow_angle", None)

@@ -284,7 +284,7 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
                     
             visualization_path = os.path.join(output_dir, f"{image_id}_labeled.png")
             visualize_contours_with_hierarchy(visualization_contours, hierarchy, metrics,
-                                            inverted_image, visualization_path, arrow_contours)
+                                            inverted_image, visualization_path, arrow_contours, config_manager.config)
         except Exception as e:
             logging.error(f"Error in visualization: {e}")
 
