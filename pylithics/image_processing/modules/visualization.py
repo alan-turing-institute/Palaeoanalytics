@@ -5,7 +5,7 @@ import os
 import logging
 
 
-def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_image, output_path):
+def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_image, output_path, arrow_contours=None):
     """
     Visualize contours with hierarchy, label them, and overlay detected arrows.
 
@@ -15,6 +15,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         metrics (list): List of metric dicts, each may contain 'has_arrow', 'arrow_back', 'arrow_tip', 'arrow_angle'.
         inverted_image (ndarray): Inverted binary image (0=foreground, 255=background).
         output_path (str): File path to write the labeled image.
+        arrow_contours (list, optional): List of grandchild contours that contain detected arrows.
     """
     # Invert back to white background
     original = cv2.bitwise_not(inverted_image)
@@ -23,6 +24,31 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
 
     # Phase 1: Draw ALL contours and centroids first
     contour_info = []  # Store info for label drawing phase
+    
+    # First, draw arrow grandchild contours (if any) to maintain proper layering
+    # Only draw outlines for grandchild contours that actually contain detected arrows
+    if arrow_contours:
+        # Collect all detected arrow coordinates
+        arrow_points = []
+        for m in metrics:
+            if m.get("has_arrow") and m.get("arrow_back") and m.get("arrow_tip"):
+                arrow_points.extend([m["arrow_back"], m["arrow_tip"]])
+        
+        # Only draw contours that contain arrow points
+        for arrow_contour in arrow_contours:
+            contains_arrow = False
+            for arrow_point in arrow_points:
+                # Check if this arrow point is inside this contour
+                point = (int(arrow_point[0]), int(arrow_point[1]))
+                if cv2.pointPolygonTest(arrow_contour, point, False) >= 0:
+                    contains_arrow = True
+                    break
+            
+            if contains_arrow:
+                # Draw the actual grandchild contour outline in light blue
+                cv2.drawContours(labeled, [arrow_contour], -1, (219, 191, 145), 2)  # BGR format of RGB(145,191,219)
+    
+    # Draw regular contours
     for i, cnt in enumerate(contours):
         if i >= len(metrics):
             continue
@@ -158,7 +184,6 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         # Draw text in black with anti-aliasing (identical to angle labels)
         cv2.putText(labeled, text, (tx, ty), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
 
-
     # Draw arrows for all detected arrow features
     for m in metrics:
         if m.get("has_arrow") and m.get("arrow_back") and m.get("arrow_tip"):
@@ -245,9 +270,9 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
                     text_bg_pt1 = (text_pos[0] - padding, text_pos[1] - text_height - padding)
                     text_bg_pt2 = (text_pos[0] + text_width + padding, text_pos[1] + padding)
 
-                    # Draw white background with black border (identical to scar/cortex labels)
-                    cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (255, 255, 255), -1)  # White fill
-                    cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (0, 0, 0), 1)        # Black border
+                    # Draw white background with arrow contour color border
+                    cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (255, 255, 255), -1)        # White fill
+                    cv2.rectangle(labeled, text_bg_pt1, text_bg_pt2, (219, 191, 145), 2)        # Arrow contour color border
 
                     # Draw text in black with anti-aliasing (identical to scar/cortex labels)
                     cv2.putText(

@@ -273,9 +273,18 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
                     contour_array = numpy.array(metric['contour'], dtype=numpy.int32)
                     visualization_contours.append(contour_array)
 
+            # Add grandchild contours that contain arrows for outline visualization
+            # These are not in metrics but need to be drawn with contour outlines
+            arrow_contours = []
+            if 'sorted_contours' in locals() and sorted_contours.get("nested_children"):
+                for nested_contour in sorted_contours["nested_children"]:
+                    # Check if any metric has an arrow that corresponds to this nested contour
+                    # We'll add all nested contours and let visualization handle arrow detection
+                    arrow_contours.append(nested_contour)
+                    
             visualization_path = os.path.join(output_dir, f"{image_id}_labeled.png")
             visualize_contours_with_hierarchy(visualization_contours, hierarchy, metrics,
-                                            inverted_image, visualization_path)
+                                            inverted_image, visualization_path, arrow_contours)
         except Exception as e:
             logging.error(f"Error in visualization: {e}")
 
