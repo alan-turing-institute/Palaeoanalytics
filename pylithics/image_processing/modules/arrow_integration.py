@@ -4,6 +4,13 @@ import logging
 from .arrow_detection import analyze_child_contour_for_arrow
 
 
+# IMPORTANT: Arrow detection is excluded from cortex regions
+# Cortex detection runs before arrow detection in the pipeline, marking child contours 
+# with is_cortex=True. This module respects those boundaries and skips arrow detection 
+# for any grandchild contours within cortex areas, preventing stippling patterns 
+# from being incorrectly identified as arrows.
+
+
 def process_nested_arrows(sorted_contours, hierarchy, original_contours, metrics, image_shape, image_dpi=None):
     """
     Process nested children contours for arrow detection and update parent scar metrics.
@@ -107,6 +114,11 @@ def process_nested_arrows(sorted_contours, hierarchy, original_contours, metrics
             logging.debug(f"Could not find parent scar for nested contour {ni}")
             continue
 
+        # Skip arrow detection if parent scar is cortex
+        if parent_scar.get('is_cortex', False):
+            logging.debug(f"Skipping arrow detection for nested contour {ni} - parent scar '{parent_scar['scar']}' is cortex")
+            continue
+
         # Create temporary entry for arrow detection
         temp_entry = {
             "scar": f"nested_{ni}"
@@ -192,12 +204,16 @@ def detect_arrows_independently(original_contours, metrics, image, image_dpi=Non
 
     # Prepare scar contours for containment testing
     scar_contour_map = {}  # Maps scar label to its contour
+    cortex_contour_map = {}  # Maps cortex label to its contour
     for idx in scar_indices:
         cnt = original_contours[idx]
         # Find which metric this corresponds to
         for m in scar_metrics:
             if abs(cv2.contourArea(cnt) - m["area"]) < 1.0:  # Allow small rounding differences
                 scar_contour_map[m["scar"]] = cnt
+                # Also track cortex contours separately for exclusion
+                if m.get('is_cortex', False):
+                    cortex_contour_map[m["scar"]] = cnt
                 break
 
     arrow_candidates = []
@@ -223,6 +239,27 @@ def detect_arrows_independently(original_contours, metrics, image, image_dpi=Non
         temp_entry = {
             "scar": f"candidate_{i}"
         }
+
+        # Check if this contour is within a cortex region before proceeding with arrow detection
+        # Calculate contour centroid for cortex containment check
+        M = cv2.moments(cnt)
+        if M["m00"] > 0:
+            cx = M["m10"] / M["m00"]
+            cy = M["m01"] / M["m00"]
+        else:
+            x, y, w, h = cv2.boundingRect(cnt)
+            cx, cy = x + w/2, y + h/2
+
+        # Skip arrow detection if this contour is within any cortex area
+        within_cortex = False
+        for cortex_label, cortex_cnt in cortex_contour_map.items():
+            if cv2.pointPolygonTest(cortex_cnt, (cx, cy), False) >= 0:
+                logging.debug(f"Skipping arrow detection for contour {i} - within cortex area '{cortex_label}'")
+                within_cortex = True
+                break
+
+        if within_cortex:
+            continue
 
         # Try arrow detection
         result = analyze_child_contour_for_arrow(cnt, temp_entry, image, image_dpi)
@@ -255,21 +292,30 @@ def detect_arrows_independently(original_contours, metrics, image, image_dpi=Non
                     containing_scar = scar_label
 
         if containing_scar and containing_scar not in scars_with_arrows:
-            # Found a containing scar that doesn't have an arrow yet
-            # Update the scar's metrics with arrow information
+            # Check if the containing scar is cortex - if so, don't assign arrow
+            containing_metric = None
             for metric in metrics:
                 if metric["scar"] == containing_scar:
-                    logging.info(f"Assigning arrow from contour {arrow_idx} to scar {containing_scar}")
-                    metric.update({
-                        "has_arrow": True,
-                        "arrow_angle_rad": round(arrow_result["angle_rad"], 0),
-                        "arrow_angle_deg": round(arrow_result["angle_deg"], 0),
-                        "arrow_angle": round(arrow_result["compass_angle"], 0),
-                        "arrow_tip": arrow_result["arrow_tip"],
-                        "arrow_back": arrow_result["arrow_back"]
-                    })
-                    scars_with_arrows.add(containing_scar)
+                    containing_metric = metric
                     break
+            
+            if containing_metric and containing_metric.get('is_cortex', False):
+                logging.debug(f"Not assigning arrow from contour {arrow_idx} to cortex scar {containing_scar}")
+                continue
+            
+            # Found a containing scar that doesn't have an arrow yet and is not cortex
+            # Update the scar's metrics with arrow information
+            if containing_metric:
+                logging.info(f"Assigning arrow from contour {arrow_idx} to scar {containing_scar}")
+                containing_metric.update({
+                    "has_arrow": True,
+                    "arrow_angle_rad": round(arrow_result["angle_rad"], 0),
+                    "arrow_angle_deg": round(arrow_result["angle_deg"], 0),
+                    "arrow_angle": round(arrow_result["compass_angle"], 0),
+                    "arrow_tip": arrow_result["arrow_tip"],
+                    "arrow_back": arrow_result["arrow_back"]
+                })
+                scars_with_arrows.add(containing_scar)
 
     logging.info(f"Independent arrow detection completed. Found and assigned {len(scars_with_arrows)} arrows.")
     return metrics
