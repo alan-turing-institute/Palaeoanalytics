@@ -129,7 +129,7 @@ For illustrations with ripple marks, we recommend using the [**Lithic Editor and
 
 The following examples show how Lithic Editor and Annotator can transform ripple-based illustrations into PyLithics-optimized versions:
 
-![Original with ripples](../assets/images/ripples-original.png){ width="30%" } ![Ripples removed](../assets/images/ripples-removed.png){ width="30%" } ![Arrows added](../assets/images/arrows-added.png){ width="30%" }
+![Original with ripples](../assets/images/lithic_300dpi.png){ width="30%" } ![Ripples removed](../assets/images/lithic_300dpi_processed.png){ width="30%" } ![Arrows added](../assets/images/lithic_300dpi_annotation.png){ width="30%" }
 
 *Example workflow: Original illustration with ripples → Ripples removed → Arrows added for optimal PyLithics analysis*
 
@@ -152,6 +152,7 @@ The following examples show how Lithic Editor and Annotator can transform ripple
 ## Next Steps
 
 Once your images meet these requirements:
+
 1. [Set up your metadata file](metadata-setup.md)
 2. [Configure PyLithics settings](basic-usage.md)
 3. [Run your analysis](basic-usage.md#running-your-first-analysis)

@@ -8,6 +8,7 @@ This comprehensive guide provides step-by-step instructions and best practices t
 
 ### [Image Requirements](image-requirements.md)
 Learn about the image specifications and drawing conventions that work best with PyLithics:
+
 - Supported file formats and resolutions
 - Drawing style guidelines
 - Orientation requirements
@@ -16,6 +17,7 @@ Learn about the image specifications and drawing conventions that work best with
 
 ### [Metadata Setup](metadata-setup.md)
 Understand how to prepare your metadata CSV file:
+
 - Required columns and format
 - Linking images to scales
 - Directory structure organization
@@ -24,6 +26,7 @@ Understand how to prepare your metadata CSV file:
 
 ### [Basic Usage](basic-usage.md)
 Get started with running PyLithics analyses:
+
 - Command-line basics
 - Essential arguments
 - Configuration options (config.yaml)
@@ -32,6 +35,7 @@ Get started with running PyLithics analyses:
 
 ### [Outputs](outputs.md)
 Explore all the files and data PyLithics generates:
+
 - CSV data structure and metrics
 - Labeled visualization images
 - Voronoi diagrams
@@ -40,6 +44,7 @@ Explore all the files and data PyLithics generates:
 
 ### [Voronoi Analysis & Convex Hull](voronoi-analysis.md)
 PyLithics built-in spatial analysis features:
+
 - Understanding Voronoi diagrams
 - Convex hull calculations
 - Configuration options
@@ -47,12 +52,14 @@ PyLithics built-in spatial analysis features:
 
 ### [Lithic Editor](lithic-editor.md)
 *Coming Soon* - Manual editing and correction tools:
+
 - Planned features
 - Integration with PyLithics workflow
 - Future development roadmap
 
 ### [Troubleshooting](troubleshooting.md)
 Solve common issues and optimize performance:
+
 - Error messages and solutions
 - Image preprocessing problems
 - Configuration troubleshooting
@@ -61,6 +68,7 @@ Solve common issues and optimize performance:
 
 ### [Glossary](glossary.md)
 Reference for all terms and metrics:
+
 - Complete list of measurements
 - Archaeological terminology
 - Technical definitions
