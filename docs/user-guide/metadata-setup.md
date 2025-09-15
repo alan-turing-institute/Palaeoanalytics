@@ -2,17 +2,39 @@
 
 ## Overview
 
-For accurate measurement the metadata CSV file is essential for linking your lithic images to their corresponding scale references. This file tells PyLithics how to convert pixel measurements to real-world units (millimeters).
+The metadata CSV file is essential for linking your lithic images to their scale references. PyLithics uses this information for its automatic scale calibration system, which detects and measures scale bars to convert pixel measurements to real-world units (millimeters).
 
 ## CSV File Structure
 
 Your metadata CSV must contain these three columns:
 
-| Column | Description | Example |
-|--------|-------------|------|
-| `image_id` | Filename of the lithic image | `artifact_001.png` |
-| `scale_id` | Filename of the scale image | `scale_001.png` |
-| `scale` | Scale measurement in millimeters | `50` |
+| Column | Description | Required | Example |
+|--------|-------------|----------|---------|
+| `image_id` | Filename of the lithic image | Yes | `artifact_001.png` |
+| `scale_id` | Filename of the scale image | No* | `scale_001.png` |
+| `scale` | Scale measurement in millimeters | No* | `50` |
+
+*Required for scale bar calibration. Optional if using DPI-only calibration or pixel measurements.
+
+## Scale Calibration Methods
+
+PyLithics employs a three-tier calibration system with automatic fallback:
+
+### 1. Scale Bar Detection (Recommended)
+- **How it works**: Computer vision automatically detects and measures scale bars in scale images
+- **Requirements**: `scale_id` and `scale` columns must be provided
+- **Supported formats**: Horizontal/vertical bars, segmented bars, bars with tick marks
+- **Accuracy**: Highest precision for measurements
+
+### 2. DPI Metadata Fallback
+- **How it works**: Uses image DPI information when scale bar detection fails
+- **Requirements**: Images must contain valid DPI metadata
+- **Accuracy**: Good, but depends on scanner accuracy
+
+### 3. Pixel Measurements
+- **How it works**: Raw pixel measurements when no calibration is available
+- **Requirements**: None
+- **Accuracy**: Relative measurements only, no real-world units
 
 ## Understanding Scale Relationships
 
@@ -40,6 +62,33 @@ large_biface.png,scale_50.png,50
 small_flake.png,scale_5.png,5
 medium_core.png,scale_20.png,20
 ```
+
+### Mixed Calibration Methods
+
+You can mix calibration methods within a single dataset:
+
+```csv
+image_id,scale_id,scale
+artifact_001.png,scale_10.png,10    # Scale bar detection
+artifact_002.png,,                  # DPI fallback (empty scale columns)
+artifact_003.png,scale_10.png,10    # Scale bar detection
+artifact_004.png,,                  # DPI fallback
+```
+
+### Scale Bar Detection Examples
+
+PyLithics can detect various scale bar styles:
+
+- **Simple horizontal/vertical lines**
+- **Segmented scale bars** (alternating black/white segments)
+- **Scale bars with tick marks**
+- **Scale bars with brackets or end markers**
+
+!!! tip "Scale Bar Tips"
+    - Ensure scale bars are clearly visible with good contrast
+    - Black scale bars on white backgrounds work best
+    - PyLithics measures the longest dimension (horizontal or vertical)
+    - Complex scale bar designs may require manual verification
 
 ## Directory Organization
 
@@ -109,15 +158,30 @@ If the scale value is not labeled:
 
 ### Missing Scale Images
 
-If no scale images are available, PyLithics can process in pixel units:
+PyLithics can handle various calibration scenarios:
+
+#### DPI-Only Calibration
+If scale bars aren't available but images have DPI metadata:
+
+```csv
+image_id,scale_id,scale
+artifact_001.png,,     # Empty scale columns - will use DPI
+artifact_002.png,,     # Empty scale columns - will use DPI
+```
+
+#### Force Pixel Measurements
+To disable all calibration and use pixel measurements:
 
 ```bash
-# Run without scale information
-pylithics --data_dir ./artifacts --meta_file ./metadata_no_scales.csv
+# Run without any calibration
+pylithics --data_dir ./artifacts --meta_file ./metadata.csv --disable_scale_calibration
 ```
 
 !!! warning "Pixel-Only Measurements"
-    Without scales, all measurements will be in pixels. This limits comparative analysis between different image sources.
+    Without calibration, all measurements will be in pixels. This limits comparative analysis between different image sources and prevents real-world metric interpretation.
+
+!!! note "Calibration Method Tracking"
+    PyLithics automatically tracks which calibration method was used for each image in the output CSV (`calibration_method` column), allowing you to validate measurement accuracy and identify potential issues.
 
 ## Next Steps
 

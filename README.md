@@ -66,7 +66,7 @@ The inputs for `PyLithics` are images of lithic objects, images of their associa
 `PyLithics` processes the images with the following steps (and as illustrated in the schema below):
 
 1. Import and match images to associated image ID and scale image from CSV metadata file.
-2. Calculate a conversion of pixels to millimeters based on the size of the associated scale from CSV metadata file. If no scale is present, measurements will be in pixels
+2. **Scale Calibration**: Automatically detect and measure scale bars in scale images using computer vision, then calculate pixels-per-millimeter conversion factors. Falls back to DPI metadata if no scale bar available, or pixel measurements if no calibration possible.
 3. Apply noise removal and contrast stretching to images to minimize pixel variation.
 4. Pixel intensity thresholding of images to prepare for contour finding.
 5. Apply edge detection and contour finding to thresholded images.
@@ -181,18 +181,22 @@ where the mapping between the lithics and scale images should be available in th
 
 This CSV file should have as a minimum the following 3 variables:
 
-- *PA_ID*: corresponding the lithics image id
-(the name of the image file),
-- *scale_ID*: The scale id (name of the scale image file)
-- *PA_scale*: The scale measurement (how many millimeters this scale represents).
+- *image_id*: corresponding the lithics image id (the name of the image file),
+- *scale_id*: The scale id (name of the scale image file) - optional for DPI-based calibration
+- *scale*: The scale measurement (how many millimeters the scale bar represents) - required for scale bar calibration
+
+**Scale Calibration Methods**:
+- **Scale Bar Detection**: PyLithics automatically detects and measures scale bars in images, supporting horizontal/vertical bars, segmented bars, and bars with tick marks
+- **DPI Fallback**: Uses image DPI metadata when scale bars are unavailable
+- **Pixel Measurements**: Raw pixel measurements when no calibration method is available
 
 An example of this table, where one scale corresponds to several images is the following:
 
-| PA_ID      | scale_ID  | PA_scale |
+| image_id   | scale_id  | scale |
 |------------|-----------|----------|
-| lithic_id1 | scale_id1 | 5        |
-| lithic_id2 | scale_id2 | 5        |
-| lithic_id3 | scale_id3 | 5        |
+| lithic_id1.png | scale_id1.png | 10        |
+| lithic_id2.png | scale_id1.png | 10        |
+| lithic_id3.png | scale_id2.png | 5         |
 
 **Note**
 

@@ -31,6 +31,22 @@ Choose your own paths for image and metadata directories:
 python pylithics/app.py --data_dir <path> --meta_file <file> [options]
 ```
 
+### Scale Calibration Examples
+
+```bash
+# Basic analysis with automatic scale detection
+python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv
+
+# Force DPI-only calibration (skip scale bar detection)
+python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --force_scale_method dpi
+
+# Enable scale detection debugging
+python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --scale_debug
+
+# Process without any calibration (pixel measurements only)
+python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --disable_scale_calibration
+```
+
 ## Understanding the PyLithics Pipeline
 
 <div class="grid" markdown>
@@ -67,8 +83,8 @@ flowchart TD
 **A. Import and validate images**
 Load lithic illustrations and verify file formats, DPI consistency
 
-**B. Convert pixels to millimeters**
-Apply scale references from metadata CSV for real-world measurements
+**B. Scale Calibration & Conversion**
+Automatically detect scale bars in images and calculate pixels-per-millimeter conversion factors. Falls back to DPI metadata or pixel measurements if needed.
 
 **C. Noise removal and contrast enhancement**
 Clean up scan artifacts and improve line definition

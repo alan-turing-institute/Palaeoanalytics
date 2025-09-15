@@ -16,12 +16,14 @@ Learn about the image specifications and drawing conventions that work best with
 - Tips for optimal results
 
 ### [Metadata Setup](metadata-setup.md)
-Understand how to prepare your metadata CSV file:
+Understand how to prepare your metadata CSV file and scale calibration:
 
 - Required columns and format
+- Automatic scale bar detection system
+- Calibration fallback methods (DPI, pixels)
 - Linking images to scales
 - Directory structure organization
-- Handling missing scales
+- Handling missing scales and mixed calibration methods
 - Example templates
 
 ### [Basic Usage](basic-usage.md)
@@ -29,6 +31,7 @@ Get started with running PyLithics analyses:
 
 - Command-line basics
 - Essential arguments
+- Scale calibration examples and options
 - Configuration options (config.yaml)
 - Understanding the processing pipeline
 - Customizing analysis parameters
@@ -37,6 +40,7 @@ Get started with running PyLithics analyses:
 Explore all the files and data PyLithics generates:
 
 - CSV data structure and metrics
+- Scale calibration metadata columns
 - Labeled visualization images
 - Voronoi diagrams
 - Log files and debugging output

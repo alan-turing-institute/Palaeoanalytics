@@ -44,6 +44,11 @@ The CSV is hierarchically organized:
 - `surface_feature`: Surface, Scar, Cortex, Retouch, etc.
 - `feature_id`: Unique identifier within image
 
+**Scale Calibration Metadata**
+- `calibration_method`: Method used ("scale_bar", "dpi", or "pixels")
+- `pixels_per_mm`: Conversion factor applied (null for pixel measurements)
+- `scale_confidence`: Detection confidence score (0-1, scale_bar method only)
+
 **Basic Measurements**
 - `technical_length`: Platform-to-distal distance (mm)
 - `technical_width`: Maximum perpendicular width (mm)
@@ -71,10 +76,11 @@ The CSV is hierarchically organized:
 #### Example Data Row
 
 ```csv
-image_id,surface_type,surface_feature,technical_length,technical_width,area,has_arrow,arrow_angle
-artifact_001.png,Dorsal,Surface,45.2,32.1,1203.5,false,
-artifact_001.png,Dorsal,Scar,12.3,8.7,89.4,true,145.6
-artifact_001.png,Ventral,Surface,44.8,31.9,1198.2,false,
+image_id,surface_type,surface_feature,calibration_method,pixels_per_mm,scale_confidence,technical_length,technical_width,area,has_arrow,arrow_angle
+artifact_001.png,Dorsal,Surface,scale_bar,25.2,0.95,45.2,32.1,1203.5,false,
+artifact_001.png,Dorsal,Scar,scale_bar,25.2,0.95,12.3,8.7,89.4,true,145.6
+artifact_002.png,Ventral,Surface,dpi,11.8,,44.8,31.9,1198.2,false,
+artifact_003.png,Dorsal,Surface,pixels,,,1140,809,30378,false,
 ```
 
 ## Visualization Outputs
@@ -115,6 +121,16 @@ artifact_001.png,Ventral,Surface,44.8,31.9,1198.2,false,
 
 ## Debug and Diagnostic Outputs
 
+### Scale Calibration Debug
+
+**Location**: `processed/scale_debug/`
+**Enabled by**: `--scale_debug` flag
+
+**Files generated**:
+- `debug_{scale_id}`: Scale bar detection visualization with bounding box
+- Shows detected scale length in pixels and confidence score
+- Helps troubleshoot scale detection issues
+
 ### Arrow Detection Debug
 
 **Location**: `processed/arrow_debug/`
@@ -139,12 +155,15 @@ artifact_001.png,Ventral,Surface,44.8,31.9,1198.2,false,
 **Example log entries**:
 ```
 2024-01-15 10:30:15 [INFO] Starting PyLithics analysis
-2024-01-15 10:30:15 [INFO] Configuration: arrow_detection=True, voronoi=True
+2024-01-15 10:30:15 [INFO] Configuration: arrow_detection=True, scale_calibration=True, voronoi=True
 2024-01-15 10:30:16 [INFO] Processing artifact_001.png
+2024-01-15 10:30:16 [INFO] Scale bar detected: 1260 pixels, confidence: 0.95, dimensions: 1260x34
+2024-01-15 10:30:16 [INFO] Using scale bar calibration: 25.2 pixels/mm (1260 pixels = 50 mm)
 2024-01-15 10:30:16 [INFO] - Found 15 contours
 2024-01-15 10:30:16 [INFO] - Classified: Dorsal (1), Ventral (1) surfaces
 2024-01-15 10:30:16 [INFO] - Detected 3 arrows
 2024-01-15 10:30:16 [WARNING] - Low contrast in ventral surface
+2024-01-15 10:30:16 [INFO] Converted measurements to millimeters using factor: 25.200
 2024-01-15 10:30:17 [INFO] Processing complete: 2.1 seconds
 ```
 
