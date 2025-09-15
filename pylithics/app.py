@@ -167,6 +167,14 @@ class PyLithicsApplication:
         """
         image_path = os.path.join(images_dir, image_id)
 
+        # If file doesn't exist, try adding common extensions
+        if not os.path.exists(image_path):
+            for ext in ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp']:
+                test_path = os.path.join(images_dir, image_id + ext)
+                if os.path.exists(test_path):
+                    image_path = test_path
+                    break
+
         if not os.path.exists(image_path):
             logging.error(f"Image file does not exist: {image_path}")
             return False

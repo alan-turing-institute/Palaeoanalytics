@@ -133,6 +133,27 @@ Proper file naming ensures compatibility across different operating systems and 
 !!! tip "Best Practice"
     Use underscores instead of spaces, keep names descriptive but concise, and include sequential numbering for easy sorting.
 
+### CSV File Encoding Issues
+
+!!! warning "Excel CSV UTF-8 Problem"
+    **Avoid saving CSV files as "CSV UTF-8" from Excel** - this adds an invisible Byte Order Mark (BOM) character that prevents PyLithics from recognizing column headers.
+
+**Common Error**: `Missing required column in metadata: image_id` (even when the column exists)
+
+**Solutions**:
+
+1. **Excel Users**: Save as "CSV (Comma delimited) (*.csv)" instead of "CSV UTF-8"
+2. **Remove BOM**: If you already have a UTF-8 CSV with BOM, remove it:
+   ```bash
+   # On Mac/Linux
+   sed -i.bak '1s/^\xEF\xBB\xBF//' your_metadata.csv
+
+   # On Windows (PowerShell)
+   (Get-Content your_metadata.csv -Raw) -replace '\ufeff', '' | Set-Content your_metadata.csv
+   ```
+3. **Use Text Editors**: Save CSV files with VS Code, Sublime Text, or similar editors
+4. **Verify Encoding**: Check that your CSV file starts directly with `image_id`, not `﻿image_id`
+
 ## Scale Value Determination
 
 ### Understanding the Scale Column
