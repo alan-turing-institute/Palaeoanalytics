@@ -37,8 +37,8 @@ python pylithics/app.py --data_dir <path> --meta_file <file> [options]
 # Basic analysis with automatic scale detection
 python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv
 
-# Force DPI-only calibration (skip scale bar detection)
-python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --force_scale_method dpi
+# Force pixel measurements only (skip scale bar detection)
+python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --force_scale_method pixels
 
 # Enable scale detection debugging
 python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --scale_debug
@@ -81,10 +81,10 @@ flowchart TD
 ### :material-information: Step Descriptions
 
 **A. Import and validate images**
-Load lithic illustrations and verify file formats, DPI consistency
+Load lithic illustrations and verify file formats, resolution requirements
 
 **B. Scale Calibration & Conversion**
-Automatically detect scale bars in images and calculate pixels-per-millimeter conversion factors. Falls back to DPI metadata or pixel measurements if needed.
+Automatically detect scale bars in images and calculate pixels-per-millimeter conversion factors. Uses pixel measurements if no scale calibration available.
 
 **C. Noise removal and contrast enhancement**
 Clean up scan artifacts and improve line definition
@@ -102,7 +102,7 @@ Identify dorsal, ventral, platform, and lateral surfaces by size and position
 Measure dimensions, areas, aspect ratios, and shape properties
 
 **H. Arrow Detection (Optional)**
-Find directional force indicators using DPI-aware computer vision
+Find directional force indicators using resolution-aware computer vision
 
 **I. Calculate directions**
 Determine flaking angles and associate arrows with specific scars

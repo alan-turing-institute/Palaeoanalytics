@@ -278,8 +278,8 @@ All angular measurements are in **degrees (°)**
 **scale_reference**
 : Scale bar used for conversion
 
-**dpi_actual**
-: Calculated DPI based on scale information
+**pixels_per_mm**
+: Conversion factor from pixels to millimeters based on scale bar detection
 
 **measurement_error** (mm)
 : Estimated measurement uncertainty

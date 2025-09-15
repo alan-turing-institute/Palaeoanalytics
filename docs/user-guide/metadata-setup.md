@@ -14,27 +14,25 @@ Your metadata CSV must contain these three columns:
 | `scale_id` | Filename of the scale image | No* | `scale_001.png` |
 | `scale` | Scale measurement in millimeters | No* | `50` |
 
-*Required for scale bar calibration. Optional if using DPI-only calibration or pixel measurements.
+*Required for scale bar calibration. Optional if using pixel measurements only.
 
 ## Scale Calibration Methods
 
-PyLithics employs a three-tier calibration system with automatic fallback:
+PyLithics uses a simple two-option calibration system:
 
 ### 1. Scale Bar Detection (Recommended)
 - **How it works**: Computer vision automatically detects and measures scale bars in scale images
 - **Requirements**: `scale_id` and `scale` columns must be provided
 - **Supported formats**: Horizontal/vertical bars, segmented bars, bars with tick marks
-- **Accuracy**: Highest precision for measurements
+- **Accuracy**: Highest precision for real-world measurements
 
-### 2. DPI Metadata Fallback
-- **How it works**: Uses image DPI information when scale bar detection fails
-- **Requirements**: Images must contain valid DPI metadata
-- **Accuracy**: Good, but depends on scanner accuracy
-
-### 3. Pixel Measurements
-- **How it works**: Raw pixel measurements when no calibration is available
-- **Requirements**: None
+### 2. Pixel Measurements (Fallback)
+- **How it works**: Raw pixel measurements when no scale calibration is available
+- **Requirements**: None - always works
 - **Accuracy**: Relative measurements only, no real-world units
+
+!!! info "Why No DPI Fallback?"
+    DPI metadata is unreliable because scanners often don't scan at exact DPI settings, values can be estimated rather than measured, and there's no way to verify accuracy. PyLithics focuses on either precise scale bar measurement or clear pixel-based relative measurements.
 
 ## Understanding Scale Relationships
 
@@ -70,9 +68,9 @@ You can mix calibration methods within a single dataset:
 ```csv
 image_id,scale_id,scale
 artifact_001.png,scale_10.png,10    # Scale bar detection
-artifact_002.png,,                  # DPI fallback (empty scale columns)
+artifact_002.png,,                  # Pixel measurements (empty scale columns)
 artifact_003.png,scale_10.png,10    # Scale bar detection
-artifact_004.png,,                  # DPI fallback
+artifact_004.png,,                  # Pixel measurements
 ```
 
 ### Scale Bar Detection Examples
@@ -158,15 +156,15 @@ If the scale value is not labeled:
 
 ### Missing Scale Images
 
-PyLithics can handle various calibration scenarios:
+PyLithics can handle missing scale information:
 
-#### DPI-Only Calibration
-If scale bars aren't available but images have DPI metadata:
+#### Automatic Pixel Fallback
+If scale bars aren't available, PyLithics automatically uses pixel measurements:
 
 ```csv
 image_id,scale_id,scale
-artifact_001.png,,     # Empty scale columns - will use DPI
-artifact_002.png,,     # Empty scale columns - will use DPI
+artifact_001.png,,     # Empty scale columns - will use pixels
+artifact_002.png,,     # Empty scale columns - will use pixels
 ```
 
 #### Force Pixel Measurements
@@ -178,15 +176,15 @@ pylithics --data_dir ./artifacts --meta_file ./metadata.csv --disable_scale_cali
 ```
 
 !!! warning "Pixel-Only Measurements"
-    Without calibration, all measurements will be in pixels. This limits comparative analysis between different image sources and prevents real-world metric interpretation.
+    Without scale calibration, all measurements will be in pixels. This limits comparative analysis between different image sources and prevents real-world metric interpretation.
 
 !!! note "Calibration Method Tracking"
-    PyLithics automatically tracks which calibration method was used for each image in the output CSV (`calibration_method` column), allowing you to validate measurement accuracy and identify potential issues.
+    PyLithics automatically tracks which calibration method was used for each image in the output CSV (`calibration_method` column: either "scale_bar" or "pixels"), allowing you to validate measurement accuracy and identify potential issues.
 
 ## Next Steps
 
 With your metadata file prepared:
 
 1. [Learn basic usage](basic-usage.md) - Run your first analysis
-2. [Configure settings](basic-usage.md#configuration) - Customize processing
+2. [Configure settings](basic-usage.md#configuration-options) - Customize processing
 3. [Understand outputs](outputs.md) - Interpret results

@@ -155,4 +155,4 @@ Once your images meet these requirements:
 
 1. [Set up your metadata file](metadata-setup.md)
 2. [Configure PyLithics settings](basic-usage.md)
-3. [Run your analysis](basic-usage.md#running-your-first-analysis)
+3. [Run your analysis](basic-usage.md#command-line-basics)

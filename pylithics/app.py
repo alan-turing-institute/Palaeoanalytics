@@ -518,7 +518,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
         '--disable_scale_calibration',
         action='store_true',
         help="""Disable scale bar calibration.
-             Falls back to DPI-only method for pixel to mm conversion.
+             Uses pixel measurements only (no real-world units).
              Use if scale bar detection is failing or not needed."""
     )
 
@@ -532,11 +532,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
     )
 
     scale_group.add_argument(
-        '--no_dpi_fallback',
+        '--force_pixels',
         action='store_true',
-        help="""Disable DPI fallback when scale detection fails.
-             Output will be in pixels only if scale bar not detected.
-             Use to ensure only scale-calibrated measurements."""
+        help="""Force pixel measurements only (no scale calibration).
+             Output will be in pixels only regardless of scale data.
+             Use to ensure consistent pixel-based measurements."""
     )
 
     # Cortex Detection Options Group
@@ -960,8 +960,8 @@ def main() -> int:
             config_overrides['scale_calibration.enabled'] = False
         if args.scale_debug:
             config_overrides['scale_calibration.debug_output'] = True
-        if args.no_dpi_fallback:
-            config_overrides['scale_calibration.fallback_to_dpi'] = False
+        if args.force_pixels:
+            config_overrides['scale_calibration.enabled'] = False
 
         # Cortex detection overrides
         if hasattr(args, 'disable_cortex_detection') and args.disable_cortex_detection:

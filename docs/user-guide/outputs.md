@@ -45,7 +45,7 @@ The CSV is hierarchically organized:
 - `feature_id`: Unique identifier within image
 
 **Scale Calibration Metadata**
-- `calibration_method`: Method used ("scale_bar", "dpi", or "pixels")
+- `calibration_method`: Method used ("scale_bar" or "pixels")
 - `pixels_per_mm`: Conversion factor applied (null for pixel measurements)
 - `scale_confidence`: Detection confidence score (0-1, scale_bar method only)
 
@@ -79,7 +79,7 @@ The CSV is hierarchically organized:
 image_id,surface_type,surface_feature,calibration_method,pixels_per_mm,scale_confidence,technical_length,technical_width,area,has_arrow,arrow_angle
 artifact_001.png,Dorsal,Surface,scale_bar,25.2,0.95,45.2,32.1,1203.5,false,
 artifact_001.png,Dorsal,Scar,scale_bar,25.2,0.95,12.3,8.7,89.4,true,145.6
-artifact_002.png,Ventral,Surface,dpi,11.8,,44.8,31.9,1198.2,false,
+artifact_002.png,Ventral,Surface,pixels,,,1138,812,30421,false,
 artifact_003.png,Dorsal,Surface,pixels,,,1140,809,30378,false,
 ```
 
@@ -164,6 +164,8 @@ artifact_003.png,Dorsal,Surface,pixels,,,1140,809,30378,false,
 2024-01-15 10:30:16 [INFO] - Detected 3 arrows
 2024-01-15 10:30:16 [WARNING] - Low contrast in ventral surface
 2024-01-15 10:30:16 [INFO] Converted measurements to millimeters using factor: 25.200
+2024-01-15 10:30:17 [INFO] Processing artifact_002.png
+2024-01-15 10:30:17 [INFO] No scale calibration available, measurements will be in pixels
 2024-01-15 10:30:17 [INFO] Processing complete: 2.1 seconds
 ```
 

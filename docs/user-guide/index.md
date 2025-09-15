@@ -20,7 +20,7 @@ Understand how to prepare your metadata CSV file and scale calibration:
 
 - Required columns and format
 - Automatic scale bar detection system
-- Calibration fallback methods (DPI, pixels)
+- Automatic fallback to pixel measurements
 - Linking images to scales
 - Directory structure organization
 - Handling missing scales and mixed calibration methods

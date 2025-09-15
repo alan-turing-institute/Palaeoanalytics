@@ -194,15 +194,7 @@ data_export:
 scale_calibration:
   enabled: true  # Enable or disable scale bar calibration
                 # - true: Detect and measure scale bars from scale images
-                # - false: Use only DPI-based calibration
-
-  fallback_to_dpi: true  # Use DPI method if scale detection fails
-                        # - true: Fall back to DPI metadata when scale bar detection fails
-                        # - false: Use pixels only when scale detection fails
-
-  fallback_to_pixels: true  # Output pixels if no calibration possible
-                           # - true: Output measurements in pixels when no calibration available
-                           # - false: Raise error when no calibration available
+                # - false: Skip scale calibration, use pixel measurements only
 
   debug_output: false  # Save scale detection debug images
                       # - true: Save debug images showing detected scale bars

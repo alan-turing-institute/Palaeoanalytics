@@ -55,8 +55,6 @@ thresholding:
 
 scale_calibration:
   enabled: true             # Enable scale bar detection
-  fallback_to_dpi: true     # Use DPI if scale bar fails
-  fallback_to_pixels: true  # Use pixels if no calibration
   debug_output: false       # Save detection debug images
 
 arrow_detection:
@@ -184,14 +182,14 @@ python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/met
 |--------|-------------|---------|
 | `--disable_scale_calibration` | Skip scale bar detection entirely | False |
 | `--scale_debug` | Save scale detection debug images | False |
-| `--force_scale_method` | Force specific calibration method: `scale_bar`, `dpi`, `pixels` | None |
+| `--force_scale_method` | Force specific calibration method: `scale_bar`, `pixels` | None |
 
 ```bash
 # Enable scale debugging
 pylithics --data_dir ./data --meta_file ./meta.csv --scale_debug
 
-# Force DPI calibration only
-pylithics --data_dir ./data --meta_file ./meta.csv --force_scale_method dpi
+# Force pixel measurements only
+pylithics --data_dir ./data --meta_file ./meta.csv --force_scale_method pixels
 
 # Disable scale calibration (pixel measurements only)
 pylithics --data_dir ./data --meta_file ./meta.csv --disable_scale_calibration
@@ -321,7 +319,7 @@ Command-line arguments override configuration file settings using dot notation:
 
 ### Complete Configuration Example
 
-```yaml\n# config.yaml - Complete configuration template\nthresholding:\n  method: otsu\n  threshold_value: 127\n  max_value: 255\n  adaptive_block_size: 11\n  adaptive_constant: 2\n\nscale_calibration:\n  enabled: true\n  fallback_to_dpi: true\n  fallback_to_pixels: true\n  debug_output: false\n\narrow_detection:\n  enabled: true\n  reference_dpi: 300.0\n  min_area_scale_factor: 0.7\n  max_area_scale_factor: 10.0\n  min_aspect_ratio: 1.5\n  debug_enabled: false\n\nsurface_classification:\n  enabled: true\n  classification_rules:\n    dorsal_area_threshold: 0.6\n    ventral_area_threshold: 0.4\n    platform_area_threshold: 0.1\n\nscar_complexity:\n  enabled: true\n  distance_threshold: 10.0\n  min_scar_area: 50\n\ncortex_detection:\n  enabled: false\n  method: color_threshold\n  threshold: 0.5\n  min_area: 100\n\nsymmetry_analysis:\n  enabled: true\n  axis: both\n  tolerance: 0.1\n\nvoronoi_analysis:\n  enabled: true\n  min_scars: 3\n  output_diagrams: true\n  boundary_method: convex\n\nlateral_analysis:\n  enabled: true\n  convexity_threshold: 0.8\n  edge_sensitivity: 0.5\n\npreprocessing:\n  denoise: false\n  morphological_closing: true\n  closing_kernel_size: 3\n  contrast_stretch: false\n\nlogging:\n  level: INFO\n  log_to_file: true\n  log_file: pylithics.log\n\noutput:\n  format: csv\n  save_visualizations: true\n  save_intermediate: false\n```
+```yaml\n# config.yaml - Complete configuration template\nthresholding:\n  method: otsu\n  threshold_value: 127\n  max_value: 255\n  adaptive_block_size: 11\n  adaptive_constant: 2\n\nscale_calibration:\n  enabled: true\n  debug_output: false\n\narrow_detection:\n  enabled: true\n  reference_dpi: 300.0\n  min_area_scale_factor: 0.7\n  max_area_scale_factor: 10.0\n  min_aspect_ratio: 1.5\n  debug_enabled: false\n\nsurface_classification:\n  enabled: true\n  classification_rules:\n    dorsal_area_threshold: 0.6\n    ventral_area_threshold: 0.4\n    platform_area_threshold: 0.1\n\nscar_complexity:\n  enabled: true\n  distance_threshold: 10.0\n  min_scar_area: 50\n\ncortex_detection:\n  enabled: false\n  method: color_threshold\n  threshold: 0.5\n  min_area: 100\n\nsymmetry_analysis:\n  enabled: true\n  axis: both\n  tolerance: 0.1\n\nvoronoi_analysis:\n  enabled: true\n  min_scars: 3\n  output_diagrams: true\n  boundary_method: convex\n\nlateral_analysis:\n  enabled: true\n  convexity_threshold: 0.8\n  edge_sensitivity: 0.5\n\npreprocessing:\n  denoise: false\n  morphological_closing: true\n  closing_kernel_size: 3\n  contrast_stretch: false\n\nlogging:\n  level: INFO\n  log_to_file: true\n  log_file: pylithics.log\n\noutput:\n  format: csv\n  save_visualizations: true\n  save_intermediate: false\n```
 
 ## Help Commands
 

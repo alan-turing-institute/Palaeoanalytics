@@ -126,7 +126,7 @@ def calculate_conversion_factor(scale_pixels: int, scale_mm: float) -> float:
 def get_calibration_factor(image_path: str, scale_data: Dict,
                           config: Dict) -> Tuple[Optional[float], str, Optional[float]]:
     """
-    Get calibration factor using simple fallback system.
+    Get calibration factor using two-option system.
 
     Args:
         image_path: Path to the artifact image
@@ -136,10 +136,9 @@ def get_calibration_factor(image_path: str, scale_data: Dict,
     Returns:
         tuple[float | None, str, float | None]: (pixels_per_mm, method_used, confidence)
 
-    Priority:
+    Options:
         1. Scale bar measurement (if scale_id and scale in CSV)
-        2. DPI calculation (if DPI metadata exists)
-        3. None (output remains in pixels)
+        2. Pixel measurements (no calibration)
     """
     calibration_enabled = config.get('scale_calibration', {}).get('enabled', True)
 
@@ -177,27 +176,10 @@ def get_calibration_factor(image_path: str, scale_data: Dict,
         except Exception as e:
             logging.warning(f"Scale bar calibration failed: {e}")
 
-    # Fallback to DPI method
-    if config.get('scale_calibration', {}).get('fallback_to_dpi', True):
-        try:
-            with Image.open(image_path) as img:
-                dpi = img.info.get('dpi')
-                if dpi:
-                    pixels_per_mm = dpi[0] / 25.4  # Convert DPI to pixels per mm
-                    logging.info(f"Using DPI calibration for {os.path.basename(image_path)}: "
-                               f"{pixels_per_mm:.3f} pixels/mm")
-                    return pixels_per_mm, "dpi", None
-        except Exception as e:
-            logging.warning(f"DPI extraction failed: {e}")
-
-    # No calibration available - will use pixels
-    if config.get('scale_calibration', {}).get('fallback_to_pixels', True):
-        logging.info(f"No calibration available for {os.path.basename(image_path)}, "
-                    "measurements will be in pixels")
-        return None, "pixels", None
-
-    # If pixels fallback is disabled, raise error
-    raise ValueError(f"No calibration method available for {os.path.basename(image_path)}")
+    # No scale calibration available - use pixels
+    logging.info(f"No scale calibration available for {os.path.basename(image_path)}, "
+                "measurements will be in pixels")
+    return None, "pixels", None
 
 
 def process_scale_calibrations(metadata: list, images_dir: str,

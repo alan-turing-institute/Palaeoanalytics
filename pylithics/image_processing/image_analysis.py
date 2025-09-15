@@ -50,7 +50,7 @@ from .modules.visualization import visualize_contours_with_hierarchy, save_measu
 from .modules.lateral_analysis import analyze_lateral_surface, _integrate_lateral_metrics
 from .modules.scar_complexity import analyze_scar_complexity, _integrate_complexity_results
 
-def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id, image_dpi=None, calibration_method="dpi", scale_confidence=None):
+def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id, image_dpi=None, calibration_method="pixels", scale_confidence=None):
     """
     Main pipeline for processing contours and generating comprehensive lithic analysis.
 
