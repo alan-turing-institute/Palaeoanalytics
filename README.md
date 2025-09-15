@@ -20,6 +20,7 @@
     - [Output images](#output-images)
     - [Output data](#output-data)
 - [🖌 Drawing style for `PyLithics` ](#-drawing-style-for-pylithics-)
+- [📚 Documentation ](#-documentation-)
 - [👋 Contributing ](#-contributing-)
 - [Development and testing of `PyLithics` ](#development-and-testing-of-pylithics-)
 - [Citing `PyLithics` ](#citing-pylithics-)
@@ -245,6 +246,35 @@ works best with the following styles:
 <img src="figures/drawing_style.png"/>
 
 If you want to help us optimize `PyLithics` for different drawing styles we welcome your [contributions](#contributing)!
+
+# 📚 Documentation <a name="documentation"></a>
+
+Comprehensive documentation is available at: **[https://alan-turing-institute.github.io/Palaeoanalytics/](https://alan-turing-institute.github.io/Palaeoanalytics/)**
+
+## Quick Links
+
+- **[Installation Guide](https://alan-turing-institute.github.io/Palaeoanalytics/installation/)** - Set up PyLithics on your system
+- **[User Guide](https://alan-turing-institute.github.io/Palaeoanalytics/user-guide/)** - Complete usage instructions
+- **[CLI Reference](https://alan-turing-institute.github.io/Palaeoanalytics/reference/cli-commands/)** - All command-line options
+- **[About](https://alan-turing-institute.github.io/Palaeoanalytics/about/)** - Project team and information
+
+## Building Documentation Locally
+
+Documentation dependencies are included in the main installation. To build and serve the documentation locally:
+
+```bash
+# Documentation tools are installed with PyLithics
+pip install .
+
+# Serve documentation locally at http://127.0.0.1:8000
+mkdocs serve
+
+# Build static site
+mkdocs build
+
+# Deploy to GitHub Pages (maintainers only)
+mkdocs gh-deploy
+```
 
 # 👋 Contributing <a name="contributing"></a>
 

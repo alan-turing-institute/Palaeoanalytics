@@ -14,6 +14,11 @@ shapely>=2.0.0,<3.0.0                    # Geometric operations and spatial anal
 # Visualization and plotting
 matplotlib>=3.6.0,<4.0.0                 # For plotting and visualization (Voronoi diagrams)
 
+# Documentation generation
+mkdocs>=1.5.0                            # Static site generator for documentation
+mkdocs-material>=9.0.0                   # Material theme for MkDocs
+pymdown-extensions>=10.0                 # Markdown extensions for enhanced documentation
+
 # System monitoring and resource management
 psutil>=5.9.0,<6.0.0                     # For memory usage and file handle monitoring (used in tests)
 
