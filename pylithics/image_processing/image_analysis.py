@@ -50,7 +50,7 @@ from .modules.visualization import visualize_contours_with_hierarchy, save_measu
 from .modules.lateral_analysis import analyze_lateral_surface, _integrate_lateral_metrics
 from .modules.scar_complexity import analyze_scar_complexity, _integrate_complexity_results
 
-def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id, image_dpi=None):
+def process_and_save_contours(inverted_image, conversion_factor, output_dir, image_id, image_dpi=None, calibration_method="dpi", scale_confidence=None):
     """
     Main pipeline for processing contours and generating comprehensive lithic analysis.
 
@@ -72,6 +72,12 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
     image_dpi : float, optional
         DPI of the image being processed. Used for scaling arrow detection parameters.
         If None, default scaling will be applied.
+    calibration_method : str, optional
+        Method used for pixel-to-mm conversion ("scale_bar", "dpi", "pixels").
+        Default: "dpi"
+    scale_confidence : float, optional
+        Confidence score for scale detection (0-1). Only applicable when
+        calibration_method is "scale_bar".
 
     Returns
     -------
@@ -255,14 +261,28 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
             logging.error(f"Error in arrow detection: {e}")
             traceback.print_exc()
 
-        # Step 13: Save metrics to CSV
+        # Step 13: Convert metrics to real-world units if conversion factor available
+        if conversion_factor and conversion_factor != 1.0:
+            try:
+                metrics = convert_metrics_to_real_world(metrics, conversion_factor)
+                logging.info(f"Converted measurements to millimeters using factor: {conversion_factor:.3f}")
+            except Exception as e:
+                logging.error(f"Error converting metrics to real-world units: {e}")
+
+        # Step 14: Save metrics to CSV
         try:
             csv_path = os.path.join(output_dir, "processed_metrics.csv")
-            save_measurements_to_csv(metrics, csv_path, append=True)
+            # Prepare calibration metadata
+            calibration_metadata = {
+                'calibration_method': calibration_method,
+                'pixels_per_mm': conversion_factor if conversion_factor and conversion_factor != 1.0 else None,
+                'scale_confidence': scale_confidence
+            }
+            save_measurements_to_csv(metrics, csv_path, append=True, calibration_metadata=calibration_metadata)
         except Exception as e:
             logging.error(f"Error saving CSV: {e}")
 
-        # Step 14: Generate labeled visualization
+        # Step 15: Generate labeled visualization
         try:
             # Extract contours from metrics to ensure they match the classified metrics
             # metrics now contains parents + classified_children (no nested children or excluded ventral children)
@@ -288,7 +308,7 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         except Exception as e:
             logging.error(f"Error in visualization: {e}")
 
-        # Step 15: Generate Voronoi diagram visualization
+        # Step 16: Generate Voronoi diagram visualization
         try:
             if 'voronoi_data' in locals() and voronoi_data is not None:
                 voronoi_path = os.path.join(output_dir, f"{image_id}_voronoi.png")

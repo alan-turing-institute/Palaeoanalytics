@@ -302,7 +302,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
     logging.info("Saved visualized contours with arrows to %s", output_path)
 
 
-def save_measurements_to_csv(metrics, output_path, append=False):
+def save_measurements_to_csv(metrics, output_path, append=False, calibration_metadata=None):
     """
     Save contour metrics to a CSV file.
     """
@@ -368,6 +368,12 @@ def save_measurements_to_csv(metrics, output_path, append=False):
             "scar_complexity": metric.get("scar_complexity", "NA"),
         }
 
+        # Add calibration metadata columns if provided
+        if calibration_metadata:
+            data_entry["calibration_method"] = calibration_metadata.get("calibration_method", "NA")
+            data_entry["pixels_per_mm"] = calibration_metadata.get("pixels_per_mm", "NA")
+            data_entry["scale_confidence"] = calibration_metadata.get("scale_confidence", "NA")
+
         # Add additional arrow metrics if available
         if "triangle_base_length" in metric:
             data_entry["triangle_base_length"] = metric["triangle_base_length"]
@@ -428,7 +434,16 @@ def save_measurements_to_csv(metrics, output_path, append=False):
     if any("tip_solidity" in m for m in metrics):
         arrow_columns.append("tip_solidity")
 
-    all_columns = base_columns + voronoi_columns + symmetry_columns + lateral_columns + cortex_columns + scar_complexity_columns + arrow_columns
+    # Calibration metadata columns
+    calibration_columns = []
+    if calibration_metadata:
+        calibration_columns = [
+            "calibration_method",
+            "pixels_per_mm",
+            "scale_confidence"
+        ]
+
+    all_columns = base_columns + voronoi_columns + symmetry_columns + lateral_columns + cortex_columns + scar_complexity_columns + arrow_columns + calibration_columns
 
     # Create DataFrame with all columns, handling any missing columns gracefully
     df = pd.DataFrame(updated_data)

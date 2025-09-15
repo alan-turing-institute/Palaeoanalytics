@@ -25,6 +25,7 @@ from pylithics.image_processing.importer import (
 )
 from pylithics.image_processing.image_analysis import process_and_save_contours
 from pylithics.image_processing.utils import read_metadata
+from pylithics.image_processing.modules.scale_calibration import get_calibration_factor
 
 
 class PyLithicsApplication:
@@ -141,7 +142,8 @@ class PyLithicsApplication:
                            image_id: str,
                            real_world_scale_mm: Optional[float],
                            images_dir: str,
-                           processed_dir: str) -> bool:
+                           processed_dir: str,
+                           scale_data: Optional[Dict] = None) -> bool:
         """
         Process a single image through the complete pipeline.
 
@@ -155,6 +157,8 @@ class PyLithicsApplication:
             Directory containing images
         processed_dir : str
             Directory for processed outputs
+        scale_data : dict, optional
+            Full metadata entry including scale_id for scale calibration
 
         Returns
         -------
@@ -181,11 +185,21 @@ class PyLithicsApplication:
             # Step 2: Extract and validate DPI information
             image_dpi = self._extract_image_dpi(image_path)
 
-            # Step 3: Verify image scale and calculate conversion factor
-            conversion_factor = verify_image_dpi_and_scale(image_path, real_world_scale_mm)
-            if conversion_factor is None:
-                logging.error(f"DPI validation failed for {image_id}")
-                return False
+            # Step 3: Get conversion factor using scale calibration with fallback
+            if scale_data is None:
+                scale_data = {}  # Empty dict if no scale data provided
+
+            conversion_factor, calibration_method, scale_confidence = get_calibration_factor(
+                image_path, scale_data, self.config_manager.config
+            )
+
+            # Log calibration method used
+            if conversion_factor:
+                logging.info(f"Using {calibration_method} calibration: "
+                           f"{conversion_factor:.3f} pixels/mm")
+            else:
+                logging.info(f"No calibration available, using pixel measurements")
+                conversion_factor = 1.0  # Use 1.0 for pixel measurements
 
             # Step 4: Run complete analysis pipeline
             process_and_save_contours(
@@ -193,7 +207,9 @@ class PyLithicsApplication:
                 conversion_factor,
                 processed_dir,
                 image_id,
-                image_dpi
+                image_dpi,
+                calibration_method,
+                scale_confidence
             )
 
             logging.info(f"Successfully processed {image_id}")
@@ -280,7 +296,7 @@ class PyLithicsApplication:
             logging.info(f"Processing image {i}/{len(metadata)}: {image_id}")
 
             success = self.process_single_image(
-                image_id, real_world_scale_mm, images_dir, processed_dir
+                image_id, real_world_scale_mm, images_dir, processed_dir, entry
             )
 
             if success:
@@ -490,6 +506,37 @@ def create_argument_parser() -> argparse.ArgumentParser:
              By default, only light blue contour outlines are shown for arrows.
              Enable this flag to also draw the traditional red arrow lines
              showing direction and angle. Useful for detailed directional analysis."""
+    )
+
+    # Scale Calibration Options Group
+    scale_group = parser.add_argument_group(
+        'SCALE CALIBRATION OPTIONS',
+        'Control scale bar detection and measurement conversion'
+    )
+
+    scale_group.add_argument(
+        '--disable_scale_calibration',
+        action='store_true',
+        help="""Disable scale bar calibration.
+             Falls back to DPI-only method for pixel to mm conversion.
+             Use if scale bar detection is failing or not needed."""
+    )
+
+    scale_group.add_argument(
+        '--scale_debug',
+        action='store_true',
+        help="""Enable scale bar detection debugging.
+             Creates debug images showing detected scale bars.
+             Output saved to [data_dir]/processed/scale_debug/
+             Useful for verifying scale detection accuracy."""
+    )
+
+    scale_group.add_argument(
+        '--no_dpi_fallback',
+        action='store_true',
+        help="""Disable DPI fallback when scale detection fails.
+             Output will be in pixels only if scale bar not detected.
+             Use to ensure only scale-calibrated measurements."""
     )
 
     # Cortex Detection Options Group
@@ -907,6 +954,14 @@ def main() -> int:
 
         if args.show_arrow_lines:
             config_overrides['arrow_detection.show_arrow_lines'] = True
+
+        # Scale calibration overrides
+        if args.disable_scale_calibration:
+            config_overrides['scale_calibration.enabled'] = False
+        if args.scale_debug:
+            config_overrides['scale_calibration.debug_output'] = True
+        if args.no_dpi_fallback:
+            config_overrides['scale_calibration.fallback_to_dpi'] = False
 
         # Cortex detection overrides
         if hasattr(args, 'disable_cortex_detection') and args.disable_cortex_detection:

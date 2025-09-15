@@ -224,27 +224,48 @@ def calculate_contour_metrics(sorted_contours, hierarchy, original_contours, ima
 
     return metrics
 
-def convert_metrics_to_real_world(metrics, conversion_factor):
+def convert_metrics_to_real_world(metrics, pixels_per_mm):
     """
-    Convert metrics from pixel values to real-world units.
+    Convert metrics from pixel values to real-world units (millimeters).
 
     Args:
         metrics (list): List of dictionaries containing raw metrics in pixel units.
-        conversion_factor (float): Conversion factor for pixels to real-world units.
+        pixels_per_mm (float): Pixels per millimeter conversion factor from scale calibration.
 
     Returns:
-        list: Converted metrics in real-world units.
+        list: Metrics with measurements converted to millimeters.
     """
+    if pixels_per_mm <= 0:
+        logging.warning(f"Invalid conversion factor: {pixels_per_mm}. Returning original metrics.")
+        return metrics
+
     converted_metrics = []
 
     for metric in metrics:
-        converted_metrics.append({
-            "parent": metric["parent"],
-            "scar": metric["scar"],
-            "centroid_x": round(metric["centroid_x"] * conversion_factor, 2),
-            "centroid_y": round(metric["centroid_y"] * conversion_factor, 2),
-            "technical_width": round(metric["technical_width"] * conversion_factor, 2),
-            "technical_length": round(metric["technical_length"] * conversion_factor, 2),
-            "area": round(metric["area"] * (conversion_factor ** 2), 2),  # Area scales quadratically
-        })
+        # Create a copy of the metric to preserve all fields
+        converted = metric.copy()
+
+        # Convert linear measurements (pixels to mm)
+        linear_fields = [
+            "centroid_x", "centroid_y",
+            "technical_width", "technical_length",
+            "bounding_box_x", "bounding_box_y",
+            "bounding_box_width", "bounding_box_height",
+            "max_length", "max_width",
+            "perimeter"
+        ]
+
+        for field in linear_fields:
+            if field in converted and converted[field] is not None:
+                converted[field] = round(converted[field] / pixels_per_mm, 2)
+
+        # Convert area measurements (pixels² to mm²)
+        if "area" in converted and converted["area"] is not None:
+            converted["area"] = round(converted["area"] / (pixels_per_mm ** 2), 2)
+
+        # Aspect ratio remains unchanged (it's a ratio)
+        # Parent, scar, contour, and other non-metric fields are preserved as-is
+
+        converted_metrics.append(converted)
+
     return converted_metrics
