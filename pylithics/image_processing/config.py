@@ -102,7 +102,7 @@ class ConfigurationManager:
             'logging': {
                 'level': 'INFO',
                 'log_to_file': True,
-                'log_file': 'logs/pylithics.log'
+                'log_file': 'pylithics/data/processed/pylithics.log'
             },
             'contour_filtering': {
                 'min_area': 50.0,
@@ -208,7 +208,7 @@ def get_logging_config(config: Optional[Dict] = None) -> Dict[str, Any]:
     return config.get('logging', {
         'level': 'INFO',
         'log_to_file': True,
-        'log_file': 'logs/pylithics.log'
+        'log_file': 'pylithics/data/processed/pylithics.log'
     })
 
 

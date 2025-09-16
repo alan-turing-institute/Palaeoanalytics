@@ -484,6 +484,46 @@ def create_argument_parser() -> argparse.ArgumentParser:
              Default: True (recommended for most images)"""
     )
 
+    processing_group.add_argument(
+        '--enable_dpi_scaling',
+        action='store_true',
+        help="""Enable DPI-aware kernel scaling for preprocessing.
+             Scales kernel sizes based on image DPI.
+             Useful for noisy photographs but not recommended for clean line drawings.
+             Default: False (fixed kernels, optimized for archaeological drawings)"""
+    )
+
+    processing_group.add_argument(
+        '--dpi_reference',
+        type=float,
+        metavar='DPI',
+        help="""Override reference DPI for kernel scaling calculations.
+             All preprocessing kernels are optimized for this DPI value.
+             Higher values make kernels smaller at same image DPI.
+             Default: 300.0"""
+    )
+
+    processing_group.add_argument(
+        '--dpi_max_scale',
+        type=float,
+        metavar='FACTOR',
+        help="""Maximum DPI scaling factor allowed.
+             Prevents extremely large kernels at very high DPI.
+             Example: 1.5 limits 600 DPI to 1.5x scaling instead of 2x.
+             Default: 1.5 (conservative for line drawings)"""
+    )
+
+    processing_group.add_argument(
+        '--dpi_scaling_mode',
+        choices=['conservative', 'standard', 'aggressive'],
+        metavar='MODE',
+        help="""DPI scaling strategy for preprocessing kernels (when DPI scaling enabled):
+             • conservative: Gentle scaling, preserves fine line details
+             • standard: Moderate linear scaling, balanced approach (default)
+             • aggressive: Full proportional scaling, maximum noise removal
+             Default: standard"""
+    )
+
     # Arrow Detection Group
     arrow_group = parser.add_argument_group(
         'ARROW DETECTION OPTIONS',
@@ -991,6 +1031,16 @@ def main() -> int:
             config_overrides['scar_complexity.enabled'] = False
         if hasattr(args, 'scar_complexity_distance_threshold') and args.scar_complexity_distance_threshold:
             config_overrides['scar_complexity.distance_threshold'] = args.scar_complexity_distance_threshold
+
+        # DPI processing overrides
+        if args.enable_dpi_scaling:
+            config_overrides['dpi_processing.enabled'] = True
+        if args.dpi_reference:
+            config_overrides['dpi_processing.reference_dpi'] = args.dpi_reference
+        if args.dpi_max_scale:
+            config_overrides['dpi_processing.max_scale_factor'] = args.dpi_max_scale
+        if args.dpi_scaling_mode:
+            config_overrides['dpi_processing.scaling_mode'] = args.dpi_scaling_mode
 
         # Apply overrides
         if config_overrides:

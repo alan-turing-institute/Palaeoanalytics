@@ -123,6 +123,29 @@ python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/met
          --log_level DEBUG
 ```
 
+#### DPI-Aware Processing
+
+```bash
+# Default: Fixed kernels optimized for archaeological line drawings (recommended)
+python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv
+
+# Enable DPI-aware scaling for noisy photographs or degraded scans
+python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
+         --enable_dpi_scaling
+
+# DPI scaling with conservative mode (minimal scaling)
+python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
+         --enable_dpi_scaling --dpi_scaling_mode conservative
+
+# DPI scaling with aggressive mode (maximum noise removal)
+python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
+         --enable_dpi_scaling --dpi_scaling_mode aggressive
+
+# Custom DPI settings
+python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
+         --enable_dpi_scaling --dpi_reference 150 --dpi_max_scale 2.0
+```
+
 #### Fast Processing
 
 ```bash
@@ -194,6 +217,46 @@ pylithics --data_dir ./data --meta_file ./meta.csv --force_scale_method pixels
 # Disable scale calibration (pixel measurements only)
 pylithics --data_dir ./data --meta_file ./meta.csv --disable_scale_calibration
 ```
+
+### DPI Processing Options
+
+PyLithics automatically detects image DPI and processes accordingly. By default, it uses fixed kernel sizes optimized for archaeological line drawings (75-600 DPI range).
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--enable_dpi_scaling` | Enable DPI-aware kernel scaling | False (fixed kernels) |
+| `--dpi_scaling_mode` | Scaling strategy: `conservative`, `standard`, `aggressive` | `standard` |
+| `--dpi_reference` | Reference DPI for scaling calculations | 300.0 |
+| `--dpi_max_scale` | Maximum scaling factor limit | 1.5 |
+
+**Scaling Modes:**
+
+- **Conservative**: Minimal scaling, preserves fine line details
+- **Standard**: Moderate linear scaling with caps (default when DPI scaling enabled)
+- **Aggressive**: Full proportional scaling, maximum noise removal
+
+```bash
+# Default: Fixed kernels (recommended for archaeological line drawings)
+pylithics --data_dir ./data --meta_file ./meta.csv
+
+# Enable DPI scaling for noisy photographs
+pylithics --data_dir ./data --meta_file ./meta.csv --enable_dpi_scaling
+
+# Conservative scaling (minimal)
+pylithics --data_dir ./data --meta_file ./meta.csv --enable_dpi_scaling --dpi_scaling_mode conservative
+
+# Aggressive scaling (maximum noise removal)
+pylithics --data_dir ./data --meta_file ./meta.csv --enable_dpi_scaling --dpi_scaling_mode aggressive
+
+# Custom DPI settings
+pylithics --data_dir ./data --meta_file ./meta.csv --enable_dpi_scaling \
+         --dpi_reference 150 --dpi_max_scale 2.0
+```
+
+**When to Use DPI Scaling:**
+
+- ✅ **Enable for**: Noisy photographs, degraded scans, mixed-quality datasets
+- ❌ **Disable for**: Clean archaeological line drawings, consistent quality scans
 
 ### Arrow Detection Options
 

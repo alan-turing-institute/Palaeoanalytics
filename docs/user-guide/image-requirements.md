@@ -12,12 +12,27 @@ PyLithics works with scanned illustrations of 2D lithic artifacts commonly found
 - **TIFF**: High quality, larger file sizes
 
 ### Resolution Requirements
-- **Optimal**: 300 DPI (dots per inch) for best results
-- **Supported Range**: PyLithcis has been tested between 75 DPI (minimum) to 600 DPI (maximum)
-- **Recommended**: 300 DPI provides the best balance of quality and processing speed
+- **Optimal**: 300 DPI (dots per inch) for best balance of quality and processing speed
+- **Supported Range**: PyLithics has been tested between 75 DPI (minimum) to 600 DPI (maximum)
+- **High Resolution**: 600+ DPI works well for archaeological line drawings with default settings
+- **Recommended**: 300-600 DPI for archaeological illustrations
 
-!!! tip "Automatic DPI Detection"
-    PyLithics automatically reads DPI information from your image files and adjusts detection algorithms accordingly. You don't need to manually specify DPI - it's extracted from the image metadata. Higher resolution improves arrow and small feature detection.
+!!! tip "DPI Processing Intelligence"
+    PyLithics automatically reads DPI information from your image files. For archaeological line drawings, the default fixed preprocessing kernels work optimally across all DPI ranges (75-600 DPI). DPI-aware scaling is available but typically not needed for clean line art - it's designed for noisy photographs or heavily degraded scans.
+
+### DPI Processing Modes
+
+**Default Mode (Recommended for Archaeological Drawings)**
+- Uses fixed kernel sizes optimized for line drawings
+- Works consistently across 75-600 DPI range
+- Preserves fine scar details at high resolution
+- No DPI scaling applied
+
+**DPI-Aware Mode (For Noisy Images)**
+- Enable with `--enable_dpi_scaling` flag
+- Scales preprocessing kernels based on image DPI
+- Useful for photographs, degraded scans, or noisy images
+- Three scaling strategies: conservative, standard, aggressive
 
 ## Drawing Style Guidelines
 

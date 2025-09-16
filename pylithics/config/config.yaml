@@ -1,6 +1,32 @@
 # PyLithics Configuration File
 # This file allows you to customize the behavior of PyLithics.
 
+# DPI-Aware Processing Configuration
+dpi_processing:
+  enabled: false  # Enable DPI-aware kernel scaling for preprocessing
+                  # - true: Kernel sizes scale with image DPI for consistent results
+                  # - false: Use fixed kernel sizes (recommended for archaeological line drawings)
+
+  reference_dpi: 300.0  # Reference DPI for parameter calibration
+                        # All base kernel sizes are optimized for this DPI
+                        # Kernels will be scaled for images with different DPIs
+
+  max_scale_factor: 1.5   # Maximum allowed scaling factor (conservative for line drawings)
+                          # Prevents over-processing of clean line art
+                          # Example: At 600 DPI, scale factor would be 2.0 but limited to 1.5
+
+  # Scaling mode for when DPI-aware processing is enabled
+  scaling_mode: standard      # conservative | standard | aggressive
+                             # conservative: Minimal scaling, preserves fine details
+                             # standard: Moderate scaling for mixed content (default)
+                             # aggressive: Full DPI-proportional scaling
+
+  # Base kernel sizes (optimized for reference_dpi)
+  base_kernels:
+    gaussian_blur: 5      # Base Gaussian blur kernel size
+    adaptive_block: 11    # Base adaptive threshold block size
+    morphological: 3      # Base morphological closing kernel size
+
 thresholding:
   method: simple  # Choose the thresholding method:
                   # - "simple" thresholding uses a fixed threshold value (see threshold_value below) and is the "default" method.

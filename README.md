@@ -67,7 +67,7 @@ The inputs for `PyLithics` are images of lithic objects, images of their associa
 
 1. Import and match images to associated image ID and scale image from CSV metadata file.
 2. **Scale Calibration**: Automatically detect and measure scale bars in scale images using computer vision, then calculate pixels-per-millimeter conversion factors. Uses pixel measurements if no scale calibration available.
-3. Apply noise removal and contrast stretching to images to minimize pixel variation.
+3. **DPI-Aware Preprocessing**: Apply intelligent noise removal and contrast stretching optimized for archaeological line drawings. By default, uses fixed kernel sizes that work well across DPI ranges (75-600 DPI). Optional DPI-aware scaling available for noisy photographs.
 4. Pixel intensity thresholding of images to prepare for contour finding.
 5. Apply edge detection and contour finding to thresholded images.
 6. Calculate metrics of lithic surface features from found contours.

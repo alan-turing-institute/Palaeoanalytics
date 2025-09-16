@@ -47,6 +47,26 @@ python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --scale_deb
 python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --disable_scale_calibration
 ```
 
+### DPI Processing Examples
+
+```bash
+# Default processing (recommended for archaeological line drawings)
+# Uses fixed kernels optimized for 75-600 DPI range
+python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv
+
+# Enable DPI-aware scaling for noisy photographs or degraded scans
+python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --enable_dpi_scaling
+
+# DPI scaling with conservative mode (minimal scaling)
+python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --enable_dpi_scaling --dpi_scaling_mode conservative
+
+# DPI scaling with aggressive mode (maximum noise removal)
+python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --enable_dpi_scaling --dpi_scaling_mode aggressive
+
+# Custom DPI parameters
+python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --enable_dpi_scaling --dpi_reference 150 --dpi_max_scale 2.0
+```
+
 ## Understanding the PyLithics Pipeline
 
 <div class="grid" markdown>
