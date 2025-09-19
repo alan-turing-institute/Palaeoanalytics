@@ -1,0 +1,16 @@
+%%{init: {'theme':'base', 'themeVariables': {'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#000000', 'lineColor': '#000000', 'fontSize': '16px'}}}%%
+flowchart TD
+    A[Import and validate images] --> B[Scale Calibration<br/>Convert pixels to millimeters]
+    B --> C[DPI-Aware Preprocessing<br/>Noise removal & contrast enhancement]
+    C --> D[Image Thresholding]
+    D --> E[Contour Extraction]
+    E --> F[Surface Classification]
+    F --> G[Calculate metrics]
+    G --> H{Arrow Detection}
+    H -->|Yes| I[Calculate directions]
+    H -->|No| J[Voronoi Analysis<br/> & Convex Hull]
+    I --> J[Voronoi Analysis<br/> & Convex Hull]
+    J --> K[Export CSV & Visualizations]
+
+    style A fill:#e1f5fe
+    style H fill:#fff3e0

@@ -235,13 +235,15 @@ def convert_metrics_to_real_world(metrics, pixels_per_mm):
     Returns:
         list: Metrics with measurements converted to millimeters.
     """
+    logging.info(f"Converting {len(metrics)} metrics with factor: {pixels_per_mm:.3f} pixels/mm")
+
     if pixels_per_mm <= 0:
         logging.warning(f"Invalid conversion factor: {pixels_per_mm}. Returning original metrics.")
         return metrics
 
     converted_metrics = []
 
-    for metric in metrics:
+    for i, metric in enumerate(metrics):
         # Create a copy of the metric to preserve all fields
         converted = metric.copy()
 
@@ -252,7 +254,9 @@ def convert_metrics_to_real_world(metrics, pixels_per_mm):
             "bounding_box_x", "bounding_box_y",
             "bounding_box_width", "bounding_box_height",
             "max_length", "max_width",
-            "perimeter"
+            "perimeter",
+            "distance_to_max_width",
+            "convex_hull_width", "convex_hull_height"
         ]
 
         for field in linear_fields:
@@ -260,8 +264,21 @@ def convert_metrics_to_real_world(metrics, pixels_per_mm):
                 converted[field] = round(converted[field] / pixels_per_mm, 2)
 
         # Convert area measurements (pixels² to mm²)
-        if "area" in converted and converted["area"] is not None:
-            converted["area"] = round(converted["area"] / (pixels_per_mm ** 2), 2)
+        area_fields = [
+            "area",
+            "convex_hull_area",
+            "voronoi_cell_area",
+            "top_area", "bottom_area",
+            "left_area", "right_area",
+            "cortex_area"
+        ]
+
+        for field in area_fields:
+            if field in converted:
+                value = converted[field]
+                if value is not None and isinstance(value, (int, float)) and value != "NA":
+                    converted[field] = round(value / (pixels_per_mm ** 2), 2)
+                # Skip non-numeric values silently
 
         # Aspect ratio remains unchanged (it's a ratio)
         # Parent, scar, contour, and other non-metric fields are preserved as-is
