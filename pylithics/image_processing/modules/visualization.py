@@ -26,7 +26,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
 
     # Phase 1: Draw ALL contours and centroids first
     contour_info = []  # Store info for label drawing phase
-    
+
     # First, draw arrow grandchild contours (if any) to maintain proper layering
     # Only draw outlines for grandchild contours that actually contain detected arrows
     if arrow_contours:
@@ -35,7 +35,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
         for m in metrics:
             if m.get("has_arrow") and m.get("arrow_back") and m.get("arrow_tip"):
                 arrow_points.extend([m["arrow_back"], m["arrow_tip"]])
-        
+
         # Only draw contours that contain arrow points
         for arrow_contour in arrow_contours:
             contains_arrow = False
@@ -45,11 +45,11 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
                 if cv2.pointPolygonTest(arrow_contour, point, False) >= 0:
                     contains_arrow = True
                     break
-            
+
             if contains_arrow:
                 # Draw the actual grandchild contour outline in light blue
                 cv2.drawContours(labeled, [arrow_contour], -1, (219, 191, 145), 2)  # BGR format of RGB(145,191,219)
-    
+
     # Draw regular contours
     for i, cnt in enumerate(contours):
         if i >= len(metrics):
@@ -189,7 +189,7 @@ def visualize_contours_with_hierarchy(contours, hierarchy, metrics, inverted_ima
     # Draw arrows for all detected arrow features (conditionally based on config)
     arrow_config = get_arrow_detection_config(config)
     show_arrow_lines = arrow_config.get('show_arrow_lines', False)
-    
+
     for m in metrics:
         if m.get("has_arrow") and m.get("arrow_back") and m.get("arrow_tip"):
             # Convert to integer tuples if needed
@@ -306,6 +306,14 @@ def save_measurements_to_csv(metrics, output_path, append=False, calibration_met
     """
     Save contour metrics to a CSV file.
     """
+    # Calculate total dorsal scar count
+    dorsal_scars = [
+        m for m in metrics
+        if (m.get("parent") != m.get("scar") and  # This is a child contour (not a parent surface)
+            "scar" in m.get("surface_feature", "").lower())  # And it's labeled as a scar
+    ]
+    total_dorsal_scars = len(dorsal_scars)
+
     updated_data = []
     for metric in metrics:
         if metric["parent"] == metric["scar"]:
@@ -330,10 +338,14 @@ def save_measurements_to_csv(metrics, output_path, append=False, calibration_met
         arrow_back_x = arrow_back[0] if isinstance(arrow_back, (list, tuple)) and len(arrow_back) >= 1 else "NA"
         arrow_back_y = arrow_back[1] if isinstance(arrow_back, (list, tuple)) and len(arrow_back) >= 2 else "NA"
 
+        # Only show dorsal scar count for the dorsal surface parent row
+        dorsal_scar_count = total_dorsal_scars if (surface_type == "Dorsal" and surface_feature == "Dorsal") else "NA"
+
         data_entry = {
             "image_id": metric.get("image_id", "NA"),
             "surface_type": surface_type,
             "surface_feature": surface_feature,
+            "total_dorsal_scars": dorsal_scar_count,
             "centroid_x": metric.get("centroid_x", "NA"),
             "centroid_y": metric.get("centroid_y", "NA"),
             "technical_width": metric.get("technical_width", "NA"),
@@ -388,7 +400,7 @@ def save_measurements_to_csv(metrics, output_path, append=False, calibration_met
 
     # Define column order for the CSV
     base_columns = [
-        "image_id", "surface_type", "surface_feature", "centroid_x", "centroid_y",
+        "image_id", "surface_type", "surface_feature", "total_dorsal_scars", "centroid_x", "centroid_y",
         "technical_width", "technical_length", "max_width", "max_length", "total_area", "aspect_ratio",
         "perimeter", "distance_to_max_width"
     ]
