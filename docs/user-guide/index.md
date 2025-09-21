@@ -47,7 +47,30 @@ Explore all the files and data PyLithics generates:
 - Arrow detection results
 
 
+### [Voronoi Analysis & Convex Hull](voronoi-analysis.md)
+PyLithics built-in spatial analysis features:
 
+- Understanding Voronoi diagrams
+- Convex hull calculations
+- Configuration options
+- Archaeological applications
+
+### [Lithic Editor](lithic-editor.md)
+*Coming Soon* - Manual editing and correction tools:
+
+- Planned features
+- Integration with PyLithics workflow
+- Future development roadmap
+
+### [Troubleshooting](troubleshooting.md)
+Solve common issues and optimize performance:
+
+- Error messages and solutions
+- Image preprocessing problems
+- Configuration troubleshooting
+- Performance optimization tips
+- Disabling features for speed
+-
 ### [Glossary](glossary.md)
 Reference for all terms and metrics:
 
