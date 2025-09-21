@@ -2,58 +2,7 @@
 
 ## The Project
 
-PyLithics is the result of the [Palaeoanalytics project](https://www.turing.ac.uk/research/research-projects/palaeoanalytics), a collaboration between The Alan Turing Institute and the University of Cambridge. This innovative project applies cutting-edge machine learning and computer vision techniques to archaeological research, specifically focusing on the quantitative analysis of prehistoric stone tools.
-
-## Mission
-
-Our mission is to revolutionize archaeological lithic analysis by providing researchers with powerful, accessible, and scientifically rigorous tools for extracting quantitative data from stone artifact illustrations. PyLithics democratizes advanced computational methods, making them available to the global archaeological community.
-
-## The Team
-
-### Project Leadership
-
-**Dr. Jason Gellis**
-*Senior Data Scientist (Dimensions AI) & Researcher (University of Cambridge)*
-📧 [jg760@cam.ac.uk](mailto:jg760@cam.ac.uk)
-🔗 [@JasonGellis](https://github.com/JasonGellis)
-
-Dr. Gellis leads the technical development of PyLithics and brings expertise in computer vision, machine learning, and archaeological methodology. His research focuses on the intersection of computational methods and archaeological science.
-
-**Prof. Robert Foley**
-*Principal Investigator (University of Cambridge)*
-📧 [raf10@cam.ac.uk](mailto:raf10@cam.ac.uk)
-🔗 [@Rob-LCHES](https://github.com/Rob-LCHES)
-
-Professor Foley provides archaeological expertise and project oversight. His extensive experience in human evolution and prehistoric technology ensures that PyLithics meets the needs of the archaeological research community.
-
-### Core Development Team
-
-**Dr. Camila Rangel Smith**
-*Research Data Scientist (The Alan Turing Institute)*
-📧 [crangelsmith@turing.ac.uk](mailto:crangelsmith@turing.ac.uk)
-🔗 [@crangelsmith](https://github.com/crangelsmith)
-
-Dr. Rangel Smith contributes data science expertise and helps bridge the gap between advanced computational methods and practical archaeological applications.
-
-## Institutional Affiliations
-
-### The Alan Turing Institute
-The UK's national institute for data science and artificial intelligence, providing computational expertise and infrastructure for the project.
-
-### University of Cambridge
-The Leverhulme Centre for Human Evolutionary Studies (LCHES) provides archaeological expertise and access to extensive lithic collections for method development and validation.
-
-## Project History
-
-The Palaeoanalytics project began with the recognition that archaeological analysis could benefit enormously from advances in computer vision and machine learning. Traditional lithic analysis, while scientifically rigorous, is time-intensive and subject to inter-observer variability. PyLithics was developed to address these challenges while maintaining the high standards of archaeological science.
-
-### Development Timeline
-
-- **2020**: Project initiation and initial method development
-- **2021**: Core team formation and algorithm development
-- **2022**: Beta testing with archaeological datasets
-- **2023**: Public release and community engagement
-- **2024**: Continued development and feature expansion
+PyLithics began as part of the [Palaeoanalytics project](https://www.turing.ac.uk/research/research-projects/palaeoanalytics) (ended), a collaboration between The Alan Turing Institute and the University of Cambridge, led by Professor Robert Foley. After the original Palaeoanalytics project ended, PyLithics software development has continued as part of the British Academy funded project "Transitions in early stone tool technologies: a computer vision and machine learning approach" (ongoing) led by Dr. Jason Gellis. These innovative projects seek to apply cutting-edge machine learning and computer vision techniques to archaeological research, specifically focusing on the feature extraction and quantitative analysis of prehistoric stone tools from 2D illustrations.
 
 ## Research Impact
 
@@ -80,10 +29,48 @@ PyLithics embodies principles of open science:
 - **Reproducible Research**: Analysis parameters are recorded and sharable
 - **Community Driven**: Development guided by user needs and feedback
 
+## The Team
+
+**Dr. Jason Gellis**
+
+- *British Academy Post-Doctoral Research Fellow [(University of Cambridge)](https://www.arch.cam.ac.uk/staff/dr-jason-gellis)*
+- [jg760@cam.ac.uk](mailto:jg760@cam.ac.uk)
+- [@JasonGellis](https://github.com/JasonGellis)
+
+Dr. Gellis leads the technical development of PyLithics and brings expertise in computer vision, machine learning, and archaeological methodology. He has been involved in the project at all stages and currently leads PyLithics development as part of his British Academy funded research. His research focuses on the intersection of computational methods and archaeological science.
+
+**Prof. Robert Foley**
+
+- *Principal Investigator [(University of Cambridge)](https://www.arch.cam.ac.uk/directory/raf10)*
+- [raf10@cam.ac.uk](mailto:raf10@cam.ac.uk)
+- [@Rob-LCHES](https://github.com/Rob-LCHES)
+
+Professor Foley is an evolutionary and biological anthropologist with research interests in human evolution, particularly the ecological basis for patterns and processes of human behavioural evolution. His work covers social evolution, speciation and extinction in hominins, hunter-gatherer ecology, and the origins of modern humans, applying evolutionary models to human evolution through both palaeobiological and contemporary biological methods. He has contributed extensively to the development of the African origin of modern humans field, working across fossils, genetics and archaeology, and is currently engaged in field projects focusing on the evolution of modern humans in Africa. Professor Foley led the Alan Turing Institute portion of the original Palaeoanalytics project and continues to participate in PyLithics development as an advisor, providing archaeological expertise and project oversight.
+
+
+**Dr. Camila Rangel Smith**
+
+- *Research Data Scientist [(The Alan Turing Institute)](https://www.turing.ac.uk/people/spotlights/camila-rangel-smith)*
+- [crangelsmith@turing.ac.uk](mailto:crangelsmith@turing.ac.uk)
+
+Dr. Rangel Smith contributed data science expertise during the initial Alan Turing Institute phase of the project, helping to bridge the gap between advanced computational methods and practical archaeological applications.
+
+## Institutional Affiliations
+
+### The British Academy
+The UK's national academy for the humanities and social sciences, currently funding the ongoing PyLithics development through the "Transitions in early stone tool technologies" project, enabling continued research and software enhancement.
+
+### The Alan Turing Institute
+The UK's national institute for data science and artificial intelligence, provided computational expertise and infrastructure for the original Palaeoanalytics project.
+
+### University of Cambridge
+The Leverhulme Centre for Human Evolutionary Studies (LCHES) provides archaeological expertise and access to extensive lithic collections for method development and validation throughout both phases of the project.
+
 ## Funding and Support
 
 This research is supported by:
 
+- The British Academy
 - The Alan Turing Institute
 - The University of Cambridge
 - The Leverhulme Centre for Human Evolutionary Studies
@@ -138,6 +125,7 @@ Please see our [Contributing Guidelines](https://github.com/alan-turing-institut
 ### Academic Collaboration
 
 We actively seek collaborations with:
+
 - Archaeological research groups
 - Computer science departments
 - Digital humanities initiatives
@@ -145,19 +133,9 @@ We actively seek collaborations with:
 
 ## Contact Information
 
-### General Inquiries
+### General Inquiries and Technical Support
 For general questions about PyLithics or the Palaeoanalytics project, please contact:
 - **Dr. Jason Gellis**: [jg760@cam.ac.uk](mailto:jg760@cam.ac.uk)
-- **Prof. Robert Foley**: [raf10@cam.ac.uk](mailto:raf10@cam.ac.uk)
-
-### Technical Support
-For technical issues and bug reports:
-- **GitHub Issues**: [Report problems](https://github.com/alan-turing-institute/Palaeoanalytics/issues)
-- **Dr. Camila Rangel Smith**: [crangelsmith@turing.ac.uk](mailto:crangelsmith@turing.ac.uk)
-
-### Collaboration Opportunities
-For research collaborations and partnerships:
-- **Prof. Robert Foley**: [raf10@cam.ac.uk](mailto:raf10@cam.ac.uk)
 
 ## License
 
@@ -171,6 +149,7 @@ PyLithics is licensed under the [GNU General Public License v3.0 (GPL-3.0)](http
 ## Acknowledgments
 
 We thank:
+
 - The archaeological community for feedback and validation
 - Beta testers who helped refine the software
 - Contributors who have improved the codebase
