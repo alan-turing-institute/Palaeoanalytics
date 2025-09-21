@@ -1,0 +1,1266 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Archaeological Lithic Analysis Tool">
+      
+      
+      
+        <link rel="canonical" href="https://alan-turing-institute.github.io/Palaeoanalytics/about/">
+      
+      
+        <link rel="prev" href="../reference/cli-commands/">
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.20">
+    
+    
+      
+        <title>About - PyLithics</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.e53b48f4.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#about-pylithics" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="PyLithics" class="md-header__button md-logo" aria-label="PyLithics" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PyLithics
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              About
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/alan-turing-institute/Palaeoanalytics" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Palaeoanalytics
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../installation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../user-guide/" class="md-tabs__link">
+          
+  
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../reference/cli-commands/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  About
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="PyLithics" class="md-nav__button md-logo" aria-label="PyLithics" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    PyLithics
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/alan-turing-institute/Palaeoanalytics" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Palaeoanalytics
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    User Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            User Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/image-requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Image Requirements
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/metadata-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Metadata Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/basic-usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Basic Usage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/outputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Outputs
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/voronoi-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Voronoi Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/lithic-editor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Lithic Editor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Glossary
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/cli-commands/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CLI Commands
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    About
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    About
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Project
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#research-impact" class="md-nav__link">
+    <span class="md-ellipsis">
+      Research Impact
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Research Impact">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#methodological-advances" class="md-nav__link">
+    <span class="md-ellipsis">
+      Methodological Advances
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#archaeological-applications" class="md-nav__link">
+    <span class="md-ellipsis">
+      Archaeological Applications
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-science-commitment" class="md-nav__link">
+    <span class="md-ellipsis">
+      Open Science Commitment
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-team" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Team
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#institutional-affiliations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Institutional Affiliations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Institutional Affiliations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-british-academy" class="md-nav__link">
+    <span class="md-ellipsis">
+      The British Academy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-alan-turing-institute" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Alan Turing Institute
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#university-of-cambridge" class="md-nav__link">
+    <span class="md-ellipsis">
+      University of Cambridge
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#funding-and-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      Funding and Support
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#citation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Citation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Citation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#recommended-citation-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recommended Citation Format
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bibtex-entry" class="md-nav__link">
+    <span class="md-ellipsis">
+      BibTeX Entry
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contributing
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Contributing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-to-contribute" class="md-nav__link">
+    <span class="md-ellipsis">
+      How to Contribute
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#contribution-guidelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contribution Guidelines
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#community" class="md-nav__link">
+    <span class="md-ellipsis">
+      Community
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Community">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#user-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      User Support
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#academic-collaboration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Academic Collaboration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contact-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contact Information
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Contact Information">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#general-inquiries-and-technical-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      General Inquiries and Technical Support
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      License
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#acknowledgments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Acknowledgments
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="about-pylithics">About PyLithics<a class="headerlink" href="#about-pylithics" title="Permanent link">&para;</a></h1>
+<h2 id="the-project">The Project<a class="headerlink" href="#the-project" title="Permanent link">&para;</a></h2>
+<p>PyLithics began as part of the <a href="https://www.turing.ac.uk/research/research-projects/palaeoanalytics">Palaeoanalytics project</a> (ended), a collaboration between The Alan Turing Institute and the University of Cambridge, led by Professor Robert Foley. After the original Palaeoanalytics project ended, PyLithics software development has continued as part of the British Academy funded project "Transitions in early stone tool technologies: a computer vision and machine learning approach" (ongoing) led by Dr. Jason Gellis. These innovative projects seek to apply cutting-edge machine learning and computer vision techniques to archaeological research, specifically focusing on the feature extraction and quantitative analysis of prehistoric stone tools from 2D illustrations.</p>
+<h2 id="research-impact">Research Impact<a class="headerlink" href="#research-impact" title="Permanent link">&para;</a></h2>
+<p>PyLithics has been designed to support multiple types of archaeological research:</p>
+<h3 id="methodological-advances">Methodological Advances<a class="headerlink" href="#methodological-advances" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Quantitative analysis of lithic assemblages</li>
+<li>Standardization of measurement protocols</li>
+<li>Reduction of inter-observer variability</li>
+<li>Large-scale comparative studies</li>
+</ul>
+<h3 id="archaeological-applications">Archaeological Applications<a class="headerlink" href="#archaeological-applications" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Technological analysis of prehistoric industries</li>
+<li>Cultural transmission studies</li>
+<li>Skill assessment in prehistoric populations</li>
+<li>Temporal and spatial variation in tool-making traditions</li>
+</ul>
+<h2 id="open-science-commitment">Open Science Commitment<a class="headerlink" href="#open-science-commitment" title="Permanent link">&para;</a></h2>
+<p>PyLithics embodies principles of open science:</p>
+<ul>
+<li><strong>Open Source</strong>: All code is freely available under GPL v3.0</li>
+<li><strong>Transparent Methods</strong>: Processing algorithms are fully documented</li>
+<li><strong>Reproducible Research</strong>: Analysis parameters are recorded and sharable</li>
+<li><strong>Community Driven</strong>: Development guided by user needs and feedback</li>
+</ul>
+<h2 id="the-team">The Team<a class="headerlink" href="#the-team" title="Permanent link">&para;</a></h2>
+<p><strong>Dr. Jason Gellis</strong></p>
+<ul>
+<li><em>British Academy Post-Doctoral Research Fellow <a href="https://www.arch.cam.ac.uk/staff/dr-jason-gellis">(University of Cambridge)</a></em></li>
+<li><a href="mailto:jg760@cam.ac.uk">jg760@cam.ac.uk</a></li>
+<li><a href="https://github.com/JasonGellis">@JasonGellis</a></li>
+</ul>
+<p>Dr. Gellis leads the technical development of PyLithics and brings expertise in computer vision, machine learning, and archaeological methodology. He has been involved in the project at all stages and currently leads PyLithics development as part of his British Academy funded research. His research focuses on the intersection of computational methods and archaeological science.</p>
+<p><strong>Prof. Robert Foley</strong></p>
+<ul>
+<li><em>Principal Investigator <a href="https://www.arch.cam.ac.uk/directory/raf10">(University of Cambridge)</a></em></li>
+<li><a href="mailto:raf10@cam.ac.uk">raf10@cam.ac.uk</a></li>
+<li><a href="https://github.com/Rob-LCHES">@Rob-LCHES</a></li>
+</ul>
+<p>Professor Foley is an evolutionary and biological anthropologist with research interests in human evolution, particularly the ecological basis for patterns and processes of human behavioural evolution. His work covers social evolution, speciation and extinction in hominins, hunter-gatherer ecology, and the origins of modern humans, applying evolutionary models to human evolution through both palaeobiological and contemporary biological methods. He has contributed extensively to the development of the African origin of modern humans field, working across fossils, genetics and archaeology, and is currently engaged in field projects focusing on the evolution of modern humans in Africa. Professor Foley led the Alan Turing Institute portion of the original Palaeoanalytics project and continues to participate in PyLithics development as an advisor, providing archaeological expertise and project oversight.</p>
+<p><strong>Dr. Camila Rangel Smith</strong></p>
+<ul>
+<li><em>Research Data Scientist <a href="https://www.turing.ac.uk/people/spotlights/camila-rangel-smith">(The Alan Turing Institute)</a></em></li>
+<li><a href="mailto:crangelsmith@turing.ac.uk">crangelsmith@turing.ac.uk</a></li>
+</ul>
+<p>Dr. Rangel Smith contributed data science expertise during the initial Alan Turing Institute phase of the project, helping to bridge the gap between advanced computational methods and practical archaeological applications.</p>
+<h2 id="institutional-affiliations">Institutional Affiliations<a class="headerlink" href="#institutional-affiliations" title="Permanent link">&para;</a></h2>
+<h3 id="the-british-academy">The British Academy<a class="headerlink" href="#the-british-academy" title="Permanent link">&para;</a></h3>
+<p>The UK's national academy for the humanities and social sciences, currently funding the ongoing PyLithics development through the "Transitions in early stone tool technologies" project, enabling continued research and software enhancement.</p>
+<h3 id="the-alan-turing-institute">The Alan Turing Institute<a class="headerlink" href="#the-alan-turing-institute" title="Permanent link">&para;</a></h3>
+<p>The UK's national institute for data science and artificial intelligence, provided computational expertise and infrastructure for the original Palaeoanalytics project.</p>
+<h3 id="university-of-cambridge">University of Cambridge<a class="headerlink" href="#university-of-cambridge" title="Permanent link">&para;</a></h3>
+<p>The Leverhulme Centre for Human Evolutionary Studies (LCHES) provides archaeological expertise and access to extensive lithic collections for method development and validation throughout both phases of the project.</p>
+<h2 id="funding-and-support">Funding and Support<a class="headerlink" href="#funding-and-support" title="Permanent link">&para;</a></h2>
+<p>This research is supported by:</p>
+<ul>
+<li>The British Academy</li>
+<li>The Alan Turing Institute</li>
+<li>The University of Cambridge</li>
+<li>The Leverhulme Centre for Human Evolutionary Studies</li>
+</ul>
+<p>We are grateful for the institutional support that has made this project possible.</p>
+<h2 id="citation">Citation<a class="headerlink" href="#citation" title="Permanent link">&para;</a></h2>
+<p>If you use PyLithics in your research, please cite:</p>
+<p><a href="https://zenodo.org/badge/latestdoi/303727518"><img alt="DOI" src="https://zenodo.org/badge/303727518.svg" /></a></p>
+<h3 id="recommended-citation-format">Recommended Citation Format<a class="headerlink" href="#recommended-citation-format" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Gellis, J., Rangel Smith, C., &amp; Foley, R. (2024). PyLithics: A Python package for
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>archaeological lithic analysis [Computer software].
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>https://doi.org/10.5281/zenodo.303727518
+</code></pre></div>
+<h3 id="bibtex-entry">BibTeX Entry<a class="headerlink" href="#bibtex-entry" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nc">@software</span><span class="p">{</span><span class="nl">pylithics2024</span><span class="p">,</span><span class="na">\n</span><span class="w">  </span><span class="err">author</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Gellis, Jason and {Rangel Smith}, Camila and Foley, Robert}</span><span class="p">,</span><span class="na">\n</span><span class="w">  </span><span class="err">title</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{PyLithics: A Python package for archaeological lithic analysis}</span><span class="p">,</span><span class="na">\n</span><span class="w">  </span><span class="err">year</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{2024}</span><span class="p">,</span><span class="na">\n</span><span class="w">  </span><span class="err">publisher</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Zenodo}</span><span class="p">,</span><span class="na">\n</span><span class="w">  </span><span class="err">doi</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{10.5281/zenodo.303727518}</span><span class="p">,</span><span class="na">\n</span><span class="w">  </span><span class="err">url</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{https://github.com/alan-turing-institute/Palaeoanalytics}</span><span class="nv">\n</span><span class="p">}</span>
+</code></pre></div>
+<h2 id="contributing">Contributing<a class="headerlink" href="#contributing" title="Permanent link">&para;</a></h2>
+<p>We welcome contributions from the archaeological and computational communities:</p>
+<h3 id="how-to-contribute">How to Contribute<a class="headerlink" href="#how-to-contribute" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Report Issues</strong>: Use our <a href="https://github.com/alan-turing-institute/Palaeoanalytics/issues">GitHub issue tracker</a></li>
+<li><strong>Suggest Features</strong>: Propose new functionality or improvements</li>
+<li><strong>Code Contributions</strong>: Submit pull requests with enhancements</li>
+<li><strong>Documentation</strong>: Help improve user guides and tutorials</li>
+<li><strong>Testing</strong>: Validate PyLithics with your datasets</li>
+</ol>
+<h3 id="contribution-guidelines">Contribution Guidelines<a class="headerlink" href="#contribution-guidelines" title="Permanent link">&para;</a></h3>
+<p>Please see our <a href="https://github.com/alan-turing-institute/Palaeoanalytics/blob/main/CONTRIBUTING.md">Contributing Guidelines</a> for detailed information on how to contribute to the project.</p>
+<h2 id="community">Community<a class="headerlink" href="#community" title="Permanent link">&para;</a></h2>
+<h3 id="user-support">User Support<a class="headerlink" href="#user-support" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Documentation</strong>: Comprehensive guides and tutorials</li>
+<li><strong>GitHub Discussions</strong>: Community Q&amp;A and feature requests</li>
+<li><strong>Email Support</strong>: Direct contact with the development team</li>
+<li><strong>Workshops</strong>: Training sessions and conference presentations</li>
+</ul>
+<h3 id="academic-collaboration">Academic Collaboration<a class="headerlink" href="#academic-collaboration" title="Permanent link">&para;</a></h3>
+<p>We actively seek collaborations with:</p>
+<ul>
+<li>Archaeological research groups</li>
+<li>Computer science departments</li>
+<li>Digital humanities initiatives</li>
+<li>Museum collections and cultural heritage organizations</li>
+</ul>
+<h2 id="contact-information">Contact Information<a class="headerlink" href="#contact-information" title="Permanent link">&para;</a></h2>
+<h3 id="general-inquiries-and-technical-support">General Inquiries and Technical Support<a class="headerlink" href="#general-inquiries-and-technical-support" title="Permanent link">&para;</a></h3>
+<p>For general questions about PyLithics or the Palaeoanalytics project, please contact:
+- <strong>Dr. Jason Gellis</strong>: <a href="mailto:jg760@cam.ac.uk">jg760@cam.ac.uk</a></p>
+<h2 id="license">License<a class="headerlink" href="#license" title="Permanent link">&para;</a></h2>
+<p>PyLithics is licensed under the <a href="https://www.gnu.org/licenses/gpl-3.0">GNU General Public License v3.0 (GPL-3.0)</a>. This ensures that:</p>
+<ul>
+<li>The software remains freely available</li>
+<li>Users can modify and redistribute the code</li>
+<li>Derivative works must also be open source</li>
+<li>The archaeological community benefits from continued development</li>
+</ul>
+<h2 id="acknowledgments">Acknowledgments<a class="headerlink" href="#acknowledgments" title="Permanent link">&para;</a></h2>
+<p>We thank:</p>
+<ul>
+<li>The archaeological community for feedback and validation</li>
+<li>Beta testers who helped refine the software</li>
+<li>Contributors who have improved the codebase</li>
+<li>Institutions that have supported this research</li>
+</ul>
+<p>The development of PyLithics has been greatly enhanced by the collaborative spirit of the open science community.</p>
+<hr />
+<p><em>For the latest updates and announcements, please visit our <a href="https://github.com/alan-turing-institute/Palaeoanalytics">GitHub repository</a> or contact the development team.</em></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.path", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "toc.integrate"], "search": "../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+    
+  </body>
+</html>

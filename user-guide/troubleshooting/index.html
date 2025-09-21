@@ -1,0 +1,1560 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Archaeological Lithic Analysis Tool">
+      
+      
+      
+        <link rel="canonical" href="https://alan-turing-institute.github.io/Palaeoanalytics/user-guide/troubleshooting/">
+      
+      
+        <link rel="prev" href="../lithic-editor/">
+      
+      
+        <link rel="next" href="../glossary/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.20">
+    
+    
+      
+        <title>Troubleshooting - PyLithics</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.e53b48f4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#troubleshooting" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="PyLithics" class="md-header__button md-logo" aria-label="PyLithics" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PyLithics
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Troubleshooting
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/alan-turing-institute/Palaeoanalytics" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Palaeoanalytics
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../installation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/cli-commands/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../about/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  About
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="PyLithics" class="md-nav__button md-logo" aria-label="PyLithics" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    PyLithics
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/alan-turing-institute/Palaeoanalytics" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Palaeoanalytics
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    User Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            User Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../image-requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Image Requirements
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metadata-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Metadata Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basic-usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Basic Usage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../outputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Outputs
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../voronoi-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Voronoi Analysis
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lithic-editor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Lithic Editor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#common-issues-and-solutions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common Issues and Solutions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Installation Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installation Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#python-version-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Python Version Errors
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#package-installation-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      Package Installation Failures
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#virtual-environment-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Virtual Environment Issues
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#image-processing-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Image Processing Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Image Processing Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#no-contours-found" class="md-nav__link">
+    <span class="md-ellipsis">
+      No Contours Found
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#poor-contour-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      Poor Contour Detection
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scale-calculation-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scale Calculation Errors
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configuration Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#config-file-not-loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Config File Not Loading
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cli-overrides-not-working" class="md-nav__link">
+    <span class="md-ellipsis">
+      CLI Overrides Not Working
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#feature-specific-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Feature-Specific Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Feature-Specific Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#arrow-detection-problems" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arrow Detection Problems
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance-problems" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance Problems
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#voronoi-analysis-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Voronoi Analysis Issues
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unrealistic-measurements" class="md-nav__link">
+    <span class="md-ellipsis">
+      Unrealistic Measurements
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#platform-specific-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Platform-Specific Issues
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Platform-Specific Issues">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#macos-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      macOS Issues
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#windows-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Windows Issues
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linux-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Linux Issues
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-message-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      Error Message Guide
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Error Message Guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#filenotfounderror" class="md-nav__link">
+    <span class="md-ellipsis">
+      \"FileNotFoundError\"
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#valueerror-could-not-convert-string-to-float" class="md-nav__link">
+    <span class="md-ellipsis">
+      \"ValueError: could not convert string to float\"
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memoryerror" class="md-nav__link">
+    <span class="md-ellipsis">
+      \"MemoryError\"
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#importerror-no-module-named-cv2" class="md-nav__link">
+    <span class="md-ellipsis">
+      \"ImportError: No module named 'cv2'\"
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#yamlscannerscannererror" class="md-nav__link">
+    <span class="md-ellipsis">
+      \"yaml.scanner.ScannerError\"
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance Optimization
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Optimization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#for-large-datasets" class="md-nav__link">
+    <span class="md-ellipsis">
+      For Large Datasets
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      Memory Management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disabling-features-for-speed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Disabling Features for Speed
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      Getting Help
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Getting Help">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#information-to-provide" class="md-nav__link">
+    <span class="md-ellipsis">
+      Information to Provide
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-to-get-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      Where to Get Help
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#before-reporting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Before Reporting
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostic-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Diagnostic Commands
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Diagnostic Commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#system-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      System Check
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#debug-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      Debug Mode
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Glossary
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli-commands/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CLI Commands
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    About
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h1>
+<h2 id="common-issues-and-solutions">Common Issues and Solutions<a class="headerlink" href="#common-issues-and-solutions" title="Permanent link">&para;</a></h2>
+<p>This guide helps you diagnose and solve the most frequent problems when using PyLithics.</p>
+<h2 id="installation-issues">Installation Issues<a class="headerlink" href="#installation-issues" title="Permanent link">&para;</a></h2>
+<h3 id="python-version-errors">Python Version Errors<a class="headerlink" href="#python-version-errors" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: "Python 3.7+ required" or compatibility errors</p>
+<p><strong>Solutions</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Check your Python version</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>python<span class="w"> </span>--version
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Install correct Python version</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># macOS (using Homebrew)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>brew<span class="w"> </span>install<span class="w"> </span>python@3.9
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># Ubuntu/Debian</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>python3.9
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="c1"># Windows - download from python.org</span>
+</code></pre></div></p>
+<h3 id="package-installation-failures">Package Installation Failures<a class="headerlink" href="#package-installation-failures" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: <code>pip install .</code> fails with dependency errors</p>
+<p><strong>Solutions</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Upgrade pip first</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>pip
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Install with verbose output to see details</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>pip<span class="w"> </span>install<span class="w"> </span>.<span class="w"> </span>-v
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Install dependencies manually if needed</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>pip<span class="w"> </span>install<span class="w"> </span>opencv-python-headless&gt;<span class="o">=</span><span class="m">4</span>.8.0
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>pip<span class="w"> </span>install<span class="w"> </span>numpy&gt;<span class="o">=</span><span class="m">1</span>.24.0
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>pip<span class="w"> </span>install<span class="w"> </span>pandas&gt;<span class="o">=</span><span class="m">1</span>.5.0
+</code></pre></div></p>
+<h3 id="virtual-environment-issues">Virtual Environment Issues<a class="headerlink" href="#virtual-environment-issues" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Virtual environment not activating or packages not found</p>
+<p><strong>Solutions</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Verify virtual environment is active</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>which<span class="w"> </span>python<span class="w">  </span><span class="c1"># Should show path in your venv</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Recreate virtual environment if corrupted</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>deactivate
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>rm<span class="w"> </span>-rf<span class="w"> </span>palaeo/
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>palaeo
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="nb">source</span><span class="w"> </span>palaeo/bin/activate
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>pip<span class="w"> </span>install<span class="w"> </span>.
+</code></pre></div></p>
+<h2 id="image-processing-issues">Image Processing Issues<a class="headerlink" href="#image-processing-issues" title="Permanent link">&para;</a></h2>
+<h3 id="no-contours-found">No Contours Found<a class="headerlink" href="#no-contours-found" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: "No contours detected" or empty results</p>
+<p><strong>Diagnosis</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Enable debug mode to see what&#39;s happening</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\\\n</span><span class="w">         </span>--log_level<span class="w"> </span>DEBUG<span class="w"> </span>--show_thresholded_images
+</code></pre></div></p>
+<p><strong>Solutions</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Try different thresholding methods</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\\\n</span><span class="w">         </span>--threshold_method<span class="w"> </span>otsu
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># For poor contrast images</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\\\n</span><span class="w">         </span>--threshold_method<span class="w"> </span>adaptive
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Adjust threshold value manually</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\\\n</span><span class="w">         </span>--threshold_method<span class="w"> </span>simple<span class="w"> </span>--threshold_value<span class="w"> </span><span class="m">100</span>
+</code></pre></div></p>
+<h3 id="poor-contour-detection">Poor Contour Detection<a class="headerlink" href="#poor-contour-detection" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Incomplete or inaccurate contour boundaries</p>
+<p><strong>Image Quality Checks</strong>:
+- Ensure high contrast (black lines on white background)
+- Verify resolution is at least 300 DPI
+- Check for scanning artifacts or noise
+- Confirm contours are closed/complete</p>
+<p><strong>Configuration Solutions</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># In config.yaml, try these adjustments</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nt">thresholding:\n  method: adaptive\n  adaptive_block_size: 15\n  adaptive_constant: 3\n\npreprocessing:\n  denoise: true\n  morphological_closing: true\n  closing_kernel_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+</code></pre></div></p>
+<h3 id="scale-calculation-errors">Scale Calculation Errors<a class="headerlink" href="#scale-calculation-errors" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Unrealistic measurements (too large/small)</p>
+<p><strong>Check metadata</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a># Verify your metadata.csv format\nimage_id,scale_id,scale\nartifact_001.png,scale_001.png,10  # Scale in millimeters
+</code></pre></div></p>
+<p><strong>Common mistakes</strong>:
+- Scale value in centimeters instead of millimeters
+- Missing or incorrect scale images
+- Wrong image-scale associations</p>
+<h2 id="configuration-issues">Configuration Issues<a class="headerlink" href="#configuration-issues" title="Permanent link">&para;</a></h2>
+<h3 id="config-file-not-loading">Config File Not Loading<a class="headerlink" href="#config-file-not-loading" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Configuration changes not taking effect</p>
+<p><strong>Solutions</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Verify config file path</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\\\n</span><span class="w">         </span>--config_file<span class="w"> </span>./config.yaml<span class="w"> </span>--log_level<span class="w"> </span>DEBUG
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Check YAML syntax</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="se">\&quot;</span>import<span class="w"> </span>yaml<span class="p">;</span><span class="w"> </span>yaml.safe_load<span class="o">(</span>open<span class="o">(</span><span class="s1">&#39;config.yaml&#39;</span><span class="o">))</span><span class="se">\&quot;</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Use absolute paths if needed</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/data<span class="w"> </span>--meta_file<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/meta.csv<span class="w"> </span><span class="se">\\\n</span><span class="w">         </span>--config_file<span class="w"> </span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/config.yaml
+</code></pre></div></p>
+<h3 id="cli-overrides-not-working">CLI Overrides Not Working<a class="headerlink" href="#cli-overrides-not-working" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Command-line arguments ignored</p>
+<p><strong>Solutions</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Verify argument syntax\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --threshold_method=otsu  # Use = or space\n\n# Check argument spelling\npylithics --help  # See all available options</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="c1"># Use debug logging to verify settings\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --log_level DEBUG</span>
+</code></pre></div></p>
+<h2 id="feature-specific-issues">Feature-Specific Issues<a class="headerlink" href="#feature-specific-issues" title="Permanent link">&para;</a></h2>
+<h3 id="arrow-detection-problems">Arrow Detection Problems<a class="headerlink" href="#arrow-detection-problems" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Arrows not detected or false positives</p>
+<p><strong>Enable debug mode</strong>:
+```bash\npylithics --data_dir ./data --meta_file ./meta.csv \\n         --arrow_debug --log_level DEBUG
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>**Check debug images**:
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>- Look in `processed/arrow_debug/`
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>- Review candidate detection images
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>- Verify DPI settings are correct
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>**Adjust configuration**:
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>```yaml\narrow_detection:\n  enabled: true\n  reference_dpi: 300.0  # Match your image DPI\n  min_area_scale_factor: 0.5  # Lower for smaller arrows\n  max_area_scale_factor: 15.0  # Higher for larger arrows\n  min_aspect_ratio: 1.2  # Lower for rounder arrows
+</code></pre></div></p>
+<h3 id="performance-problems">Performance Problems<a class="headerlink" href="#performance-problems" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Very slow processing</p>
+<p><strong>Quick solutions</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Disable time-consuming features\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --disable_arrow_detection \\\n         --disable_voronoi \\\n         --disable_symmetry</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># Process smaller batches\n# Split your dataset into smaller directories</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="c1"># Use simpler thresholding\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --threshold_method simple</span>
+</code></pre></div></p>
+<p><strong>Memory issues</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Monitor memory usage\ntop -p $(pgrep -f pylithics)\n\n# Process one image at a time if needed\n# Create single-image metadata files for large images</span>
+</code></pre></div></p>
+<h3 id="voronoi-analysis-issues">Voronoi Analysis Issues<a class="headerlink" href="#voronoi-analysis-issues" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: No Voronoi diagrams generated</p>
+<p><strong>Check requirements</strong>:
+- Surfaces must have ≥3 scars for Voronoi analysis
+- Voronoi analysis must be enabled in config
+- Verify scar detection is working</p>
+<p><strong>Configuration</strong>:
+```yaml\nvoronoi_analysis:\n  enabled: true\n  min_scars: 3  # Lower if needed\n  min_surface_area: 50  # Lower for small artifacts
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>## Data Issues
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>### Missing Output Files
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>**Problem**: Expected output files not created
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>**Check permissions**:
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>```bash
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a># Verify write permissions\nls -la processed/\nchmod 755 processed/  # If needed
+</code></pre></div></p>
+<p><strong>Check processing log</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Review log for errors\ntail -50 processed/pylithics.log\n\n# Look for specific error messages\ngrep ERROR processed/pylithics.log</span>
+</code></pre></div></p>
+<h3 id="unrealistic-measurements">Unrealistic Measurements<a class="headerlink" href="#unrealistic-measurements" title="Permanent link">&para;</a></h3>
+<p><strong>Problem</strong>: Measurements don't match expectations</p>
+<p><strong>Validation steps</strong>:
+1. Check scale information in metadata
+2. Verify units (should be millimeters)
+3. Review labeled images for accuracy
+4. Compare with known measurements</p>
+<p><strong>Debug measurements</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>\<span class="n">n</span>\<span class="n">n</span><span class="c1"># Load and examine data\ndf = pd.read_csv(&#39;processed/measurements.csv&#39;)\n\n# Check measurement ranges\nprint(\&quot;Length range:\&quot;, df[&#39;technical_length&#39;].min(), \&quot;-\&quot;, df[&#39;technical_length&#39;].max())\nprint(\&quot;Area range:\&quot;, df[&#39;area&#39;].min(), \&quot;-\&quot;, df[&#39;area&#39;].max())\n\n# Look for outliers\noutliers = df[df[&#39;technical_length&#39;] &gt; 200]  # Adjust threshold\nprint(\&quot;Large artifacts:\&quot;, outliers[[&#39;image_id&#39;, &#39;technical_length&#39;]])</span>
+</code></pre></div></p>
+<h2 id="platform-specific-issues">Platform-Specific Issues<a class="headerlink" href="#platform-specific-issues" title="Permanent link">&para;</a></h2>
+<h3 id="macos-issues">macOS Issues<a class="headerlink" href="#macos-issues" title="Permanent link">&para;</a></h3>
+<p><strong>OpenCV installation problems</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Try installing with conda instead of pip\nconda install opencv\n\n# Or use homebrew version\nbrew install opencv\npip install opencv-python-headless</span>
+</code></pre></div></p>
+<p><strong>Permission errors</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Fix permission issues\nsudo chown -R $(whoami) /usr/local/lib/python*/site-packages/</span>
+</code></pre></div></p>
+<h3 id="windows-issues">Windows Issues<a class="headerlink" href="#windows-issues" title="Permanent link">&para;</a></h3>
+<p><strong>PowerShell execution policy</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c"># Allow script execution\nSet-ExecutionPolicy RemoteSigned -Scope CurrentUser</span>
+</code></pre></div></p>
+<p><strong>Path length limitations</strong>:
+- Use shorter directory paths
+- Move project closer to root drive
+- Enable long path support in Windows</p>
+<h3 id="linux-issues">Linux Issues<a class="headerlink" href="#linux-issues" title="Permanent link">&para;</a></h3>
+<p><strong>Missing system dependencies</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Ubuntu/Debian\nsudo apt-get install python3-dev libopencv-dev\n\n# CentOS/RHEL\nsudo yum install python3-devel opencv-devel\n\n# Or use conda environment\nconda install opencv numpy pandas</span>
+</code></pre></div></p>
+<h2 id="error-message-guide">Error Message Guide<a class="headerlink" href="#error-message-guide" title="Permanent link">&para;</a></h2>
+<h3 id="filenotfounderror">\"FileNotFoundError\"<a class="headerlink" href="#filenotfounderror" title="Permanent link">&para;</a></h3>
+<p><strong>Cause</strong>: Missing image or scale files
+<strong>Solution</strong>: Check file paths and metadata.csv entries</p>
+<h3 id="valueerror-could-not-convert-string-to-float">\"ValueError: could not convert string to float\"<a class="headerlink" href="#valueerror-could-not-convert-string-to-float" title="Permanent link">&para;</a></h3>
+<p><strong>Cause</strong>: Invalid scale values in metadata
+<strong>Solution</strong>: Ensure scale column contains only numbers</p>
+<h3 id="memoryerror">\"MemoryError\"<a class="headerlink" href="#memoryerror" title="Permanent link">&para;</a></h3>
+<p><strong>Cause</strong>: Insufficient RAM for large images
+<strong>Solution</strong>: Reduce image size or process in batches</p>
+<h3 id="importerror-no-module-named-cv2">\"ImportError: No module named 'cv2'\"<a class="headerlink" href="#importerror-no-module-named-cv2" title="Permanent link">&para;</a></h3>
+<p><strong>Cause</strong>: OpenCV not installed
+<strong>Solution</strong>: <code>pip install opencv-python-headless</code></p>
+<h3 id="yamlscannerscannererror">\"yaml.scanner.ScannerError\"<a class="headerlink" href="#yamlscannerscannererror" title="Permanent link">&para;</a></h3>
+<p><strong>Cause</strong>: Invalid YAML syntax in config file
+<strong>Solution</strong>: Check indentation and special characters</p>
+<h2 id="performance-optimization">Performance Optimization<a class="headerlink" href="#performance-optimization" title="Permanent link">&para;</a></h2>
+<h3 id="for-large-datasets">For Large Datasets<a class="headerlink" href="#for-large-datasets" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Minimal processing for speed\npylithics --data_dir ./large_dataset --meta_file ./meta.csv \\\n         --disable_arrow_detection \\\n         --disable_voronoi \\\n         --disable_symmetry \\\n         --threshold_method simple \\\n         --no_images</span>
+</code></pre></div>
+<h3 id="memory-management">Memory Management<a class="headerlink" href="#memory-management" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># Process in smaller batches\nfor batch in batch_*; do\n    pylithics --data_dir ./$batch --meta_file ./$batch/meta.csv\n    # Optional: clear temp files\n    rm -rf ./$batch/processed/debug/\ndone</span>
+</code></pre></div>
+<h3 id="disabling-features-for-speed">Disabling Features for Speed<a class="headerlink" href="#disabling-features-for-speed" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Speed Impact</th>
+<th>CLI Flag</th>
+<th>Config Setting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Arrow Detection</td>
+<td>High</td>
+<td><code>--disable_arrow_detection</code></td>
+<td><code>arrow_detection.enabled: false</code></td>
+</tr>
+<tr>
+<td>Voronoi Analysis</td>
+<td>Medium</td>
+<td><code>--disable_voronoi</code></td>
+<td><code>voronoi_analysis.enabled: false</code></td>
+</tr>
+<tr>
+<td>Symmetry Analysis</td>
+<td>Low</td>
+<td><code>--disable_symmetry</code></td>
+<td><code>symmetry_analysis.enabled: false</code></td>
+</tr>
+<tr>
+<td>Image Output</td>
+<td>Medium</td>
+<td><code>--no_images</code></td>
+<td>N/A</td>
+</tr>
+</tbody>
+</table>
+<h2 id="getting-help">Getting Help<a class="headerlink" href="#getting-help" title="Permanent link">&para;</a></h2>
+<h3 id="information-to-provide">Information to Provide<a class="headerlink" href="#information-to-provide" title="Permanent link">&para;</a></h3>
+<p>When reporting issues, include:</p>
+<ol>
+<li><strong>PyLithics version</strong>: <code>pylithics --version</code></li>
+<li><strong>Python version</strong>: <code>python --version</code></li>
+<li><strong>Operating system</strong>: OS and version</li>
+<li><strong>Command used</strong>: Full command line</li>
+<li><strong>Error message</strong>: Complete error text</li>
+<li><strong>Log file</strong>: Contents of pylithics.log</li>
+<li><strong>Sample data</strong>: Minimal example that reproduces issue</li>
+</ol>
+<h3 id="where-to-get-help">Where to Get Help<a class="headerlink" href="#where-to-get-help" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>GitHub Issues</strong>: <a href="https://github.com/alan-turing-institute/Palaeoanalytics/issues">Report bugs and get help</a></li>
+<li><strong>Documentation</strong>: Check other sections of this guide</li>
+<li><strong>Email</strong>: Contact the <a href="../../about/">development team</a></li>
+</ul>
+<h3 id="before-reporting">Before Reporting<a class="headerlink" href="#before-reporting" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Check this troubleshooting guide</li>
+<li>Search existing GitHub issues</li>
+<li>Try with sample data provided with PyLithics</li>
+<li>Test with minimal configuration</li>
+</ol>
+<h2 id="diagnostic-commands">Diagnostic Commands<a class="headerlink" href="#diagnostic-commands" title="Permanent link">&para;</a></h2>
+<h3 id="system-check">System Check<a class="headerlink" href="#system-check" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Check Python and pip\npython --version\npip --version\n\n# Check PyLithics installation\npylithics --help\n\n# Verify dependencies\npython -c \&quot;import cv2, numpy, pandas; print(&#39;Dependencies OK&#39;)\&quot;\n\n# Test with sample data\npylithics --data_dir ./pylithics/data --meta_file ./pylithics/data/meta_data.csv</span>
+</code></pre></div>
+<h3 id="debug-mode">Debug Mode<a class="headerlink" href="#debug-mode" title="Permanent link">&para;</a></h3>
+<p><code>bash\n# Full debug output\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --log_level DEBUG \\\n         --show_thresholded_images \\\n         --arrow_debug</code></p>
+<p>This will provide maximum information for diagnosing issues.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.path", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "toc.integrate"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+    
+  </body>
+</html>
