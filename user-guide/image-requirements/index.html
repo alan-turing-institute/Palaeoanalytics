@@ -286,26 +286,6 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="../../reference/cli-commands/" class="md-tabs__link">
-          
-  
-  
-  Reference
-
-        </a>
-      </li>
-    
-  
-
-      
-        
-  
-  
-  
-  
     <li class="md-tabs__item">
       <a href="../../about/" class="md-tabs__link">
         
@@ -955,81 +935,6 @@
   
   
   
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
-        
-          
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    Reference
-    
-  </span>
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
-            <span class="md-nav__icon md-icon"></span>
-            Reference
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../reference/cli-commands/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    CLI Commands
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
     <li class="md-nav__item">
       <a href="../../about/" class="md-nav__link">
         
@@ -1087,23 +992,29 @@
 <p>PyLithics automatically reads DPI information from your image files. For archaeological line drawings, the default fixed preprocessing kernels work optimally across all DPI ranges (75-600 DPI). DPI-aware scaling is available but typically not needed for clean line art - it's designed for noisy photographs or heavily degraded scans.</p>
 </div>
 <h3 id="dpi-processing-modes">DPI Processing Modes<a class="headerlink" href="#dpi-processing-modes" title="Permanent link">&para;</a></h3>
-<p><strong>Default Mode (Recommended for Archaeological Drawings)</strong>
-- Uses fixed kernel sizes optimized for line drawings
-- Works consistently across 75-600 DPI range
-- Preserves fine scar details at high resolution
-- No DPI scaling applied</p>
-<p><strong>DPI-Aware Mode (For Noisy Images)</strong>
-- Enable with <code>--enable_dpi_scaling</code> flag
-- Scales preprocessing kernels based on image DPI
-- Useful for photographs, degraded scans, or noisy images
-- Three scaling strategies: conservative, standard, aggressive</p>
+<p><strong>Default Mode (Recommended for Archaeological Drawings)</strong></p>
+<ul>
+<li>Uses fixed kernel sizes optimized for line drawings</li>
+<li>Works consistently across 75-600 DPI range</li>
+<li>Preserves fine scar details at high resolution</li>
+<li>No DPI scaling applied</li>
+</ul>
+<p><strong>DPI-Aware Mode (For Noisy Images)</strong></p>
+<ul>
+<li>Enable with <code>--enable_dpi_scaling</code> flag</li>
+<li>Scales preprocessing kernels based on image DPI</li>
+<li>Useful for degraded scans, or noisy images</li>
+<li>Three scaling strategies: conservative, standard, aggressive</li>
+</ul>
 <h2 id="drawing-style-guidelines">Drawing Style Guidelines<a class="headerlink" href="#drawing-style-guidelines" title="Permanent link">&para;</a></h2>
 <h3 id="optimal-drawing-characteristics">Optimal Drawing Characteristics<a class="headerlink" href="#optimal-drawing-characteristics" title="Permanent link">&para;</a></h3>
-<p>PyLithics performs best with:
-- <strong>Clean line drawings</strong>: Black lines on white background
-- <strong>Clear contrast</strong>: Strong black/white separation
-- <strong>Minimal artifacts</strong>: No scanning artifacts or shadows
-- <strong>Complete outlines</strong>: Closed contours for surfaces</p>
+<p>PyLithics performs best with:</p>
+<ul>
+<li><strong>Clean line drawings</strong>: Black lines on white background</li>
+<li><strong>Clear contrast</strong>: Strong black/white separation</li>
+<li><strong>Minimal artifacts</strong>: No scanning artifacts or shadows</li>
+<li><strong>Complete outlines</strong>: Closed contours for surfaces</li>
+</ul>
 <h3 id="supported-illustration-conventions">Supported Illustration Conventions<a class="headerlink" href="#supported-illustration-conventions" title="Permanent link">&para;</a></h3>
 <p>Currently, PyLithics is optimized to work with flakes.</p>
 <h4 id="surface-representations">Surface Representations<a class="headerlink" href="#surface-representations" title="Permanent link">&para;</a></h4>

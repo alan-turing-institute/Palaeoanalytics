@@ -286,26 +286,6 @@
   
   
   
-    
-    
-      <li class="md-tabs__item">
-        <a href="../../reference/cli-commands/" class="md-tabs__link">
-          
-  
-  
-  Reference
-
-        </a>
-      </li>
-    
-  
-
-      
-        
-  
-  
-  
-  
     <li class="md-tabs__item">
       <a href="../../about/" class="md-tabs__link">
         
@@ -838,81 +818,6 @@
   
   
   
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
-        
-          
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    Reference
-    
-  </span>
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
-            <span class="md-nav__icon md-icon"></span>
-            Reference
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../reference/cli-commands/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    CLI Commands
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
     <li class="md-nav__item">
       <a href="../../about/" class="md-nav__link">
         
@@ -979,12 +884,13 @@
 </code></pre></div>
 This command will:</p>
 <ol>
+<li>Read metadata from <code>pylithics/data/meta_data.csv</code></li>
 <li>Load images from <code>pylithics/data/images/</code></li>
 <li>Load scales from <code>pylithics/data/scales/</code></li>
 <li>Process according to default settings</li>
 <li>Output results to <code>pylithics/data/processed/</code></li>
 </ol>
-<p>Choose your own paths for image and metadata directories:</p>
+<p>Alternatively, choose your own paths for image and metadata directories:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>&lt;path&gt;<span class="w"> </span>--meta_file<span class="w"> </span>&lt;file&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
 </code></pre></div>
 <h3 id="scale-calibration-examples">Scale Calibration Examples<a class="headerlink" href="#scale-calibration-examples" title="Permanent link">&para;</a></h3>
@@ -1018,6 +924,7 @@ This command will:</p>
 <a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv<span class="w"> </span>--enable_dpi_scaling<span class="w"> </span>--dpi_reference<span class="w"> </span><span class="m">150</span><span class="w"> </span>--dpi_max_scale<span class="w"> </span><span class="m">2</span>.0
 </code></pre></div>
 <h2 id="understanding-the-pylithics-pipeline">Understanding the PyLithics Pipeline<a class="headerlink" href="#understanding-the-pylithics-pipeline" title="Permanent link">&para;</a></h2>
+<p>When you run PyLithics, it automatically processes your lithic illustrations through a comprehensive analysis pipeline that extracts contours, classifies surfaces, calculates over 30 morphological metrics, and generates both quantitative data and annotated visualizations for archaeological interpretation.</p>
 <div class="grid">
 <div>
 <h3 id="processing-flow"><span class="twemoji"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2h2v18h18v2H2zm5 8h10v3H7zm4 5h10v3H11zM6 4h16v4h-2V6H8v2H6z"/></svg></span> Processing Flow<a class="headerlink" href="#processing-flow" title="Permanent link">&para;</a></h3>
