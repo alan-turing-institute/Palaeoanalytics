@@ -120,6 +120,8 @@ setup(
             "isort>=5.10.0",
         ],
         "docs": [
+            "mkdocs>=1.5.0",
+            "mkdocs-material>=9.0.0",
             "sphinx>=5.0.0",
             "sphinx-rtd-theme>=1.0.0",
         ],

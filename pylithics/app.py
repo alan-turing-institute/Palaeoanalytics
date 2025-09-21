@@ -10,6 +10,7 @@ import argparse
 import logging
 import os
 import sys
+import subprocess
 from pathlib import Path
 from PIL import Image
 from typing import Optional, Dict, Any
@@ -406,7 +407,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
 
     required_group.add_argument(
         '--data_dir',
-        required=True,
+        required=False,  # Made optional to allow --docs flag
         metavar='PATH',
         help="""Directory containing your artifact images and associated scale files.
              Must contain an 'images/' subdirectory with your artifact photos.
@@ -684,6 +685,12 @@ def create_argument_parser() -> argparse.ArgumentParser:
         help='Show common problems and solutions'
     )
 
+    help_group.add_argument(
+        '--docs',
+        action='store_true',
+        help='Launch the PyLithics documentation server locally (http://127.0.0.1:8000)'
+    )
+
     return parser
 
 
@@ -862,6 +869,37 @@ def show_examples_help():
     print(help_text)
 
 
+def launch_docs_server() -> None:
+    """Launch the MkDocs development server."""
+    try:
+        print("\n" + "="*60)
+        print("LAUNCHING PYLITHICS DOCUMENTATION")
+        print("="*60)
+        print("\n📚 Starting documentation server...")
+        print("📍 Documentation will be available at: http://127.0.0.1:8000")
+        print("🛑 Press Ctrl+C to stop the server\n")
+        print("-"*60 + "\n")
+
+        # Check if mkdocs is installed
+        try:
+            subprocess.run(['mkdocs', '--version'], capture_output=True, check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            print("⚠️  ERROR: MkDocs is not installed!")
+            print("\nPlease install MkDocs with:")
+            print("  pip install mkdocs mkdocs-material")
+            print("\nOr install PyLithics with documentation dependencies:")
+            print("  pip install .[docs]")
+            sys.exit(1)
+
+        # Launch mkdocs serve
+        subprocess.run(['mkdocs', 'serve'])
+
+    except KeyboardInterrupt:
+        print("\n\n✅ Documentation server stopped.")
+    except Exception as e:
+        print(f"\n❌ Error launching documentation server: {e}")
+        sys.exit(1)
+
 def show_troubleshooting_help():
     """Display troubleshooting guide."""
     help_text = """
@@ -979,6 +1017,18 @@ def main() -> int:
     if hasattr(args, 'help_troubleshooting') and args.help_troubleshooting:
         show_troubleshooting_help()
         return 0
+
+    # Handle documentation server
+    if hasattr(args, 'docs') and args.docs:
+        launch_docs_server()
+        return 0
+
+    # Check that data_dir is provided for normal processing
+    if not args.data_dir:
+        print("Error: --data_dir is required for processing images.")
+        print("Use 'pylithics --help' for usage information.")
+        print("Use 'pylithics --docs' to view documentation.")
+        return 1
 
     # Continue with normal processing...
     try:

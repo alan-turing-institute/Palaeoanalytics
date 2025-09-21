@@ -178,10 +178,7 @@ Documentation tools are installed automatically with PyLithics. To build and vie
 
 ```bash
 # Serve documentation locally at http://127.0.0.1:8000
-mkdocs serve
-
-# Build static site
-mkdocs build
+pylithics --docs
 ```
 
 !!! tip "Documentation Tools Included"
@@ -211,6 +208,7 @@ sudo apt-get install python3.9
 ### macOS-Specific Issues
 
 For macOS users with OS versions below 10.14:
+
 - Consider upgrading your OS to 10.14 or later
 - If upgrade isn't possible, you may encounter build issues with some dependencies
 

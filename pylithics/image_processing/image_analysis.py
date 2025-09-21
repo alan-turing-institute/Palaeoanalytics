@@ -312,7 +312,8 @@ def process_and_save_contours(inverted_image, conversion_factor, output_dir, ima
         try:
             if 'voronoi_data' in locals() and voronoi_data is not None:
                 voronoi_path = os.path.join(output_dir, f"{image_id}_voronoi.png")
-                visualize_voronoi_diagram(voronoi_data, inverted_image, voronoi_path)
+                # Pass conversion factor to show axes in millimeters if available
+                visualize_voronoi_diagram(voronoi_data, inverted_image, voronoi_path, conversion_factor)
         except Exception as e:
             logging.error(f"Error in Voronoi visualization: {e}")
 

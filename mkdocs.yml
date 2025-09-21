@@ -20,8 +20,6 @@ nav:
     - Lithic Editor: user-guide/lithic-editor.md
     - Troubleshooting: user-guide/troubleshooting.md
     - Glossary: user-guide/glossary.md
-  - Reference:
-    - CLI Commands: reference/cli-commands.md
   - About: about.md
 
 theme:

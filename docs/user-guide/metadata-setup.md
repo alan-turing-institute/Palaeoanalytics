@@ -21,7 +21,7 @@ Your metadata CSV must contain these three columns:
 PyLithics uses a simple two-option calibration system:
 
 ### 1. Scale Bar Detection (Recommended)
-- **How it works**: Computer vision automatically detects and measures scale bars in scale images
+- **How it works**: PyLithics automatically detects and measures scale bars in scale images
 - **Requirements**: `scale_id` and `scale` columns must be provided
 - **Supported formats**: Horizontal/vertical bars, segmented bars, bars with tick marks
 - **Accuracy**: Highest precision for real-world measurements

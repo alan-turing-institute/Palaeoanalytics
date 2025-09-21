@@ -23,15 +23,17 @@ PyLithics works with scanned illustrations of 2D lithic artifacts commonly found
 ### DPI Processing Modes
 
 **Default Mode (Recommended for Archaeological Drawings)**
+
 - Uses fixed kernel sizes optimized for line drawings
 - Works consistently across 75-600 DPI range
 - Preserves fine scar details at high resolution
 - No DPI scaling applied
 
 **DPI-Aware Mode (For Noisy Images)**
+
 - Enable with `--enable_dpi_scaling` flag
 - Scales preprocessing kernels based on image DPI
-- Useful for photographs, degraded scans, or noisy images
+- Useful for degraded scans, or noisy images
 - Three scaling strategies: conservative, standard, aggressive
 
 ## Drawing Style Guidelines
@@ -39,6 +41,7 @@ PyLithics works with scanned illustrations of 2D lithic artifacts commonly found
 ### Optimal Drawing Characteristics
 
 PyLithics performs best with:
+
 - **Clean line drawings**: Black lines on white background
 - **Clear contrast**: Strong black/white separation
 - **Minimal artifacts**: No scanning artifacts or shadows

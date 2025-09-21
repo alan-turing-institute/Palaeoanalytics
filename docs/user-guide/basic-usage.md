@@ -20,12 +20,13 @@ python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/met
 ```
 This command will:
 
-1. Load images from `pylithics/data/images/`
-2. Load scales from `pylithics/data/scales/`
-3. Process according to default settings
-4. Output results to `pylithics/data/processed/`
+1. Read metadata from `pylithics/data/meta_data.csv`
+2. Load images from `pylithics/data/images/`
+3. Load scales from `pylithics/data/scales/`
+4. Process according to default settings
+5. Output results to `pylithics/data/processed/`
 
-Choose your own paths for image and metadata directories:
+Alternatively, choose your own paths for image and metadata directories:
 
 ```bash
 python pylithics/app.py --data_dir <path> --meta_file <file> [options]
@@ -68,6 +69,8 @@ python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --enable_dp
 ```
 
 ## Understanding the PyLithics Pipeline
+
+When you run PyLithics, it automatically processes your lithic illustrations through a comprehensive analysis pipeline that extracts contours, classifies surfaces, calculates over 30 morphological metrics, and generates both quantitative data and annotated visualizations for archaeological interpretation.
 
 <div class="grid" markdown>
 

@@ -2,11 +2,7 @@
 
 ## Archaeological Lithic Analysis with Computer Vision
 
-PyLithics is an open-source Python package that applies advanced computer vision techniques to extract quantitative morphological data from 2D line drawings of prehistoric stone artifacts.
-
-## What is PyLithics?
-
-PyLithics processes scanned 2D illustrations of stone tools (lithics) from archaeological publications, automatically identifying and measuring key technological and morphological features. The tool has been optimized for feature extraction using cutting-edge computer vision techniques including:
+PyLithics is an open-source Python package that applies advanced computer vision techniques to extract quantitative morphological data from 2D line drawings of prehistoric stone artifacts. PyLithics processes scanned 2D illustrations of stone tools (lithics) from archaeological publications, automatically identifying and measuring key technological and morphological features. The tool has been optimized for feature extraction using cutting-edge computer vision techniques including:
 
 - Pixel intensity thresholding
 - Edge detection and contour finding

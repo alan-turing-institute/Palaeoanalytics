@@ -240,7 +240,7 @@ def calculate_voronoi_points(metrics, inverted_image, padding_factor=0.02):
     return result
 
 
-def visualize_voronoi_diagram(voronoi_data, inverted_image, output_path):
+def visualize_voronoi_diagram(voronoi_data, inverted_image, output_path, conversion_factor=None):
     """
     Visualize the Voronoi diagram and convex hull on the dorsal surface. This function replicates
     the visualization features from the original generate_voronoi_diagram() function:
@@ -259,6 +259,8 @@ def visualize_voronoi_diagram(voronoi_data, inverted_image, output_path):
             - 'bounding_box': Dict with keys 'x_min', 'x_max', 'y_min', 'y_max'.
         inverted_image (numpy.ndarray): Inverted binary thresholded image.
         output_path (str): Path to save the generated Voronoi diagram visualization.
+        conversion_factor (float, optional): Pixels per millimeter conversion factor.
+            If provided, axes will be displayed in millimeters instead of pixels.
 
     Returns:
         None
@@ -326,10 +328,26 @@ def visualize_voronoi_diagram(voronoi_data, inverted_image, output_path):
     ax.set_xlim(bbox['x_min'], bbox['x_max'])
     ax.set_ylim(bbox['y_max'], bbox['y_min'])  # Invert y-axis to match image coordinates
 
-    # Set title, labels, and legend
+    # Apply scale conversion to axis labels if conversion factor provided
+    if conversion_factor and conversion_factor > 0:
+        # Convert axis ticks from pixels to millimeters
+        x_ticks = ax.get_xticks()
+        y_ticks = ax.get_yticks()
+
+        # Convert and set new tick labels
+        ax.set_xticklabels([f"{tick/conversion_factor:.1f}" for tick in x_ticks])
+        ax.set_yticklabels([f"{tick/conversion_factor:.1f}" for tick in y_ticks])
+
+        # Update axis labels to show millimeters
+        ax.set_xlabel("Horizontal Distance (mm)")
+        ax.set_ylabel("Vertical Distance (mm)")
+    else:
+        # Keep original pixel labels
+        ax.set_xlabel("Horizontal Distance (pixels)")
+        ax.set_ylabel("Vertical Distance (pixels)")
+
+    # Set title and legend
     ax.set_title("Voronoi Diagram with Convex Hull")
-    ax.set_xlabel("Horizontal Distance")
-    ax.set_ylabel("Vertical Distance")
     ax.legend()
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
