@@ -4,6 +4,9 @@ site_url: https://alan-turing-institute.github.io/Palaeoanalytics/
 repo_url: https://github.com/alan-turing-institute/Palaeoanalytics
 repo_name: Palaeoanalytics
 
+extra:
+  version: 2.0.0
+
 nav:
   - Home: index.md
   - Installation: installation.md
