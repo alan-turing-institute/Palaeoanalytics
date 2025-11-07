@@ -416,7 +416,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
 
     required_group.add_argument(
         '--meta_file',
-        required=True,
+        required=False,  # Made optional to allow --docs flag
         metavar='FILE',
         help="""Path to CSV metadata file containing image information.
              Must have columns: image_id, scale_id, scale
@@ -876,7 +876,7 @@ def launch_docs_server() -> None:
         print("LAUNCHING PYLITHICS DOCUMENTATION")
         print("="*60)
         print("\n📚 Starting documentation server...")
-        print("📍 Documentation will be available at: http://127.0.0.1:8000")
+        print("📍 Documentation will be available at: http://127.0.0.1:8000/Palaeoanalytics/")
         print("🛑 Press Ctrl+C to stop the server\n")
         print("-"*60 + "\n")
 
@@ -1023,9 +1023,15 @@ def main() -> int:
         launch_docs_server()
         return 0
 
-    # Check that data_dir is provided for normal processing
+    # Check that required arguments are provided for normal processing
     if not args.data_dir:
         print("Error: --data_dir is required for processing images.")
+        print("Use 'pylithics --help' for usage information.")
+        print("Use 'pylithics --docs' to view documentation.")
+        return 1
+
+    if not args.meta_file:
+        print("Error: --meta_file is required for processing images.")
         print("Use 'pylithics --help' for usage information.")
         print("Use 'pylithics --docs' to view documentation.")
         return 1
