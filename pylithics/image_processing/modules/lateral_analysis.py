@@ -23,107 +23,103 @@ import logging
 from typing import Optional, Dict, Any, List, Tuple, Union
 
 
-def analyze_lateral_surface(metrics: List[Dict[str, Any]],
-                          parent_contours: List[np.ndarray],
-                          inverted_image: np.ndarray) -> Optional[Dict[str, Any]]:
+def analyze_lateral_surface(
+    metrics: List[Dict[str, Any]],
+    parent_contours: List[np.ndarray],
+    inverted_image: np.ndarray
+) -> Optional[Dict[str, Any]]:
     """
-    Main orchestrator function for analyzing lateral surface convexity.
-
-    This function coordinates the lateral surface convexity analysis workflow.
-    It operates only on contours classified as "Lateral" surface type.
+    Analyze lateral surface convexity.
 
     Parameters
     ----------
     metrics : list of dict
-        List of metric dictionaries containing surface classifications and contour data
+        Metric dicts with surface classifications.
     parent_contours : list of ndarray
-        List of parent contours corresponding to the metrics
+        Parent contours corresponding to metrics.
     inverted_image : ndarray
-        Inverted binary thresholded image for spatial reference
+        Inverted binary thresholded image.
 
     Returns
     -------
     dict or None
-        Dictionary containing lateral surface analysis results:
-        - 'lateral_convexity': float, convexity ratio (0-1)
-        - 'distance_to_max_width': float, distance from top to max width center
-        Returns None if no lateral surface found or analysis fails
-
-    Raises
-    ------
-    Exception
-        Logs detailed error information if analysis fails but continues processing
-        where possible to maximize data recovery
-
-    Notes
-    -----
-    This function is designed to work with the existing PyLithics surface classification
-    system and only processes contours that have been classified as "Lateral" type.
+        Lateral analysis results, or None if no lateral surface.
     """
     try:
-        # Find lateral surface metrics
-        lateral_metric = None
-        lateral_contour = None
-        lateral_contour_index = -1
-
-        for i, metric in enumerate(metrics):
-            if (metric.get("surface_type") == "Lateral" and
-                metric["parent"] == metric["scar"]):  # This is a parent contour
-                lateral_metric = metric
-                lateral_contour_index = i
-                break
-
-        if lateral_metric is None:
-            logging.info("No Lateral surface found for convexity analysis")
-            return None
-
-        # Find the corresponding contour
-        if lateral_contour_index < len(parent_contours):
-            lateral_contour = parent_contours[lateral_contour_index]
-        else:
-            # Fallback: find contour by matching area
-            for contour in parent_contours:
-                contour_area = cv2.contourArea(contour)
-                if abs(contour_area - lateral_metric.get("area", 0)) < 1.0:
-                    lateral_contour = contour
-                    break
-
+        lateral_contour = _find_lateral_contour(
+            metrics, parent_contours
+        )
         if lateral_contour is None:
-            logging.error("Could not find lateral contour for convexity analysis")
             return None
 
         logging.info("Starting lateral surface convexity analysis")
 
-        # Calculate convexity
-        try:
-            convexity = detect_lateral_convexity(lateral_contour)
-            logging.info(f"Lateral convexity calculated: {convexity}")
-        except Exception as e:
-            logging.error(f"Error calculating lateral convexity: {e}")
-            convexity = None
+        convexity = detect_lateral_convexity(lateral_contour)
+        logging.info(f"Lateral convexity: {convexity}")
 
-        # Calculate distance to max width for lateral surface
-        distance_to_max_width = None
-        try:
-            distance_to_max_width = _calculate_lateral_distance_to_max_width(lateral_contour)
-            logging.info(f"Distance to max width: {distance_to_max_width}")
-        except Exception as e:
-            logging.error(f"Error calculating distance to max width: {e}")
+        distance = _calculate_lateral_distance_to_max_width(
+            lateral_contour
+        )
+        logging.info(f"Distance to max width: {distance}")
 
-        # Compile results
-        lateral_results = {
-            'lateral_convexity': round(convexity, 2) if convexity is not None else None,
-            'distance_to_max_width': round(distance_to_max_width, 2) if distance_to_max_width is not None else None
+        return {
+            'lateral_convexity': (
+                round(convexity, 2)
+                if convexity is not None else None
+            ),
+            'distance_to_max_width': (
+                round(distance, 2)
+                if distance is not None else None
+            ),
         }
 
-        logging.info("Lateral surface analysis completed successfully")
-        return lateral_results
-
-    except Exception as e:
-        logging.error(f"Critical error in lateral surface analysis: {e}")
-        import traceback
-        traceback.print_exc()
+    except Exception:
+        logging.exception("Critical error in lateral surface analysis")
         return None
+
+
+def _find_lateral_contour(
+    metrics: List[Dict[str, Any]],
+    parent_contours: List[np.ndarray]
+) -> Optional[np.ndarray]:
+    """
+    Find the lateral surface contour from metrics.
+
+    Parameters
+    ----------
+    metrics : list of dict
+        Metric dicts with surface classifications.
+    parent_contours : list of ndarray
+        Parent contours corresponding to metrics.
+
+    Returns
+    -------
+    ndarray or None
+        Lateral contour, or None if not found.
+    """
+    lateral_index = -1
+
+    for i, metric in enumerate(metrics):
+        if (metric.get("surface_type") == "Lateral"
+                and metric["parent"] == metric["scar"]):
+            lateral_index = i
+            break
+
+    if lateral_index == -1:
+        logging.info("No Lateral surface found for convexity analysis")
+        return None
+
+    if lateral_index < len(parent_contours):
+        return parent_contours[lateral_index]
+
+    # Fallback: match by area
+    target_area = metrics[lateral_index].get("area", 0)
+    for contour in parent_contours:
+        if abs(cv2.contourArea(contour) - target_area) < 1.0:
+            return contour
+
+    logging.error("Could not find lateral contour")
+    return None
 
 
 def detect_lateral_convexity(contour: np.ndarray) -> Optional[float]:
