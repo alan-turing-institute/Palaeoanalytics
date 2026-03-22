@@ -274,6 +274,18 @@ def get_cortex_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]
     })
 
 
+def get_arrow_integration_config(config: Optional[Dict] = None) -> Dict[str, Any]:
+    """Get arrow integration configuration with defaults."""
+    if config is None:
+        config = get_config_manager().config
+    return config.get('arrow_integration', {
+        'min_candidate_area': 1.0,
+        'min_solidity': 0.4,
+        'max_solidity': 0.9,
+        'area_match_tolerance': 1.0
+    })
+
+
 def get_scar_complexity_config(config: Optional[Dict] = None) -> Dict[str, Any]:
     """Get scar complexity configuration with defaults."""
     if config is None:

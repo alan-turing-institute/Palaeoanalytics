@@ -107,6 +107,14 @@ arrow_detection:
                            # - true: Draw both light blue contour outlines AND red arrow lines
                            # - false: Draw only light blue contour outlines (default)
 
+# Arrow Integration Configuration
+# Controls how detected arrows are matched to scar contours
+arrow_integration:
+  min_candidate_area: 1.0    # Minimum contour area (pixels) to consider as arrow candidate
+  min_solidity: 0.4          # Minimum solidity for arrow-shaped contours (0-1)
+  max_solidity: 0.9          # Maximum solidity for arrow-shaped contours (0-1)
+  area_match_tolerance: 1.0  # Tolerance for matching contours by area (pixels)
+
   # Advanced parameters (modify with caution)
   reference_thresholds:
     min_area: 1  # Minimum contour area at reference DPI
