@@ -11,7 +11,6 @@ import logging
 import os
 import sys
 import subprocess
-from pathlib import Path
 from PIL import Image
 from typing import Optional, Dict, Any
 
@@ -132,7 +131,7 @@ class PyLithicsApplication:
                     logging.error(f"Missing required column in metadata: {col}")
                     return False
 
-        except Exception as e:
+        except (FileNotFoundError, KeyError, ValueError) as e:
             logging.error(f"Error reading metadata file: {e}")
             return False
 
@@ -224,10 +223,11 @@ class PyLithicsApplication:
             logging.info(f"Successfully processed {image_id}")
             return True
 
+        except (FileNotFoundError, ValueError, IOError) as e:
+            logging.error(f"Error processing {image_id}: {e}")
+            return False
         except Exception as e:
-            logging.error(f"Error processing {image_id}: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            logging.exception(f"Unexpected error processing {image_id}")
             return False
 
     def _extract_image_dpi(self, image_path: str) -> Optional[float]:
@@ -344,796 +344,427 @@ class PyLithicsApplication:
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
-    """Create and configure the comprehensive argument parser with detailed help."""
-
-    # Main parser with enhanced description
+    """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
         prog='PyLithics',
-        description="""
-        PyLithics v2.0.0: Professional Stone Tool Image Analysis Software
-        ================================================================
-
-        PyLithics is a comprehensive archaeological tool for analyzing lithic artifacts using
-        computer vision and advanced image processing techniques. It provides:
-
-        • Automated contour detection and geometric analysis
-        • Advanced arrow detection with DPI-aware scaling
-        • Surface classification (Dorsal, Ventral, Platform, Lateral)
-        • Symmetry analysis for dorsal surfaces
-        • Voronoi diagram spatial analysis
-        • Comprehensive metric calculation and CSV export
-        • Professional error handling and batch processing
-
-        This enhanced version includes enterprise-grade configuration management,
-        robust error handling, and flexible command-line control for research workflows.
-        """.strip(),
+        description='PyLithics v2.0.0: Stone Tool Image Analysis',
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-        USAGE EXAMPLES:
-        ==============
-
-        Basic Analysis:
-        %(prog)s --data_dir ./artifacts --meta_file ./metadata.csv
-
-        Advanced Configuration:
-        %(prog)s --data_dir ./artifacts --meta_file ./metadata.csv \\
-                --threshold_method otsu --log_level DEBUG \\
-                --arrow_debug --config_file custom_settings.yaml
-
-        Batch Processing with Custom Settings:
-        %(prog)s --data_dir ./large_assemblage --meta_file ./assemblage.csv \\
-                --threshold_method adaptive --output_format csv \\
-                --log_level INFO
-
-        Troubleshooting Mode:
-        %(prog)s --data_dir ./problem_images --meta_file ./metadata.csv \\
-                --log_level DEBUG --arrow_debug --show_thresholded_images
-
-        HELP OPTIONS:
-        ============
-        Use -h or --help to see this help message
-        Use --help-config for configuration file documentation
-        Use --help-examples for detailed usage examples
-        Use --help-troubleshooting for common problem solutions
-
-        For more information: https://github.com/alan-turing-institute/Palaeoanalytics
-        """)
-
-    # Required Arguments Group
-    required_group = parser.add_argument_group(
-        'REQUIRED ARGUMENTS',
-        'These arguments must be provided for PyLithics to run'
+        epilog='Use --docs to launch full documentation.'
     )
 
-    required_group.add_argument(
-        '--data_dir',
-        required=False,  # Made optional to allow --docs flag
-        metavar='PATH',
-        help="""Directory containing your artifact images and associated scale files.
-             Must contain an 'images/' subdirectory with your artifact photos.
-             Example: --data_dir ./my_artifacts"""
-    )
-
-    required_group.add_argument(
-        '--meta_file',
-        required=False,  # Made optional to allow --docs flag
-        metavar='FILE',
-        help="""Path to CSV metadata file containing image information.
-             Must have columns: image_id, scale_id, scale
-             Example: --meta_file ./artifact_metadata.csv"""
-    )
-
-    # Configuration Arguments Group
-    config_group = parser.add_argument_group(
-        'CONFIGURATION OPTIONS',
-        'Control PyLithics behavior and processing methods'
-    )
-
-    config_group.add_argument(
-        '--config_file',
-        metavar='FILE',
-        help="""Custom configuration file (YAML format).
-             If not provided, uses built-in default settings.
-             Example: --config_file ./custom_config.yaml"""
-    )
-
-    config_group.add_argument(
-        '--threshold_method',
-        choices=["adaptive", "simple", "otsu", "default"],
-        metavar='METHOD',
-        help="""Image thresholding method for contour detection:
-             • simple: Fixed threshold value (fast, basic)
-             • otsu: Automatic optimal threshold (recommended)
-             • adaptive: Local threshold adjustment (for varied lighting)
-             • default: Falls back to simple method
-             Default: Uses setting from configuration file"""
-    )
-
-    config_group.add_argument(
-        '--log_level',
-        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-        metavar='LEVEL',
-        help="""Logging detail level:
-             • DEBUG: Detailed technical information (for troubleshooting)
-             • INFO: General progress information (recommended)
-             • WARNING: Only important warnings
-             • ERROR: Only critical errors
-             Default: INFO"""
-    )
-
-    # Processing Options Group
-    processing_group = parser.add_argument_group(
-        'PROCESSING OPTIONS',
-        'Control specific analysis features and behavior'
-    )
-
-    processing_group.add_argument(
-        '--show_thresholded_images',
-        action='store_true',
-        help="""Display processed images during analysis.
-             Useful for debugging image processing issues.
-             Note: Requires display capability (not for headless servers)"""
-    )
-
-    processing_group.add_argument(
-        "--closing",
-        type=bool,
-        default=True,
-        metavar='BOOL',
-        help="""Apply morphological closing to clean up contours.
-             Helps connect broken contour lines.
-             Default: True (recommended for most images)"""
-    )
-
-    processing_group.add_argument(
-        '--enable_dpi_scaling',
-        action='store_true',
-        help="""Enable DPI-aware kernel scaling for preprocessing.
-             Scales kernel sizes based on image DPI.
-             Useful for noisy photographs but not recommended for clean line drawings.
-             Default: False (fixed kernels, optimized for archaeological drawings)"""
-    )
-
-    processing_group.add_argument(
-        '--dpi_reference',
-        type=float,
-        metavar='DPI',
-        help="""Override reference DPI for kernel scaling calculations.
-             All preprocessing kernels are optimized for this DPI value.
-             Higher values make kernels smaller at same image DPI.
-             Default: 300.0"""
-    )
-
-    processing_group.add_argument(
-        '--dpi_max_scale',
-        type=float,
-        metavar='FACTOR',
-        help="""Maximum DPI scaling factor allowed.
-             Prevents extremely large kernels at very high DPI.
-             Example: 1.5 limits 600 DPI to 1.5x scaling instead of 2x.
-             Default: 1.5 (conservative for line drawings)"""
-    )
-
-    processing_group.add_argument(
-        '--dpi_scaling_mode',
-        choices=['conservative', 'standard', 'aggressive'],
-        metavar='MODE',
-        help="""DPI scaling strategy for preprocessing kernels (when DPI scaling enabled):
-             • conservative: Gentle scaling, preserves fine line details
-             • standard: Moderate linear scaling, balanced approach (default)
-             • aggressive: Full proportional scaling, maximum noise removal
-             Default: standard"""
-    )
-
-    # Arrow Detection Group
-    arrow_group = parser.add_argument_group(
-        'ARROW DETECTION OPTIONS',
-        'Control advanced arrow detection features'
-    )
-
-    arrow_group.add_argument(
-        '--disable_arrow_detection',
-        action='store_true',
-        help="""Completely disable arrow detection analysis.
-             Use if you only need basic geometric measurements.
-             Significantly speeds up processing for large batches."""
-    )
-
-    arrow_group.add_argument(
-        '--arrow_debug',
-        action='store_true',
-        help="""Enable detailed arrow detection debugging.
-             Creates debug images and detailed logs for each detection attempt.
-             Output saved to [data_dir]/processed/arrow_debug/
-             Useful for troubleshooting detection issues."""
-    )
-
-    arrow_group.add_argument(
-        '--show-arrow-lines',
-        action='store_true',
-        help="""Draw red arrow lines on detected arrows in visualization.
-             By default, only light blue contour outlines are shown for arrows.
-             Enable this flag to also draw the traditional red arrow lines
-             showing direction and angle. Useful for detailed directional analysis."""
-    )
-
-    # Scale Calibration Options Group
-    scale_group = parser.add_argument_group(
-        'SCALE CALIBRATION OPTIONS',
-        'Control scale bar detection and measurement conversion'
-    )
-
-    scale_group.add_argument(
-        '--disable_scale_calibration',
-        action='store_true',
-        help="""Disable scale bar calibration.
-             Uses pixel measurements only (no real-world units).
-             Use if scale bar detection is failing or not needed."""
-    )
-
-    scale_group.add_argument(
-        '--scale_debug',
-        action='store_true',
-        help="""Enable scale bar detection debugging.
-             Creates debug images showing detected scale bars.
-             Output saved to [data_dir]/processed/scale_debug/
-             Useful for verifying scale detection accuracy."""
-    )
-
-    scale_group.add_argument(
-        '--force_pixels',
-        action='store_true',
-        help="""Force pixel measurements only (no scale calibration).
-             Output will be in pixels only regardless of scale data.
-             Use to ensure consistent pixel-based measurements."""
-    )
-
-    # Cortex Detection Options Group
-    cortex_group = parser.add_argument_group(
-        'CORTEX DETECTION OPTIONS',
-        'Control cortex detection and sensitivity settings'
-    )
-    cortex_group.add_argument(
-        '--disable_cortex_detection',
-        action='store_true',
-        help="""Completely disable cortex detection analysis.
-             Use if you only need basic scar detection without cortex identification.
-             Slightly speeds up processing for large batches."""
-    )
-    cortex_group.add_argument(
-        '--cortex_sensitivity',
-        type=str,
-        choices=['low', 'medium', 'high'],
-        help="""Set cortex detection sensitivity level.
-             - low: Only detect very obvious cortex (strict thresholds)
-             - medium: Standard detection (default settings)
-             - high: Detect subtle cortex patterns (permissive thresholds)
-             Overrides config file settings."""
-    )
-
-    # Scar Complexity Options Group
-    scar_group = parser.add_argument_group(
-        'SCAR COMPLEXITY OPTIONS',
-        'Control scar complexity analysis and adjacency detection'
-    )
-    scar_group.add_argument(
-        '--disable_scar_complexity',
-        action='store_true',
-        help="""Completely disable scar complexity analysis.
-             Use if you only need basic geometric measurements without adjacency counts.
-             Slightly speeds up processing for large batches."""
-    )
-    scar_group.add_argument(
-        '--scar_complexity_distance_threshold',
-        type=float,
-        metavar='PIXELS',
-        help="""Distance threshold in pixels for scar adjacency detection.
-             Scars within this distance are considered adjacent.
-             Typical range: 3.0-20.0 pixels
-             Lower values = stricter adjacency detection
-             Higher values = more permissive adjacency detection
-             Default: 10.0 pixels"""
-    )
-
-    # Output Options Group
-    output_group = parser.add_argument_group(
-        'OUTPUT OPTIONS',
-        'Control output format and file generation'
-    )
-
-    output_group.add_argument(
-        '--output_format',
-        choices=['csv', 'json'],
-        default='csv',
-        metavar='FORMAT',
-        help="""Output data format:
-             • csv: Comma-separated values (recommended for Excel/R/Python)
-             • json: JavaScript Object Notation (for web applications)
-             Default: csv"""
-    )
-
-    output_group.add_argument(
-        '--save_visualizations',
-        action='store_true',
-        default=True,
-        help="""Generate visualization images showing detected features.
-             Creates *_labeled.png and *_voronoi.png files.
-             Default: True (highly recommended for result verification)"""
-    )
-
-    # Help Extensions Group
-    help_group = parser.add_argument_group(
-        'EXTENDED HELP OPTIONS',
-        'Additional documentation and examples'
-    )
-
-    help_group.add_argument(
-        '--help-config',
-        action='store_true',
-        help='Show detailed configuration file documentation'
-    )
-
-    help_group.add_argument(
-        '--help-examples',
-        action='store_true',
-        help='Show comprehensive usage examples for different scenarios'
-    )
-
-    help_group.add_argument(
-        '--help-troubleshooting',
-        action='store_true',
-        help='Show common problems and solutions'
-    )
-
-    help_group.add_argument(
-        '--docs',
-        action='store_true',
-        help='Launch the PyLithics documentation server locally (http://127.0.0.1:8000)'
-    )
+    _add_required_args(parser)
+    _add_config_args(parser)
+    _add_processing_args(parser)
+    _add_arrow_args(parser)
+    _add_scale_args(parser)
+    _add_cortex_args(parser)
+    _add_scar_args(parser)
+    _add_output_args(parser)
+    _add_help_args(parser)
 
     return parser
 
 
-def show_config_help():
-    """Display detailed configuration file help."""
-    help_text = """
-    PYLITHICS CONFIGURATION FILE HELP
-    =================================
-
-    PyLithics uses YAML configuration files to control processing behavior.
-    The default configuration is built-in, but you can customize it with --config_file.
-
-    CONFIGURATION FILE STRUCTURE:
-    ----------------------------
-
-    # Image Processing Settings
-    thresholding:
-    method: simple          # simple, otsu, adaptive, default
-    threshold_value: 127    # Used with 'simple' method (0-255)
-    max_value: 255         # Maximum pixel value after thresholding
-
-    normalization:
-    enabled: true          # Apply contrast normalization
-    method: minmax         # minmax, zscore, custom
-    clip_values: [0, 255]  # Output range for minmax method
-
-    grayscale_conversion:
-    enabled: true          # Convert to grayscale before processing
-    method: standard       # standard, clahe
-
-    morphological_closing:
-    enabled: true          # Clean up contour breaks
-    kernel_size: 3         # Size of morphological kernel
-
-    # Arrow Detection Settings
-    arrow_detection:
-    enabled: true                      # Enable arrow detection
-    reference_dpi: 300.0              # DPI for parameter calibration
-    min_area_scale_factor: 0.7        # Detection sensitivity (0-1)
-    min_defect_depth_scale_factor: 0.8
-    min_triangle_height_scale_factor: 0.8
-    debug_enabled: false              # Create debug visualizations
-
-    # Logging Configuration
-    logging:
-    level: INFO                       # DEBUG, INFO, WARNING, ERROR
-    log_to_file: true                 # Save logs to file
-    log_file: data/processed/pylithics.log
-    
-    # Cortex Detection Settings
-    cortex_detection:
-    enabled: true                      # Enable cortex detection
-    stippling_density_threshold: 0.2   # Minimum stippling density (0.1-1.0)
-    texture_variance_threshold: 100    # Minimum texture variance (50-500)
-    edge_density_threshold: 0.05       # Minimum edge density (0.01-0.2)
-
-    # Analysis Parameters
-    contour_filtering:
-    min_area: 50.0         # Minimum contour size (pixels)
-    exclude_border: true   # Ignore border-touching contours
-
-    CREATING CUSTOM CONFIGURATIONS:
-    ------------------------------
-    1. Copy the default config.yaml from pylithics/config/
-    2. Modify values as needed
-    3. Use --config_file path/to/your/config.yaml
-
-    COMMON CUSTOMIZATIONS:
-    ---------------------
-    • More sensitive arrow detection: Set scale_factors to 0.5-0.6
-    • Less sensitive detection: Set scale_factors to 0.8-0.9
-    • Debug mode: Set arrow_detection.debug_enabled: true
-    • Verbose logging: Set logging.level: DEBUG
-    • Different thresholding: Change thresholding.method
-    """
-    print(help_text)
+def _add_required_args(parser: argparse.ArgumentParser) -> None:
+    """Add required argument group."""
+    group = parser.add_argument_group('REQUIRED ARGUMENTS')
+    group.add_argument(
+        '--data_dir', required=False, metavar='PATH',
+        help='Directory containing images/ and scale files'
+    )
+    group.add_argument(
+        '--meta_file', required=False, metavar='FILE',
+        help='CSV metadata file (columns: image_id, scale_id, scale)'
+    )
 
 
-def show_examples_help():
-    """Display comprehensive usage examples."""
-    help_text = """
+def _add_config_args(parser: argparse.ArgumentParser) -> None:
+    """Add configuration argument group."""
+    group = parser.add_argument_group('CONFIGURATION OPTIONS')
+    group.add_argument(
+        '--config_file', metavar='FILE',
+        help='Custom YAML configuration file'
+    )
+    group.add_argument(
+        '--threshold_method',
+        choices=["adaptive", "simple", "otsu", "default"],
+        metavar='METHOD',
+        help='Thresholding method: simple, otsu, adaptive, default'
+    )
+    group.add_argument(
+        '--log_level',
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        metavar='LEVEL', help='Logging level (default: INFO)'
+    )
+
+
+def _add_processing_args(parser: argparse.ArgumentParser) -> None:
+    """Add processing options argument group."""
+    group = parser.add_argument_group('PROCESSING OPTIONS')
+    group.add_argument(
+        '--show_thresholded_images', action='store_true',
+        help='Display processed images during analysis'
+    )
+    group.add_argument(
+        '--closing', type=bool, default=True, metavar='BOOL',
+        help='Apply morphological closing (default: True)'
+    )
+    group.add_argument(
+        '--enable_dpi_scaling', action='store_true',
+        help='Enable DPI-aware kernel scaling for preprocessing'
+    )
+    group.add_argument(
+        '--dpi_reference', type=float, metavar='DPI',
+        help='Reference DPI for kernel scaling (default: 300.0)'
+    )
+    group.add_argument(
+        '--dpi_max_scale', type=float, metavar='FACTOR',
+        help='Maximum DPI scaling factor (default: 1.5)'
+    )
+    group.add_argument(
+        '--dpi_scaling_mode',
+        choices=['conservative', 'standard', 'aggressive'],
+        metavar='MODE',
+        help='DPI scaling strategy (default: standard)'
+    )
+
+
+def _add_arrow_args(parser: argparse.ArgumentParser) -> None:
+    """Add arrow detection argument group."""
+    group = parser.add_argument_group('ARROW DETECTION OPTIONS')
+    group.add_argument(
+        '--disable_arrow_detection', action='store_true',
+        help='Disable arrow detection analysis'
+    )
+    group.add_argument(
+        '--arrow_debug', action='store_true',
+        help='Enable arrow detection debug output'
+    )
+    group.add_argument(
+        '--show-arrow-lines', action='store_true',
+        help='Draw red arrow lines on detected arrows'
+    )
+
+
+def _add_scale_args(parser: argparse.ArgumentParser) -> None:
+    """Add scale calibration argument group."""
+    group = parser.add_argument_group('SCALE CALIBRATION OPTIONS')
+    group.add_argument(
+        '--disable_scale_calibration', action='store_true',
+        help='Disable scale bar calibration'
+    )
+    group.add_argument(
+        '--scale_debug', action='store_true',
+        help='Enable scale bar detection debug output'
+    )
+    group.add_argument(
+        '--force_pixels', action='store_true',
+        help='Force pixel measurements only'
+    )
+
+
+def _add_cortex_args(parser: argparse.ArgumentParser) -> None:
+    """Add cortex detection argument group."""
+    group = parser.add_argument_group('CORTEX DETECTION OPTIONS')
+    group.add_argument(
+        '--disable_cortex_detection', action='store_true',
+        help='Disable cortex detection analysis'
+    )
+    group.add_argument(
+        '--cortex_sensitivity', type=str,
+        choices=['low', 'medium', 'high'],
+        help='Cortex detection sensitivity (default: medium)'
+    )
+
+
+def _add_scar_args(parser: argparse.ArgumentParser) -> None:
+    """Add scar complexity argument group."""
+    group = parser.add_argument_group('SCAR COMPLEXITY OPTIONS')
+    group.add_argument(
+        '--disable_scar_complexity', action='store_true',
+        help='Disable scar complexity analysis'
+    )
+    group.add_argument(
+        '--scar_complexity_distance_threshold',
+        type=float, metavar='PIXELS',
+        help='Adjacency distance threshold in pixels (default: 10.0)'
+    )
+
+
+def _add_output_args(parser: argparse.ArgumentParser) -> None:
+    """Add output options argument group."""
+    group = parser.add_argument_group('OUTPUT OPTIONS')
+    group.add_argument(
+        '--output_format', choices=['csv', 'json'],
+        default='csv', metavar='FORMAT',
+        help='Output format: csv or json (default: csv)'
+    )
+    group.add_argument(
+        '--save_visualizations', action='store_true',
+        default=True,
+        help='Generate visualization images (default: True)'
+    )
+
+
+def _add_help_args(parser: argparse.ArgumentParser) -> None:
+    """Add extended help argument group."""
+    group = parser.add_argument_group('EXTENDED HELP OPTIONS')
+    group.add_argument(
+        '--help-config', action='store_true',
+        help='Show configuration file documentation'
+    )
+    group.add_argument(
+        '--help-examples', action='store_true',
+        help='Show usage examples'
+    )
+    group.add_argument(
+        '--help-troubleshooting', action='store_true',
+        help='Show common problems and solutions'
+    )
+    group.add_argument(
+        '--docs', action='store_true',
+        help='Launch documentation server (http://127.0.0.1:8000)'
+    )
+
+
+def show_config_help() -> None:
+    """Display configuration help summary."""
+    print("""
+    PYLITHICS CONFIGURATION HELP
+    ============================
+
+    PyLithics uses YAML configuration files. To customise:
+      1. Copy pylithics/config/config.yaml
+      2. Edit values as needed
+      3. Use --config_file path/to/your/config.yaml
+
+    Key sections: thresholding, arrow_detection, cortex_detection,
+    scar_complexity, logging, contour_filtering
+
+    For full documentation: pylithics --docs
+    """)
+
+
+def show_examples_help() -> None:
+    """Display usage examples summary."""
+    print("""
     PYLITHICS USAGE EXAMPLES
     ========================
 
-    BASIC USAGE:
-    -----------
-    # Analyze artifacts with default settings
-    python app.py --data_dir ./my_artifacts --meta_file ./metadata.csv
+    Basic analysis:
+      pylithics --data_dir ./artifacts --meta_file ./metadata.csv
 
-    # Same with explicit log level
-    python app.py --data_dir ./artifacts --meta_file ./data.csv --log_level INFO
+    With Otsu thresholding:
+      pylithics --data_dir ./artifacts --meta_file ./metadata.csv \\
+          --threshold_method otsu
 
-    ADVANCED IMAGE PROCESSING:
-    -------------------------
-    # Use Otsu thresholding (recommended for varied lighting)
-    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
-                --threshold_method otsu
+    Debug arrow detection:
+      pylithics --data_dir ./artifacts --meta_file ./metadata.csv \\
+          --arrow_debug --log_level DEBUG
 
-    # Use adaptive thresholding (for very uneven lighting)
-    python app.py --data_dir ./scans --meta_file ./data.csv \\
-                --threshold_method adaptive --log_level DEBUG
+    Fast batch (no arrows):
+      pylithics --data_dir ./artifacts --meta_file ./metadata.csv \\
+          --disable_arrow_detection
 
-    ARROW DETECTION OPTIONS:
-    -----------------------
-    # Enable arrow detection debugging
-    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
-                --arrow_debug --log_level DEBUG
+    For full documentation: pylithics --docs
+    """)
 
-    # Show red arrow lines on detected arrows (default: only blue contours)
-    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
-                --show-arrow-lines
 
-    # Disable arrow detection (faster processing)
-    python app.py --data_dir ./large_collection --meta_file ./metadata.csv \\
-                --disable_arrow_detection
+def show_troubleshooting_help() -> None:
+    """Display troubleshooting summary."""
+    print("""
+    PYLITHICS TROUBLESHOOTING
+    =========================
 
-    CORTEX DETECTION OPTIONS:
-    ------------------------
-    # Enable high sensitivity cortex detection
-    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
-                --cortex_sensitivity high
-    
-    # Disable cortex detection (faster processing)
-    python app.py --data_dir ./large_collection --meta_file ./metadata.csv \\
-                --disable_cortex_detection
-    
-    # Low sensitivity for obvious cortex only
-    python app.py --data_dir ./clean_artifacts --meta_file ./metadata.csv \\
-                --cortex_sensitivity low
-    
-    CUSTOM CONFIGURATIONS:
-    ---------------------
-    # Use custom configuration file
-    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
-                --config_file ./my_settings.yaml
+    Common fixes:
+    - "Directory does not exist": Check --data_dir path
+    - "Missing required column": CSV needs image_id, scale_id, scale
+    - Poor contour detection: Try --threshold_method otsu
+    - Slow processing: Use --disable_arrow_detection
+    - Arrow issues: Use --arrow_debug --log_level DEBUG
 
-    # Override specific settings
-    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
-                --threshold_method otsu --log_level DEBUG --arrow_debug
+    Debug mode:
+      pylithics --data_dir ./data --meta_file ./meta.csv \\
+          --log_level DEBUG --arrow_debug
 
-    BATCH PROCESSING:
-    ----------------
-    # Process large dataset with progress tracking
-    python app.py --data_dir ./assemblage_2023 --meta_file ./assemblage.csv \\
-                --log_level INFO --output_format csv
+    Check logs: data_dir/processed/pylithics.log
 
-    # Silent processing (minimal output)
-    python app.py --data_dir ./artifacts --meta_file ./metadata.csv \\
-                --log_level WARNING
-
-    TROUBLESHOOTING MODES:
-    ---------------------
-    # Maximum debug information
-    python app.py --data_dir ./problem_images --meta_file ./metadata.csv \\
-                --log_level DEBUG --arrow_debug --show_thresholded_images
-
-    # Test configuration without arrow detection
-    python app.py --data_dir ./test_images --meta_file ./test.csv \\
-                --disable_arrow_detection --log_level DEBUG
-
-    REAL-WORLD SCENARIOS:
-    --------------------
-    # Publication-quality analysis
-    python app.py --data_dir ./final_dataset --meta_file ./publication_data.csv \\
-                --threshold_method otsu --log_level INFO --save_visualizations
-
-    # Quick preliminary analysis
-    python app.py --data_dir ./preliminary --meta_file ./quick_test.csv \\
-                --disable_arrow_detection --log_level WARNING
-
-    # Comparative method testing
-    python app.py --data_dir ./comparison --meta_file ./test.csv --threshold_method simple
-    python app.py --data_dir ./comparison --meta_file ./test.csv --threshold_method otsu
-    python app.py --data_dir ./comparison --meta_file ./test.csv --threshold_method adaptive
-"""
-    print(help_text)
+    For full documentation: pylithics --docs
+    """)
 
 
 def launch_docs_server() -> None:
     """Launch the MkDocs development server."""
     try:
-        print("\n" + "="*60)
-        print("LAUNCHING PYLITHICS DOCUMENTATION")
-        print("="*60)
-        print("\n📚 Starting documentation server...")
-        print("📍 Documentation will be available at: http://127.0.0.1:8000/Palaeoanalytics/")
-        print("🛑 Press Ctrl+C to stop the server\n")
-        print("-"*60 + "\n")
+        print("\nStarting documentation server...")
+        print("URL: http://127.0.0.1:8000/Palaeoanalytics/")
+        print("Press Ctrl+C to stop\n")
 
-        # Check if mkdocs is installed
         try:
-            subprocess.run(['mkdocs', '--version'], capture_output=True, check=True)
+            subprocess.run(
+                ['mkdocs', '--version'],
+                capture_output=True, check=True
+            )
         except (subprocess.CalledProcessError, FileNotFoundError):
-            print("⚠️  ERROR: MkDocs is not installed!")
-            print("\nPlease install MkDocs with:")
-            print("  pip install mkdocs mkdocs-material")
-            print("\nOr install PyLithics with documentation dependencies:")
-            print("  pip install .[docs]")
+            print("Error: MkDocs is not installed.")
+            print("Install with: pip install mkdocs mkdocs-material")
             sys.exit(1)
 
-        # Launch mkdocs serve
         subprocess.run(['mkdocs', 'serve'])
 
     except KeyboardInterrupt:
-        print("\n\n✅ Documentation server stopped.")
-    except Exception as e:
-        print(f"\n❌ Error launching documentation server: {e}")
+        print("\nDocumentation server stopped.")
+    except OSError as e:
+        print(f"Error launching documentation server: {e}")
         sys.exit(1)
 
-def show_troubleshooting_help():
-    """Display troubleshooting guide."""
-    help_text = """
-    PYLITHICS TROUBLESHOOTING GUIDE
-    ===============================
+def _apply_config_overrides(
+    app: 'PyLithicsApplication',
+    args: argparse.Namespace
+) -> None:
+    """
+    Map CLI arguments to configuration overrides.
 
-    COMMON PROBLEMS AND SOLUTIONS:
+    Parameters
+    ----------
+    app : PyLithicsApplication
+        Application instance to update
+    args : argparse.Namespace
+        Parsed command-line arguments
+    """
+    overrides: Dict[str, Any] = {}
 
-    ERROR: "Data directory does not exist"
-    -------------------------------------
-    Problem: PyLithics can't find your data folder
-    Solutions:
-    • Check the path: --data_dir ./correct/path/to/data
-    • Use absolute paths: --data_dir /full/path/to/artifacts
-    • Ensure the directory exists and is accessible
+    if args.threshold_method:
+        overrides['thresholding.method'] = args.threshold_method
+    if args.log_level:
+        overrides['logging.level'] = args.log_level
+    if args.disable_arrow_detection:
+        overrides['arrow_detection.enabled'] = False
+    if args.arrow_debug:
+        overrides['arrow_detection.debug_enabled'] = True
+    if args.show_arrow_lines:
+        overrides['arrow_detection.show_arrow_lines'] = True
 
-    ERROR: "Images directory does not exist"
-    ---------------------------------------
-    Problem: Missing 'images' subdirectory in your data folder
-    Solutions:
-    • Create subdirectory: mkdir your_data_dir/images
-    • Move images into: your_data_dir/images/
-    • Check folder structure matches: data_dir/images/your_images.png
+    _apply_scale_overrides(args, overrides)
+    _apply_cortex_overrides(args, overrides)
+    _apply_scar_overrides(args, overrides)
+    _apply_dpi_overrides(args, overrides)
 
-    ERROR: "Missing required column in metadata"
-    ------------------------------------------
-    Problem: CSV file doesn't have required headers
-    Solutions:
-    • Ensure CSV has headers: image_id, scale_id, scale
-    • Check for typos in column names (case-sensitive)
-    • Verify CSV format with a text editor
+    if overrides:
+        app.update_configuration(**overrides)
+        logging.info(f"Applied config overrides: {overrides}")
 
-    ERROR: "Image file does not exist"
-    ---------------------------------
-    Problem: Image files referenced in CSV don't exist
-    Solutions:
-    • Check image filenames match CSV exactly (including extensions)
-    • Verify images are in the images/ subdirectory
-    • Check for case sensitivity issues (image.PNG vs image.png)
 
-    ARROW DETECTION ISSUES:
-    ----------------------
-    Problem: Low arrow detection rates
-    Solutions:
-    • Enable debug mode: --arrow_debug --log_level DEBUG
-    • Try different thresholding: --threshold_method otsu
-    • Check image quality and resolution
-    • Adjust sensitivity in config file (lower scale_factors)
+def _apply_scale_overrides(
+    args: argparse.Namespace, overrides: Dict[str, Any]
+) -> None:
+    """Map scale calibration CLI args to config overrides."""
+    if args.disable_scale_calibration:
+        overrides['scale_calibration.enabled'] = False
+    if args.scale_debug:
+        overrides['scale_calibration.debug_output'] = True
+    if args.force_pixels:
+        overrides['scale_calibration.enabled'] = False
 
-    Problem: Too many false arrow detections
-    Solutions:
-    • Increase sensitivity thresholds in config file
-    • Use stricter thresholding method
-    • Check for image artifacts or noise
 
-    PERFORMANCE ISSUES:
-    ------------------
-    Problem: Processing too slow
-    Solutions:
-    • Disable arrow detection: --disable_arrow_detection
-    • Use simple thresholding: --threshold_method simple
-    • Process smaller batches
-    • Check available system memory
+def _apply_cortex_overrides(
+    args: argparse.Namespace, overrides: Dict[str, Any]
+) -> None:
+    """Map cortex detection CLI args to config overrides."""
+    if getattr(args, 'disable_cortex_detection', False):
+        overrides['cortex_detection.enabled'] = False
 
-    Problem: Running out of memory
-    Solutions:
-    • Process images in smaller batches
-    • Use lower resolution images
-    • Close other applications
-    • Increase system virtual memory
+    sensitivity = getattr(args, 'cortex_sensitivity', None)
+    if sensitivity == 'low':
+        overrides['cortex_detection.stippling_density_threshold'] = 0.4
+        overrides['cortex_detection.texture_variance_threshold'] = 200
+        overrides['cortex_detection.edge_density_threshold'] = 0.1
+    elif sensitivity == 'high':
+        overrides['cortex_detection.stippling_density_threshold'] = 0.1
+        overrides['cortex_detection.texture_variance_threshold'] = 50
+        overrides['cortex_detection.edge_density_threshold'] = 0.02
 
-    IMAGE PROCESSING ISSUES:
-    -----------------------
-    Problem: Poor contour detection
-    Solutions:
-    • Try different thresholding methods
-    • Adjust lighting/contrast in original images
-    • Enable debug mode to see processed images
-    • Check image DPI information
 
-    Problem: Inconsistent results
-    Solutions:
-    • Ensure consistent image DPI across dataset
-    • Use same thresholding method for all images
-    • Check for variations in lighting/background
+def _apply_scar_overrides(
+    args: argparse.Namespace, overrides: Dict[str, Any]
+) -> None:
+    """Map scar complexity CLI args to config overrides."""
+    if getattr(args, 'disable_scar_complexity', False):
+        overrides['scar_complexity.enabled'] = False
+    threshold = getattr(args, 'scar_complexity_distance_threshold', None)
+    if threshold:
+        overrides['scar_complexity.distance_threshold'] = threshold
 
-    GETTING HELP:
-    ------------
-    1. Enable debug logging: --log_level DEBUG
-    2. Check log files in: data_dir/processed/pylithics.log
-    3. Use arrow debug mode: --arrow_debug
-    4. Report issues with specific error messages and log files
 
-    For technical support: https://github.com/alan-turing-institute/Palaeoanalytics/issues
-"""
-    print(help_text)
+def _apply_dpi_overrides(
+    args: argparse.Namespace, overrides: Dict[str, Any]
+) -> None:
+    """Map DPI processing CLI args to config overrides."""
+    if args.enable_dpi_scaling:
+        overrides['dpi_processing.enabled'] = True
+    if args.dpi_reference:
+        overrides['dpi_processing.reference_dpi'] = args.dpi_reference
+    if args.dpi_max_scale:
+        overrides['dpi_processing.max_scale_factor'] = args.dpi_max_scale
+    if args.dpi_scaling_mode:
+        overrides['dpi_processing.scaling_mode'] = args.dpi_scaling_mode
 
-# Enhanced main function to handle extended help
+
 def main() -> int:
-    """
-    Main function with extended help system.
-    """
+    """Main entry point for PyLithics CLI."""
     parser = create_argument_parser()
     args = parser.parse_args()
 
-    # Handle extended help options
-    if hasattr(args, 'help_config') and args.help_config:
+    # Handle help/docs flags (no processing required)
+    if getattr(args, 'help_config', False):
         show_config_help()
         return 0
-
-    if hasattr(args, 'help_examples') and args.help_examples:
+    if getattr(args, 'help_examples', False):
         show_examples_help()
         return 0
-
-    if hasattr(args, 'help_troubleshooting') and args.help_troubleshooting:
+    if getattr(args, 'help_troubleshooting', False):
         show_troubleshooting_help()
         return 0
-
-    # Handle documentation server
-    if hasattr(args, 'docs') and args.docs:
+    if getattr(args, 'docs', False):
         launch_docs_server()
         return 0
 
-    # Check that required arguments are provided for normal processing
-    if not args.data_dir:
-        print("Error: --data_dir is required for processing images.")
-        print("Use 'pylithics --help' for usage information.")
-        print("Use 'pylithics --docs' to view documentation.")
+    # Validate required arguments
+    if not args.data_dir or not args.meta_file:
+        print("Error: --data_dir and --meta_file are required.")
+        print("Use 'pylithics --help' or 'pylithics --docs'.")
         return 1
 
-    if not args.meta_file:
-        print("Error: --meta_file is required for processing images.")
-        print("Use 'pylithics --help' for usage information.")
-        print("Use 'pylithics --docs' to view documentation.")
-        return 1
-
-    # Continue with normal processing...
     try:
-        # Initialize application
         app = PyLithicsApplication(args.config_file)
+        _apply_config_overrides(app, args)
 
-        # Apply command-line overrides
-        config_overrides = {}
-
-        if args.threshold_method:
-            config_overrides['thresholding.method'] = args.threshold_method
-
-        if args.log_level:
-            config_overrides['logging.level'] = args.log_level
-
-        if args.disable_arrow_detection:
-            config_overrides['arrow_detection.enabled'] = False
-
-        if args.arrow_debug:
-            config_overrides['arrow_detection.debug_enabled'] = True
-
-        if args.show_arrow_lines:
-            config_overrides['arrow_detection.show_arrow_lines'] = True
-
-        # Scale calibration overrides
-        if args.disable_scale_calibration:
-            config_overrides['scale_calibration.enabled'] = False
-        if args.scale_debug:
-            config_overrides['scale_calibration.debug_output'] = True
-        if args.force_pixels:
-            config_overrides['scale_calibration.enabled'] = False
-
-        # Cortex detection overrides
-        if hasattr(args, 'disable_cortex_detection') and args.disable_cortex_detection:
-            config_overrides['cortex_detection.enabled'] = False
-        if hasattr(args, 'cortex_sensitivity') and args.cortex_sensitivity:
-            # Apply sensitivity presets
-            if args.cortex_sensitivity == 'low':
-                config_overrides['cortex_detection.stippling_density_threshold'] = 0.4
-                config_overrides['cortex_detection.texture_variance_threshold'] = 200
-                config_overrides['cortex_detection.edge_density_threshold'] = 0.1
-            elif args.cortex_sensitivity == 'high':
-                config_overrides['cortex_detection.stippling_density_threshold'] = 0.1
-                config_overrides['cortex_detection.texture_variance_threshold'] = 50
-                config_overrides['cortex_detection.edge_density_threshold'] = 0.02
-            # Medium sensitivity uses default config values
-
-        # Scar complexity overrides
-        if hasattr(args, 'disable_scar_complexity') and args.disable_scar_complexity:
-            config_overrides['scar_complexity.enabled'] = False
-        if hasattr(args, 'scar_complexity_distance_threshold') and args.scar_complexity_distance_threshold:
-            config_overrides['scar_complexity.distance_threshold'] = args.scar_complexity_distance_threshold
-
-        # DPI processing overrides
-        if args.enable_dpi_scaling:
-            config_overrides['dpi_processing.enabled'] = True
-        if args.dpi_reference:
-            config_overrides['dpi_processing.reference_dpi'] = args.dpi_reference
-        if args.dpi_max_scale:
-            config_overrides['dpi_processing.max_scale_factor'] = args.dpi_max_scale
-        if args.dpi_scaling_mode:
-            config_overrides['dpi_processing.scaling_mode'] = args.dpi_scaling_mode
-
-        # Apply overrides
-        if config_overrides:
-            app.update_configuration(**config_overrides)
-            logging.info(f"Applied configuration overrides: {config_overrides}")
-
-        # Log configuration summary
-        logging.info(f"Configuration loaded from: {args.config_file or 'default'}")
+        logging.info(f"Config: {args.config_file or 'default'}")
         logging.info(f"Data directory: {args.data_dir}")
         logging.info(f"Metadata file: {args.meta_file}")
 
-        # Run batch analysis
         results = app.run_batch_analysis(
-            args.data_dir,
-            args.meta_file,
+            args.data_dir, args.meta_file,
             args.show_thresholded_images
         )
 
-        if results['success']:
-            if results['processed_successfully'] == results['total_images']:
-                logging.info("All images processed successfully!")
-                return 0
-            else:
-                logging.warning("Some images failed to process")
-                return 0  # Partial success
-        else:
+        if not results['success']:
             logging.error("Batch processing failed")
             return 1
+
+        if results['processed_successfully'] < results['total_images']:
+            logging.warning("Some images failed to process")
+        else:
+            logging.info("All images processed successfully!")
+        return 0
 
     except KeyboardInterrupt:
         logging.info("Processing interrupted by user")
         return 1
-    except Exception as e:
-        logging.error(f"Unexpected error: {e}")
-        import traceback
-        traceback.print_exc()
+    except (FileNotFoundError, ValueError) as e:
+        logging.error(f"Input error: {e}")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())
