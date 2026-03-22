@@ -2,8 +2,6 @@ import cv2
 import numpy as np
 import logging
 import os
-import yaml
-
 # For the config loading in extract_contours_with_hierarchy
 from ..config import get_contour_filtering_config
 
@@ -164,73 +162,6 @@ def sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None):
     )
     return {"parents": parents, "children": children, "nested_children": nested}
 
-
-def sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None):
-    """
-    Sort contours into parents, children, and nested children based on hierarchy.
-    This version includes robust bounds checking.
-
-    Args:
-        contours (list): List of detected contours.
-        hierarchy (numpy.ndarray): Hierarchy array corresponding to contours.
-        exclude_nested_flags (list): List of booleans where True indicates contours to exclude.
-
-    Returns:
-        dict: A dictionary with sorted contours:
-            - "parents": List of parent contours.
-            - "children": List of child contours.
-            - "nested_children": List of nested child contours (if any).
-    """
-    # Handle empty contours or hierarchy
-    if not contours or hierarchy is None or len(hierarchy) == 0:
-        return {"parents": [], "children": [], "nested_children": []}
-
-    parents, children, nested = [], [], []
-
-    # Create exclude_nested_flags if not provided
-    if exclude_nested_flags is None:
-        exclude_nested_flags = [False] * len(contours)
-
-    # Ensure exclude_nested_flags is the right length
-    if len(exclude_nested_flags) != len(contours):
-        logging.warning("exclude_nested_flags length mismatch: %d vs %d contours. Using defaults.",
-                        len(exclude_nested_flags), len(contours))
-        exclude_nested_flags = [False] * len(contours)
-
-    # First, identify parent contours (those with no parent)
-    for i, h in enumerate(hierarchy):
-        if i >= len(exclude_nested_flags) or i >= len(contours):
-            continue  # Skip if index is out of bounds
-
-        if exclude_nested_flags[i]:
-            continue
-
-        parent_idx = h[3]
-        if parent_idx == -1:  # No parent
-            parents.append(contours[i])
-
-    # Second, identify direct children (first level)
-    for i, h in enumerate(hierarchy):
-        if i >= len(exclude_nested_flags) or i >= len(contours):
-            continue  # Skip if index is out of bounds
-
-        if exclude_nested_flags[i]:
-            continue
-
-        parent_idx = h[3]
-        if parent_idx != -1:  # Has a parent
-            # Check if the parent is a root contour
-            if parent_idx < len(hierarchy) and hierarchy[parent_idx][3] == -1:
-                children.append(contours[i])
-            else:
-                # This is a nested child (child of a child)
-                nested.append(contours[i])
-
-    logging.info(
-        "Sorted contours: %d parents, %d children, %d nested",
-        len(parents), len(children), len(nested)
-    )
-    return {"parents": parents, "children": children, "nested_children": nested}
 
 def hide_nested_child_contours(contours, hierarchy):
     """
