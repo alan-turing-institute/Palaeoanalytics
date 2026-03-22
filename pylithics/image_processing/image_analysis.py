@@ -95,6 +95,7 @@ def process_and_save_contours(
     """
     try:
         logging.info(f"Starting analysis for image: {image_id}")
+        image_stem = os.path.splitext(image_id)[0]
 
         contours, hierarchy, sorted_contours = _extract_and_sort_contours(
             inverted_image, image_id, output_dir
@@ -129,7 +130,7 @@ def process_and_save_contours(
         config_manager = get_config_manager()
         _generate_visualizations(
             metrics, sorted_contours, hierarchy, contours,
-            inverted_image, output_dir, image_id,
+            inverted_image, output_dir, image_stem,
             voronoi_data, conversion_factor, config_manager.config
         )
 
