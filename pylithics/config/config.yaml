@@ -126,6 +126,7 @@ arrow_integration:
 # Surface Classification Configuration
 surface_classification:
   enabled: true  # Enable surface type classification
+  tolerance: 0.1  # Dimensional tolerance for surface comparison (0-1)
 
   # Classification rules based on contour hierarchy and properties
   classification_rules:

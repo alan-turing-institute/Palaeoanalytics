@@ -253,6 +253,23 @@ def get_arrow_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]:
     })
 
 
+def get_surface_classification_config(
+    config: Optional[Dict] = None
+) -> Dict[str, Any]:
+    """Get surface classification configuration with defaults."""
+    if config is None:
+        config = get_config_manager().config
+    return config.get('surface_classification', {
+        'enabled': True,
+        'tolerance': 0.1,
+        'classification_rules': {
+            'dorsal_area_threshold': 0.6,
+            'platform_aspect_ratio_max': 0.3,
+            'lateral_area_threshold': 0.1,
+        }
+    })
+
+
 def get_cortex_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]:
     """Get cortex detection configuration with defaults."""
     if config is None:
