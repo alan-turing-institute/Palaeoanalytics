@@ -22,7 +22,10 @@ from typing import List, Dict, Tuple, Any
 from ..config import get_cortex_detection_config
 
 
-def detect_cortex_in_child_contours(metrics: List[Dict[str, Any]], inverted_image: np.ndarray) -> List[Dict[str, Any]]:
+def detect_cortex_in_child_contours(
+    metrics: List[Dict[str, Any]],
+    inverted_image: np.ndarray
+) -> List[Dict[str, Any]]:
     """
     Detect cortex in child contours based on texture analysis.
 
@@ -61,7 +64,11 @@ def detect_cortex_in_child_contours(metrics: List[Dict[str, Any]], inverted_imag
 
         for child in children:
             if not child.get("contour"):
-                logging.warning(f"Child contour {child.get('scar', 'unknown')} missing contour data")
+                scar = child.get('scar', 'unknown')
+                logging.warning(
+                    f"Child contour {scar} missing "
+                    f"contour data"
+                )
                 non_cortex_children.append(child)
                 continue
 
@@ -152,7 +159,11 @@ def detect_cortex_in_child_contours(metrics: List[Dict[str, Any]], inverted_imag
         return metrics
 
 
-def _detect_cortex_texture(contour: np.ndarray, inverted_image: np.ndarray, config: Dict[str, Any]) -> bool:
+def _detect_cortex_texture(
+    contour: np.ndarray,
+    inverted_image: np.ndarray,
+    config: Dict[str, Any]
+) -> bool:
     """
     Detect cortex based on texture analysis within a contour region.
 
@@ -186,7 +197,11 @@ def _detect_cortex_texture(contour: np.ndarray, inverted_image: np.ndarray, conf
 
         # Feature 1: Density of small connected components (stippling detection)
         # Find connected components in the ROI
-        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(roi_cropped, connectivity=8)
+        num_labels, labels, stats, centroids = (
+            cv2.connectedComponentsWithStats(
+                roi_cropped, connectivity=8
+            )
+        )
 
         # Count small components (excluding background)
         small_components = 0

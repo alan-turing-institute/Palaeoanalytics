@@ -59,7 +59,10 @@ def analyze_scar_complexity(metrics: List[Dict[str, Any]],
         for i, metric in enumerate(metrics):
             surface_type = metric.get('surface_type', 'unknown')
             surface_feature = metric.get('surface_feature', 'unknown')
-            logging.info(f"Metric {i}: surface_type='{surface_type}', surface_feature='{surface_feature}'")
+            logging.info(
+                f"Metric {i}: surface_type='{surface_type}',"
+                f" surface_feature='{surface_feature}'"
+            )
         
         # Extract dorsal scars by finding child contours of dorsal parent
         # First, find the dorsal parent surface
@@ -90,7 +93,10 @@ def analyze_scar_complexity(metrics: List[Dict[str, Any]],
         
         if len(dorsal_scars) < 2:
             # Need at least 2 scars to have complexity
-            logging.info(f"Not enough dorsal scars ({len(dorsal_scars)}) for complexity analysis - need at least 2")
+            logging.info(
+                f"Not enough dorsal scars "
+                f"({len(dorsal_scars)}) for complexity"
+            )
             return {scar.get('surface_feature', 'unknown'): 0 
                    for scar in dorsal_scars}
         
@@ -127,9 +133,16 @@ def analyze_scar_complexity(metrics: List[Dict[str, Any]],
                             distance = scar_polygon.distance(other_polygon)
                             if distance <= distance_threshold:
                                 border_count += 1
-                                logging.debug(f"{scar_feature} is adjacent to {other_scar.get('surface_feature')} (distance: {distance:.1f}, threshold: {distance_threshold})")
+                                other_feat = other_scar.get(
+                                    'surface_feature'
+                                )
+                                logging.debug(
+                                    f"{scar_feature} adjacent to "
+                                    f"{other_feat} "
+                                    f"(dist: {distance:.1f})"
+                                )
                                 
-                        except (ShapelyError, Exception) as e:
+                        except ShapelyError as e:
                             logging.warning(
                                 f"Error checking border sharing between "
                                 f"{scar_feature} and {other_scar.get('surface_feature')}: {e}"
@@ -139,7 +152,7 @@ def analyze_scar_complexity(metrics: List[Dict[str, Any]],
                 complexity_results[scar_feature] = border_count
                 logging.debug(f"{scar_feature} shares borders with {border_count} scars")
                 
-            except (ShapelyError, Exception) as e:
+            except ShapelyError as e:
                 logging.warning(f"Error analyzing {scar_feature}: {e}")
                 complexity_results[scar_feature] = 0
         
@@ -204,7 +217,7 @@ def _create_polygon_from_contour(contour: Optional[List]) -> Optional[Polygon]:
                 
         return polygon
         
-    except (ShapelyError, ValueError, Exception) as e:
+    except (ShapelyError, ValueError) as e:
         logging.warning(f"Error creating polygon from contour: {e}")
         return None
 

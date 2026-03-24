@@ -74,7 +74,10 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     valid_hierarchy = np.array(valid_hierarchy)
 
     # Log how many contours remain after border filtering
-    logging.info(f"After border filtering: {len(valid_contours)} contours remain in image {image_id}")
+    logging.info(
+        f"After border filtering: {len(valid_contours)} "
+        f"contours remain in {image_id}"
+    )
 
     # 3) filter out small contours using the minimum area from config
     valid_contours, valid_hierarchy = filter_contours_by_min_area(
@@ -195,13 +198,6 @@ def hide_nested_child_contours(contours, hierarchy):
         if parent_idx == -1 or parent_idx >= len(hierarchy):
             continue
 
-        # NOTE: Disabled single-child exclusion to allow proper surface-based child classification
-        # This was excluding platform children when platform surfaces had only one child feature
-        # Let child classification handle exclusions based on surface types instead
-        # Original logic: only flag if it's a first-level child and its parent has exactly one child
-        # if parent_idx != -1 and hierarchy[parent_idx][3] == -1 and child_counts.get(parent_idx, 0) == 1:
-        #     if i < len(flags):
-        #         flags[i] = True
         pass
 
     logging.info("Flagged %d single-child contours for exclusion.", sum(flags))

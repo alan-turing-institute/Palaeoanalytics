@@ -316,7 +316,12 @@ class PyLithicsApplication:
 
         # Log final summary
         success_rate = (results['processed_successfully'] / results['total_images']) * 100
-        logging.info(f"Batch processing completed: {results['processed_successfully']}/{results['total_images']} successful ({success_rate:.1f}%)")
+        done = results['processed_successfully']
+        total = results['total_images']
+        logging.info(
+            f"Batch processing completed: "
+            f"{done}/{total} ({success_rate:.1f}%)"
+        )
 
         if results['failed_images']:
             logging.warning(f"Failed images: {', '.join(results['failed_images'])}")

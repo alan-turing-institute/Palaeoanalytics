@@ -73,12 +73,23 @@ class ArrowDetector:
         depth_safety = self.config.get('min_defect_depth_scale_factor', 0.8)
         height_safety = self.config.get('min_triangle_height_scale_factor', 0.8)
 
+        ref = self.ref_thresholds
         return {
-            'min_area': self.ref_thresholds['min_area'] * area_scale * area_safety,
-            'min_defect_depth': self.ref_thresholds['min_defect_depth'] * linear_scale * depth_safety,
-            'solidity_bounds': self.ref_thresholds['solidity_bounds'],
-            'min_triangle_height': self.ref_thresholds['min_triangle_height'] * linear_scale * height_safety,
-            'min_significant_defects': self.ref_thresholds['min_significant_defects']
+            'min_area': (
+                ref['min_area'] * area_scale * area_safety
+            ),
+            'min_defect_depth': (
+                ref['min_defect_depth']
+                * linear_scale * depth_safety
+            ),
+            'solidity_bounds': ref['solidity_bounds'],
+            'min_triangle_height': (
+                ref['min_triangle_height']
+                * linear_scale * height_safety
+            ),
+            'min_significant_defects': (
+                ref['min_significant_defects']
+            ),
         }
 
     def analyze_contour_for_arrow(self,
@@ -121,7 +132,9 @@ class ArrowDetector:
                 return None
 
             # Step 2: Find significant defects
-            significant_defects = self._find_significant_defects(contour, params['min_defect_depth'])
+            significant_defects = self._find_significant_defects(
+                contour, params['min_defect_depth']
+            )
             if not self._validate_defects(significant_defects, params, debug_log):
                 return None
 
@@ -295,7 +308,10 @@ class ArrowDetector:
 
         if debug_log:
             debug_log.write(f"Half-space solidities: {solidity1:.3f}, {solidity2:.3f}\n")
-            debug_log.write(f"Shaft half-space: {shaft_halfspace}, Tip half-space: {tip_halfspace}\n")
+            debug_log.write(
+                f"Shaft: {shaft_halfspace}, "
+                f"Tip: {tip_halfspace}\n"
+            )
 
         # Find triangle tip
         halfspace_points = self._divide_contour_points(contour, triangle_base_info)
@@ -452,14 +468,19 @@ class ArrowDetector:
 
         return tip_point
 
-    def _create_debug_visualizations(self,
-                                   contour: np.ndarray,
-                                   triangle_data: Dict[str, Any],
-                                   arrow_data: Dict[str, Any],
-                                   image: np.ndarray,
-                                   debug_dir: str) -> None:
+    def _create_debug_visualizations(
+        self,
+        contour: np.ndarray,
+        triangle_data: Dict[str, Any],
+        arrow_data: Dict[str, Any],
+        image: np.ndarray,
+        debug_dir: str
+    ) -> None:
         """Create debug visualization images."""
-        vis = image.copy() if len(image.shape) == 3 else cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
+        if len(image.shape) == 3:
+            vis = image.copy()
+        else:
+            vis = cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
 
         # Draw contour
         cv2.drawContours(vis, [contour], 0, (0, 255, 0), 2)
