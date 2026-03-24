@@ -9,7 +9,6 @@ import os
 import logging
 import yaml
 from typing import Dict, Any, Optional
-from functools import lru_cache
 try:
     from importlib import resources
 except ImportError:
@@ -161,79 +160,15 @@ def load_preprocessing_config(config_file: Optional[str] = None) -> Dict[str, An
     return get_config_manager(config_file).config
 
 
-@lru_cache(maxsize=None)
-def get_contour_filtering_config(config: Optional[Dict] = None) -> Dict[str, Any]:
+def get_contour_filtering_config(
+    config: Optional[Dict] = None
+) -> Dict[str, Any]:
     """Get contour filtering configuration with defaults."""
     if config is None:
-        return get_config_manager().get_section('contour_filtering')
-
-    contour_config = config.get('contour_filtering', {})
-    return {
-        'min_area': contour_config.get('min_area', 50.0),
-        'exclude_border': contour_config.get('exclude_border', True)
-    }
-
-
-@lru_cache(maxsize=None)
-def get_thresholding_config(config: Optional[Dict] = None) -> Dict[str, Any]:
-    """Get thresholding configuration with defaults."""
-    if config is None:
-        return get_config_manager().get_section('thresholding')
-
-    return config.get('thresholding', {
-        'method': 'simple',
-        'threshold_value': 127,
-        'max_value': 255
-    })
-
-
-@lru_cache(maxsize=None)
-def get_morphological_config(config: Optional[Dict] = None) -> Dict[str, Any]:
-    """Get morphological processing configuration."""
-    if config is None:
-        return get_config_manager().get_section('morphological_closing')
-
-    return config.get('morphological_closing', {
-        'enabled': True,
-        'kernel_size': 3
-    })
-
-
-@lru_cache(maxsize=None)
-def get_logging_config(config: Optional[Dict] = None) -> Dict[str, Any]:
-    """Get logging configuration."""
-    if config is None:
-        return get_config_manager().get_section('logging')
-
-    return config.get('logging', {
-        'level': 'INFO',
-        'log_to_file': True,
-        'log_file': 'pylithics/data/processed/pylithics.log'
-    })
-
-
-@lru_cache(maxsize=None)
-def get_normalization_config(config: Optional[Dict] = None) -> Dict[str, Any]:
-    """Get normalization configuration."""
-    if config is None:
-        return get_config_manager().get_section('normalization')
-
-    return config.get('normalization', {
-        'enabled': True,
-        'method': 'minmax',
-        'clip_values': [0, 255]
-    })
-
-
-@lru_cache(maxsize=None)
-def get_grayscale_config(config: Optional[Dict] = None) -> Dict[str, Any]:
-    """Get grayscale conversion configuration."""
-    if config is None:
-        return get_config_manager().get_section('grayscale_conversion')
-
-    return config.get('grayscale_conversion', {
-        'enabled': True,
-        'method': 'standard'
+        config = get_config_manager().config
+    return config.get('contour_filtering', {
+        'min_area': 50.0,
+        'exclude_border': True,
     })
 
 
@@ -326,10 +261,6 @@ def get_scale_calibration_config(
 
 
 def clear_config_cache() -> None:
-    """Clear the configuration cache (useful for testing)."""
-    get_contour_filtering_config.cache_clear()
-    get_thresholding_config.cache_clear()
-    get_morphological_config.cache_clear()
-    get_logging_config.cache_clear()
-    get_normalization_config.cache_clear()
-    get_grayscale_config.cache_clear()
+    """Reset the global config manager (useful for testing)."""
+    global _config_manager
+    _config_manager = None
