@@ -17,10 +17,6 @@ from unittest.mock import patch, MagicMock
 from pylithics.image_processing.modules.arrow_detection import (
     ArrowDetector,
     analyze_child_contour_for_arrow,
-    scale_parameters_for_dpi,
-    create_arrow_detection_pipeline,
-    batch_detect_arrows,
-    validate_arrow_detection_config
 )
 
 
@@ -319,84 +315,6 @@ class TestArrowDetectionFunctions:
         # Should return same result as ArrowDetector method
         assert result is None or isinstance(result, dict)
 
-    def test_scale_parameters_for_dpi_function(self):
-        """Test standalone DPI scaling function."""
-        params = scale_parameters_for_dpi(600.0)
-
-        assert isinstance(params, dict)
-        assert 'min_area' in params
-        assert 'min_defect_depth' in params
-        assert 'solidity_bounds' in params
-
-    def test_create_arrow_detection_pipeline(self):
-        """Test creation of arrow detection pipeline."""
-        config = {
-            'reference_dpi': 150.0,
-            'debug_enabled': True
-        }
-
-        detector = create_arrow_detection_pipeline(config)
-
-        assert isinstance(detector, ArrowDetector)
-        assert detector.reference_dpi == 150.0
-        assert detector.debug_enabled is True
-
-    def test_batch_detect_arrows(self, sample_contours):
-        """Test batch arrow detection on multiple contours."""
-        entries = [
-            {'scar': 'scar_1'},
-            {'scar': 'scar_2'}
-        ]
-        image = np.zeros((100, 100), dtype=np.uint8)
-
-        results = batch_detect_arrows(
-            sample_contours, entries, image, 300.0
-        )
-
-        assert len(results) == len(sample_contours)
-
-        # Each result should be None or a dict
-        for result in results:
-            assert result is None or isinstance(result, dict)
-
-    def test_validate_arrow_detection_config_valid(self):
-        """Test validation of valid arrow detection config."""
-        valid_config = {
-            'reference_dpi': 300.0,
-            'min_area_scale_factor': 0.7,
-            'min_defect_depth_scale_factor': 0.8,
-            'min_triangle_height_scale_factor': 0.8,
-            'debug_enabled': False
-        }
-
-        result = validate_arrow_detection_config(valid_config)
-        assert result is True
-
-    def test_validate_arrow_detection_config_invalid(self):
-        """Test validation of invalid arrow detection config."""
-        # Missing required key
-        invalid_config1 = {
-            'min_area_scale_factor': 0.7
-            # Missing reference_dpi
-        }
-
-        with patch('pylithics.image_processing.modules.arrow_detection.logging') as mock_logging:
-            result = validate_arrow_detection_config(invalid_config1)
-            assert result is False
-            mock_logging.error.assert_called()
-
-        # Invalid value ranges
-        invalid_config2 = {
-            'reference_dpi': -100.0,  # Negative DPI
-            'min_area_scale_factor': 1.5  # > 1.0
-        }
-
-        with patch('pylithics.image_processing.modules.arrow_detection.logging') as mock_logging:
-            result = validate_arrow_detection_config(invalid_config2)
-            assert result is False
-            mock_logging.error.assert_called()
-
-
 @pytest.mark.unit
 class TestArrowGeometry:
     """Test geometric calculations in arrow detection."""
@@ -591,30 +509,16 @@ class TestArrowDetectionIntegration:
                 # Debug files might be created depending on detection success
                 # At minimum, should not crash with debug enabled
 
-    @patch('pylithics.image_processing.modules.arrow_detection.logging')
-    def test_batch_detection_error_handling(self, mock_logging):
-        """Test error handling in batch arrow detection."""
-        contours = [
-            np.array([[0, 0], [10, 0], [5, 10]], dtype=np.int32).reshape(-1, 1, 2),
-            np.array([], dtype=np.int32).reshape(0, 1, 2),  # Empty contour
-            None  # Invalid contour
-        ]
-
-        entries = [
-            {'scar': 'valid'},
-            {'scar': 'empty'},
-            {'scar': 'invalid'}
-        ]
-
+    def test_detection_error_handling(self):
+        """Test error handling for invalid contours."""
+        detector = ArrowDetector()
         image = np.zeros((100, 100), dtype=np.uint8)
 
-        results = batch_detect_arrows(contours, entries, image, 300.0)
-
-        assert len(results) == len(contours)
-
-        # Should handle errors gracefully and continue processing
-        for result in results:
-            assert result is None or isinstance(result, dict)
-
-        # Should log errors for failed detections
-        assert mock_logging.error.called
+        # Empty contour should return None gracefully
+        empty = np.array(
+            [], dtype=np.int32
+        ).reshape(0, 1, 2)
+        result = detector.analyze_contour_for_arrow(
+            empty, {'scar': 'empty'}, image, 300.0
+        )
+        assert result is None

@@ -235,10 +235,12 @@ class ArrowDetector:
                     significant_defects.append((start, end, far, depth))
 
             # Sort by depth (deepest first)
-            significant_defects.sort(key=lambda x: x[3], reverse=True)
+            significant_defects.sort(
+                key=lambda x: x[3], reverse=True
+            )
             return significant_defects
 
-        except Exception:
+        except (cv2.error, ValueError, IndexError):
             return None
 
     def _validate_defects(self,
@@ -429,7 +431,7 @@ class ArrowDetector:
             else:
                 return (2, 1, solidities[1], solidities[2])
 
-        except Exception:
+        except (cv2.error, ValueError, ZeroDivisionError):
             return None
 
     def _find_triangle_tip(self,
@@ -495,135 +497,34 @@ class ArrowDetector:
         cv2.imwrite(os.path.join(debug_dir, "arrow_debug.png"), vis)
 
 
-# Backward compatibility functions
-def scale_parameters_for_dpi(image_dpi: Optional[float]) -> Dict[str, Any]:
-    """Scale detection parameters based on image DPI (backward compatibility)."""
-    detector = ArrowDetector()
-    return detector.scale_parameters_for_dpi(image_dpi)
-
-
-def analyze_child_contour_for_arrow(contour: np.ndarray,
-                                   entry: Dict[str, Any],
-                                   image: np.ndarray,
-                                   image_dpi: Optional[float] = None) -> Optional[Dict[str, Any]]:
+def analyze_child_contour_for_arrow(
+    contour: np.ndarray,
+    entry: Dict[str, Any],
+    image: np.ndarray,
+    image_dpi: Optional[float] = None
+) -> Optional[Dict[str, Any]]:
     """
-    Detect an arrow within a given contour (backward compatibility).
+    Detect an arrow within a given contour.
+
+    Module-level convenience function used by arrow_integration.
 
     Parameters
     ----------
     contour : ndarray
-        Single child contour from cv2.findContours
+        Single child contour from cv2.findContours.
     entry : dict
-        Metrics dictionary for this contour
+        Metrics dictionary for this contour.
     image : ndarray
-        Original image for overlaying debug visualizations
+        Original image for debug visualizations.
     image_dpi : float, optional
-        DPI of the image being processed
+        DPI of the image being processed.
 
     Returns
     -------
     dict or None
-        Arrow properties if valid arrow found, None otherwise
+        Arrow properties if valid arrow found, None otherwise.
     """
     detector = ArrowDetector()
-    return detector.analyze_contour_for_arrow(contour, entry, image, image_dpi)
-
-
-# Additional utility functions for the pipeline
-def create_arrow_detection_pipeline(config: Optional[Dict[str, Any]] = None) -> ArrowDetector:
-    """
-    Create a configured arrow detection pipeline.
-
-    Parameters
-    ----------
-    config : dict, optional
-        Arrow detection configuration
-
-    Returns
-    -------
-    ArrowDetector
-        Configured arrow detector instance
-    """
-    return ArrowDetector(config)
-
-
-def batch_detect_arrows(contours: List[np.ndarray],
-                       entries: List[Dict[str, Any]],
-                       image: np.ndarray,
-                       image_dpi: Optional[float] = None,
-                       config: Optional[Dict[str, Any]] = None) -> List[Optional[Dict[str, Any]]]:
-    """
-    Detect arrows in multiple contours efficiently.
-
-    Parameters
-    ----------
-    contours : list
-        List of contours to analyze
-    entries : list
-        List of metric dictionaries corresponding to contours
-    image : ndarray
-        Original image for debug visualizations
-    image_dpi : float, optional
-        DPI of the image being processed
-    config : dict, optional
-        Arrow detection configuration
-
-    Returns
-    -------
-    list
-        List of arrow detection results (None for failed detections)
-    """
-    detector = ArrowDetector(config)
-    results = []
-
-    for contour, entry in zip(contours, entries):
-        try:
-            result = detector.analyze_contour_for_arrow(contour, entry, image, image_dpi)
-            results.append(result)
-        except Exception as e:
-            logging.error(f"Failed to detect arrow for {entry.get('scar', 'unknown')}: {e}")
-            results.append(None)
-
-    return results
-
-
-def validate_arrow_detection_config(config: Dict[str, Any]) -> bool:
-    """
-    Validate arrow detection configuration.
-
-    Parameters
-    ----------
-    config : dict
-        Configuration dictionary to validate
-
-    Returns
-    -------
-    bool
-        True if configuration is valid, False otherwise
-    """
-    required_keys = ['reference_dpi']
-    optional_keys = [
-        'min_area_scale_factor', 'min_defect_depth_scale_factor',
-        'min_triangle_height_scale_factor', 'debug_enabled'
-    ]
-
-    # Check required keys
-    for key in required_keys:
-        if key not in config:
-            logging.error(f"Missing required arrow detection config key: {key}")
-            return False
-
-    # Validate types and ranges
-    if not isinstance(config['reference_dpi'], (int, float)) or config['reference_dpi'] <= 0:
-        logging.error("reference_dpi must be a positive number")
-        return False
-
-    # Validate optional scale factors
-    for key in ['min_area_scale_factor', 'min_defect_depth_scale_factor', 'min_triangle_height_scale_factor']:
-        if key in config:
-            value = config[key]
-            if not isinstance(value, (int, float)) or not (0 < value <= 1):
-                logging.error(f"{key} must be a number between 0 and 1")
-                return False
-
-    return True
+    return detector.analyze_contour_for_arrow(
+        contour, entry, image, image_dpi
+    )
