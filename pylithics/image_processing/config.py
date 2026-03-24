@@ -313,6 +313,18 @@ def get_scar_complexity_config(config: Optional[Dict] = None) -> Dict[str, Any]:
     })
 
 
+def get_scale_calibration_config(
+    config: Optional[Dict] = None
+) -> Dict[str, Any]:
+    """Get scale calibration configuration with defaults."""
+    if config is None:
+        config = get_config_manager().config
+    return config.get('scale_calibration', {
+        'enabled': True,
+        'debug_output': False,
+    })
+
+
 def clear_config_cache() -> None:
     """Clear the configuration cache (useful for testing)."""
     get_contour_filtering_config.cache_clear()

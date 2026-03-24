@@ -10,8 +10,9 @@ import cv2
 import numpy as np
 import logging
 import os
-from typing import Optional, Tuple, Dict
-from PIL import Image
+from typing import Optional, Tuple, Dict, List
+
+from ..config import get_config_manager
 
 
 def detect_scale_bar(scale_image_path: str, config: Dict) -> Optional[Tuple[int, float]]:
@@ -63,8 +64,11 @@ def detect_scale_bar(scale_image_path: str, config: Dict) -> Optional[Tuple[int,
 
         return scale_length_pixels, confidence
 
-    except Exception as e:
-        logging.error(f"Error detecting scale bar in {scale_image_path}: {e}")
+    except (cv2.error, ValueError, IOError) as e:
+        logging.error(
+            f"Error detecting scale bar in "
+            f"{scale_image_path}: {e}"
+        )
         return None
 
 
@@ -99,7 +103,7 @@ def save_debug_image(scale_image_path: str, binary_image: np.ndarray,
         cv2.imwrite(debug_path, debug_image)
         logging.debug(f"Saved scale debug image: {debug_path}")
 
-    except Exception as e:
+    except (cv2.error, IOError, OSError) as e:
         logging.warning(f"Failed to save debug image: {e}")
 
 
@@ -173,8 +177,10 @@ def get_calibration_factor(image_path: str, scale_data: Dict,
             else:
                 logging.warning(f"Scale image not found: {scale_image_path}")
 
-        except Exception as e:
-            logging.warning(f"Scale bar calibration failed: {e}")
+        except (ValueError, IOError, OSError) as e:
+            logging.warning(
+                f"Scale bar calibration failed: {e}"
+            )
 
     # No scale calibration available - use pixels
     logging.info(f"No scale calibration available for {os.path.basename(image_path)}, "
