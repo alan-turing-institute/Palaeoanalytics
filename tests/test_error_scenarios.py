@@ -802,9 +802,12 @@ scale_test_2.png,scale_3,-5.0"""
 
             app = PyLithicsApplication(config_file=config_path)
 
-            # The actual implementation raises ValueError for invalid scale values
-            with pytest.raises(ValueError):
-                app.run_batch_analysis(data_dir, metadata_path)
+            # Invalid scales are handled gracefully —
+            # processing continues with pixel measurements
+            results = app.run_batch_analysis(
+                data_dir, metadata_path
+            )
+            assert results['success'] is True
 
     def test_unicode_and_encoding_errors(self, sample_config):
         """Test handling of unicode and encoding issues."""

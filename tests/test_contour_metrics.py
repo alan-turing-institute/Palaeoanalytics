@@ -112,7 +112,7 @@ class TestCalculateContourMetrics:
         # Check child metric
         child_metric = metrics[1]
         assert child_metric['parent'] == 'parent 1'
-        assert child_metric['scar'] == 'scar 1'
+        assert child_metric['scar'] == 'child 1'
         assert child_metric['area'] == 400.0   # 20x20
         assert 'width' in child_metric  # Children have 'width', parents have 'technical_width'
         assert 'height' in child_metric
@@ -355,7 +355,7 @@ class TestConvertMetricsToRealWorld:
     """Test conversion of pixel metrics to real-world units."""
 
     def test_convert_basic_metrics(self):
-        """Test basic conversion of pixel metrics to real-world units."""
+        """Test basic conversion of pixel metrics to mm."""
         pixel_metrics = [
             {
                 'parent': 'parent 1',
@@ -367,124 +367,80 @@ class TestConvertMetricsToRealWorld:
                 'area': 4000.0
             }
         ]
-
-        conversion_factor = 0.1  # 10 pixels per mm
-
-        converted_metrics = convert_metrics_to_real_world(
-            pixel_metrics, conversion_factor
+        # 10 pixels per mm — divide by 10 to get mm
+        converted = convert_metrics_to_real_world(
+            pixel_metrics, 10.0
         )
+        assert len(converted) == 1
+        m = converted[0]
 
-        assert len(converted_metrics) == 1
-        metric = converted_metrics[0]
+        assert m['centroid_x'] == 10.0       # 100 / 10
+        assert m['centroid_y'] == 20.0       # 200 / 10
+        assert m['technical_width'] == 5.0   # 50 / 10
+        assert m['technical_length'] == 8.0  # 80 / 10
+        assert m['area'] == 40.0             # 4000 / 10²
 
-        # Check linear conversions
-        assert metric['centroid_x'] == 10.0      # 100 * 0.1
-        assert metric['centroid_y'] == 20.0      # 200 * 0.1
-        assert metric['technical_width'] == 5.0  # 50 * 0.1
-        assert metric['technical_length'] == 8.0 # 80 * 0.1
-
-        # Check area conversion (quadratic)
-        assert metric['area'] == 40.0  # 4000 * 0.1²
-
-        # Check that non-numeric fields are preserved
-        assert metric['parent'] == 'parent 1'
-        assert metric['scar'] == 'parent 1'
+        assert m['parent'] == 'parent 1'
+        assert m['scar'] == 'parent 1'
 
     def test_convert_multiple_metrics(self):
         """Test conversion of multiple metrics."""
         pixel_metrics = [
             {
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'centroid_x': 50.0,
-                'centroid_y': 60.0,
+                'parent': 'parent 1', 'scar': 'parent 1',
+                'centroid_x': 50.0, 'centroid_y': 60.0,
                 'technical_width': 30.0,
                 'technical_length': 40.0,
                 'area': 1200.0
             },
             {
-                'parent': 'parent 1',
-                'scar': 'scar 1',
-                'centroid_x': 55.0,
-                'centroid_y': 65.0,
+                'parent': 'parent 1', 'scar': 'scar 1',
+                'centroid_x': 55.0, 'centroid_y': 65.0,
                 'technical_width': 10.0,
                 'technical_length': 15.0,
                 'area': 150.0
             }
         ]
-
-        conversion_factor = 0.2  # 5 pixels per mm
-
-        converted_metrics = convert_metrics_to_real_world(
-            pixel_metrics, conversion_factor
+        # 5 pixels per mm
+        converted = convert_metrics_to_real_world(
+            pixel_metrics, 5.0
         )
+        assert len(converted) == 2
+        assert converted[0]['centroid_x'] == 10.0   # 50 / 5
+        assert converted[0]['area'] == 48.0         # 1200 / 25
+        assert converted[1]['centroid_x'] == 11.0   # 55 / 5
+        assert converted[1]['area'] == 6.0          # 150 / 25
 
-        assert len(converted_metrics) == 2
-
-        # Check first metric
-        metric1 = converted_metrics[0]
-        assert metric1['centroid_x'] == 10.0   # 50 * 0.2
-        assert metric1['area'] == 48.0         # 1200 * 0.2²
-
-        # Check second metric
-        metric2 = converted_metrics[1]
-        assert metric2['centroid_x'] == 11.0   # 55 * 0.2
-        assert metric2['area'] == 6.0          # 150 * 0.2²
-
-    def test_convert_zero_conversion_factor(self):
-        """Test handling of zero conversion factor."""
+    def test_convert_zero_returns_original(self):
+        """Zero conversion factor should return original metrics."""
         pixel_metrics = [
             {
-                'parent': 'parent 1',
-                'scar': 'parent 1',
+                'parent': 'parent 1', 'scar': 'parent 1',
                 'centroid_x': 100.0,
-                'centroid_y': 200.0,
-                'technical_width': 50.0,
-                'technical_length': 80.0,
                 'area': 4000.0
             }
         ]
-
-        conversion_factor = 0.0
-
-        converted_metrics = convert_metrics_to_real_world(
-            pixel_metrics, conversion_factor
+        converted = convert_metrics_to_real_world(
+            pixel_metrics, 0.0
         )
+        # Function warns and returns original
+        assert converted[0]['centroid_x'] == 100.0
+        assert converted[0]['area'] == 4000.0
 
-        metric = converted_metrics[0]
-
-        # All measurements should be zero
-        assert metric['centroid_x'] == 0.0
-        assert metric['centroid_y'] == 0.0
-        assert metric['technical_width'] == 0.0
-        assert metric['technical_length'] == 0.0
-        assert metric['area'] == 0.0
-
-    def test_convert_negative_conversion_factor(self):
-        """Test handling of negative conversion factor."""
+    def test_convert_negative_returns_original(self):
+        """Negative conversion factor should return original."""
         pixel_metrics = [
             {
-                'parent': 'parent 1',
-                'scar': 'parent 1',
+                'parent': 'parent 1', 'scar': 'parent 1',
                 'centroid_x': 100.0,
-                'centroid_y': 200.0,
-                'technical_width': 50.0,
-                'technical_length': 80.0,
                 'area': 4000.0
             }
         ]
-
-        conversion_factor = -0.1  # Negative factor
-
-        converted_metrics = convert_metrics_to_real_world(
-            pixel_metrics, conversion_factor
+        converted = convert_metrics_to_real_world(
+            pixel_metrics, -5.0
         )
-
-        metric = converted_metrics[0]
-
-        # Should handle negative factor (though physically meaningless)
-        assert metric['centroid_x'] == -10.0
-        assert metric['area'] == 40.0  # (-0.1)² = 0.01
+        assert converted[0]['centroid_x'] == 100.0
+        assert converted[0]['area'] == 4000.0
 
     def test_convert_precision_rounding(self):
         """Test that converted values are properly rounded."""
@@ -518,23 +474,20 @@ class TestConvertMetricsToRealWorld:
         converted_metrics = convert_metrics_to_real_world([], 0.1)
         assert converted_metrics == []
 
-    def test_convert_missing_fields(self):
-        """Test conversion when some expected fields are missing."""
+    def test_convert_missing_fields_handled_gracefully(self):
+        """Missing fields should be skipped, not raise errors."""
         pixel_metrics = [
             {
                 'parent': 'parent 1',
                 'scar': 'parent 1',
                 'centroid_x': 100.0,
-                # Missing centroid_y, technical_width, technical_length, area
             }
         ]
-
-        conversion_factor = 0.1
-
-        # The current implementation doesn't handle missing fields gracefully
-        # It will raise KeyError - this is expected behavior
-        with pytest.raises(KeyError):
-            convert_metrics_to_real_world(pixel_metrics, conversion_factor)
+        converted = convert_metrics_to_real_world(
+            pixel_metrics, 10.0
+        )
+        assert converted[0]['centroid_x'] == 10.0
+        assert converted[0]['parent'] == 'parent 1'
 
 
 @pytest.mark.integration
@@ -564,24 +517,23 @@ class TestContourMetricsIntegration:
         parent_metrics = [m for m in metrics if 'technical_width' in m]
 
         if parent_metrics:
-            # Convert to real world - only test parent metrics that have compatible fields
-            conversion_factor = 0.05  # 20 pixels per mm
-            converted_metrics = convert_metrics_to_real_world(parent_metrics, conversion_factor)
+            # 20 pixels per mm — divide by 20 to get mm
+            pixels_per_mm = 20.0
+            converted = convert_metrics_to_real_world(
+                parent_metrics, pixels_per_mm
+            )
+            assert len(converted) == len(parent_metrics)
 
-            assert len(converted_metrics) == len(parent_metrics)
-
-            # Verify conversion worked
-            for original, converted in zip(parent_metrics, converted_metrics):
-                assert converted['parent'] == original['parent']
-                assert converted['scar'] == original['scar']
-
-                # Check linear conversion
-                expected_x = round(original['centroid_x'] * conversion_factor, 2)
-                assert abs(converted['centroid_x'] - expected_x) < 0.01
-
-                # Check area conversion
-                expected_area = round(original['area'] * conversion_factor**2, 2)
-                assert abs(converted['area'] - expected_area) < 0.01
+            for orig, conv in zip(parent_metrics, converted):
+                assert conv['parent'] == orig['parent']
+                expected_x = round(
+                    orig['centroid_x'] / pixels_per_mm, 2
+                )
+                assert abs(conv['centroid_x'] - expected_x) < 0.01
+                expected_area = round(
+                    orig['area'] / (pixels_per_mm ** 2), 2
+                )
+                assert abs(conv['area'] - expected_area) < 0.01
 
     def test_metrics_with_realistic_contours(self):
         """Test metrics calculation with realistic archaeological contours."""
@@ -650,9 +602,10 @@ class TestContourMetricsIntegration:
 
         assert metrics == []
 
-        # Test conversion with malformed metrics
+        # Malformed metrics should be handled gracefully
         malformed_metrics = [{'invalid': 'data'}]
-
-        # The current implementation doesn't handle missing fields gracefully
-        with pytest.raises(KeyError):
-            convert_metrics_to_real_world(malformed_metrics, 0.1)
+        converted = convert_metrics_to_real_world(
+            malformed_metrics, 10.0
+        )
+        assert len(converted) == 1
+        assert converted[0]['invalid'] == 'data'

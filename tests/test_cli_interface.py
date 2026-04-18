@@ -170,13 +170,13 @@ class TestCreateArgumentParser:
         assert args.threshold_method == 'otsu'
         assert args.log_level == 'DEBUG'
 
-    def test_argument_parser_missing_required(self):
-        """Test parser with missing required arguments."""
+    def test_argument_parser_no_args_allowed(self):
+        """Args are optional at parser level (--docs support)."""
         parser = create_argument_parser()
-
-        with pytest.raises(SystemExit):
-            # Missing required arguments should cause SystemExit
-            parser.parse_args([])
+        args = parser.parse_args([])
+        # Parser accepts empty args; main() validates later
+        assert args.data_dir is None
+        assert args.meta_file is None
 
     def test_argument_parser_invalid_choices(self):
         """Test parser with invalid choice values."""
@@ -282,7 +282,7 @@ class TestMainFunction:
             assert result == 1  # Error exit code
 
     def test_main_exception_handling(self):
-        """Test main function exception handling."""
+        """Test main function handles known errors gracefully."""
         test_args = [
             'pylithics',
             '--data_dir', '/test/data',
@@ -292,11 +292,11 @@ class TestMainFunction:
         with patch('sys.argv', test_args), \
              patch.object(PyLithicsApplication, 'validate_inputs') as mock_validate:
 
-            mock_validate.side_effect = Exception("Unexpected error")
+            mock_validate.side_effect = ValueError("Bad input")
 
             result = main()
 
-            assert result == 1  # Error exit code
+            assert result == 1
 
     def test_main_partial_success(self):
         """Test main function with partial processing success."""

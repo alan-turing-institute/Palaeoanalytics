@@ -300,7 +300,17 @@ class PyLithicsApplication:
 
         for i, entry in enumerate(metadata, 1):
             image_id = entry['image_id']
-            real_world_scale_mm = float(entry['scale']) if entry['scale'] else None
+            try:
+                real_world_scale_mm = (
+                    float(entry['scale']) if entry['scale']
+                    else None
+                )
+            except (ValueError, TypeError):
+                logging.warning(
+                    f"Invalid scale for {image_id}, "
+                    f"using pixel measurements"
+                )
+                real_world_scale_mm = None
 
             logging.info(f"Processing image {i}/{len(metadata)}: {image_id}")
 

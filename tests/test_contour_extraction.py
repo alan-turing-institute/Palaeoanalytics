@@ -300,7 +300,9 @@ class TestHideNestedChildContours:
 
         assert len(flags) == 2
         assert flags[0] is False  # Parent should not be flagged
-        assert flags[1] is True   # Single child should be flagged
+        # Single-child exclusion is disabled — surface
+        # classification handles this instead
+        assert flags[1] is False
 
     def test_hide_multiple_children_not_flagged(self):
         """Test that children with siblings are not flagged."""
@@ -339,7 +341,8 @@ class TestHideNestedChildContours:
 
         assert len(flags) == 3
         assert flags[0] is False  # Parent should not be flagged
-        assert flags[1] is True   # Direct child should be flagged (single child)
+        # Single-child exclusion disabled
+        assert flags[1] is False
         assert flags[2] is False  # Nested child should not be flagged
 
     def test_hide_empty_input(self):

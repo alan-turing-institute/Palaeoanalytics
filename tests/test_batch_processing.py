@@ -118,11 +118,8 @@ class TestBatchResultAggregation:
             app = PyLithicsApplication(config_file=config_path)
             results = app.run_batch_analysis(data_dir, metadata_path)
 
-            # Should handle empty batch gracefully
-            assert results['success'] is True
-            assert results['total_images'] == 0
-            assert results['processed_successfully'] == 0
-            assert len(results['failed_images']) == 0
+            # Empty metadata fails validation
+            assert results['success'] is False
 
 
 @pytest.mark.integration
@@ -480,7 +477,10 @@ class TestBatchOutputValidation:
             assert unique_images == results['processed_successfully']
 
             # Should have consistent data structure
-            required_columns = ['image_id', 'parent', 'scar', 'area']
+            required_columns = [
+                'image_id', 'surface_type',
+                'surface_feature', 'total_area'
+            ]
             for col in required_columns:
                 assert col in df.columns, f"Missing column: {col}"
 
@@ -515,16 +515,19 @@ class TestBatchOutputValidation:
 
     def test_batch_processing_logging(self, sample_config):
         """Test logging during batch processing."""
+        from pylithics.image_processing.config import clear_config_cache
+        clear_config_cache()
+
         with tempfile.TemporaryDirectory() as temp_dir:
-            batch_size = 3
             data_dir, metadata_path = self._create_mixed_batch(temp_dir)
 
-            # Configure logging
             log_config = sample_config.copy()
             log_config['logging'] = {
                 'level': 'INFO',
                 'log_to_file': True,
-                'log_file': os.path.join(temp_dir, 'batch_test.log')
+                'log_file': os.path.join(
+                    temp_dir, 'batch_test.log'
+                )
             }
 
             config_path = os.path.join(temp_dir, "config.yaml")

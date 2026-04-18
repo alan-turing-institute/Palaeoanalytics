@@ -149,16 +149,16 @@ class TestApplyGrayscaleConversion:
             assert result is None
             mock_logging.error.assert_called()
 
-    def test_grayscale_missing_config(self):
-        """Test grayscale conversion with missing config section."""
-        color_image = np.random.randint(0, 256, (100, 150, 3), dtype=np.uint8)
-
-        # Since the code expects the section to exist, we should test that it fails appropriately
+    def test_grayscale_missing_config_uses_defaults(self):
+        """Missing config section should use defaults gracefully."""
+        color_image = np.random.randint(
+            0, 256, (100, 150, 3), dtype=np.uint8
+        )
         config = {}  # Missing grayscale_conversion section
-
-        # The function will fail with KeyError
-        with pytest.raises(KeyError):
-            result = apply_grayscale_conversion(color_image, config)
+        result = apply_grayscale_conversion(color_image, config)
+        # Should succeed with default settings
+        assert result is not None
+        assert len(result.shape) == 2  # Grayscale
 
 
 @pytest.mark.unit
