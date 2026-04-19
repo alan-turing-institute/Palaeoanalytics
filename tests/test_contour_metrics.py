@@ -1,611 +1,267 @@
-"""
-PyLithics Contour Metrics Tests
-===============================
+"""Tests for contour metric calculation and real-world unit conversion."""
 
-Tests for geometric calculations and metric computations on contours.
-Covers area, perimeter, centroid, width/height calculations, and coordinate transformations.
-"""
-
-import pytest
 import numpy as np
-import cv2
-from unittest.mock import patch, MagicMock
+import pytest
 
 from pylithics.image_processing.modules.contour_metrics import (
     calculate_contour_metrics,
-    convert_metrics_to_real_world
+    convert_metrics_to_real_world,
 )
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _poly(*pts):
+    return np.array(pts, dtype=np.int32).reshape(-1, 1, 2)
+
+
+def _rect(x0, y0, x1, y1):
+    return _poly([x0, y0], [x1, y0], [x1, y1], [x0, y1])
+
+
+def _calc(sorted_contours, hierarchy, contours, image_shape=(200, 200)):
+    return calculate_contour_metrics(
+        sorted_contours, hierarchy, contours, image_shape
+    )
+
+
+# ---------------------------------------------------------------------------
+# calculate_contour_metrics: parent-only geometry
+# ---------------------------------------------------------------------------
+
+
 @pytest.mark.unit
-class TestCalculateContourMetrics:
-    """Test the main contour metrics calculation function."""
+class TestCalculateContourMetricsParent:
+    """Geometric properties of parent contours."""
 
-    def test_calculate_metrics_simple_parent(self):
-        """Test metric calculation for a simple parent contour."""
-        # Create a simple rectangular contour
-        parent_contour = np.array([
-            [10, 20], [60, 20], [60, 80], [10, 80]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        sorted_contours = {
-            'parents': [parent_contour],
-            'children': [],
-            'nested_children': []
-        }
-
-        # Simple hierarchy - parent has no parent
-        hierarchy = np.array([[-1, -1, -1, -1]])
-        original_contours = [parent_contour]
-        image_shape = (100, 100)
-
-        metrics = calculate_contour_metrics(
-            sorted_contours, hierarchy, original_contours, image_shape
+    def test_rectangle_produces_expected_area_and_centroid(self):
+        parent = _rect(10, 20, 60, 80)  # 50 wide, 60 tall
+        metrics = _calc(
+            {"parents": [parent], "children": [], "nested_children": []},
+            np.array([[-1, -1, -1, -1]]),
+            [parent],
         )
 
         assert len(metrics) == 1
-        metric = metrics[0]
+        m = metrics[0]
+        assert m["parent"] == "parent 1"
+        assert m["scar"] == "parent 1"
+        assert m["area"] == pytest.approx(50 * 60, abs=1.0)
+        assert m["centroid_x"] == pytest.approx(35, abs=1.0)
+        assert m["centroid_y"] == pytest.approx(50, abs=1.0)
+        assert m["technical_width"] == 50.0
+        assert m["technical_length"] == 60.0
+        assert m["aspect_ratio"] == pytest.approx(60.0 / 50.0, abs=1e-3)
 
-        # Verify basic structure
-        assert metric['parent'] == 'parent 1'
-        assert metric['scar'] == 'parent 1'
-        assert 'centroid_x' in metric
-        assert 'centroid_y' in metric
-        assert 'area' in metric
-        assert 'technical_width' in metric
-        assert 'technical_length' in metric
+    def test_triangle_centroid_matches_geometric_centroid(self):
+        triangle = _poly([0, 0], [60, 0], [30, 60])
+        metrics = _calc(
+            {"parents": [triangle], "children": [], "nested_children": []},
+            np.array([[-1, -1, -1, -1]]),
+            [triangle],
+        )
 
-        # Verify geometric calculations
-        expected_area = 50 * 60  # 3000 pixels
-        assert abs(metric['area'] - expected_area) < 1.0
+        # Exact centroid of (0,0), (60,0), (30,60) is (30, 20)
+        m = metrics[0]
+        assert m["centroid_x"] == pytest.approx(30.0, abs=1.0)
+        assert m["centroid_y"] == pytest.approx(20.0, abs=1.0)
 
-        # Centroid should be in the center
-        assert abs(metric['centroid_x'] - 35) < 1.0  # (10+60)/2
-        assert abs(metric['centroid_y'] - 50) < 1.0  # (20+80)/2
+    def test_rectangle_max_length_equals_diagonal(self):
+        rectangle = _rect(10, 20, 70, 40)  # 60x20
+        metrics = _calc(
+            {"parents": [rectangle], "children": [], "nested_children": []},
+            np.array([[-1, -1, -1, -1]]),
+            [rectangle],
+        )
+        m = metrics[0]
+        # Max length is the longest point-to-point distance, i.e. the diagonal
+        assert m["max_length"] == pytest.approx(np.sqrt(60 ** 2 + 20 ** 2), abs=1.0)
+        assert m["max_length"] >= m["max_width"]
 
-        # Technical dimensions (Y-axis aligned)
-        assert metric['technical_width'] == 50.0   # 60-10
-        assert metric['technical_length'] == 60.0  # 80-20
+    def test_vertical_line_has_zero_width_and_null_aspect_ratio(self):
+        line = _poly([25, 10], [25, 20], [25, 30], [25, 40])
+        metrics = _calc(
+            {"parents": [line], "children": [], "nested_children": []},
+            np.array([[-1, -1, -1, -1]]),
+            [line],
+        )
+        m = metrics[0]
+        assert m["technical_width"] == 0.0
+        assert m["technical_length"] == 30.0
+        assert m["aspect_ratio"] is None
 
-        # Aspect ratio
-        expected_ratio = 60.0 / 50.0  # length/width
-        assert abs(metric['aspect_ratio'] - expected_ratio) < 0.01
+    def test_degenerate_contour_returns_nonnegative_metrics(self):
+        degen = _poly([10, 10], [20, 10], [20, 10], [10, 10])
+        metrics = _calc(
+            {"parents": [degen], "children": [], "nested_children": []},
+            np.array([[-1, -1, -1, -1]]),
+            [degen],
+        )
+        m = metrics[0]
+        assert m["area"] >= 0
+        assert "centroid_x" in m and "centroid_y" in m
 
-    def test_calculate_metrics_parent_and_child(self):
-        """Test metric calculation for parent with child contours."""
-        # Parent contour (large rectangle)
-        parent_contour = np.array([
-            [10, 10], [90, 10], [90, 90], [10, 90]
-        ], dtype=np.int32).reshape(-1, 1, 2)
 
-        # Child contour (small rectangle inside parent)
-        child_contour = np.array([
-            [30, 30], [50, 30], [50, 50], [30, 50]
-        ], dtype=np.int32).reshape(-1, 1, 2)
+# ---------------------------------------------------------------------------
+# calculate_contour_metrics: parent + child
+# ---------------------------------------------------------------------------
 
-        sorted_contours = {
-            'parents': [parent_contour],
-            'children': [child_contour],
-            'nested_children': []
-        }
 
-        # Hierarchy: parent (index 0), child (index 1, parent=0)
+@pytest.mark.unit
+class TestCalculateContourMetricsChild:
+    """Child contours use `width`/`height` rather than the parent's technical dims."""
+
+    def test_child_fields_and_sizes(self):
+        parent = _rect(10, 10, 90, 90)
+        child = _rect(30, 30, 50, 50)
         hierarchy = np.array([
-            [-1, -1, 1, -1],  # Parent
-            [-1, -1, -1, 0]   # Child
+            [-1, -1, 1, -1],
+            [-1, -1, -1, 0],
         ])
-        original_contours = [parent_contour, child_contour]
-        image_shape = (100, 100)
-
-        metrics = calculate_contour_metrics(
-            sorted_contours, hierarchy, original_contours, image_shape
+        metrics = _calc(
+            {"parents": [parent], "children": [child], "nested_children": []},
+            hierarchy,
+            [parent, child],
         )
 
         assert len(metrics) == 2
+        parent_m, child_m = metrics
+        assert parent_m["area"] == pytest.approx(80 * 80, abs=1.0)
+        assert child_m["scar"] == "child 1"
+        assert child_m["area"] == pytest.approx(20 * 20, abs=1.0)
+        assert {"width", "height"}.issubset(child_m)
+        # Children do not carry technical_width/length
+        assert "technical_width" not in child_m
 
-        # Check parent metric
-        parent_metric = metrics[0]
-        assert parent_metric['parent'] == 'parent 1'
-        assert parent_metric['scar'] == 'parent 1'
-        assert parent_metric['area'] == 6400.0  # 80x80
+    def test_missing_index_mapping_logs_warning(self):
+        # sorted contour doesn't appear in original_contours
+        sorted_parent = _rect(10, 10, 50, 50)
+        mismatch = _rect(20, 20, 60, 60)
 
-        # Check child metric
-        child_metric = metrics[1]
-        assert child_metric['parent'] == 'parent 1'
-        assert child_metric['scar'] == 'child 1'
-        assert child_metric['area'] == 400.0   # 20x20
-        assert 'width' in child_metric  # Children have 'width', parents have 'technical_width'
-        assert 'height' in child_metric
-
-    def test_calculate_metrics_zero_area_contour(self):
-        """Test handling of contours with zero or very small area."""
-        # Create a degenerate contour (line)
-        line_contour = np.array([
-            [10, 10], [20, 10], [20, 10], [10, 10]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        sorted_contours = {
-            'parents': [line_contour],
-            'children': [],
-            'nested_children': []
-        }
-
-        hierarchy = np.array([[-1, -1, -1, -1]])
-        original_contours = [line_contour]
-        image_shape = (100, 100)
-
-        metrics = calculate_contour_metrics(
-            sorted_contours, hierarchy, original_contours, image_shape
-        )
-
-        assert len(metrics) == 1
-        metric = metrics[0]
-
-        # Should handle zero area gracefully
-        assert metric['area'] >= 0
-        assert 'centroid_x' in metric
-        assert 'centroid_y' in metric
-
-    def test_calculate_metrics_complex_shape(self):
-        """Test metric calculation for irregular polygon."""
-        # Create an irregular polygon that will have a reasonable width
-        # Make sure it has horizontal extent at multiple Y levels
-        irregular_contour = np.array([
-            [20, 10], [80, 15], [85, 30], [75, 60],
-            [70, 85], [40, 90], [15, 70], [10, 40]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        sorted_contours = {
-            'parents': [irregular_contour],
-            'children': [],
-            'nested_children': []
-        }
-
-        hierarchy = np.array([[-1, -1, -1, -1]])
-        original_contours = [irregular_contour]
-        image_shape = (100, 100)
-
-        metrics = calculate_contour_metrics(
-            sorted_contours, hierarchy, original_contours, image_shape
-        )
-
-        assert len(metrics) == 1
-        metric = metrics[0]
-
-        # Verify all required fields are present
-        required_fields = [
-            'parent', 'scar', 'centroid_x', 'centroid_y',
-            'technical_width', 'technical_length', 'area', 'aspect_ratio',
-            'max_length', 'max_width', 'bounding_box_x', 'bounding_box_y',
-            'bounding_box_width', 'bounding_box_height', 'contour', 'perimeter'
-        ]
-
-        for field in required_fields:
-            assert field in metric, f"Missing field: {field}"
-
-        # Verify geometric properties make sense
-        assert metric['area'] > 0
-        # technical_width can be 0 for vertically aligned shapes, so we check >= 0
-        assert metric['technical_width'] >= 0
-        assert metric['technical_length'] > 0
-        assert metric['max_length'] >= metric['max_width']
-        assert metric['perimeter'] > 0
-
-    def test_calculate_metrics_max_length_width(self):
-        """Test calculation of maximum length and perpendicular width."""
-        # Create a rectangle where we know the max length and width
-        rectangle_contour = np.array([
-            [10, 20], [70, 20], [70, 40], [10, 40]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        sorted_contours = {
-            'parents': [rectangle_contour],
-            'children': [],
-            'nested_children': []
-        }
-
-        hierarchy = np.array([[-1, -1, -1, -1]])
-        original_contours = [rectangle_contour]
-        image_shape = (100, 100)
-
-        metrics = calculate_contour_metrics(
-            sorted_contours, hierarchy, original_contours, image_shape
-        )
-
-        metric = metrics[0]
-
-        # For a rectangle, max_length should be the longer side
-        # and max_width should be the shorter side
-        assert metric['max_length'] >= metric['max_width']
-
-        # The diagonal length should be approximately sqrt(60² + 20²)
-        expected_diagonal = np.sqrt(60**2 + 20**2)
-        assert abs(metric['max_length'] - expected_diagonal) < 1.0
-
-    def test_calculate_metrics_centroid_calculation(self):
-        """Test centroid calculation for various shapes."""
-        # Test with a shape where we can verify the centroid
-        triangle_contour = np.array([
-            [0, 0], [60, 0], [30, 60]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        sorted_contours = {
-            'parents': [triangle_contour],
-            'children': [],
-            'nested_children': []
-        }
-
-        hierarchy = np.array([[-1, -1, -1, -1]])
-        original_contours = [triangle_contour]
-        image_shape = (100, 100)
-
-        metrics = calculate_contour_metrics(
-            sorted_contours, hierarchy, original_contours, image_shape
-        )
-
-        metric = metrics[0]
-
-        # For a triangle with vertices at (0,0), (60,0), (30,60)
-        # the centroid should be at (30, 20)
-        expected_centroid_x = 30.0
-        expected_centroid_y = 20.0
-
-        # Allow some tolerance due to discrete pixel representation
-        assert abs(metric['centroid_x'] - expected_centroid_x) < 5.0
-        assert abs(metric['centroid_y'] - expected_centroid_y) < 5.0
-
-    def test_calculate_metrics_missing_contour_index(self):
-        """Test handling when contour index cannot be found in original_contours."""
-        # Create contours that don't match exactly
-        parent_contour = np.array([
-            [10, 10], [50, 10], [50, 50], [10, 50]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        different_contour = np.array([
-            [20, 20], [60, 20], [60, 60], [20, 60]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        sorted_contours = {
-            'parents': [parent_contour],
-            'children': [],
-            'nested_children': []
-        }
-
-        hierarchy = np.array([[-1, -1, -1, -1]])
-        original_contours = [different_contour]  # Doesn't match sorted contour
-        image_shape = (100, 100)
-
-        with patch('pylithics.image_processing.modules.contour_metrics.logging') as mock_logging:
-            metrics = calculate_contour_metrics(
-                sorted_contours, hierarchy, original_contours, image_shape
+        from unittest.mock import patch
+        with patch(
+            "pylithics.image_processing.modules.contour_metrics.logging"
+        ) as mock_log:
+            _calc(
+                {"parents": [sorted_parent], "children": [], "nested_children": []},
+                np.array([[-1, -1, -1, -1]]),
+                [mismatch],
             )
+        mock_log.warning.assert_called()
 
-            # Should handle gracefully and log warning
-            mock_logging.warning.assert_called()
 
-    def test_calculate_metrics_y_axis_width_calculation(self):
-        """Test Y-axis aligned width calculation with complex shape."""
-        # Create a shape that varies in width at different Y levels
-        hour_glass = np.array([
-            [10, 10], [50, 10],   # Top wide part
-            [40, 20], [30, 30],   # Narrowing
-            [25, 40], [35, 50],   # Narrow middle
-            [45, 60], [55, 70],   # Widening
-            [60, 80], [20, 80],   # Bottom wide part
-            [15, 70], [5, 60],
-            [0, 50], [10, 40],
-            [15, 30], [20, 20]
-        ], dtype=np.int32).reshape(-1, 1, 2)
+# ---------------------------------------------------------------------------
+# calculate_contour_metrics: empty input
+# ---------------------------------------------------------------------------
 
-        sorted_contours = {
-            'parents': [hour_glass],
-            'children': [],
-            'nested_children': []
-        }
 
-        hierarchy = np.array([[-1, -1, -1, -1]])
-        original_contours = [hour_glass]
-        image_shape = (100, 100)
+@pytest.mark.unit
+def test_empty_sorted_contours_returns_empty_list():
+    metrics = _calc(
+        {"parents": [], "children": [], "nested_children": []},
+        np.array([]), [],
+    )
+    assert metrics == []
 
-        metrics = calculate_contour_metrics(
-            sorted_contours, hierarchy, original_contours, image_shape
-        )
 
-        metric = metrics[0]
+# ---------------------------------------------------------------------------
+# convert_metrics_to_real_world
+# ---------------------------------------------------------------------------
 
-        # Y-axis width should be the maximum width at any horizontal level
-        assert metric['technical_width'] > 0
-        assert metric['technical_length'] == 70.0  # Y span: 80-10
 
-        # Width should be reasonable (not negative or impossibly large)
-        assert 0 < metric['technical_width'] <= 70
-
-    def test_calculate_metrics_vertical_line_zero_width(self):
-        """Test that a vertical line correctly produces zero width."""
-        # Create a vertical line contour
-        vertical_line = np.array([
-            [25, 10], [25, 20], [25, 30], [25, 40]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        sorted_contours = {
-            'parents': [vertical_line],
-            'children': [],
-            'nested_children': []
-        }
-
-        hierarchy = np.array([[-1, -1, -1, -1]])
-        original_contours = [vertical_line]
-        image_shape = (100, 100)
-
-        metrics = calculate_contour_metrics(
-            sorted_contours, hierarchy, original_contours, image_shape
-        )
-
-        metric = metrics[0]
-
-        # Should have zero technical_width (all points at same X coordinate)
-        assert metric['technical_width'] == 0.0
-        assert metric['technical_length'] == 30.0  # Y span: 40-10
-        # Aspect ratio should be None when width is 0
-        assert metric['aspect_ratio'] is None
+@pytest.fixture
+def pixel_metric():
+    return {
+        "parent": "parent 1",
+        "scar": "parent 1",
+        "centroid_x": 100.0,
+        "centroid_y": 200.0,
+        "technical_width": 50.0,
+        "technical_length": 80.0,
+        "max_length": 90.0,
+        "max_width": 45.0,
+        "perimeter": 260.0,
+        "area": 4000.0,
+        "convex_hull_area": 4200.0,
+    }
 
 
 @pytest.mark.unit
 class TestConvertMetricsToRealWorld:
-    """Test conversion of pixel metrics to real-world units."""
 
-    def test_convert_basic_metrics(self):
-        """Test basic conversion of pixel metrics to mm."""
-        pixel_metrics = [
-            {
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'centroid_x': 100.0,
-                'centroid_y': 200.0,
-                'technical_width': 50.0,
-                'technical_length': 80.0,
-                'area': 4000.0
-            }
-        ]
-        # 10 pixels per mm — divide by 10 to get mm
-        converted = convert_metrics_to_real_world(
-            pixel_metrics, 10.0
-        )
-        assert len(converted) == 1
-        m = converted[0]
+    def test_linear_fields_divided_by_pixels_per_mm(self, pixel_metric):
+        [converted] = convert_metrics_to_real_world([pixel_metric], 10.0)
+        assert converted["centroid_x"] == 10.0
+        assert converted["centroid_y"] == 20.0
+        assert converted["technical_width"] == 5.0
+        assert converted["technical_length"] == 8.0
+        assert converted["max_length"] == 9.0
+        assert converted["perimeter"] == 26.0
 
-        assert m['centroid_x'] == 10.0       # 100 / 10
-        assert m['centroid_y'] == 20.0       # 200 / 10
-        assert m['technical_width'] == 5.0   # 50 / 10
-        assert m['technical_length'] == 8.0  # 80 / 10
-        assert m['area'] == 40.0             # 4000 / 10²
+    def test_area_fields_divided_by_square_of_factor(self, pixel_metric):
+        [converted] = convert_metrics_to_real_world([pixel_metric], 10.0)
+        # area: 4000 / 100 = 40
+        assert converted["area"] == 40.0
+        assert converted["convex_hull_area"] == 42.0
 
-        assert m['parent'] == 'parent 1'
-        assert m['scar'] == 'parent 1'
+    def test_non_numeric_fields_preserved(self, pixel_metric):
+        [converted] = convert_metrics_to_real_world([pixel_metric], 10.0)
+        assert converted["parent"] == "parent 1"
+        assert converted["scar"] == "parent 1"
 
-    def test_convert_multiple_metrics(self):
-        """Test conversion of multiple metrics."""
-        pixel_metrics = [
-            {
-                'parent': 'parent 1', 'scar': 'parent 1',
-                'centroid_x': 50.0, 'centroid_y': 60.0,
-                'technical_width': 30.0,
-                'technical_length': 40.0,
-                'area': 1200.0
-            },
-            {
-                'parent': 'parent 1', 'scar': 'scar 1',
-                'centroid_x': 55.0, 'centroid_y': 65.0,
-                'technical_width': 10.0,
-                'technical_length': 15.0,
-                'area': 150.0
-            }
-        ]
-        # 5 pixels per mm
-        converted = convert_metrics_to_real_world(
-            pixel_metrics, 5.0
-        )
-        assert len(converted) == 2
-        assert converted[0]['centroid_x'] == 10.0   # 50 / 5
-        assert converted[0]['area'] == 48.0         # 1200 / 25
-        assert converted[1]['centroid_x'] == 11.0   # 55 / 5
-        assert converted[1]['area'] == 6.0          # 150 / 25
+    @pytest.mark.parametrize("invalid_factor", [0.0, -1.0, -10.5])
+    def test_invalid_factor_returns_original(self, pixel_metric, invalid_factor):
+        result = convert_metrics_to_real_world([pixel_metric], invalid_factor)
+        # Function returns the input list unchanged (not a copy)
+        assert result == [pixel_metric]
 
-    def test_convert_zero_returns_original(self):
-        """Zero conversion factor should return original metrics."""
-        pixel_metrics = [
-            {
-                'parent': 'parent 1', 'scar': 'parent 1',
-                'centroid_x': 100.0,
-                'area': 4000.0
-            }
-        ]
-        converted = convert_metrics_to_real_world(
-            pixel_metrics, 0.0
-        )
-        # Function warns and returns original
-        assert converted[0]['centroid_x'] == 100.0
-        assert converted[0]['area'] == 4000.0
+    def test_empty_metrics_yields_empty_list(self):
+        assert convert_metrics_to_real_world([], 10.0) == []
 
-    def test_convert_negative_returns_original(self):
-        """Negative conversion factor should return original."""
-        pixel_metrics = [
-            {
-                'parent': 'parent 1', 'scar': 'parent 1',
-                'centroid_x': 100.0,
-                'area': 4000.0
-            }
-        ]
-        converted = convert_metrics_to_real_world(
-            pixel_metrics, -5.0
-        )
-        assert converted[0]['centroid_x'] == 100.0
-        assert converted[0]['area'] == 4000.0
+    def test_missing_optional_fields_are_skipped(self):
+        metric = {"parent": "parent 1", "scar": "parent 1", "centroid_x": 100.0}
+        [converted] = convert_metrics_to_real_world([metric], 10.0)
+        assert converted["centroid_x"] == 10.0
+        assert "technical_width" not in converted
 
-    def test_convert_precision_rounding(self):
-        """Test that converted values are properly rounded."""
-        pixel_metrics = [
-            {
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'centroid_x': 33.333,
-                'centroid_y': 66.666,
-                'technical_width': 77.777,
-                'technical_length': 88.888,
-                'area': 1234.567
-            }
-        ]
+    def test_values_rounded_to_two_decimal_places(self):
+        metric = {"parent": "p", "scar": "p", "centroid_x": 33.333}
+        [converted] = convert_metrics_to_real_world([metric], 0.123456)
+        # Exact expected: 33.333 / 0.123456 ≈ 269.987, rounded to 269.99
+        assert converted["centroid_x"] == pytest.approx(269.99, abs=0.01)
 
-        conversion_factor = 0.123456
 
-        converted_metrics = convert_metrics_to_real_world(
-            pixel_metrics, conversion_factor
-        )
-
-        metric = converted_metrics[0]
-
-        # Check that values are rounded to 2 decimal places
-        assert isinstance(metric['centroid_x'], float)
-        assert len(str(metric['centroid_x']).split('.')[-1]) <= 2
-        assert len(str(metric['area']).split('.')[-1]) <= 2
-
-    def test_convert_empty_metrics(self):
-        """Test conversion with empty metrics list."""
-        converted_metrics = convert_metrics_to_real_world([], 0.1)
-        assert converted_metrics == []
-
-    def test_convert_missing_fields_handled_gracefully(self):
-        """Missing fields should be skipped, not raise errors."""
-        pixel_metrics = [
-            {
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'centroid_x': 100.0,
-            }
-        ]
-        converted = convert_metrics_to_real_world(
-            pixel_metrics, 10.0
-        )
-        assert converted[0]['centroid_x'] == 10.0
-        assert converted[0]['parent'] == 'parent 1'
+# ---------------------------------------------------------------------------
+# Integration: calculate + convert round-trip
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.integration
-class TestContourMetricsIntegration:
-    """Integration tests for contour metrics calculation workflow."""
+def test_calculate_then_convert_preserves_identifiers(
+    sample_contours, sample_hierarchy
+):
+    sorted_contours = {
+        "parents": [sample_contours[0]],
+        "children": [sample_contours[1]],
+        "nested_children": [],
+    }
 
-    def test_metrics_calculation_complete_workflow(self, sample_contours, sample_hierarchy):
-        """Test complete metrics calculation workflow."""
-        sorted_contours = {
-            'parents': [sample_contours[0]],
-            'children': [sample_contours[1]],
-            'nested_children': []
-        }
+    metrics = calculate_contour_metrics(
+        sorted_contours, sample_hierarchy, sample_contours, (200, 200)
+    )
+    parent_metrics = [m for m in metrics if "technical_width" in m]
 
-        image_shape = (200, 200)
+    converted = convert_metrics_to_real_world(parent_metrics, pixels_per_mm=20.0)
 
-        # Calculate metrics
-        metrics = calculate_contour_metrics(
-            sorted_contours, sample_hierarchy, sample_contours, image_shape
+    assert len(converted) == len(parent_metrics)
+    for before, after in zip(parent_metrics, converted):
+        assert after["parent"] == before["parent"]
+        assert after["centroid_x"] == pytest.approx(
+            round(before["centroid_x"] / 20.0, 2), abs=1e-6
         )
-
-        assert len(metrics) == 2
-
-        # The conversion function expects technical_width/technical_length
-        # but child contours have width/height. We need to create compatible metrics
-        # for the conversion test, or test only parent contours
-        parent_metrics = [m for m in metrics if 'technical_width' in m]
-
-        if parent_metrics:
-            # 20 pixels per mm — divide by 20 to get mm
-            pixels_per_mm = 20.0
-            converted = convert_metrics_to_real_world(
-                parent_metrics, pixels_per_mm
-            )
-            assert len(converted) == len(parent_metrics)
-
-            for orig, conv in zip(parent_metrics, converted):
-                assert conv['parent'] == orig['parent']
-                expected_x = round(
-                    orig['centroid_x'] / pixels_per_mm, 2
-                )
-                assert abs(conv['centroid_x'] - expected_x) < 0.01
-                expected_area = round(
-                    orig['area'] / (pixels_per_mm ** 2), 2
-                )
-                assert abs(conv['area'] - expected_area) < 0.01
-
-    def test_metrics_with_realistic_contours(self):
-        """Test metrics calculation with realistic archaeological contours."""
-        # Create realistic parent contour (artifact body)
-        artifact_contour = np.array([
-            [20, 30], [180, 25], [195, 60], [190, 120],
-            [175, 160], [150, 180], [80, 185], [30, 170],
-            [15, 140], [10, 90], [12, 60]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        # Create scar contour
-        scar_contour = np.array([
-            [80, 80], [120, 85], [125, 110], [85, 115]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        sorted_contours = {
-            'parents': [artifact_contour],
-            'children': [scar_contour],
-            'nested_children': []
-        }
-
-        hierarchy = np.array([
-            [-1, -1, 1, -1],  # Parent
-            [-1, -1, -1, 0]   # Child
-        ])
-        original_contours = [artifact_contour, scar_contour]
-        image_shape = (200, 200)
-
-        metrics = calculate_contour_metrics(
-            sorted_contours, hierarchy, original_contours, image_shape
+        assert after["area"] == pytest.approx(
+            round(before["area"] / (20.0 ** 2), 2), abs=1e-6
         )
-
-        assert len(metrics) == 2
-
-        parent_metric = metrics[0]
-        scar_metric = metrics[1]
-
-        # Parent should be larger than scar
-        assert parent_metric['area'] > scar_metric['area']
-        assert parent_metric['technical_width'] > scar_metric['width']
-        assert parent_metric['technical_length'] > scar_metric['height']
-
-        # Scar centroid should be within parent bounds
-        parent_bbox = (
-            parent_metric['bounding_box_x'],
-            parent_metric['bounding_box_y'],
-            parent_metric['bounding_box_x'] + parent_metric['bounding_box_width'],
-            parent_metric['bounding_box_y'] + parent_metric['bounding_box_height']
-        )
-
-        assert parent_bbox[0] <= scar_metric['centroid_x'] <= parent_bbox[2]
-        assert parent_bbox[1] <= scar_metric['centroid_y'] <= parent_bbox[3]
-
-    def test_metrics_error_handling(self):
-        """Test error handling in metrics calculation."""
-        # Test with malformed input
-        empty_sorted_contours = {
-            'parents': [],
-            'children': [],
-            'nested_children': []
-        }
-
-        metrics = calculate_contour_metrics(
-            empty_sorted_contours, np.array([]), [], (100, 100)
-        )
-
-        assert metrics == []
-
-        # Malformed metrics should be handled gracefully
-        malformed_metrics = [{'invalid': 'data'}]
-        converted = convert_metrics_to_real_world(
-            malformed_metrics, 10.0
-        )
-        assert len(converted) == 1
-        assert converted[0]['invalid'] == 'data'
