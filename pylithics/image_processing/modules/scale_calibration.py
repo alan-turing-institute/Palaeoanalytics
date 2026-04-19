@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 import logging
 import os
-from typing import Optional, Tuple, Dict, List
+from typing import Dict, Optional, Tuple
 
 from ..config import get_config_manager
 
@@ -186,58 +186,3 @@ def get_calibration_factor(image_path: str, scale_data: Dict,
     logging.info(f"No scale calibration available for {os.path.basename(image_path)}, "
                 "measurements will be in pixels")
     return None, "pixels", None
-
-
-def process_scale_calibrations(metadata: list, images_dir: str,
-                              config: Dict) -> Dict[str, Tuple[Optional[float], str]]:
-    """
-    Process all scale calibrations for a batch of images.
-
-    Args:
-        metadata: List of dictionaries with image_id, scale_id, scale
-        images_dir: Directory containing the artifact images
-        config: Configuration dictionary
-
-    Returns:
-        Dictionary mapping image_id to (pixels_per_mm, method) tuples
-    """
-    calibrations = {}
-
-    # Cache for reused scale bars
-    scale_cache = {}
-
-    for entry in metadata:
-        image_id = entry['image_id']
-        image_path = os.path.join(images_dir, image_id)
-
-        # Check if we've already processed this scale
-        scale_id = entry.get('scale_id')
-        if scale_id and scale_id in scale_cache:
-            # Reuse cached scale measurement
-            cached_pixels, cached_method = scale_cache[scale_id]
-            if cached_pixels and entry.get('scale'):
-                scale_mm = float(entry['scale'])
-                pixels_per_mm = calculate_conversion_factor(cached_pixels, scale_mm)
-                calibrations[image_id] = (pixels_per_mm, cached_method)
-                logging.info(f"Reusing cached scale for {image_id}")
-                continue
-
-        # Get calibration factor for this image
-        pixels_per_mm, method = get_calibration_factor(image_path, entry, config)
-        calibrations[image_id] = (pixels_per_mm, method)
-
-        # Cache scale measurement if successful
-        if method == "scale_bar" and scale_id:
-            # Store the pixel measurement for reuse
-            scale_mm = float(entry['scale'])
-            scale_pixels = int(pixels_per_mm * scale_mm)
-            scale_cache[scale_id] = (scale_pixels, "scale_bar")
-
-    # Log calibration summary
-    methods_used = {}
-    for _, (_, method) in calibrations.items():
-        methods_used[method] = methods_used.get(method, 0) + 1
-
-    logging.info(f"Calibration summary: {methods_used}")
-
-    return calibrations
