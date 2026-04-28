@@ -223,60 +223,16 @@ def perform_thresholding(
         max_val = thresh_config.get('max_value', 255)
         thresh_val = thresh_config.get('threshold_value', 127)
 
-        base_kernels = config.get(
-            'dpi_processing', {}
-        ).get('base_kernels', {})
+        base_kernels = config.get('dpi_processing', {}).get('base_kernels', {})
         base_blur = base_kernels.get('gaussian_blur', 5)
         base_block = base_kernels.get('adaptive_block', 11)
 
-        blur_size = ensure_odd_kernel_size(
-            base_blur * dpi_scale
+        blurred = _gaussian_blur_with_log(
+            normalized_image, base_blur, dpi_scale,
         )
-        blurred = cv2.GaussianBlur(
-            normalized_image, (blur_size, blur_size), 0
+        result = _apply_threshold_method(
+            blurred, method, max_val, thresh_val, base_block, dpi_scale,
         )
-        logging.info(
-            f"Gaussian blur: {blur_size}x{blur_size} "
-            f"(base: {base_blur}, scale: {dpi_scale:.2f})"
-        )
-
-        def adaptive_threshold():
-            block = ensure_odd_kernel_size(
-                base_block * dpi_scale
-            )
-            logging.info(
-                f"Adaptive threshold: {block}x{block} "
-                f"(base: {base_block}, "
-                f"scale: {dpi_scale:.2f})"
-            )
-            return cv2.adaptiveThreshold(
-                blurred, max_val,
-                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                cv2.THRESH_BINARY, block, 2
-            )
-
-        methods = {
-            "adaptive": adaptive_threshold,
-            "simple": lambda: cv2.threshold(
-                blurred, thresh_val, max_val,
-                cv2.THRESH_BINARY
-            )[1],
-            "otsu": lambda: cv2.threshold(
-                blurred, 0, max_val,
-                cv2.THRESH_BINARY + cv2.THRESH_OTSU
-            )[1],
-            "default": lambda: cv2.threshold(
-                blurred, thresh_val, max_val,
-                cv2.THRESH_BINARY
-            )[1],
-        }
-
-        if method not in methods:
-            raise ValueError(
-                f"Unsupported thresholding method: {method}"
-            )
-
-        result = methods[method]()
         logging.info("Applied %s thresholding.", method)
         return result
 
@@ -286,6 +242,51 @@ def perform_thresholding(
     except OSError as e:
         logging.error("OS error during thresholding: %s", e)
         return None
+
+
+def _gaussian_blur_with_log(
+    image: np.ndarray, base_blur: int, dpi_scale: float,
+) -> np.ndarray:
+    """Apply Gaussian blur with DPI-scaled kernel size."""
+    blur_size = ensure_odd_kernel_size(base_blur * dpi_scale)
+    blurred = cv2.GaussianBlur(image, (blur_size, blur_size), 0)
+    logging.info(
+        f"Gaussian blur: {blur_size}x{blur_size} "
+        f"(base: {base_blur}, scale: {dpi_scale:.2f})"
+    )
+    return blurred
+
+
+def _apply_threshold_method(
+    blurred: np.ndarray,
+    method: str,
+    max_val: int,
+    thresh_val: int,
+    base_block: int,
+    dpi_scale: float,
+) -> np.ndarray:
+    """Dispatch to the requested thresholding algorithm."""
+    if method == "adaptive":
+        block = ensure_odd_kernel_size(base_block * dpi_scale)
+        logging.info(
+            f"Adaptive threshold: {block}x{block} "
+            f"(base: {base_block}, scale: {dpi_scale:.2f})"
+        )
+        return cv2.adaptiveThreshold(
+            blurred, max_val,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY, block, 2,
+        )
+    if method == "otsu":
+        return cv2.threshold(
+            blurred, 0, max_val,
+            cv2.THRESH_BINARY + cv2.THRESH_OTSU,
+        )[1]
+    if method in ("simple", "default"):
+        return cv2.threshold(
+            blurred, thresh_val, max_val, cv2.THRESH_BINARY,
+        )[1]
+    raise ValueError(f"Unsupported thresholding method: {method}")
 
 
 def invert_image(

@@ -1,10 +1,10 @@
 # Installation Guide
 
-This guide will walk you through installing PyLithics on your system. PyLithics requires Python 3.7 or greater and works on macOS, Windows, and Linux.
+This guide will walk you through installing PyLithics on your system. PyLithics requires Python 3.8 or greater and works on macOS, Windows, and Linux.
 
 ## System Requirements
 
-- **Python**: Version 3.7 or higher
+- **Python**: Version 3.8 or higher
 - **Operating System**:
   - macOS 10.14 or later
   - Windows 10 or later
@@ -21,12 +21,12 @@ Before installing PyLithics, ensure you have Python and Git installed on your sy
 === "macOS & Linux"
 
     ```bash
-    # Check Python version (should be 3.7+)
+    # Check Python version (should be 3.8+)
     python3 --version
 
     # If not installed, install Python
     # macOS (using Homebrew - install from https://brew.sh/)
-    brew install python@3.7
+    brew install python@3.11
 
     # Ubuntu/Debian
     sudo apt-get update
@@ -39,7 +39,7 @@ Before installing PyLithics, ensure you have Python and Git installed on your sy
 === "Windows"
 
     ```powershell
-    # Check Python version (should be 3.7+)
+    # Check Python version (should be 3.8+)
     python --version
 
     # If not installed, download from https://python.org
@@ -75,7 +75,7 @@ Before installing PyLithics, ensure you have Python and Git installed on your sy
     ```
 
 !!! warning "Python Version"
-    PyLithics requires Python 3.7 or higher. If you have an older version, please upgrade before proceeding.
+    PyLithics requires Python 3.8 or higher. If you have an older version, please upgrade before proceeding.
 
 ## Step 2: Set Up a Virtual Environment
 
@@ -194,13 +194,13 @@ If you encounter Python version errors:
 # Check your Python version
 python --version
 
-# If needed, install Python 3.7+ using your system's package manager
+# If needed, install Python 3.8+ using your system's package manager
 # macOS (using Homebrew)
-brew install python@3.9
+brew install python@3.11
 
 # Ubuntu/Debian
 sudo apt-get update
-sudo apt-get install python3.9
+sudo apt-get install python3.11
 
 # Windows - download from python.org
 ```

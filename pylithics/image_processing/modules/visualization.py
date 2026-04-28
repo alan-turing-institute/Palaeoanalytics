@@ -554,109 +554,99 @@ def _count_dorsal_scars(metrics: List[Dict]) -> int:
     ])
 
 
+# Passthrough fields mapped by (metric_key -> csv_column).
+# Missing values default to "NA" at write time.
+_CSV_PASSTHROUGH_FIELDS = (
+    ("image_id",              "image_id"),
+    ("centroid_x",            "centroid_x"),
+    ("centroid_y",            "centroid_y"),
+    ("technical_width",       "technical_width"),
+    ("technical_length",      "technical_length"),
+    ("max_width",             "max_width"),
+    ("max_length",            "max_length"),
+    ("area",                  "total_area"),
+    ("aspect_ratio",          "aspect_ratio"),
+    ("perimeter",             "perimeter"),
+    ("distance_to_max_width", "distance_to_max_width"),
+    ("voronoi_num_cells",     "voronoi_num_cells"),
+    ("convex_hull_width",     "convex_hull_width"),
+    ("convex_hull_height",    "convex_hull_height"),
+    ("convex_hull_area",      "convex_hull_area"),
+    ("voronoi_cell_area",     "voronoi_cell_area"),
+    ("top_area",              "top_area"),
+    ("bottom_area",           "bottom_area"),
+    ("left_area",             "left_area"),
+    ("right_area",            "right_area"),
+    ("vertical_symmetry",     "vertical_symmetry"),
+    ("horizontal_symmetry",   "horizontal_symmetry"),
+    ("lateral_convexity",     "lateral_convexity"),
+    ("cortex_area",           "cortex_area"),
+    ("cortex_percentage",     "cortex_percentage"),
+    ("arrow_angle",           "arrow_angle"),
+    ("scar_complexity",       "scar_complexity"),
+)
+
+_CALIBRATION_FIELDS = (
+    "calibration_method", "pixels_per_mm", "scale_confidence",
+)
+
+_OPTIONAL_ARROW_FIELDS = (
+    "triangle_base_length", "triangle_height",
+    "shaft_solidity", "tip_solidity",
+)
+
+
 def _build_csv_row(
     metric: Dict,
     all_metrics: List[Dict],
     total_dorsal_scars: int,
     calibration_metadata: Optional[Dict]
 ) -> Dict[str, Any]:
-    """
-    Build a single CSV row from a metric dictionary.
-
-    Parameters
-    ----------
-    metric : dict
-        Individual metric dictionary.
-    all_metrics : list
-        All metrics for parent lookup.
-    total_dorsal_scars : int
-        Total dorsal scar count.
-    calibration_metadata : dict or None
-        Calibration info.
-
-    Returns
-    -------
-    dict
-        CSV row data.
-    """
-    if metric["parent"] == metric["scar"]:
-        surface_type = metric.get("surface_type", "NA")
-        surface_feature = surface_type
-    else:
-        surface_type = next(
-            (m["surface_type"] for m in all_metrics
-             if m["parent"] == metric["parent"]
-             and m["parent"] == m["scar"]),
-            "NA"
-        )
-        surface_feature = metric["scar"]
-
-    has_arrow = metric.get("has_arrow", False)
-    arrow_tip = metric.get("arrow_tip", None)
-    arrow_back = metric.get("arrow_back", None)
-
-    dorsal_count = (
-        total_dorsal_scars
-        if (surface_type == "Dorsal"
-            and surface_feature == "Dorsal")
-        else "NA"
-    )
+    """Build a single CSV row from a metric dictionary."""
+    surface_type, surface_feature = _resolve_surface_labels(metric, all_metrics)
 
     row = {
-        "image_id": metric.get("image_id", "NA"),
         "surface_type": surface_type,
         "surface_feature": surface_feature,
-        "total_dorsal_scars": dorsal_count,
-        "centroid_x": metric.get("centroid_x", "NA"),
-        "centroid_y": metric.get("centroid_y", "NA"),
-        "technical_width": metric.get("technical_width", "NA"),
-        "technical_length": metric.get("technical_length", "NA"),
-        "max_width": metric.get("max_width", "NA"),
-        "max_length": metric.get("max_length", "NA"),
-        "total_area": metric.get("area", "NA"),
-        "aspect_ratio": metric.get("aspect_ratio", "NA"),
-        "perimeter": metric.get("perimeter", "NA"),
-        "distance_to_max_width": metric.get(
-            "distance_to_max_width", "NA"),
-        "voronoi_num_cells": metric.get("voronoi_num_cells", "NA"),
-        "convex_hull_width": metric.get("convex_hull_width", "NA"),
-        "convex_hull_height": metric.get(
-            "convex_hull_height", "NA"),
-        "convex_hull_area": metric.get("convex_hull_area", "NA"),
-        "voronoi_cell_area": metric.get("voronoi_cell_area", "NA"),
-        "top_area": metric.get("top_area", "NA"),
-        "bottom_area": metric.get("bottom_area", "NA"),
-        "left_area": metric.get("left_area", "NA"),
-        "right_area": metric.get("right_area", "NA"),
-        "vertical_symmetry": metric.get(
-            "vertical_symmetry", "NA"),
-        "horizontal_symmetry": metric.get(
-            "horizontal_symmetry", "NA"),
-        "lateral_convexity": metric.get(
-            "lateral_convexity", "NA"),
+        "total_dorsal_scars": (
+            total_dorsal_scars
+            if surface_type == "Dorsal" and surface_feature == "Dorsal"
+            else "NA"
+        ),
         "is_cortex": metric.get("is_cortex", False),
-        "cortex_area": metric.get("cortex_area", "NA"),
-        "cortex_percentage": metric.get(
-            "cortex_percentage", "NA"),
-        "has_arrow": has_arrow,
-        "arrow_angle": metric.get("arrow_angle", "NA"),
-        "scar_complexity": metric.get("scar_complexity", "NA"),
+        "has_arrow": metric.get("has_arrow", False),
     }
+    for source_key, column in _CSV_PASSTHROUGH_FIELDS:
+        row[column] = metric.get(source_key, "NA")
 
     if calibration_metadata:
-        row["calibration_method"] = calibration_metadata.get(
-            "calibration_method", "NA")
-        row["pixels_per_mm"] = calibration_metadata.get(
-            "pixels_per_mm", "NA")
-        row["scale_confidence"] = calibration_metadata.get(
-            "scale_confidence", "NA")
+        for key in _CALIBRATION_FIELDS:
+            row[key] = calibration_metadata.get(key, "NA")
 
-    for key in ("triangle_base_length", "triangle_height",
-                "shaft_solidity", "tip_solidity"):
+    for key in _OPTIONAL_ARROW_FIELDS:
         if key in metric:
             row[key] = metric[key]
 
     return row
+
+
+def _resolve_surface_labels(
+    metric: Dict, all_metrics: List[Dict],
+) -> "tuple[str, str]":
+    """Return (surface_type, surface_feature) for a single row."""
+    if metric["parent"] == metric["scar"]:
+        surface_type = metric.get("surface_type", "NA")
+        return surface_type, surface_type
+
+    surface_type = next(
+        (
+            m["surface_type"] for m in all_metrics
+            if m["parent"] == metric["parent"]
+            and m["parent"] == m["scar"]
+        ),
+        "NA",
+    )
+    return surface_type, metric["scar"]
 
 
 def _build_column_order(

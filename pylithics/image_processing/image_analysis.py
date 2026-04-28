@@ -20,6 +20,16 @@ import os
 import cv2
 import numpy
 
+# Errors that any pipeline stage may legitimately raise at runtime:
+# cv2.error from OpenCV primitives; ValueError / TypeError / IndexError /
+# AttributeError from numpy and shapely geometry; KeyError from malformed
+# metric dicts; OSError from pandas CSV writes. Narrower than bare
+# `Exception` so that MemoryError / KeyboardInterrupt propagate normally.
+_STAGE_ERRORS = (
+    cv2.error, ValueError, TypeError, KeyError,
+    IndexError, AttributeError, RuntimeError, OSError,
+)
+
 from .config import get_config_manager
 from .modules.contour_extraction import (
     extract_contours_with_hierarchy,
@@ -136,7 +146,9 @@ def process_and_save_contours(
 
         logging.info(f"Analysis complete for image: {image_id}")
 
-    except Exception as e:
+    # Broad catch is intentional here: this is the outermost safety net that
+    # prevents a single bad image from aborting a multi-image batch run.
+    except Exception:
         logging.exception(f"Critical error analyzing image {image_id}")
 
 
@@ -174,7 +186,7 @@ def _extract_and_sort_contours(inverted_image, image_id, output_dir):
 
     try:
         exclude_flags = hide_nested_child_contours(contours, hierarchy)
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error in hide_nested_child_contours")
         exclude_flags = [False] * len(contours)
 
@@ -182,7 +194,7 @@ def _extract_and_sort_contours(inverted_image, image_id, output_dir):
         sorted_contours = sort_contours_by_hierarchy(
             contours, hierarchy, exclude_flags
         )
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error in sort_contours_by_hierarchy")
         sorted_contours = _build_fallback_sorted(contours)
 
@@ -249,19 +261,19 @@ def _calculate_and_classify(
         metrics = calculate_contour_metrics(
             sorted_contours, hierarchy, contours, inverted_image
         )
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error in calculate_contour_metrics")
         metrics = _create_fallback_metrics(sorted_contours, contours)
 
     try:
         metrics = classify_parent_contours(metrics)
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error in classify_parent_contours")
 
     try:
         metrics = classify_child_features(metrics)
         logging.info("Child feature classification completed")
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error in classify_child_features")
 
     return metrics
@@ -289,7 +301,7 @@ def _run_cortex_detection(metrics, inverted_image) -> None:
             )
         else:
             logging.info("No cortex detected in this artifact")
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error in cortex detection")
 
 
@@ -315,7 +327,7 @@ def _run_scar_complexity(metrics) -> None:
             )
         else:
             logging.info("No scar complexity results generated")
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error in scar complexity analysis")
 
 
@@ -352,7 +364,7 @@ def _run_symmetry_analysis(
             logging.info("Symmetry analysis completed")
         else:
             logging.warning("No valid symmetry scores returned")
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error in symmetry analysis")
 
 
@@ -383,7 +395,7 @@ def _run_voronoi_analysis(metrics, inverted_image):
             _integrate_voronoi_metrics(metrics, voronoi_data)
             logging.info("Voronoi analysis completed")
         return voronoi_data
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error in Voronoi processing")
         return None
 
@@ -413,7 +425,7 @@ def _run_lateral_analysis(
             logging.info("Lateral surface analysis completed")
         else:
             logging.info("No lateral surface found or not applicable")
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error in lateral surface analysis")
 
 
@@ -457,7 +469,7 @@ def _run_arrow_detection(
             )
         else:
             logging.info("No scars need arrow detection")
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error in arrow detection")
 
 
@@ -490,7 +502,7 @@ def _convert_and_export(
                 f"Converted to mm using factor: "
                 f"{conversion_factor:.3f}"
             )
-        except Exception:
+        except _STAGE_ERRORS:
             logging.exception("Error converting to real-world units")
 
     try:
@@ -508,7 +520,7 @@ def _convert_and_export(
             metrics, csv_path, append=True,
             calibration_metadata=calibration_metadata
         )
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error saving CSV")
 
 
@@ -554,7 +566,7 @@ def _generate_visualizations(
             viz_contours, hierarchy, metrics,
             inverted_image, viz_path, arrow_contours, config
         )
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error in visualization")
 
     try:
@@ -566,7 +578,7 @@ def _generate_visualizations(
                 voronoi_data, inverted_image,
                 voronoi_path, conversion_factor
             )
-    except Exception:
+    except _STAGE_ERRORS:
         logging.exception("Error in Voronoi visualization")
 
 

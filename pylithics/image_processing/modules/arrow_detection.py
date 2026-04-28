@@ -18,6 +18,17 @@ from typing import Optional, Dict, Any, List, Tuple, Union
 from ..config import get_arrow_detection_config
 
 
+class _DebugWriter:
+    """No-op wrapper so debug code paths can call `.write` unconditionally."""
+
+    def __init__(self, target):
+        self._target = target
+
+    def write(self, msg: str) -> None:
+        if self._target is not None:
+            self._target.write(msg)
+
+
 class ArrowDetector:
     """
     Enhanced arrow detection class with configurable parameters and better error handling.
@@ -118,47 +129,17 @@ class ArrowDetector:
         """
         debug_dir = entry.get('debug_dir') if self.debug_enabled else None
         contour_id = entry.get('scar', 'unknown')
-
-        # Scale parameters based on image DPI
         params = self.scale_parameters_for_dpi(image_dpi)
 
-        debug_log = None
-        if debug_dir:
-            debug_log = self._setup_debug_logging(debug_dir, contour_id, image_dpi, params)
+        debug_log = (
+            self._setup_debug_logging(debug_dir, contour_id, image_dpi, params)
+            if debug_dir else None
+        )
 
         try:
-            # Step 1: Basic filtering
-            if not self._validate_basic_properties(contour, params, debug_log):
-                return None
-
-            # Step 2: Find significant defects
-            significant_defects = self._find_significant_defects(
-                contour, params['min_defect_depth']
+            return self._run_detection_pipeline(
+                contour, image, debug_dir, debug_log, params,
             )
-            if not self._validate_defects(significant_defects, params, debug_log):
-                return None
-
-            # Step 3: Triangle analysis
-            triangle_data = self._analyze_triangle_structure(
-                contour, significant_defects, params, debug_log
-            )
-            if triangle_data is None:
-                return None
-
-            # Step 4: Calculate arrow properties
-            arrow_data = self._calculate_arrow_properties(triangle_data, debug_log)
-
-            # Step 5: Generate debug visualizations
-            if debug_dir and image is not None:
-                self._create_debug_visualizations(
-                    contour, triangle_data, arrow_data, image, debug_dir
-                )
-
-            if debug_log:
-                debug_log.write("Arrow detection succeeded\n")
-
-            return arrow_data
-
         except Exception as e:
             if debug_log:
                 debug_log.write(f"Error in arrow detection: {str(e)}\n")
@@ -167,6 +148,41 @@ class ArrowDetector:
         finally:
             if debug_log:
                 debug_log.close()
+
+    def _run_detection_pipeline(
+        self,
+        contour: np.ndarray,
+        image: np.ndarray,
+        debug_dir: Optional[str],
+        debug_log,
+        params: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Run the 5-step detection pipeline and return arrow data or None."""
+        if not self._validate_basic_properties(contour, params, debug_log):
+            return None
+
+        significant_defects = self._find_significant_defects(
+            contour, params['min_defect_depth'],
+        )
+        if not self._validate_defects(significant_defects, params, debug_log):
+            return None
+
+        triangle_data = self._analyze_triangle_structure(
+            contour, significant_defects, params, debug_log,
+        )
+        if triangle_data is None:
+            return None
+
+        arrow_data = self._calculate_arrow_properties(triangle_data, debug_log)
+
+        if debug_dir and image is not None:
+            self._create_debug_visualizations(
+                contour, triangle_data, arrow_data, image, debug_dir,
+            )
+
+        if debug_log:
+            debug_log.write("Arrow detection succeeded\n")
+        return arrow_data
 
     def _setup_debug_logging(self,
                            debug_dir: str,
@@ -282,72 +298,52 @@ class ArrowDetector:
                                   params: Dict[str, Any],
                                   debug_log) -> Optional[Dict[str, Any]]:
         """Analyze the triangle structure from defects."""
-        # Keep only the two deepest defects
+        log = _DebugWriter(debug_log)
         significant_defects = significant_defects[:2]
 
-        # Identify triangle base
         triangle_base_info = self._identify_triangle_base(significant_defects)
         if triangle_base_info is None:
-            if debug_log:
-                debug_log.write("Failed: Could not identify triangle base\n")
+            log.write("Failed: Could not identify triangle base\n")
             return None
-
         base_p1, base_p2, base_midpoint, base_length = triangle_base_info
+        log.write(f"Triangle base length: {base_length:.2f} pixels\n")
 
-        if debug_log:
-            debug_log.write(f"Triangle base length: {base_length:.2f} pixels\n")
-
-        # Analyze half-spaces
         halfspace_results = self._analyze_halfspaces(contour, triangle_base_info)
         if halfspace_results is None:
-            if debug_log:
-                debug_log.write("Failed: Half-space analysis failed\n")
+            log.write("Failed: Half-space analysis failed\n")
             return None
-
         shaft_halfspace, tip_halfspace, solidity1, solidity2 = halfspace_results
+        log.write(f"Half-space solidities: {solidity1:.3f}, {solidity2:.3f}\n")
+        log.write(f"Shaft: {shaft_halfspace}, Tip: {tip_halfspace}\n")
 
-        if debug_log:
-            debug_log.write(f"Half-space solidities: {solidity1:.3f}, {solidity2:.3f}\n")
-            debug_log.write(
-                f"Shaft: {shaft_halfspace}, "
-                f"Tip: {tip_halfspace}\n"
-            )
-
-        # Find triangle tip
         halfspace_points = self._divide_contour_points(contour, triangle_base_info)
-        triangle_tip = self._find_triangle_tip(halfspace_points[tip_halfspace], base_midpoint)
-
-        if triangle_tip is None:
-            if debug_log:
-                debug_log.write("Failed: Could not find triangle tip\n")
-            return None
-
-        # Validate triangle height
-        triangle_height = np.sqrt(
-            (triangle_tip[0] - base_midpoint[0])**2 +
-            (triangle_tip[1] - base_midpoint[1])**2
+        triangle_tip = self._find_triangle_tip(
+            halfspace_points[tip_halfspace], base_midpoint,
         )
-
-        min_height = params['min_triangle_height']
-
-        if debug_log:
-            debug_log.write(f"Triangle height test: {triangle_height:.2f} >= {min_height:.2f}\n")
-
-        if triangle_height < min_height:
-            if debug_log:
-                debug_log.write("Failed: Triangle height too small\n")
+        if triangle_tip is None:
+            log.write("Failed: Could not find triangle tip\n")
             return None
 
-        if debug_log:
-            debug_log.write("Triangle analysis: PASSED\n")
+        triangle_height = np.sqrt(
+            (triangle_tip[0] - base_midpoint[0]) ** 2
+            + (triangle_tip[1] - base_midpoint[1]) ** 2
+        )
+        min_height = params['min_triangle_height']
+        log.write(
+            f"Triangle height test: {triangle_height:.2f} >= {min_height:.2f}\n"
+        )
+        if triangle_height < min_height:
+            log.write("Failed: Triangle height too small\n")
+            return None
 
+        log.write("Triangle analysis: PASSED\n")
         return {
             'base_p1': base_p1,
             'base_p2': base_p2,
             'base_midpoint': base_midpoint,
             'triangle_tip': triangle_tip,
             'triangle_height': triangle_height,
-            'significant_defects': significant_defects
+            'significant_defects': significant_defects,
         }
 
     def _calculate_arrow_properties(self,

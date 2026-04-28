@@ -260,6 +260,56 @@ def get_scale_calibration_config(
     })
 
 
+def get_lateral_analysis_config(
+    config: Optional[Dict] = None
+) -> Dict[str, Any]:
+    """Get lateral surface analysis configuration with defaults."""
+    if config is None:
+        config = get_config_manager().config
+    return config.get('lateral_analysis', {
+        'enabled': True,
+    })
+
+
+def get_symmetry_analysis_config(
+    config: Optional[Dict] = None
+) -> Dict[str, Any]:
+    """Get dorsal symmetry analysis configuration with defaults."""
+    if config is None:
+        config = get_config_manager().config
+    return config.get('symmetry_analysis', {
+        'enabled': True,
+        'reflection_axes': 8,
+        'symmetry_threshold': 0.7,
+        'calculation_method': 'area_based',
+        'surfaces': {
+            'dorsal': True,
+            'ventral': False,
+            'platform': True,
+            'lateral': True,
+        },
+        'include_scars': {
+            'dorsal': True,
+            'ventral': False,
+            'platform': False,
+            'lateral': False,
+        },
+    })
+
+
+def get_voronoi_analysis_config(
+    config: Optional[Dict] = None
+) -> Dict[str, Any]:
+    """Get Voronoi diagram analysis configuration with defaults."""
+    if config is None:
+        config = get_config_manager().config
+    return config.get('voronoi_analysis', {
+        'enabled': True,
+        'padding_factor': 0.02,
+        'min_distance_threshold': 5.0,
+    })
+
+
 def clear_config_cache() -> None:
     """Reset the global config manager (useful for testing)."""
     global _config_manager

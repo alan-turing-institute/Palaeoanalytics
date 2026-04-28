@@ -28,6 +28,32 @@ from pylithics.image_processing.utils import read_metadata
 from pylithics.image_processing.modules.scale_calibration import get_calibration_factor
 
 
+_IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp')
+
+
+def _resolve_image_path(images_dir: str, image_id: str) -> Optional[str]:
+    """Return the resolved image path, trying common extensions if missing."""
+    path = os.path.join(images_dir, image_id)
+    if os.path.exists(path):
+        return path
+    for ext in _IMAGE_EXTENSIONS:
+        candidate = os.path.join(images_dir, image_id + ext)
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
+def _parse_scale(scale_value, image_id: str) -> Optional[float]:
+    """Parse a metadata scale cell; warn and return None if unusable."""
+    try:
+        return float(scale_value) if scale_value else None
+    except (ValueError, TypeError):
+        logging.warning(
+            f"Invalid scale for {image_id}, using pixel measurements"
+        )
+        return None
+
+
 class PyLithicsApplication:
     """
     Main application class for PyLithics with enhanced functionality.
@@ -165,51 +191,28 @@ class PyLithicsApplication:
         bool
             True if processing succeeded, False otherwise
         """
-        image_path = os.path.join(images_dir, image_id)
-
-        # If file doesn't exist, try adding common extensions
-        if not os.path.exists(image_path):
-            for ext in ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp']:
-                test_path = os.path.join(images_dir, image_id + ext)
-                if os.path.exists(test_path):
-                    image_path = test_path
-                    break
-
-        if not os.path.exists(image_path):
-            logging.error(f"Image file does not exist: {image_path}")
+        image_path = _resolve_image_path(images_dir, image_id)
+        if image_path is None:
+            logging.error(
+                f"Image file does not exist: {os.path.join(images_dir, image_id)}"
+            )
             return False
 
         logging.info(f"Processing image: {image_id}")
 
         try:
-            # Step 1: Preprocess the image
             processed_image = execute_preprocessing_pipeline(
-                image_path, self.config_manager.config
+                image_path, self.config_manager.config,
             )
             if processed_image is None:
                 logging.error(f"Preprocessing failed for {image_id}")
                 return False
 
-            # Step 2: Extract and validate DPI information
             image_dpi = self._extract_image_dpi(image_path)
-
-            # Step 3: Get conversion factor using scale calibration with fallback
-            if scale_data is None:
-                scale_data = {}  # Empty dict if no scale data provided
-
-            conversion_factor, calibration_method, scale_confidence = get_calibration_factor(
-                image_path, scale_data, self.config_manager.config
+            conversion_factor, calibration_method, scale_confidence = (
+                self._resolve_calibration(image_path, scale_data or {})
             )
 
-            # Log calibration method used
-            if conversion_factor:
-                logging.info(f"Using {calibration_method} calibration: "
-                           f"{conversion_factor:.3f} pixels/mm")
-            else:
-                logging.info(f"No calibration available, using pixel measurements")
-                conversion_factor = 1.0  # Use 1.0 for pixel measurements
-
-            # Step 4: Run complete analysis pipeline
             process_and_save_contours(
                 processed_image,
                 conversion_factor,
@@ -217,7 +220,7 @@ class PyLithicsApplication:
                 image_id,
                 image_dpi,
                 calibration_method,
-                scale_confidence
+                scale_confidence,
             )
 
             logging.info(f"Successfully processed {image_id}")
@@ -226,9 +229,28 @@ class PyLithicsApplication:
         except (FileNotFoundError, ValueError, IOError) as e:
             logging.error(f"Error processing {image_id}: {e}")
             return False
-        except Exception as e:
+        except Exception:
             logging.exception(f"Unexpected error processing {image_id}")
             return False
+
+    def _resolve_calibration(
+        self, image_path: str, scale_data: Dict,
+    ) -> "tuple[float, str, Optional[float]]":
+        """Get conversion factor with fallback to pixel measurements."""
+        conversion_factor, calibration_method, scale_confidence = (
+            get_calibration_factor(
+                image_path, scale_data, self.config_manager.config,
+            )
+        )
+        if conversion_factor:
+            logging.info(
+                f"Using {calibration_method} calibration: "
+                f"{conversion_factor:.3f} pixels/mm"
+            )
+            return conversion_factor, calibration_method, scale_confidence
+
+        logging.info("No calibration available, using pixel measurements")
+        return 1.0, calibration_method, scale_confidence
 
     def _extract_image_dpi(self, image_path: str) -> Optional[float]:
         """
@@ -287,56 +309,48 @@ class PyLithicsApplication:
         os.makedirs(processed_dir, exist_ok=True)
 
         metadata = read_metadata(meta_file)
-
         results = {
             'success': True,
             'total_images': len(metadata),
             'processed_successfully': 0,
             'failed_images': [],
-            'processing_errors': []
+            'processing_errors': [],
         }
 
         logging.info(f"Starting batch processing of {len(metadata)} images")
 
         for i, entry in enumerate(metadata, 1):
             image_id = entry['image_id']
-            try:
-                real_world_scale_mm = (
-                    float(entry['scale']) if entry['scale']
-                    else None
-                )
-            except (ValueError, TypeError):
-                logging.warning(
-                    f"Invalid scale for {image_id}, "
-                    f"using pixel measurements"
-                )
-                real_world_scale_mm = None
-
             logging.info(f"Processing image {i}/{len(metadata)}: {image_id}")
-
+            scale_mm = _parse_scale(entry.get('scale'), image_id)
             success = self.process_single_image(
-                image_id, real_world_scale_mm, images_dir, processed_dir, entry
+                image_id, scale_mm, images_dir, processed_dir, entry,
             )
-
             if success:
                 results['processed_successfully'] += 1
             else:
                 results['failed_images'].append(image_id)
-                results['processing_errors'].append(f"Failed to process {image_id}")
+                results['processing_errors'].append(
+                    f"Failed to process {image_id}"
+                )
 
-        # Log final summary
-        success_rate = (results['processed_successfully'] / results['total_images']) * 100
-        done = results['processed_successfully']
-        total = results['total_images']
-        logging.info(
-            f"Batch processing completed: "
-            f"{done}/{total} ({success_rate:.1f}%)"
-        )
-
-        if results['failed_images']:
-            logging.warning(f"Failed images: {', '.join(results['failed_images'])}")
+        self._log_batch_summary(results)
 
         return results
+
+    @staticmethod
+    def _log_batch_summary(results: Dict[str, Any]) -> None:
+        """Log a human-readable summary line after a batch run."""
+        total = results['total_images']
+        done = results['processed_successfully']
+        rate = (done / total) * 100 if total else 0.0
+        logging.info(
+            f"Batch processing completed: {done}/{total} ({rate:.1f}%)"
+        )
+        if results['failed_images']:
+            logging.warning(
+                f"Failed images: {', '.join(results['failed_images'])}"
+            )
 
     def update_configuration(self, **kwargs) -> None:
         """
@@ -725,26 +739,30 @@ def _apply_dpi_overrides(
         overrides['dpi_processing.scaling_mode'] = args.dpi_scaling_mode
 
 
+_HELP_FLAGS = (
+    ('help_config', show_config_help),
+    ('help_examples', show_examples_help),
+    ('help_troubleshooting', show_troubleshooting_help),
+    ('docs', launch_docs_server),
+)
+
+
+def _handle_help_flags(args) -> bool:
+    """Run whichever help/docs command was requested. Return True if handled."""
+    for attr, action in _HELP_FLAGS:
+        if getattr(args, attr, False):
+            action()
+            return True
+    return False
+
+
 def main() -> int:
     """Main entry point for PyLithics CLI."""
-    parser = create_argument_parser()
-    args = parser.parse_args()
+    args = create_argument_parser().parse_args()
 
-    # Handle help/docs flags (no processing required)
-    if getattr(args, 'help_config', False):
-        show_config_help()
-        return 0
-    if getattr(args, 'help_examples', False):
-        show_examples_help()
-        return 0
-    if getattr(args, 'help_troubleshooting', False):
-        show_troubleshooting_help()
-        return 0
-    if getattr(args, 'docs', False):
-        launch_docs_server()
+    if _handle_help_flags(args):
         return 0
 
-    # Validate required arguments
     if not args.data_dir or not args.meta_file:
         print("Error: --data_dir and --meta_file are required.")
         print("Use 'pylithics --help' or 'pylithics --docs'.")
@@ -759,10 +777,8 @@ def main() -> int:
         logging.info(f"Metadata file: {args.meta_file}")
 
         results = app.run_batch_analysis(
-            args.data_dir, args.meta_file,
-            args.show_thresholded_images
+            args.data_dir, args.meta_file, args.show_thresholded_images,
         )
-
         if not results['success']:
             logging.error("Batch processing failed")
             return 1

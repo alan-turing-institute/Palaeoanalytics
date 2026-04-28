@@ -16,9 +16,12 @@ from pylithics.image_processing.config import (
     get_config_manager,
     get_contour_filtering_config,
     get_cortex_detection_config,
+    get_lateral_analysis_config,
     get_scale_calibration_config,
     get_scar_complexity_config,
     get_surface_classification_config,
+    get_symmetry_analysis_config,
+    get_voronoi_analysis_config,
     load_preprocessing_config,
 )
 
@@ -156,6 +159,21 @@ GETTER_CASES = [
         get_scale_calibration_config,
         "scale_calibration",
         {"enabled": False, "debug_output": True},
+    ),
+    (
+        get_lateral_analysis_config,
+        "lateral_analysis",
+        {"enabled": False},
+    ),
+    (
+        get_symmetry_analysis_config,
+        "symmetry_analysis",
+        {"enabled": False, "reflection_axes": 4, "symmetry_threshold": 0.9},
+    ),
+    (
+        get_voronoi_analysis_config,
+        "voronoi_analysis",
+        {"enabled": False, "padding_factor": 0.1},
     ),
 ]
 

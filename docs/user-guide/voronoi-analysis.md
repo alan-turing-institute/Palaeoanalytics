@@ -24,47 +24,48 @@ A Voronoi diagram divides a plane into regions based on distance to specific poi
 ```yaml
 # In config.yaml
 voronoi_analysis:
-  enabled: true
-  output_diagrams: true
-  min_scars: 3              # Minimum scars needed for analysis
-  boundary_method: convex   # convex or rectangle
+  enabled: true              # default; set to false to skip
+  padding_factor: 0.02       # padding around dorsal contour bounds (fraction)
+  min_distance_threshold: 5.0  # minimum spacing between Voronoi points
 ```
+
+Voronoi analysis is enabled by default and is not currently toggleable from the CLI; edit `config.yaml` to disable it.
 
 ### Command Line
 
 ```bash
-# Enable Voronoi analysis
+# Default run (Voronoi enabled)
 pylithics --data_dir ./data --meta_file ./meta.csv
 
-# Disable for faster processing
-pylithics --data_dir ./data --meta_file ./meta.csv --disable_voronoi
+# Use a custom config to disable Voronoi
+pylithics --data_dir ./data --meta_file ./meta.csv --config_file ./no_voronoi.yaml
 ```
 
 ## Generated Outputs
 
 ### Voronoi Diagram Images
 
-**Location**: `processed/voronoi_diagrams/`
-**Filename**: `{image_id}_voronoi.png`
+**Location**: `processed/`
+**Filename**: `{image_stem}_voronoi.png`
 
-**Visual Elements**:
-- Scar centroid points
-- Voronoi cell boundaries
-- Color-coded cell areas
-- Statistical overlays
-- Scale reference
+**Visual elements**:
+
+- Voronoi cell boundaries clipped to the dorsal contour
+- Convex hull around all scar centroids
+- Centroid points
+- Axes in millimetres when scale calibration succeeded, pixels otherwise
 
 ### CSV Data Columns
 
-When Voronoi analysis is enabled, additional columns appear in the output CSV:
+When Voronoi analysis succeeds for an image, these columns are populated on the Dorsal parent row of `processed_metrics.csv`:
 
-| Column | Description | Units |
-|--------|-------------|-------|
-| `voronoi_cells` | Number of Voronoi cells | count |
-| `voronoi_area_mean` | Average cell area | mm² |
-| `voronoi_area_std` | Standard deviation of cell areas | mm² |
-| `voronoi_density` | Scars per unit area | scars/mm² |
-| `spatial_distribution` | Regularity index (0-1) | ratio |
+| Column | Units | Description |
+|--------|-------|-------------|
+| `voronoi_num_cells` | count | Number of Voronoi cells |
+| `voronoi_cell_area` | mm² or px² | Area of the Voronoi cell containing this row's centroid |
+| `convex_hull_width` | mm or px | Width of the convex hull around centroids |
+| `convex_hull_height` | mm or px | Height of the convex hull |
+| `convex_hull_area` | mm² or px² | Area of the convex hull |
 
 ## Interpretation Guide
 
@@ -127,36 +128,12 @@ The convex hull is the smallest convex shape that contains all scar points. It p
 
 ```yaml
 voronoi_analysis:
-  enabled: true
-  
-  # Minimum requirements
-  min_scars: 3              # Skip if fewer scars
-  min_surface_area: 100     # Skip small surfaces (mm²)
-  
-  # Boundary definition
-  boundary_method: convex   # convex, rectangle, or surface
-  boundary_buffer: 5        # Buffer around scars (mm)
-  
-  # Output options
-  output_diagrams: true     # Generate PNG files
-  color_by_area: true       # Color cells by area
-  show_centroids: true      # Mark scar centers
-  
-  # Statistical options
-  calculate_density: true   # Spatial density metrics
-  regularity_analysis: true # Distribution regularity
+  enabled: true              # Set false to skip Voronoi analysis
+  padding_factor: 0.02       # Bounding-box padding as fraction of contour size
+  min_distance_threshold: 5.0  # Minimum spacing between Voronoi points
 ```
 
-### Visual Customization
-
-```yaml
-visualization:
-  voronoi:
-    cell_alpha: 0.6         # Cell transparency
-    boundary_color: black   # Cell border color
-    centroid_size: 3        # Point size
-    colormap: viridis       # Color scheme
-```
+These are the only Voronoi keys PyLithics reads. Visual elements (line colors, transparency) are not currently configurable.
 
 ## Analysis Examples
 
@@ -204,50 +181,41 @@ visualization:
 
 ## Working with Voronoi Data
 
-### Statistical Analysis in R
+### R
 
 ```r
-# Load data
-data <- read.csv("processed/measurements.csv")
+data <- read.csv("pylithics/data/processed/processed_metrics.csv")
 
-# Filter for surfaces with Voronoi analysis
-voronoi_data <- data[!is.na(data$voronoi_cells), ]
+# Dorsal parents only — Voronoi columns live there
+dorsal <- subset(data,
+                 surface_type == "Dorsal" & surface_feature == "Dorsal")
 
-# Summary statistics
-summary(voronoi_data$voronoi_area_mean)
-summary(voronoi_data$voronoi_density)
+# Summary
+summary(dorsal$voronoi_num_cells)
+summary(dorsal$convex_hull_area)
 
-# Compare between surface types
-aggregate(voronoi_density ~ surface_type, voronoi_data, mean)
-
-# Plot density vs. regularity
-plot(voronoi_data$voronoi_density, voronoi_data$spatial_distribution,
-     xlab="Scar Density", ylab="Spatial Regularity",
-     main="Flaking Patterns")
+# Cells per dorsal surface area
+dorsal$density <- dorsal$voronoi_num_cells / dorsal$total_area
+hist(dorsal$density,
+     xlab = "Cells per mm²", main = "Dorsal scar density")
 ```
 
-### Python Analysis
+### Python
 
 ```python
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 
-# Load and filter data
-df = pd.read_csv('processed/measurements.csv')
-voronoi_df = df[df['voronoi_cells'].notna()]
+df = pd.read_csv("pylithics/data/processed/processed_metrics.csv")
 
-# Density distribution
-plt.figure(figsize=(10, 6))
-sns.histplot(voronoi_df['voronoi_density'], bins=20)
-plt.xlabel('Scar Density (scars/mm²)')
-plt.title('Distribution of Flaking Density')
-plt.show()
+dorsal = df[(df["surface_type"] == "Dorsal") &
+            (df["surface_feature"] == "Dorsal")]
 
-# Regularity by surface type
-sns.boxplot(data=voronoi_df, x='surface_type', y='spatial_distribution')
-plt.ylabel('Spatial Regularity')
-plt.title('Flaking Regularity by Surface Type')
+# Cells vs. convex hull area
+plt.scatter(dorsal["convex_hull_area"], dorsal["voronoi_num_cells"])
+plt.xlabel("Convex hull area (mm²)")
+plt.ylabel("Voronoi cell count")
+plt.title("Scar count vs. dorsal coverage")
 plt.show()
 ```
 
@@ -272,13 +240,11 @@ plt.show()
 
 ### Performance Considerations
 
-```bash
-# For large datasets, disable Voronoi if not needed
-pylithics --data_dir ./large_dataset --meta_file ./meta.csv \
-         --disable_voronoi
+Voronoi cannot be disabled from the CLI. To skip it, set `voronoi_analysis.enabled: false` in your `config.yaml` and pass it via `--config_file`:
 
-# Or process subset first
-pylithics --data_dir ./test_sample --meta_file ./test_meta.csv
+```bash
+pylithics --data_dir ./large_dataset --meta_file ./meta.csv \
+    --config_file ./no_voronoi.yaml
 ```
 
 ## Archaeological Case Studies

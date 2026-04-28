@@ -8,8 +8,7 @@ from ..config import get_contour_filtering_config
 
 def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     """
-    Extract contours and hierarchy using cv2.RETR_TREE, exclude the image border.
-    Uses minimum area from the config file.
+    Extract contours, drop border-touching ones, and filter by min_area.
 
     Parameters
     ----------
@@ -18,84 +17,73 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     image_id : str
         Unique identifier for this image (used for debug directory naming).
     output_dir : str
-        Base path under which per‐image debug folders will be created.
+        Base path under which per-image debug folders will be created.
 
     Returns
     -------
     valid_contours : list of ndarray
-        All contours whose bounding box does not touch the image border.
-    valid_hierarchy : ndarray
-        Corresponding hierarchy entries for valid_contours.
+    valid_hierarchy : ndarray or None
     """
+    min_contour_area = get_contour_filtering_config()['min_area']
+    logging.info(
+        f"Using minimum contour area: {min_contour_area} pixels for image {image_id}"
+    )
 
-    # Load config to get minimum area
-    filtering_config = get_contour_filtering_config()
-    min_contour_area = filtering_config['min_area']
-    logging.info(f"Using minimum contour area: {min_contour_area} pixels for image {image_id}")
-
-    # 1) find all contours + raw hierarchy
     contours, hierarchy = cv2.findContours(
-        inverted_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+        inverted_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE,
     )
     hierarchy = hierarchy[0] if hierarchy is not None else None
-
     if not contours:
         logging.warning("No contours found in image %s", image_id)
         return [], None
-
-    # Log the number of raw contours found
     logging.info(f"Found {len(contours)} raw contours in image {image_id}")
 
-    # 2) filter out those touching the border
-    height, width = inverted_image.shape
-    valid_contours, valid_hierarchy = [], []
-
-    # Create index mapping from old to new indices
-    old_to_new_idx = {}
-    new_idx = 0
-
-    for old_idx, (cnt, h) in enumerate(zip(contours, hierarchy)):
-        x, y, w, h_box = cv2.boundingRect(cnt)
-        if x > 0 and y > 0 and x + w < width and y + h_box < height:
-            valid_contours.append(cnt)
-            valid_hierarchy.append(h.copy())  # Copy to avoid modifying original
-            old_to_new_idx[old_idx] = new_idx
-            new_idx += 1
-
-    # Update parent indices in the hierarchy to reflect new indexing
-    for i, h in enumerate(valid_hierarchy):
-        if h[3] != -1:  # If has a parent
-            if h[3] in old_to_new_idx:
-                valid_hierarchy[i][3] = old_to_new_idx[h[3]]
-            else:
-                # Parent was filtered out, make this a root
-                valid_hierarchy[i][3] = -1
-
-    valid_hierarchy = np.array(valid_hierarchy)
-
-    # Log how many contours remain after border filtering
+    valid_contours, valid_hierarchy = _drop_border_touching(
+        contours, hierarchy, inverted_image.shape,
+    )
     logging.info(
-        f"After border filtering: {len(valid_contours)} "
-        f"contours remain in {image_id}"
+        f"After border filtering: {len(valid_contours)} contours remain in {image_id}"
     )
 
-    # 3) filter out small contours using the minimum area from config
     valid_contours, valid_hierarchy = filter_contours_by_min_area(
-        valid_contours, valid_hierarchy, min_contour_area
+        valid_contours, valid_hierarchy, min_contour_area,
     )
-
     if not valid_contours:
-        logging.warning("No valid contours remain after filtering in image %s", image_id)
+        logging.warning(
+            "No valid contours remain after filtering in image %s", image_id,
+        )
         return [], None
 
     logging.info(
         "Extracted %d valid contours: %d parents/%d children total",
         len(valid_contours),
         np.sum(valid_hierarchy[:, 3] == -1),
-        np.sum(valid_hierarchy[:, 3] != -1)
+        np.sum(valid_hierarchy[:, 3] != -1),
     )
-
     return valid_contours, valid_hierarchy
+
+
+def _drop_border_touching(contours, hierarchy, shape):
+    """
+    Remove contours whose bounding box touches the image border and remap
+    the hierarchy's parent indices to the new, compacted positions.
+    """
+    height, width = shape
+    valid_contours, valid_hierarchy = [], []
+    old_to_new_idx = {}
+
+    for old_idx, (cnt, h) in enumerate(zip(contours, hierarchy)):
+        x, y, w, h_box = cv2.boundingRect(cnt)
+        if x > 0 and y > 0 and x + w < width and y + h_box < height:
+            old_to_new_idx[old_idx] = len(valid_contours)
+            valid_contours.append(cnt)
+            valid_hierarchy.append(h.copy())
+
+    for i, h in enumerate(valid_hierarchy):
+        if h[3] != -1:
+            valid_hierarchy[i][3] = old_to_new_idx.get(h[3], -1)
+
+    return valid_contours, np.array(valid_hierarchy) if valid_hierarchy else None
 
 
 def sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None):

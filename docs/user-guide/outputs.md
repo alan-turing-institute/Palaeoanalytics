@@ -2,105 +2,137 @@
 
 ## Overview
 
-PyLithics generates multiple types of output files to help you analyze and validate your results. This page describes all the files created during processing and how to interpret them.
+PyLithics writes everything it produces into a single `processed/` directory under your `--data_dir`. This page describes each output file and how to read it.
 
 ## Output Directory Structure
 
-After running PyLithics, your output directory will contain:
+After a successful run:
 
 ```
 processed/
-├── processed_metrics.csv              # Main data output
-├── pylithics.log                      # Processing log
-├── artifact_001.png_labeled.png       # Annotated visualizations
-├── artifact_001.png_voronoi.png
-├── artifact_002.png_labeled.png
-└── artifact_002.png_voronoi.png
+├── processed_metrics.csv          # Combined metrics for every image
+├── pylithics.log                  # Processing log
+├── artifact_001_labeled.png       # Annotated visualization
+├── artifact_001_voronoi.png       # Voronoi diagram (Dorsal surfaces only)
+├── artifact_002_labeled.png
+└── artifact_002_voronoi.png
 ```
 
-## Primary Data Output
+## Primary Data Output: `processed_metrics.csv`
 
-### processed_metrics.csv
+The single CSV holds one row per detected surface or scar across all images you processed. The schema below lists every column that PyLithics writes; missing values appear as `NA`.
 
-The main output file containing all quantitative measurements in CSV format.
+### Identification Columns
 
-#### Data Structure
+| Column | Description |
+|--------|-------------|
+| `image_id` | Source image filename |
+| `surface_type` | `Dorsal`, `Ventral`, `Platform`, `Lateral`, or `Unclassified` |
+| `surface_feature` | Surface name when the row is a parent (e.g. `Dorsal`); scar/edge/cortex label when the row is a child (e.g. `scar 1`, `edge 2`, `cortex 1`) |
+| `total_dorsal_scars` | Count of scars on the dorsal surface (filled only on the Dorsal parent row) |
 
-The CSV is hierarchically organized:
-- **Surfaces**: Dorsal, Ventral, Platform, Lateral
-- **Features**: Individual scars and cortex areas
+### Position and Dimensions
 
-#### Key Columns
+| Column | Units | Description |
+|--------|-------|-------------|
+| `centroid_x` | mm or px | X-coordinate of the contour centroid |
+| `centroid_y` | mm or px | Y-coordinate of the contour centroid |
+| `technical_width` | mm or px | Maximum perpendicular width (parent surfaces only) |
+| `technical_length` | mm or px | Platform-to-distal distance (parent surfaces only) |
+| `max_width` | mm or px | Maximum dimension perpendicular to `max_length` |
+| `max_length` | mm or px | Longest dimension regardless of orientation |
+| `total_area` | mm² or px² | Area enclosed by the contour |
+| `perimeter` | mm or px | Boundary perimeter |
+| `aspect_ratio` | ratio | `technical_length` / `technical_width` |
+| `distance_to_max_width` | mm or px | Distance from the platform to the point of maximum width |
 
-**Identification**
-- `image_id`: Source image filename
-- `surface_type`: Dorsal, Ventral, Platform, Lateral
-- `surface_feature`: Surface name (e.g., "Dorsal", "scar 1", "cortex")
-- `total_dorsal_scars`: Count of scars on dorsal surface
+Units are millimetres when scale calibration succeeds and pixels otherwise. Check the `calibration_method` column to confirm.
 
-**Scale Calibration Metadata**
-- `calibration_method`: Method used ("scale_bar" or "pixels")
-- `pixels_per_mm`: Conversion factor applied
-- `scale_confidence`: Detection confidence score (0-1)
+### Voronoi & Convex Hull (Dorsal parent row only)
 
-**Position and Dimensions**
+| Column | Units | Description |
+|--------|-------|-------------|
+| `voronoi_num_cells` | count | Number of Voronoi cells over the dorsal scars |
+| `voronoi_cell_area` | mm² or px² | Area of the Voronoi cell containing this row's centroid |
+| `convex_hull_width` | mm or px | Width of the convex hull around scar centroids |
+| `convex_hull_height` | mm or px | Height of the convex hull |
+| `convex_hull_area` | mm² or px² | Area of the convex hull |
 
-- `technical_width`: Maximum perpendicular width (mm)
-- `technical_length`: Platform-to-distal distance (mm)
-- `max_width`, `max_length`: Maximum dimensions (mm)
-- `total_area`: Surface area (mm²)
-- `perimeter`: Boundary perimeter (mm)
-- `centroid_x`, `centroid_y`: Center coordinates of surfaces and scars (mm)
+### Symmetry (Dorsal parent row only)
 
-**Shape Properties**
-- `aspect_ratio`: Length/width ratio
-- `distance_to_max_width`: Distance from platform to maximum width
+| Column | Units | Description |
+|--------|-------|-------------|
+| `top_area` | mm² or px² | Filled-pixel area above the centroid |
+| `bottom_area` | mm² or px² | Filled-pixel area below the centroid |
+| `left_area` | mm² or px² | Filled-pixel area left of the centroid |
+| `right_area` | mm² or px² | Filled-pixel area right of the centroid |
+| `vertical_symmetry` | 0–1 | `1 − \|top − bottom\| / (top + bottom)` |
+| `horizontal_symmetry` | 0–1 | `1 − \|left − right\| / (left + right)` |
 
-**Spatial Analysis**
-- `top_area`, `bottom_area`, `left_area`, `right_area`: Quadrant areas (mm²)
-- `voronoi_num_cells`: Number of Voronoi cells
-- `voronoi_cell_area`: Individual cell area (mm²)
-- `convex_hull_width`, `convex_hull_height`: Convex hull dimensions (mm)
-- `convex_hull_area`: Convex hull area (mm²)
+### Lateral Edge
 
-**Symmetry Analysis**
-- `vertical_symmetry`: Vertical balance (0-1)
-- `horizontal_symmetry`: Horizontal balance (0-1)
+| Column | Units | Description |
+|--------|-------|-------------|
+| `lateral_convexity` | 0–1 | Lateral surface area / convex hull area |
 
-**Feature Detection**
-- `lateral_convexity`: Edge convexity measure
-- `is_cortex`: Cortex detection flag (true/false)
-- `cortex_area`: Cortex area (mm²)
-- `cortex_percentage`: Percentage of surface with cortex
-- `scar_complexity`: Adjacency relationships count
-- `has_arrow`: Arrow detection flag (true/false)
-- `arrow_angle`: Flaking direction (degrees)
+### Cortex
+
+| Column | Units | Description |
+|--------|-------|-------------|
+| `is_cortex` | bool | `True` for child rows reclassified as cortex |
+| `cortex_area` | mm² or px² | Area of the cortex region |
+| `cortex_percentage` | 0–100 | Cortex area as percentage of parent surface |
+
+### Arrows
+
+| Column | Units | Description |
+|--------|-------|-------------|
+| `has_arrow` | bool | `True` if a directional arrow was detected |
+| `arrow_angle` | degrees | Compass-style angle in PyLithics's rotated frame; see note below |
+
+!!! note "Arrow Angle Convention"
+    `arrow_angle` is in a 0–360° compass-style frame, but rotated relative to standard cardinal compass headings: a downward-pointing arrow in image coordinates maps to `0`, and a rightward-pointing arrow maps to `270`. Treat `arrow_angle` as a relative value when comparing scars within the same image.
+
+### Scar Complexity
+
+| Column | Units | Description |
+|--------|-------|-------------|
+| `scar_complexity` | count | Number of other dorsal scars within the configured adjacency distance |
+
+### Scale Calibration Metadata
+
+These columns are added when scale-bar calibration was attempted:
+
+| Column | Description |
+|--------|-------------|
+| `calibration_method` | `scale_bar` (real-world units) or `pixels` (no calibration) |
+| `pixels_per_mm` | Conversion factor applied (omitted when calibration failed) |
+| `scale_confidence` | Detection confidence (0–1) for scale-bar measurement |
+
+### Optional Arrow Geometry
+
+These columns appear only when arrow detection ran and produced detailed triangle geometry for at least one scar:
+
+`triangle_base_length`, `triangle_height`, `shaft_solidity`, `tip_solidity`
 
 ## Visualization Outputs
 
-### Labeled Images
-
-**Filename pattern**: `{image_id}_labeled.png`
-
-**Content**:
+### Labeled Images — `{image_stem}_labeled.png`
 
 <div class="grid cards" markdown>
 
 <div markdown>
 
-- Original image with colored overlays
-- Contour boundaries in different colors
-- Surface classifications as labels
-- Arrow indicators (if detected)
+The original image with overlaid contours, labels, and arrow annotations.
 
-**Color Coding**:
+**Color coding**:
 
-- **<span style="color: rgb(94, 60, 153)">Purple</span>**: Surface identification (dorsal/ventral/platform/lateral)
-- **<span style="color: rgb(253, 184, 99)">Orange</span>**: Scar elements
-- **<span style="color: rgb(215, 48, 39)">Red</span>**: Cortex elements
-- **<span style="color: rgb(128, 205, 193)">Mint Green</span>**: Lateral edges
-- **<span style="color: rgb(178, 171, 210)">Light Purple</span>**: Platform marks
-- **<span style="color: rgb(145, 191, 219)">Light Blue</span>**: Arrows
+- **<span style="color: rgb(94, 60, 153)">Purple</span>** — Surface (dorsal/ventral/platform/lateral)
+- **<span style="color: rgb(253, 184, 99)">Orange</span>** — Scar
+- **<span style="color: rgb(215, 48, 39)">Red</span>** — Cortex
+- **<span style="color: rgb(128, 205, 193)">Mint Green</span>** — Lateral edge
+- **<span style="color: rgb(178, 171, 210)">Light Purple</span>** — Platform mark
+- **<span style="color: rgb(145, 191, 219)">Light Blue</span>** — Arrow
 
 </div>
 
@@ -108,34 +140,23 @@ The CSV is hierarchically organized:
 
 ![Labeled Image Example](../assets/images/awbari.png_labeled.png){ width="300px" }
 
-*Example of labeled image output showing surface classification, scar detection, and color-coded features*
+*Surface classification and scar detection overlaid on the source image.*
 
 </div>
 
 </div>
 
-### Voronoi Diagrams With Convex Hull
-
-**Filename pattern**: `{image_id}_voronoi.png`
-
-**Content**:
+### Voronoi Diagrams — `{image_stem}_voronoi.png`
 
 <div class="grid cards" markdown>
 
 <div markdown>
 
-- Spatial tessellation of scar centroids
-- Voronoi cell boundaries and areas
-- Convex hull outline of all centroids
-- Cell area colorization
-- Statistical overlays
-- Axes in millimeters (when scale calibration available) or pixels (fallback)
+A Voronoi tessellation of dorsal scar centroids with the convex hull outlined.
 
-**Interpretation**:
-
-- Dense patterns indicate intensive flaking
-- Large cells suggest sparse scar distribution
-- Regular patterns may indicate systematic reduction
+- One cell per centroid, clipped to the dorsal surface
+- Axes in millimetres when scale calibration succeeded, pixels otherwise
+- Convex hull drawn around all centroids
 
 </div>
 
@@ -143,99 +164,83 @@ The CSV is hierarchically organized:
 
 ![Voronoi Diagram Example](../assets/images/awbari.png_voronoi.png){ width="300px" }
 
-*Example of Voronoi diagram with convex hull showing spatial distribution of dorsal surface centroids*
+*Voronoi tessellation showing spatial distribution of scar centroids.*
 
 </div>
 
 </div>
 
-## Processing Log
+## Processing Log: `pylithics.log`
 
-**Filename**: `pylithics.log`
+The log captures everything the pipeline reports: which image is being processed, which calibration method was chosen, which stages succeeded, and any errors. Useful entries to grep for:
 
-**Content**:
-- Processing timestamps
-- Configuration settings used
-- Error messages and warnings
-- Performance metrics
-- Feature detection statistics
+- `Starting analysis for image:` — pipeline began on a new image
+- `Using scale_bar calibration:` or `No scale calibration available` — calibration outcome
+- `Cortex detection completed:` — number of cortex regions found
+- `Arrow detection succeeded` — per-scar arrow detection result
+- `Critical error analyzing image` — image was skipped due to a fatal error
 
-**Example log entries**:
+A typical successful run looks like this:
+
 ```
-2024-01-15 10:30:15 [INFO] Starting PyLithics analysis
-2024-01-15 10:30:15 [INFO] Configuration: arrow_detection=True, scale_calibration=True, voronoi=True
-2024-01-15 10:30:16 [INFO] Processing artifact_001.png
-2024-01-15 10:30:16 [INFO] Scale bar detected: 1260 pixels, confidence: 0.95, dimensions: 1260x34
-2024-01-15 10:30:16 [INFO] Using scale bar calibration: 25.2 pixels/mm (1260 pixels = 50 mm)
-2024-01-15 10:30:16 [INFO] - Found 15 contours
-2024-01-15 10:30:16 [INFO] - Classified: Dorsal (1), Ventral (1) surfaces
-2024-01-15 10:30:16 [INFO] - Detected 3 arrows
-2024-01-15 10:30:16 [WARNING] - Low contrast in ventral surface
-2024-01-15 10:30:16 [INFO] Converted measurements to millimeters using factor: 25.200
-2024-01-15 10:30:17 [INFO] Processing artifact_002.png
-2024-01-15 10:30:17 [INFO] No scale calibration available, measurements will be in pixels
-2024-01-15 10:30:17 [INFO] Processing complete: 2.1 seconds
+2026-04-19 10:30:15 [INFO] Starting batch processing of 2 images
+2026-04-19 10:30:16 [INFO] Processing image 1/2: artifact_001.png
+2026-04-19 10:30:16 [INFO] Scale bar detected: 1260 pixels, confidence: 0.95
+2026-04-19 10:30:16 [INFO] Using scale_bar calibration: 25.200 pixels/mm
+2026-04-19 10:30:16 [INFO] Extracted 15 valid contours: 1 parents/14 children total
+2026-04-19 10:30:17 [INFO] Successfully processed artifact_001.png
+2026-04-19 10:30:17 [INFO] Processing image 2/2: artifact_002.png
+2026-04-19 10:30:17 [INFO] No calibration available, using pixel measurements
+2026-04-19 10:30:18 [INFO] Successfully processed artifact_002.png
+2026-04-19 10:30:18 [INFO] Batch processing completed: 2/2 (100.0%)
 ```
 
-## Output Validation
+## Validation Checklist
 
-### Visual Validation
+After each run, verify:
 
-1. **Check labeled images**: Verify contour detection accuracy
-2. **Review classifications**: Ensure surfaces are correctly identified
-3. **Validate arrows**: Confirm arrow detection and directions
-4. **Assess completeness**: Check for missed features
-
-### Data Validation
-
-1. **Measurement ranges**: Verify values are reasonable
-2. **Unit consistency**: Ensure mm units throughout
-3. **Missing data**: Check for incomplete records
-4. **Outlier detection**: Identify unusual measurements
-
+1. **`processed_metrics.csv` exists** and contains one row per `image_id × surface_feature` combination you expected
+2. **Each `_labeled.png` looks right** — surface classification matches the artifact, no obvious mis-detected scars
+3. **Each Dorsal parent row has a Voronoi diagram** if it has scars
+4. **`calibration_method` is `scale_bar`** for images you provided scales for, and not silently `pixels`
+5. **Spot-check measurements**: a typical flake should land in a sensible range (10–200 mm long, 100–15,000 mm² area)
 
 ## Working with Output Data
 
-### Loading in R
+### R
 
 ```r
-# Load and explore data
-data <- read.csv("processed/processed_metrics.csv")
+data <- read.csv("pylithics/data/processed/processed_metrics.csv")
 
-# Surface summary
-table(data$surface_type)
+# Surface counts
+table(data$surface_type, data$surface_feature)
 
-# Basic statistics
-summary(data[c("technical_length", "technical_width", "area")])
-
-# Plot length vs width
-plot(data$technical_length, data$technical_width,
-     xlab="Length (mm)", ylab="Width (mm)",
-     col=as.factor(data$surface_type))
+# Length × width on dorsal surfaces
+dorsal <- subset(data, surface_feature == "Dorsal")
+plot(dorsal$technical_length, dorsal$technical_width,
+     xlab = "Length (mm)", ylab = "Width (mm)",
+     col = as.factor(dorsal$image_id))
 ```
 
-### Loading in Python
+### Python
 
 ```python
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Load data
-df = pd.read_csv('processed/processed_metrics.csv')
+df = pd.read_csv("pylithics/data/processed/processed_metrics.csv")
 
-# Filter for surfaces only
-surfaces = df[df['surface_feature'] == 'Surface']
+# Parent surfaces only
+surfaces = df[df["surface_type"] == df["surface_feature"]]
 
-# Basic plotting
-plt.figure(figsize=(10, 6))
-plt.scatter(surfaces['technical_length'], surfaces['technical_width'],
-           c=surfaces['surface_type'].astype('category').cat.codes)
-plt.xlabel('Length (mm)')
-plt.ylabel('Width (mm)')
-plt.title('Lithic Dimensions by Surface Type')
+plt.figure(figsize=(8, 6))
+plt.scatter(surfaces["technical_length"], surfaces["technical_width"])
+plt.xlabel("Length (mm)")
+plt.ylabel("Width (mm)")
+plt.title("Surface dimensions")
 plt.show()
 ```
 
 ## Next Steps
 
-- [Glossary](glossary.md) - Reference for all metrics
+- [Glossary](glossary.md) — full reference for every column above

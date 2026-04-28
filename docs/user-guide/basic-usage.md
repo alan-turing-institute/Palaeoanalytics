@@ -1,76 +1,101 @@
 # Basic Usage
 
-## Command Line Basics
+## Your First Run
+
+After installing PyLithics, the fastest way to confirm everything works is to run it against the bundled sample data:
+
+```bash
+pylithics --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv
+```
+
+This will:
+
+1. Read metadata from `pylithics/data/meta_data.csv`
+2. Load images from `pylithics/data/images/`
+3. Load scales from `pylithics/data/scales/`
+4. Process every image with the default settings
+5. Write results to `pylithics/data/processed/`
+
+When it finishes you should see a `processed_metrics.csv` file plus one `*_labeled.png` and one `*_voronoi.png` for each successfully processed image.
+
+## Command-Line Basics
 
 ### Required Arguments
 
 Every PyLithics run requires these two arguments:
 
 | Argument | Description | Example |
-|----------|-------------|----------|
-| `--data_dir` | Directory containing images and scales | `pylithics/data` |
+|----------|-------------|---------|
+| `--data_dir` | Directory containing `images/` and `scales/` subdirectories | `pylithics/data` |
 | `--meta_file` | Path to metadata CSV file | `pylithics/data/meta_data.csv` |
 
 ### Basic Command Structure
 
-Run PyLithics 'out of the box' with minimal configuration:
-
 ```bash
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv
-```
-This command will:
-
-1. Read metadata from `pylithics/data/meta_data.csv`
-2. Load images from `pylithics/data/images/`
-3. Load scales from `pylithics/data/scales/`
-4. Process according to default settings
-5. Output results to `pylithics/data/processed/`
-
-Alternatively, choose your own paths for image and metadata directories:
-
-```bash
-python pylithics/app.py --data_dir <path> --meta_file <file> [options]
+pylithics --data_dir <path> --meta_file <file> [options]
 ```
 
 ### Scale Calibration Examples
 
 ```bash
-# Basic analysis with automatic scale detection
-python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv
+# Default: automatic scale-bar detection from images named in metadata
+pylithics --data_dir ./data --meta_file ./metadata.csv
 
-# Force pixel measurements only (skip scale bar detection)
-python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --force_scale_method pixels
+# Force pixel measurements (skip scale-bar detection entirely)
+pylithics --data_dir ./data --meta_file ./metadata.csv --force_pixels
 
-# Enable scale detection debugging
-python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --scale_debug
+# Save scale-detection debug images for review
+pylithics --data_dir ./data --meta_file ./metadata.csv --scale_debug
 
-# Process without any calibration (pixel measurements only)
-python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --disable_scale_calibration
+# Disable scale calibration and use pixel measurements
+pylithics --data_dir ./data --meta_file ./metadata.csv --disable_scale_calibration
 ```
 
 ### DPI Processing Examples
 
 ```bash
-# Default processing (recommended for archaeological line drawings)
-# Uses fixed kernels optimized for 75-600 DPI range
-python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv
+# Default: fixed kernels optimized for archaeological line drawings
+pylithics --data_dir ./data --meta_file ./metadata.csv
 
 # Enable DPI-aware scaling for noisy photographs or degraded scans
-python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --enable_dpi_scaling
+pylithics --data_dir ./data --meta_file ./metadata.csv --enable_dpi_scaling
 
-# DPI scaling with conservative mode (minimal scaling)
-python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --enable_dpi_scaling --dpi_scaling_mode conservative
+# Conservative scaling (minimal kernel adjustment)
+pylithics --data_dir ./data --meta_file ./metadata.csv \
+    --enable_dpi_scaling --dpi_scaling_mode conservative
 
-# DPI scaling with aggressive mode (maximum noise removal)
-python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --enable_dpi_scaling --dpi_scaling_mode aggressive
+# Aggressive scaling (maximum noise removal)
+pylithics --data_dir ./data --meta_file ./metadata.csv \
+    --enable_dpi_scaling --dpi_scaling_mode aggressive
 
 # Custom DPI parameters
-python pylithics/app.py --data_dir ./data --meta_file ./metadata.csv --enable_dpi_scaling --dpi_reference 150 --dpi_max_scale 2.0
+pylithics --data_dir ./data --meta_file ./metadata.csv \
+    --enable_dpi_scaling --dpi_reference 150 --dpi_max_scale 2.0
 ```
+
+### Module-Level Toggles
+
+Several analysis modules can be turned off from the CLI:
+
+```bash
+# Skip arrow detection (faster runs, no flaking-direction output)
+pylithics --data_dir ./data --meta_file ./metadata.csv --disable_arrow_detection
+
+# Skip cortex detection (default sensitivity is "medium")
+pylithics --data_dir ./data --meta_file ./metadata.csv --disable_cortex_detection
+
+# Adjust cortex sensitivity instead of disabling
+pylithics --data_dir ./data --meta_file ./metadata.csv --cortex_sensitivity high
+
+# Skip scar adjacency analysis
+pylithics --data_dir ./data --meta_file ./metadata.csv --disable_scar_complexity
+```
+
+Voronoi, symmetry, and lateral analysis are not disable-able from the CLI in this release; toggle them in `config.yaml` instead (see below).
 
 ## Understanding the PyLithics Pipeline
 
-When you run PyLithics, it automatically processes your lithic illustrations through a comprehensive analysis pipeline that extracts contours, classifies surfaces, calculates over 30 morphological metrics, and generates both quantitative data and annotated visualizations for archaeological interpretation.
+When you run PyLithics, it processes each image through a fixed sequence of stages that extract contours, classify surfaces, calculate morphological metrics, and generate visualizations.
 
 <div class="grid" markdown>
 
@@ -104,37 +129,37 @@ flowchart TD
 ### :material-information: Step Descriptions
 
 **A. Import and validate images**
-Load lithic illustrations and verify file formats, resolution requirements
+Load lithic illustrations and check file formats and resolution.
 
-**B. Scale Calibration & Conversion**
-Automatically detect scale bars in images and calculate pixels-per-millimeter conversion factors. Uses pixel measurements if no scale calibration available.
+**B. Scale calibration & conversion**
+Detect scale bars and compute a pixels-per-mm factor. Falls back to pixel measurements when no usable scale image is provided.
 
 **C. Noise removal and contrast enhancement**
-Clean up scan artifacts and improve line definition
+Clean scan artifacts and improve line definition.
 
-**D. Image Thresholding**
-Convert to binary (black/white) using simple, Otsu, or adaptive methods
+**D. Image thresholding**
+Convert to binary using simple, Otsu, or adaptive methods.
 
-**E. Contour Extraction**
-Find object boundaries with parent-child hierarchy (surfaces and scars)
+**E. Contour extraction**
+Find object boundaries with a parent–child hierarchy (surfaces and scars).
 
-**F. Surface Classification**
-Identify dorsal, ventral, platform, and lateral surfaces by size and position
+**F. Surface classification**
+Identify dorsal, ventral, platform, and lateral surfaces by relative size.
 
 **G. Calculate metrics**
-Measure dimensions, areas, aspect ratios, and shape properties
+Measure dimensions, areas, aspect ratios, and shape properties.
 
-**H. Arrow Detection (Optional)**
-Find directional force indicators using resolution-aware computer vision
+**H. Arrow detection (optional)**
+Find directional force indicators using DPI-aware computer vision.
 
 **I. Calculate directions**
-Determine flaking angles and associate arrows with specific scars
+Determine flaking angles and associate arrows with specific scars.
 
-**J. Voronoi Analysis & Convex Hull**
-Generate spatial distribution patterns and calculate convex properties
+**J. Voronoi analysis & convex hull**
+Generate spatial-distribution patterns and convex-hull metrics.
 
 **K. Export CSV and images**
-Save measurements data and labeled visualization images
+Save measurement data and labeled visualization images.
 
 </div>
 
@@ -146,16 +171,36 @@ Save measurements data and labeled visualization images
 
 PyLithics uses a three-layer configuration system:
 
-1. **Default settings** - Built into the code
-2. **YAML configuration** - From config.yaml file
-3. **CLI overrides** - Command-line arguments (highest priority)
+1. **Default settings** — built into the code
+2. **YAML configuration** — from a `config.yaml` file you provide via `--config_file`
+3. **CLI overrides** — command-line arguments (highest priority)
 
-For detailed configuration options, see the [CLI Commands Reference](../reference/cli-commands.md).
+A minimal custom config:
 
+```yaml
+# my_config.yaml
+thresholding:
+  method: otsu
+
+arrow_detection:
+  enabled: true
+
+voronoi_analysis:
+  enabled: true
+  padding_factor: 0.05
+```
+
+Run with it:
+
+```bash
+pylithics --data_dir ./data --meta_file ./metadata.csv --config_file ./my_config.yaml
+```
+
+For the full list of CLI flags and config keys, see the [CLI Commands Reference](../reference/cli-commands.md).
 
 ## Next Steps
 
-- [Understanding outputs](outputs.md) - Interpret your results
-- [CLI Commands Reference](../reference/cli-commands.md) - Complete command list
-- [Voronoi analysis](voronoi-analysis.md) - Spatial pattern analysis
-- [Troubleshooting](troubleshooting.md) - Solve common problems
+- [Understanding outputs](outputs.md) — interpret your results
+- [CLI Commands Reference](../reference/cli-commands.md) — complete flag list
+- [Voronoi analysis](voronoi-analysis.md) — spatial pattern analysis
+- [Troubleshooting](troubleshooting.md) — solve common problems
