@@ -16,6 +16,7 @@ from pylithics.image_processing.config import (
     get_config_manager,
     get_contour_filtering_config,
     get_cortex_detection_config,
+    get_data_export_config,
     get_lateral_analysis_config,
     get_scale_calibration_config,
     get_scar_complexity_config,
@@ -174,6 +175,11 @@ GETTER_CASES = [
         get_voronoi_analysis_config,
         "voronoi_analysis",
         {"enabled": False, "padding_factor": 0.1},
+    ),
+    (
+        get_data_export_config,
+        "data_export",
+        {"csv": False, "json_per_lithic": True},
     ),
 ]
 

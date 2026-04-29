@@ -30,7 +30,7 @@ _STAGE_ERRORS = (
     IndexError, AttributeError, RuntimeError, OSError,
 )
 
-from .config import get_config_manager
+from .config import get_config_manager, get_data_export_config
 from .modules.contour_extraction import (
     extract_contours_with_hierarchy,
     sort_contours_by_hierarchy,
@@ -58,6 +58,7 @@ from .modules.visualization import (
     visualize_contours_with_hierarchy,
     save_measurements_to_csv
 )
+from .modules.json_export import save_measurements_to_json
 from .modules.lateral_analysis import (
     analyze_lateral_surface,
     _integrate_lateral_metrics
@@ -505,23 +506,36 @@ def _convert_and_export(
         except _STAGE_ERRORS:
             logging.exception("Error converting to real-world units")
 
+    calibration_metadata = {
+        'calibration_method': calibration_method,
+        'pixels_per_mm': (
+            conversion_factor
+            if conversion_factor and conversion_factor != 1.0
+            else None
+        ),
+        'scale_confidence': scale_confidence
+    }
+
     try:
         csv_path = os.path.join(output_dir, "processed_metrics.csv")
-        calibration_metadata = {
-            'calibration_method': calibration_method,
-            'pixels_per_mm': (
-                conversion_factor
-                if conversion_factor and conversion_factor != 1.0
-                else None
-            ),
-            'scale_confidence': scale_confidence
-        }
         save_measurements_to_csv(
             metrics, csv_path, append=True,
             calibration_metadata=calibration_metadata
         )
     except _STAGE_ERRORS:
         logging.exception("Error saving CSV")
+
+    if get_data_export_config().get('json_per_lithic', False):
+        try:
+            image_stem = os.path.splitext(image_id)[0]
+            json_path = os.path.join(
+                output_dir, "json", f"{image_stem}.json"
+            )
+            save_measurements_to_json(
+                metrics, json_path, calibration_metadata,
+            )
+        except _STAGE_ERRORS:
+            logging.exception("Error saving per-lithic JSON")
 
 
 def _generate_visualizations(

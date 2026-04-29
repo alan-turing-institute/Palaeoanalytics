@@ -186,8 +186,24 @@ pylithics --data_dir ./data --meta_file ./meta.csv \
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--output_format FORMAT` | Output format: `csv` or `json` | `csv` |
+| `--export_json` | Also write a per-lithic JSON file to `processed/json/{image_stem}.json` (in addition to the CSV) | off |
 | `--save_visualizations` | Generate labeled images and Voronoi diagrams | on |
+
+```bash
+# Default — CSV only
+pylithics --data_dir ./data --meta_file ./meta.csv
+
+# CSV plus per-lithic JSON files
+pylithics --data_dir ./data --meta_file ./meta.csv --export_json
+```
+
+The same behavior is available from `config.yaml`:
+
+```yaml
+data_export:
+  csv: true
+  json_per_lithic: true   # equivalent to --export_json
+```
 
 ## Help
 

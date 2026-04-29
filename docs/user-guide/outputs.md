@@ -15,7 +15,10 @@ processed/
 ├── artifact_001_labeled.png       # Annotated visualization
 ├── artifact_001_voronoi.png       # Voronoi diagram (Dorsal surfaces only)
 ├── artifact_002_labeled.png
-└── artifact_002_voronoi.png
+├── artifact_002_voronoi.png
+└── json/                          # Only when --export_json is used
+    ├── artifact_001.json
+    └── artifact_002.json
 ```
 
 ## Primary Data Output: `processed_metrics.csv`
@@ -169,6 +172,98 @@ A Voronoi tessellation of dorsal scar centroids with the convex hull outlined.
 </div>
 
 </div>
+
+## Per-Lithic JSON Output (Optional)
+
+When you pass `--export_json`, PyLithics writes one JSON file per lithic to `processed/json/{image_stem}.json` in addition to the CSV. The CSV is unchanged.
+
+The JSON nests metrics by surface and feature, with calibration metadata at the top level:
+
+```json
+{
+  "schema_version": 1,
+  "image_id": "awbari.png",
+  "calibration": {
+    "method": "scale_bar",
+    "pixels_per_mm": 25.2,
+    "scale_confidence": 1.0
+  },
+  "surfaces": [
+    {
+      "surface_type": "Dorsal",
+      "surface_feature": "Dorsal",
+      "centroid_x": 1361.76,
+      "centroid_y": 957.21,
+      "technical_width": 683.0,
+      "technical_length": 936.0,
+      "total_area": 525089.0,
+      "total_dorsal_scars": 6,
+      "voronoi": {
+        "num_cells": 7,
+        "cell_area": 48384.82,
+        "convex_hull_width": 468.98,
+        "convex_hull_height": 576.02,
+        "convex_hull_area": 165101.47
+      },
+      "symmetry": {
+        "top_area": 257182.0,
+        "bottom_area": 269162.0,
+        "vertical_symmetry": 0.98,
+        "horizontal_symmetry": 1.0
+      },
+      "lateral_convexity": null,
+      "features": [
+        {
+          "surface_feature": "scar 1",
+          "centroid_x": 1194.91,
+          "centroid_y": 1362.25,
+          "max_width": 33.38,
+          "max_length": 120.02,
+          "total_area": 3534.5,
+          "voronoi_cell_area": 39808.67,
+          "scar_complexity": 2,
+          "is_cortex": false,
+          "has_arrow": false
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Schema rules
+
+- **One JSON file per lithic**, written to `processed/json/`.
+- **`schema_version`** is currently `1` and bumps on incompatible schema changes.
+- **`null` for absent values** — every JSON file has the same fixed key set, so `pd.json_normalize` and R `jsonlite::fromJSON` produce rectangular dataframes with no surprise missing columns.
+- **Voronoi and symmetry blocks are nested under the Dorsal surface only**; they are `null` on Ventral, Platform, and Lateral surfaces.
+- **`lateral_convexity`** is a number on Lateral surfaces and `null` on the rest.
+- **Cortex children sit alongside scars** in the Dorsal surface's `features` array, distinguished by `is_cortex: true`.
+- **Booleans** (`is_cortex`, `has_arrow`) are JSON booleans, never strings.
+
+### Loading the JSON
+
+```python
+import json, pandas as pd
+
+with open("pylithics/data/processed/json/awbari.json") as f:
+    doc = json.load(f)
+
+# Flatten the dorsal features into a dataframe
+dorsal = next(s for s in doc["surfaces"] if s["surface_type"] == "Dorsal")
+features_df = pd.json_normalize(dorsal["features"])
+```
+
+```r
+library(jsonlite)
+
+doc <- fromJSON("pylithics/data/processed/json/awbari.json",
+                simplifyDataFrame = TRUE)
+
+# Dorsal features as a data frame
+dorsal <- doc$surfaces[doc$surfaces$surface_type == "Dorsal", ]
+dorsal$features[[1]]
+```
 
 ## Processing Log: `pylithics.log`
 

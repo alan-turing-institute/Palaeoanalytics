@@ -93,6 +93,16 @@ pylithics --data_dir ./data --meta_file ./metadata.csv --disable_scar_complexity
 
 Voronoi, symmetry, and lateral analysis are not disable-able from the CLI in this release; toggle them in `config.yaml` instead (see below).
 
+### Also export per-lithic JSON
+
+By default PyLithics writes a single `processed_metrics.csv`. Pass `--export_json` to additionally write one JSON file per lithic to `processed/json/`:
+
+```bash
+pylithics --data_dir ./data --meta_file ./metadata.csv --export_json
+```
+
+The CSV is unchanged. See [Outputs](outputs.md#per-lithic-json-output-optional) for the JSON schema.
+
 ## Understanding the PyLithics Pipeline
 
 When you run PyLithics, it processes each image through a fixed sequence of stages that extract contours, classify surfaces, calculate morphological metrics, and generate visualizations.

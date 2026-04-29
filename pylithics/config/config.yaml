@@ -216,13 +216,10 @@ scar_complexity:
 
 # Data Export Configuration
 data_export:
-  csv_format: true  # Export data in CSV format
-  include_debug_info: false  # Include debug information in exports
-
-  # Units for measurements
-  default_units: mm  # Default units for measurements (mm, cm, inches)
-  coordinate_precision: 2  # Decimal places for coordinate values
-  measurement_precision: 3  # Decimal places for area/length measurements
+  csv: true  # Always write the consolidated processed_metrics.csv
+  json_per_lithic: false  # Set to true to also write one JSON file per lithic
+                          # to processed/json/{image_stem}.json. CLI flag
+                          # --export_json overrides this to true.
 
 # Scale Calibration Configuration
 scale_calibration:

@@ -17,7 +17,6 @@ from typing import Optional, Dict, Any
 from pylithics.image_processing.config import (
     get_config_manager,
     ConfigurationManager,
-    clear_config_cache
 )
 from pylithics.image_processing.importer import (
     execute_preprocessing_pipeline,
@@ -368,8 +367,10 @@ class PyLithicsApplication:
             else:
                 logging.warning(f"Invalid config key format: {key}. Use 'section.key' format.")
 
-        # Clear cache to ensure new values are used
-        clear_config_cache()
+        # Do NOT call clear_config_cache() here. The update_value() calls
+        # above mutate the cached singleton in place; clearing the cache would
+        # cause the next get_config_manager() call to reload from disk and
+        # silently discard every override.
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
@@ -524,9 +525,11 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
     """Add output options argument group."""
     group = parser.add_argument_group('OUTPUT OPTIONS')
     group.add_argument(
-        '--output_format', choices=['csv', 'json'],
-        default='csv', metavar='FORMAT',
-        help='Output format: csv or json (default: csv)'
+        '--export_json', action='store_true',
+        help=(
+            'Also write a per-lithic JSON file to processed/json/'
+            '{image_stem}.json (in addition to the CSV).'
+        )
     )
     group.add_argument(
         '--save_visualizations', action='store_true',
@@ -568,7 +571,7 @@ def show_config_help() -> None:
       3. Use --config_file path/to/your/config.yaml
 
     Key sections: thresholding, arrow_detection, cortex_detection,
-    scar_complexity, logging, contour_filtering
+    scar_complexity, logging, contour_filtering, data_export
 
     For full documentation: pylithics --docs
     """)
@@ -594,6 +597,10 @@ def show_examples_help() -> None:
     Fast batch (no arrows):
       pylithics --data_dir ./artifacts --meta_file ./metadata.csv \\
           --disable_arrow_detection
+
+    Also export per-lithic JSON files (in addition to CSV):
+      pylithics --data_dir ./artifacts --meta_file ./metadata.csv \\
+          --export_json
 
     For full documentation: pylithics --docs
     """)
@@ -678,6 +685,7 @@ def _apply_config_overrides(
     _apply_cortex_overrides(args, overrides)
     _apply_scar_overrides(args, overrides)
     _apply_dpi_overrides(args, overrides)
+    _apply_export_overrides(args, overrides)
 
     if overrides:
         app.update_configuration(**overrides)
@@ -735,6 +743,14 @@ def _apply_dpi_overrides(
         overrides['dpi_processing.reference_dpi'] = args.dpi_reference
     if args.dpi_max_scale:
         overrides['dpi_processing.max_scale_factor'] = args.dpi_max_scale
+
+
+def _apply_export_overrides(
+    args: argparse.Namespace, overrides: Dict[str, Any]
+) -> None:
+    """Map output / export CLI args to config overrides."""
+    if getattr(args, 'export_json', False):
+        overrides['data_export.json_per_lithic'] = True
     if args.dpi_scaling_mode:
         overrides['dpi_processing.scaling_mode'] = args.dpi_scaling_mode
 

@@ -310,6 +310,18 @@ def get_voronoi_analysis_config(
     })
 
 
+def get_data_export_config(
+    config: Optional[Dict] = None
+) -> Dict[str, Any]:
+    """Get data export configuration with defaults."""
+    if config is None:
+        config = get_config_manager().config
+    return config.get('data_export', {
+        'csv': True,
+        'json_per_lithic': False,
+    })
+
+
 def clear_config_cache() -> None:
     """Reset the global config manager (useful for testing)."""
     global _config_manager
