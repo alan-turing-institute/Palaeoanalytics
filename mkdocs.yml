@@ -17,6 +17,7 @@ nav:
     - Basic Usage: user-guide/basic-usage.md
     - Outputs: user-guide/outputs.md
     - Voronoi Analysis: user-guide/voronoi-analysis.md
+    - Dashboard: user-guide/dashboard.md
     - Lithic Editor: user-guide/lithic-editor.md
     - Troubleshooting: user-guide/troubleshooting.md
     - Glossary: user-guide/glossary.md

@@ -188,6 +188,7 @@ pylithics --data_dir ./data --meta_file ./meta.csv \
 |--------|-------------|---------|
 | `--export_json` | Also write a per-lithic JSON file to `processed/json/{image_stem}.json` (in addition to the CSV) | off |
 | `--save_visualizations` | Generate labeled images and Voronoi diagrams | on |
+| `--explore` | Run analysis (if `--meta_file` is provided), then launch the interactive dashboard at `http://localhost:8501`. Without `--meta_file`, opens the dashboard against an existing `processed/` output. | off |
 
 ```bash
 # Default — CSV only

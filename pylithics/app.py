@@ -390,6 +390,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
     _add_cortex_args(parser)
     _add_scar_args(parser)
     _add_output_args(parser)
+    _add_explore_args(parser)
     _add_help_args(parser)
 
     return parser
@@ -538,6 +539,19 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_explore_args(parser: argparse.ArgumentParser) -> None:
+    """Add interactive dashboard argument group."""
+    group = parser.add_argument_group('EXPLORE OPTIONS')
+    group.add_argument(
+        '--explore', action='store_true',
+        help=(
+            'Run analysis (if --meta_file is provided) and then launch the '
+            'PyLithics dashboard. Without --meta_file, opens the dashboard '
+            "against the existing processed/ output."
+        )
+    )
+
+
 def _add_help_args(parser: argparse.ArgumentParser) -> None:
     """Add extended help argument group."""
     group = parser.add_argument_group('EXTENDED HELP OPTIONS')
@@ -601,6 +615,12 @@ def show_examples_help() -> None:
     Also export per-lithic JSON files (in addition to CSV):
       pylithics --data_dir ./artifacts --meta_file ./metadata.csv \\
           --export_json
+
+    Analyze and immediately launch the interactive dashboard:
+      pylithics --data_dir ./artifacts --meta_file ./metadata.csv --explore
+
+    Re-open the dashboard later (no re-analysis):
+      pylithics --data_dir ./artifacts --explore
 
     For full documentation: pylithics --docs
     """)
@@ -779,8 +799,15 @@ def main() -> int:
     if _handle_help_flags(args):
         return 0
 
-    if not args.data_dir or not args.meta_file:
-        print("Error: --data_dir and --meta_file are required.")
+    if not args.data_dir:
+        print("Error: --data_dir is required.")
+        print("Use 'pylithics --help' or 'pylithics --docs'.")
+        return 1
+
+    explore = getattr(args, 'explore', False)
+    if not args.meta_file and not explore:
+        print("Error: --meta_file is required (or pass --explore to open the "
+              "dashboard against an existing run).")
         print("Use 'pylithics --help' or 'pylithics --docs'.")
         return 1
 
@@ -790,19 +817,23 @@ def main() -> int:
 
         logging.info(f"Config: {args.config_file or 'default'}")
         logging.info(f"Data directory: {args.data_dir}")
-        logging.info(f"Metadata file: {args.meta_file}")
 
-        results = app.run_batch_analysis(
-            args.data_dir, args.meta_file, args.show_thresholded_images,
-        )
-        if not results['success']:
-            logging.error("Batch processing failed")
-            return 1
+        if args.meta_file:
+            logging.info(f"Metadata file: {args.meta_file}")
+            results = app.run_batch_analysis(
+                args.data_dir, args.meta_file, args.show_thresholded_images,
+            )
+            if not results['success']:
+                logging.error("Batch processing failed")
+                return 1
 
-        if results['processed_successfully'] < results['total_images']:
-            logging.warning("Some images failed to process")
-        else:
-            logging.info("All images processed successfully!")
+            if results['processed_successfully'] < results['total_images']:
+                logging.warning("Some images failed to process")
+            else:
+                logging.info("All images processed successfully!")
+
+        if explore:
+            return _launch_explore(args.data_dir)
         return 0
 
     except KeyboardInterrupt:
@@ -811,6 +842,25 @@ def main() -> int:
     except (FileNotFoundError, ValueError) as e:
         logging.error(f"Input error: {e}")
         return 1
+
+
+def _launch_explore(data_dir: str) -> int:
+    """Open the dashboard for the processed/ output under ``data_dir``."""
+    from pylithics.image_processing.modules.dashboard.runner import (
+        launch_dashboard,
+    )
+
+    csv_path = os.path.join(
+        data_dir, "processed", "processed_metrics.csv",
+    )
+    if not os.path.exists(csv_path):
+        logging.error(
+            "No processed_metrics.csv found at %s. "
+            "Run analysis first by passing --meta_file.",
+            csv_path,
+        )
+        return 1
+    return launch_dashboard(data_dir)
 
 
 if __name__ == "__main__":

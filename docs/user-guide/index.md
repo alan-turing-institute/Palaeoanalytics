@@ -48,6 +48,13 @@ Explore all the files and data PyLithics generates:
 
 
 
+### [Dashboard](dashboard.md)
+Launch an interactive browser dashboard to explore your results:
+
+- Overview headline numbers
+- Distribution histograms with shared filters
+- Per-lithic drill-down with the labeled and Voronoi images
+
 ### [Glossary](glossary.md)
 Reference for all terms and metrics:
 

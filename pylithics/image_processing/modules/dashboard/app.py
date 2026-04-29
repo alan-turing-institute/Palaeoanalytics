@@ -1,0 +1,94 @@
+"""Streamlit entry point for the PyLithics dashboard."""
+
+import os
+import sys
+from pathlib import Path
+
+import streamlit as st
+
+# Ensure the pylithics package is importable when this script is launched
+# directly via ``streamlit run app.py`` from inside the package dir.
+_PKG_ROOT = Path(__file__).resolve().parents[4]
+if str(_PKG_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PKG_ROOT))
+
+from pylithics.image_processing.modules.dashboard.data import (  # noqa: E402
+    load_processed,
+)
+from pylithics.image_processing.modules.dashboard.views import (  # noqa: E402
+    overview, distributions, per_lithic,
+)
+from pylithics.image_processing.modules.dashboard.runner import (  # noqa: E402
+    DATA_DIR_ENV,
+)
+
+
+PAGES = {
+    "Overview": overview.render,
+    "Distributions": distributions.render,
+    "Per-Lithic Detail": per_lithic.render,
+}
+
+
+@st.cache_data(show_spinner=False)
+def _cached_load(processed_dir: str, mtime: float) -> dict:
+    """
+    Cache the CSV + artifact inventory keyed on (path, mtime).
+
+    Streamlit re-runs this script on every interaction. Without caching, we'd
+    re-read processed_metrics.csv and re-stat the json directory on every
+    widget click, which can dominate the perceived "slowness". Including the
+    CSV's mtime in the key invalidates the cache automatically when the file
+    is regenerated.
+    """
+    return load_processed(processed_dir)
+
+
+def main() -> None:
+    st.set_page_config(
+        page_title="PyLithics Dashboard",
+        layout="wide",
+    )
+    st.title("PyLithics Dashboard")
+
+    data_dir = _resolve_data_dir()
+    if data_dir is None:
+        st.error(
+            "No data directory was provided. Launch the dashboard with "
+            "`pylithics --data_dir <path> --explore`."
+        )
+        return
+
+    processed_dir = Path(data_dir) / "processed"
+    csv_path = processed_dir / "processed_metrics.csv"
+    if not csv_path.exists():
+        st.error(
+            f"processed_metrics.csv not found at {csv_path}. "
+            "Run analysis first."
+        )
+        return
+
+    try:
+        bundle = _cached_load(str(processed_dir), csv_path.stat().st_mtime)
+    except FileNotFoundError as e:
+        st.error(str(e))
+        return
+
+    page_name = st.sidebar.radio("Page", list(PAGES.keys()))
+    st.sidebar.markdown("---")
+    st.sidebar.caption(f"Data: `{data_dir}`")
+    st.sidebar.caption(f"Lithics: {bundle['metrics']['image_id'].nunique()}")
+
+    PAGES[page_name](bundle)
+
+
+def _resolve_data_dir():
+    """Return the data dir from the env var, or None if unset."""
+    value = os.environ.get(DATA_DIR_ENV)
+    if value and Path(value).exists():
+        return value
+    return None
+
+
+if __name__ == "__main__":
+    main()

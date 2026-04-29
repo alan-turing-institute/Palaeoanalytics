@@ -103,6 +103,18 @@ pylithics --data_dir ./data --meta_file ./metadata.csv --export_json
 
 The CSV is unchanged. See [Outputs](outputs.md#per-lithic-json-output-optional) for the JSON schema.
 
+### Launch the interactive dashboard
+
+Pass `--explore` to open the [PyLithics Dashboard](dashboard.md) in your browser. With `--meta_file` it analyzes first; without it, it opens the existing results:
+
+```bash
+# Analyze and immediately explore
+pylithics --data_dir ./data --meta_file ./metadata.csv --explore
+
+# Re-open the dashboard later (no re-analysis)
+pylithics --data_dir ./data --explore
+```
+
 ## Understanding the PyLithics Pipeline
 
 When you run PyLithics, it processes each image through a fixed sequence of stages that extract contours, classify surfaces, calculate morphological metrics, and generate visualizations.
