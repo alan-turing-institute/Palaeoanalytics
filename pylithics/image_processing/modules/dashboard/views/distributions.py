@@ -1,6 +1,7 @@
-"""Distributions page — histograms and scatter plots for assemblage metrics."""
+"""Distributions page — assemblage metrics organised into thematic tabs."""
 
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 from pylithics.image_processing.modules.dashboard.data import (
@@ -21,89 +22,289 @@ def render(bundle: dict) -> None:
         st.info("No metrics found in processed_metrics.csv.")
         return
 
-    surface_options = sorted(df["surface_type"].dropna().unique().tolist())
-    calibration_options = sorted(
-        df["calibration_method"].dropna().unique().tolist()
-    )
-
-    col1, col2 = st.columns(2)
-    selected_surfaces = col1.multiselect(
-        "Surface types", surface_options,
-        default=surface_options, format_func=label,
-    )
-    selected_calibrations = col2.multiselect(
-        "Calibration methods", calibration_options,
-        default=calibration_options, format_func=label,
-    )
-
-    filtered = filter_metrics(
-        df,
-        surface_types=selected_surfaces,
-        calibration_methods=selected_calibrations,
-    )
+    filtered = _apply_top_filters(df)
     if filtered.empty:
         st.warning("No rows match the current filter.")
         return
 
     parents = parent_rows(filtered)
 
-    st.subheader("Surface dimensions")
-    _histogram_grid(parents)
+    size_tab, sym_tab, scar_tab, spatial_tab, cortex_tab = st.tabs([
+        "Size & shape", "Symmetry", "Scars", "Spatial", "Cortex",
+    ])
 
-    st.subheader("Length × width by surface type")
-    _length_width_scatter(parents)
-
-    st.subheader("Scars per dorsal surface")
-    _scars_per_dorsal(filtered)
-
-    st.subheader("Scar complexity")
-    _scar_complexity_distribution(filtered)
-
-    st.subheader("Symmetry")
-    _symmetry_scatter(parents)
-
-    st.subheader("Voronoi cells per dorsal")
-    _voronoi_distribution(parents)
+    with size_tab:
+        _render_size_tab(parents)
+    with sym_tab:
+        _render_symmetry_tab(parents)
+    with scar_tab:
+        _render_scars_tab(filtered)
+    with spatial_tab:
+        _render_spatial_tab(parents)
+    with cortex_tab:
+        _render_cortex_tab(filtered)
 
 
-def _histogram_grid(parents):
+# ---------------------------------------------------------------------------
+# Top-level filters (applied to every tab)
+# ---------------------------------------------------------------------------
+
+
+def _apply_top_filters(df):
+    surface_options = sorted(df["surface_type"].dropna().unique().tolist())
+    calibration_options = sorted(
+        df["calibration_method"].dropna().unique().tolist()
+    )
+
+    # Default to Dorsal only when present; users can add other surfaces.
+    default_surfaces = (
+        ["Dorsal"] if "Dorsal" in surface_options else surface_options
+    )
+
+    col1, col2 = st.columns(2)
+    selected_surfaces = col1.multiselect(
+        "Surface types", surface_options,
+        default=default_surfaces, format_func=label,
+    )
+    selected_calibrations = col2.multiselect(
+        "Calibration methods", calibration_options,
+        default=calibration_options, format_func=label,
+    )
+
+    return filter_metrics(
+        df,
+        surface_types=selected_surfaces,
+        calibration_methods=selected_calibrations,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tab 1 — Size & shape
+# ---------------------------------------------------------------------------
+
+
+def _render_size_tab(parents) -> None:
     if parents.empty:
         st.info("No parent surface rows in filtered data.")
         return
-    fields = ("technical_length", "technical_width", "total_area", "aspect_ratio")
+
+    st.subheader("Length × width")
     cols = st.columns(2)
-    for i, field in enumerate(fields):
-        if field not in parents.columns:
-            continue
-        series = parents[field].dropna()
-        if series.empty:
-            cols[i % 2].info(f"No values for {label(field)}")
-            continue
-        fig = px.histogram(
-            parents, x=field, nbins=20,
-            labels={field: label_with_units(parents, field)},
+    with cols[0]:
+        _dim_scatter(
+            parents, "technical_length", "technical_width",
+            title="Technical length × width",
         )
-        fig.update_layout(yaxis_title="Count")
-        _force_integer_yaxis(fig, len(series))
-        _suppress_si_suffix(fig.update_xaxes)
-        cols[i % 2].plotly_chart(fig, use_container_width=True)
+    with cols[1]:
+        _dim_scatter(
+            parents, "max_length", "max_width",
+            title="Max length × width",
+        )
+
+    st.subheader("Perimeter and aspect ratio")
+    cols = st.columns(2)
+    with cols[0]:
+        _perimeter_lollipop(parents)
+    with cols[1]:
+        _aspect_ratio_raincloud(parents)
 
 
-def _length_width_scatter(parents):
-    needed = {"technical_length", "technical_width", "surface_type"}
-    if not needed.issubset(parents.columns) or parents.empty:
-        st.info("Not enough data for the length × width scatter.")
+def _aspect_ratio_raincloud(parents):
+    """Horizontal raincloud (violin + box + jittered points) per surface type."""
+    if "aspect_ratio" not in parents.columns:
+        st.info("`aspect_ratio` column missing from filtered data.")
         return
-    points = parents.dropna(subset=["technical_length", "technical_width"])
+    points = parents.dropna(subset=["aspect_ratio", "surface_type"])
+    if points.empty:
+        st.info("No aspect ratio values in the filtered selection.")
+        return
+
+    canonical_order = ("Dorsal", "Ventral", "Platform", "Lateral")
+    present = list(points["surface_type"].unique())
+    surface_order = [s for s in canonical_order if s in present]
+    surface_order += [s for s in present if s not in canonical_order]
+
+    fig = go.Figure()
+    for surface_type in surface_order:
+        group = points[points["surface_type"] == surface_type]
+        base_rgb = SURFACE_COLORS.get(surface_type, "rgb(128, 128, 128)")
+        cloud, _, box_fill, box_line = _hue_variants(base_rgb)
+
+        n = len(group)
+        if n <= 20:
+            dot_size, dot_alpha, jitter = 7, 0.85, 0.6
+        elif n <= 100:
+            dot_size, dot_alpha, jitter = 5, 0.55, 0.5
+        else:
+            dot_size, dot_alpha, jitter = 4, 0.35, 0.4
+        dot_color = _with_alpha(base_rgb, dot_alpha)
+
+        fig.add_trace(go.Violin(
+            x=group["aspect_ratio"],
+            y=[surface_type] * len(group),
+            name=surface_type,
+            orientation="h",
+            fillcolor=cloud,
+            line=dict(color=box_line, width=0.6),
+            box_visible=True,
+            box_fillcolor=box_fill,
+            box_line_color=box_line,
+            meanline_visible=False,
+            points="all",
+            jitter=jitter,
+            pointpos=0,
+            marker=dict(size=dot_size, color=dot_color, line=dict(width=0)),
+            opacity=1,
+            scalemode="width",
+            spanmode="hard",
+            width=0.55,
+            hovertemplate=(
+                f"{surface_type}<br>Aspect ratio: %{{x:.2f}}<extra></extra>"
+            ),
+        ))
+
+    fig.add_vline(
+        x=1.0, line_dash="dash", line_color="#9aa0a6", line_width=1,
+        annotation_text="H = W", annotation_position="top",
+        annotation_font_color="#5f6368",
+    )
+
+    n_rows = max(1, len(surface_order))
+    fig.update_layout(
+        title="Aspect Ratio Distributions of Lithic Artefacts",
+        xaxis_title="Aspect Ratio (Height / Width)",
+        yaxis_title="Group",
+        violinmode="overlay",
+        showlegend=False,
+        plot_bgcolor="white",
+        height=180 + 110 * n_rows,
+        margin=dict(l=70, r=20, t=60, b=50),
+    )
+    fig.update_xaxes(showgrid=True, gridcolor="#ececec", zeroline=False,
+                     showline=True, linecolor="#cfcfcf", mirror=False)
+    fig.update_yaxes(showgrid=False, categoryorder="array",
+                     categoryarray=list(reversed(surface_order)),
+                     showline=True, linecolor="#cfcfcf", mirror=False)
+
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(_summary_caption(points["aspect_ratio"]))
+
+
+def _parse_rgb(rgb_str: str) -> tuple:
+    inner = rgb_str.strip()
+    if inner.startswith("rgb"):
+        inner = inner[inner.find("(") + 1:inner.rfind(")")]
+        return tuple(int(v.strip()) for v in inner.split(","))
+    h = inner.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _with_alpha(rgb_str: str, alpha: float) -> str:
+    r, g, b = _parse_rgb(rgb_str)
+    return f"rgba({r}, {g}, {b}, {alpha})"
+
+
+def _hue_variants(rgb_str: str):
+    """
+    Derive raincloud layer colours from a single base hue.
+
+    Returns ``(cloud, dots, box_fill, box_line)`` where each is a CSS colour
+    string. Cloud is light/transparent, dots medium, box fill darker, box
+    line near-black — matches the tonal hierarchy in the colour spec.
+    """
+    r, g, b = _parse_rgb(rgb_str)
+
+    def shade(scale: float) -> tuple:
+        return (int(r * scale), int(g * scale), int(b * scale))
+
+    cloud = f"rgba({r}, {g}, {b}, 0.25)"
+    dots = f"rgba({r}, {g}, {b}, 0.55)"
+    bf_r, bf_g, bf_b = shade(0.65)
+    box_fill = f"rgba({bf_r}, {bf_g}, {bf_b}, 0.85)"
+    bl_r, bl_g, bl_b = shade(0.30)
+    box_line = f"rgb({bl_r}, {bl_g}, {bl_b})"
+    return cloud, dots, box_fill, box_line
+
+
+def _perimeter_lollipop(parents):
+    """Sorted lollipop: one stem + dot per parent surface, sorted by perimeter."""
+    if "perimeter" not in parents.columns:
+        st.info("`perimeter` column missing from filtered data.")
+        return
+    points = parents.dropna(subset=["perimeter", "surface_type"]).copy()
+    if points.empty:
+        st.info("No perimeter values in the filtered selection.")
+        return
+
+    points = points.sort_values("perimeter").reset_index(drop=True)
+    points["_label"] = (
+        points["image_id"].astype(str) + " (" + points["surface_type"].astype(str) + ")"
+    )
+
+    # Stems: a single Scatter trace, NaN-separated segments from baseline to value.
+    stem_x, stem_y = [], []
+    for label_val, perim in zip(points["_label"], points["perimeter"]):
+        stem_x.extend([label_val, label_val, None])
+        stem_y.extend([0, perim, None])
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=stem_x, y=stem_y, mode="lines",
+        line=dict(color="lightgray", width=1.5),
+        hoverinfo="skip", showlegend=False,
+    ))
+
+    # Markers, one trace per surface type so legend / colours work.
+    for surface_type, group in points.groupby("surface_type", sort=False):
+        fig.add_trace(go.Scatter(
+            x=group["_label"], y=group["perimeter"],
+            mode="markers",
+            marker=dict(size=10, color=SURFACE_COLORS.get(surface_type)),
+            name=surface_type,
+            customdata=group[["image_id", "surface_feature"]].to_numpy(),
+            hovertemplate=(
+                "%{customdata[0]} (%{customdata[1]})<br>"
+                f"{label_with_units(parents, 'perimeter')}: "
+                "%{y}<extra></extra>"
+            ),
+        ))
+
+    multi_surface = points["surface_type"].nunique() > 1
+    fig.update_layout(
+        title="Perimeter (sorted)",
+        xaxis_title="",
+        yaxis_title=label_with_units(parents, "perimeter"),
+        showlegend=multi_surface,
+        xaxis=dict(
+            categoryorder="array",
+            categoryarray=points["_label"].tolist(),
+            tickangle=-45,
+        ),
+    )
+    _suppress_si_suffix(fig.update_yaxes)
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(_summary_caption(points["perimeter"]))
+
+
+def _dim_scatter(parents, x_field, y_field, title=None):
+    needed = {x_field, y_field, "surface_type"}
+    if not needed.issubset(parents.columns):
+        st.info(f"Columns {x_field} / {y_field} missing from filtered data.")
+        return
+    points = parents.dropna(subset=[x_field, y_field])
+    if points.empty:
+        st.info(f"No {label(x_field)} × {label(y_field)} values.")
+        return
     fig = px.scatter(
         points,
-        x="technical_length", y="technical_width",
+        x=x_field, y=y_field,
         color="surface_type",
         color_discrete_map=SURFACE_COLORS,
         hover_data=["image_id", "surface_feature"],
+        title=title,
         labels={
-            "technical_length": label_with_units(parents, "technical_length"),
-            "technical_width": label_with_units(parents, "technical_width"),
+            x_field: label_with_units(parents, x_field),
+            y_field: label_with_units(parents, y_field),
             "surface_type": label("surface_type"),
             "image_id": label("image_id"),
             "surface_feature": label("surface_feature"),
@@ -114,59 +315,33 @@ def _length_width_scatter(parents):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def _scars_per_dorsal(df):
-    dorsal = df[
-        (df["surface_type"] == "Dorsal")
-        & (df["surface_feature"] == "Dorsal")
-    ]
-    if "total_dorsal_scars" not in dorsal.columns or dorsal.empty:
-        st.info("No dorsal scar counts in the filtered data.")
-        return
-    counts = dorsal["total_dorsal_scars"].dropna().astype(float)
-    if counts.empty:
-        st.info("No dorsal scar counts in the filtered data.")
-        return
-    fig = px.histogram(counts, nbins=15)
-    fig.update_layout(
-        showlegend=False,
-        xaxis_title="Scars per dorsal surface",
-        yaxis_title="Count",
-    )
-    _force_integer_yaxis(fig, len(counts))
-    st.plotly_chart(fig, use_container_width=True)
+# ---------------------------------------------------------------------------
+# Tab 2 — Surface symmetry
+# ---------------------------------------------------------------------------
 
 
-def _scar_complexity_distribution(df):
-    scars = dorsal_scars(df)
-    if scars.empty or "scar_complexity" not in scars.columns:
-        st.info("No scar complexity data in the filtered selection.")
+def _render_symmetry_tab(parents) -> None:
+    dorsal = parents[parents["surface_type"] == "Dorsal"]
+    if dorsal.empty:
+        st.info("No dorsal surfaces in the filtered data — symmetry is dorsal-only.")
         return
-    values = scars["scar_complexity"].dropna().astype(float)
-    if values.empty:
-        st.info("No scar complexity values in the filtered selection.")
-        return
-    mean = values.mean()
-    fig = px.histogram(values, nbins=15)
-    fig.update_layout(
-        showlegend=False,
-        xaxis_title=label("scar_complexity"),
-        yaxis_title="Count",
-    )
-    fig.add_vline(
-        x=mean, line_dash="dash",
-        annotation_text=f"mean: {mean:.1f}",
-        annotation_position="top right",
-    )
-    _force_integer_yaxis(fig, len(values))
-    st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Vertical × horizontal symmetry")
+    _symmetry_scatter(dorsal)
+
+    st.subheader("Per-axis distribution")
+    _symmetry_axis_histograms(dorsal)
+
+    st.subheader("Quadrant areas")
+    _quadrant_areas(dorsal)
 
 
-def _symmetry_scatter(parents):
+def _symmetry_scatter(dorsal):
     needed = {"vertical_symmetry", "horizontal_symmetry", "image_id"}
-    if not needed.issubset(parents.columns):
+    if not needed.issubset(dorsal.columns):
         st.info("Symmetry columns missing from filtered data.")
         return
-    points = parents.dropna(subset=["vertical_symmetry", "horizontal_symmetry"])
+    points = dorsal.dropna(subset=["vertical_symmetry", "horizontal_symmetry"])
     if points.empty:
         st.info("No symmetry values in the filtered selection.")
         return
@@ -191,32 +366,338 @@ def _symmetry_scatter(parents):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def _voronoi_distribution(parents):
-    if "voronoi_num_cells" not in parents.columns:
+def _symmetry_axis_histograms(dorsal):
+    cols = st.columns(2)
+    for col, field in zip(
+        cols, ("vertical_symmetry", "horizontal_symmetry"),
+    ):
+        if field not in dorsal.columns:
+            continue
+        values = dorsal[field].dropna()
+        if values.empty:
+            col.info(f"No values for {label(field)}")
+            continue
+        fig = px.histogram(values, nbins=20, marginal="rug")
+        fig.update_layout(
+            showlegend=False,
+            xaxis_title=label(field),
+            yaxis_title="Count",
+        )
+        fig.update_xaxes(range=[0, 1.05])
+        _force_integer_yaxis(fig, len(values))
+        col.plotly_chart(fig, use_container_width=True)
+        col.caption(_summary_caption(values))
+
+
+def _quadrant_areas(dorsal):
+    """Mean filled-pixel area in each of the four dorsal quadrants."""
+    fields = ("top_area", "bottom_area", "left_area", "right_area")
+    if not all(f in dorsal.columns for f in fields):
+        st.info("Quadrant area columns missing from filtered data.")
+        return
+    means = {label(field): dorsal[field].dropna().mean() for field in fields}
+    if all(value != value or value is None for value in means.values()):  # all NaN
+        st.info("No quadrant-area values in the filtered selection.")
+        return
+    import pandas as pd  # local import to keep top of file lean
+    plot_df = pd.DataFrame(
+        {"Quadrant": list(means.keys()),
+         "Mean area": list(means.values())},
+    )
+    unit = label_with_units(dorsal, "top_area").replace(label("top_area"), "").strip()
+    fig = px.bar(plot_df, x="Quadrant", y="Mean area")
+    fig.update_layout(
+        showlegend=False,
+        yaxis_title=f"Mean area{(' ' + unit) if unit else ''}",
+    )
+    _suppress_si_suffix(fig.update_yaxes)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ---------------------------------------------------------------------------
+# Tab 3 — Scars
+# ---------------------------------------------------------------------------
+
+
+def _render_scars_tab(df) -> None:
+    if df.empty:
+        st.info("No data in the filtered selection.")
+        return
+
+    st.subheader("Scars per dorsal surface")
+    _scars_per_dorsal(df)
+
+    st.subheader("Scar complexity")
+    _scar_complexity_distribution(df)
+
+    st.subheader("Scar size")
+    _scar_size_distribution(df)
+
+    st.subheader("Arrow detection rate per lithic")
+    _arrow_rate_per_image(df)
+
+
+def _scars_per_dorsal(df):
+    dorsal = df[
+        (df["surface_type"] == "Dorsal")
+        & (df["surface_feature"] == "Dorsal")
+    ]
+    if "total_dorsal_scars" not in dorsal.columns or dorsal.empty:
+        st.info("No dorsal scar counts in the filtered data.")
+        return
+    counts = dorsal["total_dorsal_scars"].dropna().astype(float)
+    if counts.empty:
+        st.info("No dorsal scar counts in the filtered data.")
+        return
+    fig = px.histogram(counts, marginal="rug")
+    fig.update_layout(
+        showlegend=False,
+        xaxis_title="Scars per dorsal surface",
+        yaxis_title="Count",
+    )
+    _align_integer_bins(fig, counts)
+    _force_integer_yaxis(fig, len(counts))
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(_summary_caption(counts))
+
+
+def _scar_complexity_distribution(df):
+    scars = dorsal_scars(df)
+    if scars.empty or "scar_complexity" not in scars.columns:
+        st.info("No scar complexity data in the filtered selection.")
+        return
+    values = scars["scar_complexity"].dropna().astype(float)
+    if values.empty:
+        st.info("No scar complexity values in the filtered selection.")
+        return
+    mean = values.mean()
+    fig = px.histogram(values, marginal="rug")
+    fig.update_layout(
+        showlegend=False,
+        xaxis_title=label("scar_complexity"),
+        yaxis_title="Count",
+    )
+    fig.add_vline(
+        x=mean, line_dash="dash",
+        annotation_text=f"mean: {mean:.1f}",
+        annotation_position="top right",
+    )
+    _align_integer_bins(fig, values)
+    _force_integer_yaxis(fig, len(values))
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(_summary_caption(values))
+
+
+def _scar_size_distribution(df):
+    scars = dorsal_scars(df)
+    if scars.empty or "total_area" not in scars.columns:
+        st.info("No scar-size data in the filtered selection.")
+        return
+    values = scars["total_area"].dropna()
+    if values.empty:
+        st.info("No scar-size values in the filtered selection.")
+        return
+    fig = px.histogram(scars, x="total_area", nbins=20, marginal="rug",
+                       labels={"total_area": label_with_units(scars, "total_area")})
+    fig.update_layout(yaxis_title="Count")
+    _force_integer_yaxis(fig, len(values))
+    _suppress_si_suffix(fig.update_xaxes)
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(_summary_caption(values))
+
+
+def _arrow_rate_per_image(df):
+    scars = dorsal_scars(df)
+    if scars.empty or "has_arrow" not in scars.columns:
+        st.info("No scar / arrow data in the filtered selection.")
+        return
+
+    import pandas as pd
+    scars = scars.copy()
+    # Coerce mixed bool / 'True'/'False' strings into a real bool series.
+    scars["_arrow"] = scars["has_arrow"].astype(str).str.strip().str.lower().eq("true")
+
+    rates = (
+        scars.groupby("image_id")["_arrow"]
+        .mean()
+        .mul(100)
+        .round(1)
+        .reset_index()
+        .rename(columns={"_arrow": "Arrow rate (%)"})
+    )
+    if rates.empty:
+        st.info("No per-image arrow rates available.")
+        return
+    rates = rates.sort_values("Arrow rate (%)", ascending=False)
+    fig = px.bar(
+        rates, x="image_id", y="Arrow rate (%)",
+        labels={"image_id": label("image_id")},
+    )
+    fig.update_layout(yaxis_title="Arrow rate (%)")
+    fig.update_yaxes(range=[0, 105])
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ---------------------------------------------------------------------------
+# Tab 4 — Spatial organization
+# ---------------------------------------------------------------------------
+
+
+def _render_spatial_tab(parents) -> None:
+    dorsal = parents[parents["surface_type"] == "Dorsal"]
+    if dorsal.empty:
+        st.info("No dorsal surfaces in the filtered data.")
+        return
+
+    st.subheader("Voronoi cells per dorsal")
+    _voronoi_distribution(dorsal)
+
+    st.subheader("Convex hull area vs dorsal area")
+    _hull_vs_dorsal_scatter(dorsal)
+
+    st.subheader("Hull utilization (hull / dorsal area)")
+    _hull_utilization_distribution(dorsal)
+
+
+def _voronoi_distribution(dorsal):
+    if "voronoi_num_cells" not in dorsal.columns:
         st.info("No Voronoi columns in filtered data.")
         return
-    values = parents["voronoi_num_cells"].dropna().astype(float)
+    values = dorsal["voronoi_num_cells"].dropna().astype(float)
     if values.empty:
         st.info("No Voronoi cell counts in the filtered selection.")
         return
-    fig = px.histogram(values, nbins=15)
+    fig = px.histogram(values, marginal="rug")
     fig.update_layout(
         showlegend=False,
         xaxis_title=label("voronoi_num_cells"),
         yaxis_title="Count",
     )
+    _align_integer_bins(fig, values)
     _force_integer_yaxis(fig, len(values))
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(_summary_caption(values))
+
+
+def _hull_vs_dorsal_scatter(dorsal):
+    needed = {"convex_hull_area", "total_area", "image_id"}
+    if not needed.issubset(dorsal.columns):
+        st.info("Convex-hull columns missing from filtered data.")
+        return
+    points = dorsal.dropna(subset=["convex_hull_area", "total_area"])
+    if points.empty:
+        st.info("No hull / area values in the filtered selection.")
+        return
+    fig = px.scatter(
+        points,
+        x="total_area", y="convex_hull_area",
+        hover_data=["image_id"],
+        labels={
+            "total_area": label_with_units(points, "total_area"),
+            "convex_hull_area": label_with_units(points, "convex_hull_area"),
+            "image_id": label("image_id"),
+        },
+    )
+    _suppress_si_suffix(fig.update_xaxes)
+    _suppress_si_suffix(fig.update_yaxes)
     st.plotly_chart(fig, use_container_width=True)
 
 
-def _force_integer_yaxis(fig, max_count: int) -> None:
-    """
-    Force the y-axis to show only integer ticks.
+def _hull_utilization_distribution(dorsal):
+    needed = {"convex_hull_area", "total_area"}
+    if not needed.issubset(dorsal.columns):
+        st.info("Convex-hull columns missing from filtered data.")
+        return
+    points = dorsal.dropna(subset=["convex_hull_area", "total_area"])
+    points = points[points["total_area"] > 0]
+    if points.empty:
+        st.info("No hull / area values in the filtered selection.")
+        return
+    ratio = points["convex_hull_area"] / points["total_area"]
+    fig = px.histogram(ratio, nbins=15, marginal="rug")
+    fig.update_layout(
+        showlegend=False,
+        xaxis_title="Hull / dorsal area",
+        yaxis_title="Count",
+    )
+    _force_integer_yaxis(fig, len(ratio))
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(_summary_caption(ratio))
 
-    For small ranges (≤ 20) we use ``dtick=1`` to label every integer.
-    For larger ranges Plotly's auto-tick logic is fine — we just suppress
-    the decimal point with ``tickformat='d'``.
-    """
+
+# ---------------------------------------------------------------------------
+# Tab 5 — Cortex
+# ---------------------------------------------------------------------------
+
+
+def _render_cortex_tab(df) -> None:
+    cortex = df[df["is_cortex"].astype(str).str.strip().str.lower() == "true"]
+    n_lithics = df["image_id"].nunique() if not df.empty else 0
+    n_cortex_lithics = cortex["image_id"].nunique() if not cortex.empty else 0
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Lithics with cortex", n_cortex_lithics)
+    col2.metric("Total cortex regions", len(cortex))
+    if n_lithics:
+        col3.metric(
+            "Cortex prevalence",
+            f"{n_cortex_lithics / n_lithics * 100:.1f}%",
+        )
+
+    if cortex.empty:
+        st.info("No cortex regions detected in the filtered data.")
+        return
+
+    st.subheader("Cortex percentage of dorsal surface")
+    _cortex_percentage_distribution(cortex)
+
+    st.subheader("Cortex region size")
+    _cortex_area_distribution(cortex)
+
+
+def _cortex_percentage_distribution(cortex):
+    if "cortex_percentage" not in cortex.columns:
+        st.info("`cortex_percentage` column missing.")
+        return
+    values = cortex["cortex_percentage"].dropna().astype(float)
+    if values.empty:
+        st.info("No cortex-percentage values.")
+        return
+    fig = px.histogram(values, nbins=15, marginal="rug")
+    fig.update_layout(
+        showlegend=False,
+        xaxis_title="Cortex percentage of parent surface (%)",
+        yaxis_title="Count",
+    )
+    _force_integer_yaxis(fig, len(values))
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(_summary_caption(values))
+
+
+def _cortex_area_distribution(cortex):
+    if "cortex_area" not in cortex.columns:
+        st.info("`cortex_area` column missing.")
+        return
+    values = cortex["cortex_area"].dropna()
+    if values.empty:
+        st.info("No cortex-area values.")
+        return
+    fig = px.histogram(cortex, x="cortex_area", nbins=15, marginal="rug",
+                       labels={"cortex_area": label_with_units(cortex, "cortex_area")})
+    fig.update_layout(yaxis_title="Count")
+    _force_integer_yaxis(fig, len(values))
+    _suppress_si_suffix(fig.update_xaxes)
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(_summary_caption(values))
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+
+def _force_integer_yaxis(fig, max_count: int) -> None:
+    """Force integer-only y-axis ticks for count histograms."""
     if max_count <= 20:
         fig.update_yaxes(tick0=0, dtick=1, tickformat="d")
     else:
@@ -224,10 +705,49 @@ def _force_integer_yaxis(fig, max_count: int) -> None:
 
 
 def _suppress_si_suffix(update_axis) -> None:
-    """
-    Stop Plotly from rendering large values with SI suffixes (1M, 500k, …).
-
-    ``,d`` formats integers with thousands separators. Pass either
-    ``fig.update_xaxes`` or ``fig.update_yaxes`` as the callable.
-    """
+    """Stop Plotly rendering large values with SI suffixes (1M, 500k, …)."""
     update_axis(tickformat=",d")
+
+
+def _align_integer_bins(fig, values) -> None:
+    """
+    Force histogram bins of width 1 centered on integer values, so
+    integer-spaced tick labels sit directly under bar centers.
+
+    Applies to the histogram trace only (not the marginal rug strip).
+    """
+    if values.empty:
+        return
+    start = float(values.min()) - 0.5
+    end = float(values.max()) + 0.5
+    fig.update_traces(
+        xbins=dict(start=start, end=end, size=1),
+        selector=dict(type="histogram"),
+    )
+    fig.update_xaxes(tick0=int(values.min()), dtick=1, tickformat="d")
+
+
+def _summary_caption(values) -> str:
+    """One-line median / IQR / N summary printed underneath a histogram."""
+    n = len(values)
+    if n == 0:
+        return ""
+    median = values.median()
+    q1 = values.quantile(0.25)
+    q3 = values.quantile(0.75)
+    return (
+        f"Median: {_fmt_number(median)} · "
+        f"IQR: {_fmt_number(q1)}–{_fmt_number(q3)} · "
+        f"N: {n}"
+    )
+
+
+def _fmt_number(value) -> str:
+    """Format a number with thousands separators; integer if whole."""
+    try:
+        v = float(value)
+    except (ValueError, TypeError):
+        return str(value)
+    if v == int(v):
+        return f"{int(v):,}"
+    return f"{v:,.2f}"

@@ -7,9 +7,11 @@ Configuration management, error handling, and flexible command-line options.
 """
 
 import argparse
+import json
 import logging
 import os
 import sys
+from datetime import datetime
 import subprocess
 from PIL import Image
 from typing import Optional, Dict, Any
@@ -51,6 +53,74 @@ def _parse_scale(scale_value, image_id: str) -> Optional[float]:
             f"Invalid scale for {image_id}, using pixel measurements"
         )
         return None
+
+
+_RUN_SUMMARY_SCHEMA_VERSION = 2
+
+
+def _read_image_dpi(image_path: str) -> Optional[float]:
+    """
+    Extract the DPI from an image file's metadata; ``None`` if absent.
+
+    Mirrors :py:meth:`PyLithicsApplication._extract_image_dpi` but as a
+    module-level helper so the manifest writer can use it without an app
+    instance.
+    """
+    try:
+        with Image.open(image_path) as img:
+            dpi_info = img.info.get('dpi')
+            if not dpi_info:
+                return None
+            return round(float(dpi_info[0]))
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def _write_run_summary(
+    processed_dir: str,
+    images_dir: str,
+    results: Dict[str, Any],
+    metadata: list,
+) -> None:
+    """
+    Write ``processed/run_summary.json`` with a structured record of the run.
+
+    The dashboard reads this file to populate its data-quality tiles. Each
+    successful entry carries the image_id and the source DPI (or ``null`` if
+    PIL could not extract it). Failures are listed by image_id with a generic
+    reason; the underlying error detail is in ``pylithics.log``.
+    """
+    failed_ids = set(results.get('failed_images', []) or [])
+    successful = []
+    for entry in metadata:
+        image_id = entry['image_id']
+        if image_id in failed_ids:
+            continue
+        image_path = _resolve_image_path(images_dir, image_id)
+        dpi = _read_image_dpi(image_path) if image_path else None
+        successful.append({"image_id": image_id, "dpi": dpi})
+
+    failed = [
+        {"image_id": image_id, "reason": "Processing failed"}
+        for image_id in results.get('failed_images', []) or []
+    ]
+
+    summary = {
+        "schema_version": _RUN_SUMMARY_SCHEMA_VERSION,
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "total_images": results.get('total_images', 0),
+        "processed_successfully": results.get('processed_successfully', 0),
+        "successful": successful,
+        "failed": failed,
+    }
+
+    summary_path = os.path.join(processed_dir, "run_summary.json")
+    try:
+        with open(summary_path, "w", encoding="utf-8") as f:
+            json.dump(summary, f, indent=2)
+        logging.info("Wrote run summary to %s", summary_path)
+    except OSError as e:
+        logging.warning("Could not write run summary: %s", e)
 
 
 class PyLithicsApplication:
@@ -334,6 +404,7 @@ class PyLithicsApplication:
                 )
 
         self._log_batch_summary(results)
+        _write_run_summary(processed_dir, images_dir, results, metadata)
 
         return results
 

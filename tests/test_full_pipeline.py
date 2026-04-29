@@ -95,6 +95,69 @@ class TestEndToEndBatchAnalysis:
             assert len(df) >= 1
             assert df["image_id"].iloc[0] == "artifact.png"
 
+    def test_run_summary_manifest_records_outcomes(self, sample_config):
+        """A successful batch writes a run_summary.json describing the run."""
+        import json
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir, meta_path = _make_workspace(
+                temp_dir,
+                rows=[("artifact.png", "scale_1", "15.0")],
+            )
+            config_path = _write_config(temp_dir, sample_config)
+
+            app = PyLithicsApplication(config_file=config_path)
+            app.run_batch_analysis(data_dir, meta_path)
+
+            summary_path = Path(data_dir) / "processed" / "run_summary.json"
+            assert summary_path.exists()
+            summary = json.loads(summary_path.read_text())
+
+            assert summary["schema_version"] == 2
+            assert summary["total_images"] == 1
+            assert summary["processed_successfully"] == 1
+            # Each successful entry is now an object with image_id + dpi.
+            assert summary["successful"] == [
+                {"image_id": "artifact.png", "dpi": 300}
+            ]
+            assert summary["failed"] == []
+            assert "timestamp" in summary
+
+    def test_run_summary_records_failures(self, sample_config):
+        """A failed image is listed in the failed array with a reason."""
+        import json
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir = os.path.join(temp_dir, "data")
+            images_dir = os.path.join(data_dir, "images")
+            os.makedirs(images_dir)
+
+            # Save one valid image and one bogus file
+            _save_image_with_dpi(
+                _artifact_image(0),
+                os.path.join(images_dir, "good.png"),
+            )
+            with open(os.path.join(images_dir, "bad.png"), "w") as f:
+                f.write("not an image")
+
+            metadata_path = os.path.join(data_dir, "metadata.csv")
+            with open(metadata_path, "w") as f:
+                f.write("image_id,scale_id,scale\n"
+                        "good.png,scale_1,15.0\n"
+                        "bad.png,scale_2,17.0\n")
+
+            config_path = _write_config(temp_dir, sample_config)
+            app = PyLithicsApplication(config_file=config_path)
+            app.run_batch_analysis(data_dir, metadata_path)
+
+            summary_path = Path(data_dir) / "processed" / "run_summary.json"
+            summary = json.loads(summary_path.read_text())
+
+            assert summary["successful"] == [
+                {"image_id": "good.png", "dpi": 300}
+            ]
+            assert summary["failed"] == [
+                {"image_id": "bad.png", "reason": "Processing failed"}
+            ]
+
     def test_multi_image_batch_reports_accurate_counts(self, sample_config):
         rows = [
             ("a.png", "scale_1", "15.0"),

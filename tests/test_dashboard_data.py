@@ -10,6 +10,7 @@ from pylithics.image_processing.modules.dashboard.data import (
     dorsal_scars,
     filter_metrics,
     load_processed,
+    overview_counts,
     parent_rows,
     per_image_image_paths,
     summarize_assemblage,
@@ -271,6 +272,175 @@ def test_per_image_image_paths_resolves_existing_files(tmp_path):
     assert paths["labeled"] == processed / "awbari_labeled.png"
     assert paths["voronoi"] == processed / "awbari_voronoi.png"
     assert paths["json"] == processed / "json" / "awbari.json"
+
+
+# ---------------------------------------------------------------------------
+# overview_counts
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestOverviewCounts:
+    """Counts powering the Overview page."""
+
+    def test_assemblage_counts_match_fixture(self, sample_df):
+        counts = overview_counts(sample_df)
+
+        assert counts["lithics"] == 2
+        # Awbari has Dorsal + Ventral parent rows; replica has Dorsal only
+        assert counts["surfaces"] == 3
+        # Two dorsal scars on awbari; replica has none
+        assert counts["scars"] == 2
+        # One of the two awbari scars has has_arrow=True
+        assert counts["scars_with_arrows"] == 1
+        # One cortex feature in the fixture
+        assert counts["cortex_regions"] == 1
+
+    def test_data_quality_counts_default_to_zero(self, sample_df):
+        counts = overview_counts(sample_df)
+
+        assert counts["failed"] == 0  # No manifest -> 0
+        # The sample fixture has scale_confidence implicitly absent;
+        # we expect no low-confidence flags.
+        assert counts["low_confidence_scales"] == 0
+        # No Unclassified rows in the fixture
+        assert counts["unclassified_surfaces"] == 0
+        # Both lithics in fixture have at least 0 dorsal scars; replica is 0
+        assert counts["zero_scar_lithics"] == 1
+
+    def test_failed_count_uses_manifest(self, sample_df):
+        manifest = {
+            "successful": [
+                {"image_id": "awbari.png", "dpi": 300},
+                {"image_id": "replica.png", "dpi": 300},
+            ],
+            "failed": [
+                {"image_id": "broken.png", "reason": "Processing failed"},
+                {"image_id": "weird.png", "reason": "Processing failed"},
+            ],
+        }
+        counts = overview_counts(sample_df, run_summary=manifest)
+        assert counts["failed"] == 2
+        # 'successful' uses manifest length when provided
+        assert counts["successful"] == 2
+
+    def test_pixel_only_lithics_count(self, sample_df):
+        # Fixture has two lithics: awbari (scale_bar) and replica (pixels)
+        counts = overview_counts(sample_df)
+        assert counts["pixel_only_lithics"] == 1
+
+    def test_mixed_dpi_zero_when_consistent(self):
+        manifest = {
+            "successful": [
+                {"image_id": "a.png", "dpi": 300},
+                {"image_id": "b.png", "dpi": 300},
+            ],
+            "failed": [],
+        }
+        counts = overview_counts(pd.DataFrame(), run_summary=manifest)
+        assert counts["mixed_dpi"] == 0
+
+    def test_mixed_dpi_reports_distinct_count(self):
+        manifest = {
+            "successful": [
+                {"image_id": "a.png", "dpi": 300},
+                {"image_id": "b.png", "dpi": 600},
+                {"image_id": "c.png", "dpi": 300},
+            ],
+            "failed": [],
+        }
+        counts = overview_counts(pd.DataFrame(), run_summary=manifest)
+        assert counts["mixed_dpi"] == 2
+
+    def test_missing_dpi_count(self):
+        manifest = {
+            "successful": [
+                {"image_id": "a.png", "dpi": 300},
+                {"image_id": "b.png", "dpi": None},
+                {"image_id": "c.png", "dpi": None},
+            ],
+            "failed": [],
+        }
+        counts = overview_counts(pd.DataFrame(), run_summary=manifest)
+        assert counts["missing_dpi"] == 2
+
+    def test_dpi_counts_zero_without_manifest(self, sample_df):
+        counts = overview_counts(sample_df)
+        assert counts["mixed_dpi"] == 0
+        assert counts["missing_dpi"] == 0
+
+    def test_low_confidence_threshold(self):
+        df = pd.DataFrame([
+            {
+                "image_id": "good.png",
+                "surface_type": "Dorsal", "surface_feature": "Dorsal",
+                "scale_confidence": 0.95,
+                "is_cortex": False, "has_arrow": False,
+            },
+            {
+                "image_id": "weak.png",
+                "surface_type": "Dorsal", "surface_feature": "Dorsal",
+                "scale_confidence": 0.6,
+                "is_cortex": False, "has_arrow": False,
+            },
+            {
+                "image_id": "missing.png",
+                "surface_type": "Dorsal", "surface_feature": "Dorsal",
+                "scale_confidence": None,
+                "is_cortex": False, "has_arrow": False,
+            },
+        ])
+        counts = overview_counts(df)
+        assert counts["low_confidence_scales"] == 1
+
+    def test_unclassified_surface_counted(self):
+        df = pd.DataFrame([
+            {
+                "image_id": "x.png",
+                "surface_type": "Unclassified",
+                "surface_feature": "Unclassified",
+                "is_cortex": False, "has_arrow": False,
+            },
+        ])
+        counts = overview_counts(df)
+        assert counts["unclassified_surfaces"] == 1
+
+    def test_empty_dataframe_returns_zeros(self):
+        counts = overview_counts(pd.DataFrame())
+        for key in ("successful", "failed", "low_confidence_scales",
+                    "unclassified_surfaces", "zero_scar_lithics",
+                    "pixel_only_lithics", "mixed_dpi", "missing_dpi",
+                    "lithics", "surfaces", "scars",
+                    "scars_with_arrows", "cortex_regions"):
+            assert counts[key] == 0
+
+
+@pytest.mark.unit
+def test_load_processed_includes_run_summary(tmp_path):
+    processed = tmp_path / "processed"
+    processed.mkdir()
+    _write_csv(processed / "processed_metrics.csv", _sample_rows())
+    summary = {
+        "schema_version": 1,
+        "successful": ["awbari.png"],
+        "failed": [],
+    }
+    (processed / "run_summary.json").write_text(json.dumps(summary))
+
+    bundle = load_processed(str(processed))
+
+    assert bundle["run_summary"] == summary
+
+
+@pytest.mark.unit
+def test_load_processed_run_summary_none_when_absent(tmp_path):
+    processed = tmp_path / "processed"
+    processed.mkdir()
+    _write_csv(processed / "processed_metrics.csv", _sample_rows())
+
+    bundle = load_processed(str(processed))
+
+    assert bundle["run_summary"] is None
 
 
 @pytest.mark.unit
