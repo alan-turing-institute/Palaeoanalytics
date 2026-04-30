@@ -63,6 +63,12 @@ def launch_dashboard(data_dir: str, port: int = DEFAULT_PORT) -> int:
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     url = f"http://localhost:{port}"
+
+    print("\nStarting PyLithics data explorer...", flush=True)
+    print(f"URL: {url}", flush=True)
+    print(" loading modules and PyLithics data",
+          flush=True)
+
     with open(log_path, "w") as log_file:
         proc = subprocess.Popen(
             cmd, env=env, stdout=log_file, stderr=subprocess.STDOUT,
@@ -78,8 +84,9 @@ def launch_dashboard(data_dir: str, port: int = DEFAULT_PORT) -> int:
                 proc.terminate()
                 return 1
 
-            print(f"Explore PyLithics data in your browser at {url}", flush=True)
-            print("Press Ctrl+C in this terminal to stop.", flush=True)
+            print(f"Dashboard ready — opening {url} in your browser.",
+                  flush=True)
+            print("Press Ctrl+C in this terminal to stop.\n", flush=True)
             webbrowser.open(url)
 
             return proc.wait()
@@ -93,15 +100,12 @@ def _wait_for_port(
 ) -> bool:
     """Return True once the server accepts TCP connections on (host, port).
 
-    Shows an animated spinner with elapsed seconds while polling, so the
-    user can see the wait is progressing rather than wonder if the process
-    has hung. Falls back to a plain message when stdout is not a TTY
-    (e.g. piped to a file or captured by a parent process).
+    Shows an animated spinner with elapsed seconds while polling on a TTY,
+    so the user can see the wait is progressing rather than wonder if the
+    process has hung. Stays silent on non-TTY stdout (the upfront banner
+    in ``launch_dashboard`` already announces the wait).
     """
     is_tty = sys.stdout.isatty()
-    if not is_tty:
-        print("Starting PyLithics dashboard…", flush=True)
-
     spinner = itertools.cycle(_SPINNER_FRAMES)
     deadline = time.time() + _STARTUP_TIMEOUT_SECONDS
     started = time.time()

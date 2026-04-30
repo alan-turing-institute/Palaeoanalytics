@@ -6,11 +6,68 @@ PyLithics Application Entry Point
 Configuration management, error handling, and flexible command-line options.
 """
 
+import sys
+
+_EXPLORE_MODE = "--explore" in sys.argv
+_EXPLORE_PROGRESS_STOP = None
+_EXPLORE_PROGRESS_THREAD = None
+
+
+def _start_explore_progress() -> None:
+    """Animate a progress bar during slow module imports for ``--explore``."""
+    global _EXPLORE_PROGRESS_STOP, _EXPLORE_PROGRESS_THREAD
+    import threading
+    import time
+
+    print(
+        "Starting PyLithics data explorer... "
+        "(loading modules and PyLithics data).",
+        flush=True,
+    )
+    if not sys.stdout.isatty():
+        return
+
+    _EXPLORE_PROGRESS_STOP = threading.Event()
+
+    def _loop() -> None:
+        spinner = "|/-\\"
+        bar_width = 30
+        est_seconds = 30.0
+        start = time.time()
+        i = 0
+        while not _EXPLORE_PROGRESS_STOP.is_set():
+            elapsed = time.time() - start
+            pct = min(0.99, elapsed / est_seconds)
+            filled = int(pct * bar_width)
+            bar = "#" * filled + "-" * (bar_width - filled)
+            sys.stdout.write(
+                f"\r{spinner[i % 4]} [{bar}] {elapsed:4.1f}s "
+            )
+            sys.stdout.flush()
+            i += 1
+            time.sleep(0.1)
+        sys.stdout.write("\r" + " " * (bar_width + 20) + "\r")
+        sys.stdout.flush()
+
+    _EXPLORE_PROGRESS_THREAD = threading.Thread(target=_loop, daemon=True)
+    _EXPLORE_PROGRESS_THREAD.start()
+
+
+def _stop_explore_progress() -> None:
+    """Halt the explore-mode progress bar and clear its line."""
+    if _EXPLORE_PROGRESS_STOP is not None:
+        _EXPLORE_PROGRESS_STOP.set()
+    if _EXPLORE_PROGRESS_THREAD is not None:
+        _EXPLORE_PROGRESS_THREAD.join(timeout=1.0)
+
+
+if _EXPLORE_MODE:
+    _start_explore_progress()
+
 import argparse
 import json
 import logging
 import os
-import sys
 from datetime import datetime
 import subprocess
 from PIL import Image
@@ -865,6 +922,7 @@ def _handle_help_flags(args) -> bool:
 
 def main() -> int:
     """Main entry point for PyLithics CLI."""
+    _stop_explore_progress()
     args = create_argument_parser().parse_args()
 
     if _handle_help_flags(args):

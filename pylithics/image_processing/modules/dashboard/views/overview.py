@@ -178,9 +178,17 @@ def _good_only_metric(
     st.metric(label, value, help=help_text)
     if zero_is_good:
         if value == 0:
-            st.caption("✓ All clear")
+            st.markdown(
+                "<p style='color:#2e7d32; font-size:0.875rem; "
+                "margin-top:-0.5rem;'>✓ All clear</p>",
+                unsafe_allow_html=True,
+            )
         else:
-            st.caption("⚠ Review")
+            st.markdown(
+                "<p style='color:#c62828; font-size:0.875rem; "
+                "margin-top:-0.5rem;'>⚠ Review</p>",
+                unsafe_allow_html=True,
+            )
     else:
         # Successful tile — no underline message; the number speaks for itself.
         pass
