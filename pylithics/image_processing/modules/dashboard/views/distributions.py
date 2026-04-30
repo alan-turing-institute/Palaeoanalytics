@@ -326,92 +326,276 @@ def _render_symmetry_tab(parents) -> None:
         st.info("No dorsal surfaces in the filtered data — symmetry is dorsal-only.")
         return
 
-    st.subheader("Vertical × horizontal symmetry")
-    _symmetry_scatter(dorsal)
-
-    st.subheader("Per-axis distribution")
-    _symmetry_axis_histograms(dorsal)
-
-    st.subheader("Quadrant areas")
-    _quadrant_areas(dorsal)
+    cols = st.columns(2)
+    with cols[0]:
+        _asymmetry_direction_scatter(dorsal)
+    with cols[1]:
+        _symmetry_ecdf(dorsal)
 
 
-def _symmetry_scatter(dorsal):
-    needed = {"vertical_symmetry", "horizontal_symmetry", "image_id"}
+def _asymmetry_direction_scatter(dorsal):
+    """Signed asymmetry scatter: which way each artefact leans."""
+    needed = {"top_area", "bottom_area", "left_area", "right_area", "image_id"}
+    if not needed.issubset(dorsal.columns):
+        st.info("Quadrant area columns missing from filtered data.")
+        return
+
+    points = dorsal.dropna(
+        subset=["top_area", "bottom_area", "left_area", "right_area"],
+    ).copy()
+    tb_sum = points["top_area"] + points["bottom_area"]
+    lr_sum = points["left_area"] + points["right_area"]
+    points = points[(tb_sum > 0) & (lr_sum > 0)].copy()
+    if points.empty:
+        st.info("No quadrant-area values in the filtered selection.")
+        return
+
+    points["vertical_bias"] = (
+        (points["top_area"] - points["bottom_area"])
+        / (points["top_area"] + points["bottom_area"])
+    )
+    points["horizontal_bias"] = (
+        (points["right_area"] - points["left_area"])
+        / (points["left_area"] + points["right_area"])
+    )
+
+    data_max = max(
+        float(points["vertical_bias"].abs().max()),
+        float(points["horizontal_bias"].abs().max()),
+    )
+    axis_max = max(0.1, data_max * 1.2)
+
+    n = len(points)
+    if n <= 20:
+        size, alpha = 9, 0.85
+    elif n <= 100:
+        size, alpha = 6, 0.6
+    else:
+        size, alpha = 4, 0.4
+    base_rgb = SURFACE_COLORS.get("Dorsal", "rgb(94, 60, 153)")
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=points["horizontal_bias"], y=points["vertical_bias"],
+        mode="markers",
+        marker=dict(
+            size=size, color=_with_alpha(base_rgb, alpha),
+            line=dict(width=0),
+        ),
+        customdata=points[["image_id"]].to_numpy(),
+        hovertemplate=(
+            "%{customdata[0]}<br>"
+            "Horizontal bias: %{x:.3f}  (+ = right)<br>"
+            "Vertical bias: %{y:.3f}  (+ = top)<extra></extra>"
+        ),
+        showlegend=False,
+    ))
+
+    fig.add_hline(y=0, line_color="#9aa0a6", line_width=1)
+    fig.add_vline(x=0, line_color="#9aa0a6", line_width=1)
+
+    pos = axis_max * 0.92
+    fig.update_layout(
+        title="Asymmetry direction (Dorsal surfaces)",
+        xaxis_title="← left-leaning   |   right-leaning →",
+        yaxis_title="← bottom-heavy   |   top-heavy →",
+        plot_bgcolor="white",
+        annotations=[
+            dict(x=pos, y=pos, text="right-leaning<br>top-heavy",
+                 showarrow=False, font=dict(color="#bdbdbd", size=10),
+                 align="center"),
+            dict(x=-pos, y=pos, text="left-leaning<br>top-heavy",
+                 showarrow=False, font=dict(color="#bdbdbd", size=10),
+                 align="center"),
+            dict(x=-pos, y=-pos, text="left-leaning<br>bottom-heavy",
+                 showarrow=False, font=dict(color="#bdbdbd", size=10),
+                 align="center"),
+            dict(x=pos, y=-pos, text="right-leaning<br>bottom-heavy",
+                 showarrow=False, font=dict(color="#bdbdbd", size=10),
+                 align="center"),
+        ],
+        height=480,
+        margin=dict(l=60, r=20, t=60, b=80),
+    )
+    fig.update_xaxes(
+        range=[-axis_max, axis_max], zeroline=False,
+        showgrid=True, gridcolor="#ececec",
+        showline=True, linecolor="#cfcfcf",
+    )
+    fig.update_yaxes(
+        range=[-axis_max, axis_max], zeroline=False,
+        showgrid=True, gridcolor="#ececec",
+        showline=True, linecolor="#cfcfcf",
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        f"Perfect symmetry: (0, 0) · "
+        f"Axis range: ±{axis_max:.2f} · "
+        f"N: {n} dorsal surfaces"
+    )
+    with st.expander("About this plot"):
+        st.markdown(
+            "**What it shows.** Each dot is one dorsal surface. Its "
+            "position tells you *how much* the artefact deviates from a "
+            "perfectly symmetric outline, and *which way* it leans.\n\n"
+            "**How to read it.** The centre of the plot represents perfect "
+            "symmetry. Distance from the centre = how lopsided an artefact "
+            "is. Direction from the centre = which way the extra mass sits "
+            "(top, bottom, left, or right). The corner labels name each "
+            "combination.\n\n"
+            "**What to look for.** A tight cloud near the centre means a "
+            "balanced assemblage. A cloud sitting *off* the centre suggests "
+            "a systematic bias — possibly a knapping or drawing convention. "
+            "An elongated cloud points to anisotropy: the artefacts vary "
+            "along one axis more than the other. Two separate clouds may "
+            "indicate a real subgroup (different reduction stages or raw "
+            "materials).\n\n"
+            "**How it's calculated.** Each dorsal contour is split at its "
+            "centroid into four quadrants (top, bottom, left, right). The "
+            "horizontal bias is `(right − left) / (right + left)`; the "
+            "vertical bias is `(top − bottom) / (top + bottom)`. Both range "
+            "from −1 to +1; zero means perfectly balanced on that axis."
+        )
+
+
+def _symmetry_ecdf(dorsal):
+    """Paired ECDFs of vertical and horizontal symmetry on a single axis."""
+    needed = {"vertical_symmetry", "horizontal_symmetry"}
     if not needed.issubset(dorsal.columns):
         st.info("Symmetry columns missing from filtered data.")
         return
-    points = dorsal.dropna(subset=["vertical_symmetry", "horizontal_symmetry"])
-    if points.empty:
+
+    has_id = "image_id" in dorsal.columns
+    keep = ["image_id"] if has_id else []
+    v_df = (
+        dorsal[["vertical_symmetry", *keep]]
+        .dropna(subset=["vertical_symmetry"])
+        .sort_values("vertical_symmetry")
+        .reset_index(drop=True)
+    )
+    h_df = (
+        dorsal[["horizontal_symmetry", *keep]]
+        .dropna(subset=["horizontal_symmetry"])
+        .sort_values("horizontal_symmetry")
+        .reset_index(drop=True)
+    )
+    if v_df.empty and h_df.empty:
         st.info("No symmetry values in the filtered selection.")
         return
-    fig = px.scatter(
-        points,
-        x="vertical_symmetry", y="horizontal_symmetry",
-        hover_data=["image_id"],
-        labels={
-            "vertical_symmetry": label("vertical_symmetry"),
-            "horizontal_symmetry": label("horizontal_symmetry"),
-            "image_id": label("image_id"),
-        },
-    )
-    fig.add_shape(
-        type="rect",
-        x0=0.95, x1=1.0, y0=0.95, y1=1.0,
-        fillcolor="lightgreen", opacity=0.25, line_width=0,
-        layer="below",
-    )
-    fig.update_xaxes(range=[0, 1.05])
-    fig.update_yaxes(range=[0, 1.05])
-    st.plotly_chart(fig, use_container_width=True)
 
+    n_max = max(len(v_df), len(h_df))
+    if n_max <= 30:
+        marker_size, marker_alpha = 7, 0.9
+    elif n_max <= 200:
+        marker_size, marker_alpha = 5, 0.7
+    else:
+        marker_size, marker_alpha = 3, 0.5
 
-def _symmetry_axis_histograms(dorsal):
-    cols = st.columns(2)
-    for col, field in zip(
-        cols, ("vertical_symmetry", "horizontal_symmetry"),
-    ):
-        if field not in dorsal.columns:
+    fig = go.Figure()
+    series = [
+        ("vertical_symmetry", v_df, "rgb(31, 119, 180)"),
+        ("horizontal_symmetry", h_df, "rgb(214, 39, 40)"),
+    ]
+    for field, frame, color in series:
+        if frame.empty:
             continue
-        values = dorsal[field].dropna()
-        if values.empty:
-            col.info(f"No values for {label(field)}")
-            continue
-        fig = px.histogram(values, nbins=20, marginal="rug")
-        fig.update_layout(
-            showlegend=False,
-            xaxis_title=label(field),
-            yaxis_title="Count",
-        )
-        fig.update_xaxes(range=[0, 1.05])
-        _force_integer_yaxis(fig, len(values))
-        col.plotly_chart(fig, use_container_width=True)
-        col.caption(_summary_caption(values))
+        cumulative = (frame.index + 1) / len(frame)
+        marker_color = _with_alpha(color, marker_alpha)
+        if has_id:
+            customdata = frame[["image_id"]].to_numpy()
+            hovertemplate = (
+                "%{customdata[0]}<br>"
+                f"{label(field)}: %{{x:.3f}}<br>"
+                "Cumulative: %{y:.0%}<extra></extra>"
+            )
+        else:
+            customdata = None
+            hovertemplate = (
+                f"{label(field)}: %{{x:.3f}}<br>"
+                "Cumulative: %{y:.0%}<extra></extra>"
+            )
+        fig.add_trace(go.Scatter(
+            x=frame[field].values, y=cumulative,
+            mode="lines+markers", name=label(field),
+            line=dict(color=color, width=2),
+            marker=dict(
+                size=marker_size, color=marker_color,
+                line=dict(width=0),
+            ),
+            customdata=customdata,
+            hovertemplate=hovertemplate,
+        ))
 
-
-def _quadrant_areas(dorsal):
-    """Mean filled-pixel area in each of the four dorsal quadrants."""
-    fields = ("top_area", "bottom_area", "left_area", "right_area")
-    if not all(f in dorsal.columns for f in fields):
-        st.info("Quadrant area columns missing from filtered data.")
-        return
-    means = {label(field): dorsal[field].dropna().mean() for field in fields}
-    if all(value != value or value is None for value in means.values()):  # all NaN
-        st.info("No quadrant-area values in the filtered selection.")
-        return
-    import pandas as pd  # local import to keep top of file lean
-    plot_df = pd.DataFrame(
-        {"Quadrant": list(means.keys()),
-         "Mean area": list(means.values())},
+    fig.add_vline(
+        x=1.0, line_dash="dash", line_color="#9aa0a6", line_width=1,
+        annotation_text="perfect", annotation_position="top",
+        annotation_font_color="#5f6368",
     )
-    unit = label_with_units(dorsal, "top_area").replace(label("top_area"), "").strip()
-    fig = px.bar(plot_df, x="Quadrant", y="Mean area")
+
+    x_floor = min(
+        float(v_df["vertical_symmetry"].min()) if not v_df.empty else 1.0,
+        float(h_df["horizontal_symmetry"].min()) if not h_df.empty else 1.0,
+    )
     fig.update_layout(
-        showlegend=False,
-        yaxis_title=f"Mean area{(' ' + unit) if unit else ''}",
+        title="Cumulative distribution of symmetry (Dorsal surfaces)",
+        xaxis_title="Symmetry score (1 = perfect)",
+        yaxis_title="Cumulative proportion",
+        plot_bgcolor="white",
+        legend=dict(
+            orientation="h", yanchor="bottom",
+            y=-0.22, xanchor="left", x=0,
+        ),
+        height=480,
+        margin=dict(l=60, r=20, t=60, b=80),
     )
-    _suppress_si_suffix(fig.update_yaxes)
+    fig.update_xaxes(
+        range=[max(0, x_floor - 0.02), 1.0],
+        showgrid=True, gridcolor="#ececec",
+        showline=True, linecolor="#cfcfcf",
+    )
+    fig.update_yaxes(
+        range=[0, 1.0], tickformat=".0%",
+        showgrid=True, gridcolor="#ececec",
+        showline=True, linecolor="#cfcfcf",
+    )
+
     st.plotly_chart(fig, use_container_width=True)
+    parts = []
+    if not v_df.empty:
+        v_median = v_df["vertical_symmetry"].median()
+        parts.append(f"{label('vertical_symmetry')} median: {v_median:.3f}")
+    if not h_df.empty:
+        h_median = h_df["horizontal_symmetry"].median()
+        parts.append(f"{label('horizontal_symmetry')} median: {h_median:.3f}")
+    n = max(len(v_df), len(h_df))
+    parts.append(f"N: {n} dorsal surfaces")
+    st.caption(" · ".join(parts))
+    with st.expander("About this plot"):
+        st.markdown(
+            "**What it shows.** Every dorsal surface in the filtered "
+            "selection, sorted from least to most symmetric. Each dot is one "
+            "artefact — hover to see its image_id.\n\n"
+            "**How to read it.** Read *up* from any symmetry score on the "
+            "x-axis to find what fraction of the assemblage scores at or "
+            "below that value. The point where a curve crosses y = 50% is "
+            "the **median**. A curve hugging the right edge means most "
+            "artefacts are highly symmetric; a long left tail means some "
+            "asymmetric outliers are pulling the distribution down.\n\n"
+            "**The two lines.** Blue = vertical symmetry (top vs. bottom). "
+            "Red = horizontal symmetry (left vs. right). Comparing them "
+            "shows which axis is more consistent across the assemblage. If "
+            "the lines diverge, one axis varies more than the other.\n\n"
+            "**Why an ECDF instead of a histogram.** Histograms depend on "
+            "bin choice and squash detail when scores cluster near 1.0 (as "
+            "symmetry scores tend to). An ECDF shows every artefact, makes "
+            "no binning choice, and lets you read percentiles directly off "
+            "the y-axis — even at small N.\n\n"
+            "**How the score is calculated.** "
+            "`vertical_symmetry = 1 − |top − bottom| / (top + bottom)`, and "
+            "the horizontal version is the same with left/right. Both run "
+            "from 0 (maximally lopsided) to 1 (perfectly balanced)."
+        )
 
 
 # ---------------------------------------------------------------------------
