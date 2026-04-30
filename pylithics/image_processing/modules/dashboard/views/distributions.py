@@ -139,6 +139,21 @@ def _aspect_ratio_raincloud(parents):
             dot_size, dot_alpha, jitter = 4, 0.35, 0.4
         dot_color = _with_alpha(base_rgb, dot_alpha)
 
+        has_id = "image_id" in group.columns
+        customdata = (
+            group[["image_id"]].to_numpy() if has_id else None
+        )
+        if has_id:
+            hover = (
+                "Lithic: %{customdata[0]}<br>"
+                f"Surface type: {surface_type}<br>"
+                "Aspect ratio: %{x:.2f}<extra></extra>"
+            )
+        else:
+            hover = (
+                f"Surface type: {surface_type}<br>"
+                "Aspect ratio: %{x:.2f}<extra></extra>"
+            )
         fig.add_trace(go.Violin(
             x=group["aspect_ratio"],
             y=[surface_type] * len(group),
@@ -158,9 +173,8 @@ def _aspect_ratio_raincloud(parents):
             scalemode="width",
             spanmode="hard",
             width=0.55,
-            hovertemplate=(
-                f"{surface_type}<br>Aspect ratio: %{{x:.2f}}<extra></extra>"
-            ),
+            customdata=customdata,
+            hovertemplate=hover,
         ))
 
     fig.add_vline(
@@ -263,7 +277,8 @@ def _perimeter_lollipop(parents):
             name=surface_type,
             customdata=group[["image_id", "surface_feature"]].to_numpy(),
             hovertemplate=(
-                "%{customdata[0]} (%{customdata[1]})<br>"
+                "Lithic: %{customdata[0]}<br>"
+                "Surface: %{customdata[1]}<br>"
                 f"{label_with_units(parents, 'perimeter')}: "
                 "%{y}<extra></extra>"
             ),
@@ -300,15 +315,21 @@ def _dim_scatter(parents, x_field, y_field, title=None):
         x=x_field, y=y_field,
         color="surface_type",
         color_discrete_map=SURFACE_COLORS,
-        hover_data=["image_id", "surface_feature"],
+        custom_data=["image_id", "surface_feature"],
         title=title,
         labels={
             x_field: label_with_units(parents, x_field),
             y_field: label_with_units(parents, y_field),
             "surface_type": label("surface_type"),
-            "image_id": label("image_id"),
-            "surface_feature": label("surface_feature"),
         },
+    )
+    fig.update_traces(
+        hovertemplate=(
+            "Lithic: %{customdata[0]}<br>"
+            "Surface: %{customdata[1]}<br>"
+            f"{label_with_units(parents, x_field)}: %{{x}}<br>"
+            f"{label_with_units(parents, y_field)}: %{{y}}<extra></extra>"
+        )
     )
     _suppress_si_suffix(fig.update_xaxes)
     _suppress_si_suffix(fig.update_yaxes)
@@ -384,7 +405,7 @@ def _asymmetry_direction_scatter(dorsal):
         ),
         customdata=points[["image_id"]].to_numpy(),
         hovertemplate=(
-            "%{customdata[0]}<br>"
+            "Lithic: %{customdata[0]}<br>"
             "Horizontal bias: %{x:.3f}  (+ = right)<br>"
             "Vertical bias: %{y:.3f}  (+ = top)<extra></extra>"
         ),
@@ -505,7 +526,7 @@ def _symmetry_ecdf(dorsal):
         if has_id:
             customdata = frame[["image_id"]].to_numpy()
             hovertemplate = (
-                "%{customdata[0]}<br>"
+                "Lithic: %{customdata[0]}<br>"
                 f"{label(field)}: %{{x:.3f}}<br>"
                 "Cumulative: %{y:.0%}<extra></extra>"
             )
@@ -775,12 +796,19 @@ def _hull_vs_dorsal_scatter(dorsal):
     fig = px.scatter(
         points,
         x="total_area", y="convex_hull_area",
-        hover_data=["image_id"],
+        custom_data=["image_id"],
         labels={
             "total_area": label_with_units(points, "total_area"),
             "convex_hull_area": label_with_units(points, "convex_hull_area"),
-            "image_id": label("image_id"),
         },
+    )
+    fig.update_traces(
+        hovertemplate=(
+            "Lithic: %{customdata[0]}<br>"
+            f"{label_with_units(points, 'total_area')}: %{{x}}<br>"
+            f"{label_with_units(points, 'convex_hull_area')}: %{{y}}"
+            "<extra></extra>"
+        )
     )
     _suppress_si_suffix(fig.update_xaxes)
     _suppress_si_suffix(fig.update_yaxes)
