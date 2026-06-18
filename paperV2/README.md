@@ -4,7 +4,7 @@ This directory contains the draft JOSS (Journal of Open Source Software) submiss
 
 ## Files Included
 
-- `paper.md` - Main paper in JOSS markdown format (993 words)
+- `paper.md` - Main paper in JOSS markdown format (977 words)
 - `paper.bib` - Bibliography with all cited references in BibTeX format
 - `README.md` - This file
 
@@ -51,10 +51,12 @@ The paper follows JOSS requirements and includes:
 - YAML-based configuration system
 - Modular, customizable architecture
 - CSV output format
+- Per-lithic structured JSON export (`--export_json`)
+- Interactive Streamlit dashboard (`--explore`) with thematic distribution tabs and per-lithic drill-downs
 
 ## Word Count
 
-- **Total**: 993 words (within 1000 word JOSS limit ✓)
+- **Total**: 977 words (within 1000 word JOSS limit ✓)
 
 ## Citations
 

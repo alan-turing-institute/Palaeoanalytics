@@ -16,6 +16,8 @@ pylithics --data_dir ./assemblage --explore
 
 The dashboard binds to `http://localhost:8501` by default. Press `Ctrl+C` in the terminal to stop it.
 
+When the command starts you'll see a one-line banner and a text progress bar — PyLithics imports a large stack (OpenCV, pandas, Streamlit, Plotly) before the browser opens, and the bar makes that wait visible rather than silent. Once the dashboard subprocess is listening on the port, the bar clears and the URL prints; your default browser opens automatically.
+
 If you pass `--explore` without an existing `processed_metrics.csv` and without `--meta_file`, PyLithics exits with an error telling you to run analysis first.
 
 ## Pages
@@ -24,7 +26,7 @@ The dashboard has three pages, switchable from the sidebar.
 
 ### 1. Overview
 
-Top-line headline numbers and two summary charts:
+Top-line headline tiles, each carrying a small status caption — `✓ All clear` in green when the count is zero and `⚠ Review` in red when there is something to look at:
 
 - **Lithics processed** — total distinct images
 - **Calibrated (scale_bar)** — how many were measured in real-world units
@@ -35,16 +37,25 @@ Top-line headline numbers and two summary charts:
 
 ### 2. Distributions
 
-Numerical exploration of the assemblage. A filter at the top of the page (surface type and calibration method) applies to every chart below it.
+Numerical exploration of the assemblage. A filter at the top of the page (surface type and calibration method) applies to every chart below it. The page is organised into five thematic tabs:
 
-- Histograms of `technical_length`, `technical_width`, `total_area`, `aspect_ratio`
-- Length × width scatter, colored by surface type
-- Scars per dorsal surface — histogram
-- `scar_complexity` histogram with the mean line overlaid
-- Vertical vs horizontal symmetry scatter, with the 0.95–1.0 "near-perfect" zone shaded
-- `voronoi_num_cells` histogram
+**Size & shape.** Raincloud of `aspect_ratio` by surface, lollipop of `perimeter` per lithic, length × width scatter (colored by surface type), and a convex-hull-area vs. total-area scatter for shape regularity.
 
-Every chart has Plotly's built-in toolbar — hover over a chart to find the camera icon and download a PNG of just that chart.
+**Symmetry.** Two paired charts on dorsal surfaces only:
+- *Signed asymmetry scatter* — horizontal vs. vertical bias of each dorsal centroid. Right of the y-axis = right-leaning, above x-axis = top-heavy. (0, 0) is perfect symmetry.
+- *Paired ECDFs* — cumulative distribution of vertical and horizontal symmetry scores. Each dot is one lithic; hover for the image ID.
+
+**Scars.** Four sections built around the relationships your statistical analyses validated as informative:
+- *Scarring relationships* — scars-per-dorsal and coverage-% scatters against dorsal area, with a linear fit and red halos on lithics > 2 SD from the trend.
+- *Scar complexity* — population histogram alongside a per-lithic strip plot (lithics ordered by median complexity).
+- *Scar size & shape* — paired ECDFs of per-scar `total_area` (log-x) and `aspect_ratio`.
+- *Scar-size variability* — coefficient-of-variation vs. count, separating monotonous from mixed-strategy reduction.
+
+**Spatial.** Voronoi cell-count and convex-hull metrics for dorsal surfaces.
+
+**Cortex.** Distribution of `cortex_percentage` and presence/absence by surface.
+
+Every chart that identifies a specific lithic starts its tooltip with `Lithic: <image_id>` on the first line, and every analytical chart carries an `About this plot` expander with a plain-English description of what the visualisation shows and how to read it. Plotly's built-in toolbar (camera icon on hover) downloads any chart as a PNG.
 
 ### 3. Per-Lithic Detail
 

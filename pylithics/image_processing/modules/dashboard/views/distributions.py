@@ -629,45 +629,222 @@ def _render_scars_tab(df) -> None:
         st.info("No data in the filtered selection.")
         return
 
-    st.subheader("Scars per dorsal surface")
-    _scars_per_dorsal(df)
+    lithics = _build_scar_summary(df)
+    scars = dorsal_scars(df)
+
+    st.subheader("Scarring relationships")
+    cols = st.columns(2)
+    with cols[0]:
+        _scars_count_vs_area(lithics)
+    with cols[1]:
+        _scars_coverage_vs_area(lithics)
 
     st.subheader("Scar complexity")
-    _scar_complexity_distribution(df)
+    cols = st.columns(2)
+    with cols[0]:
+        _scar_complexity_histogram(scars)
+    with cols[1]:
+        _per_lithic_complexity_strip(scars)
 
-    st.subheader("Scar size")
-    _scar_size_distribution(df)
+    st.subheader("Scar size & shape")
+    cols = st.columns(2)
+    with cols[0]:
+        _scar_size_ecdf(scars)
+    with cols[1]:
+        _scar_aspect_ecdf(scars)
 
-    st.subheader("Arrow detection rate per lithic")
-    _arrow_rate_per_image(df)
+    st.subheader("Scar-size variability")
+    _scar_cv_vs_count(lithics)
 
 
-def _scars_per_dorsal(df):
-    dorsal = df[
+def _build_scar_summary(df):
+    """Per-lithic aggregate: dorsal area, count, coverage, mean / sd scar size."""
+    import pandas as pd
+    parents_d = df[
         (df["surface_type"] == "Dorsal")
         & (df["surface_feature"] == "Dorsal")
     ]
-    if "total_dorsal_scars" not in dorsal.columns or dorsal.empty:
-        st.info("No dorsal scar counts in the filtered data.")
-        return
-    counts = dorsal["total_dorsal_scars"].dropna().astype(float)
-    if counts.empty:
-        st.info("No dorsal scar counts in the filtered data.")
-        return
-    fig = px.histogram(counts, marginal="rug")
-    fig.update_layout(
-        showlegend=False,
-        xaxis_title="Scars per dorsal surface",
-        yaxis_title="Count",
-    )
-    _align_integer_bins(fig, counts)
-    _force_integer_yaxis(fig, len(counts))
-    st.plotly_chart(fig, use_container_width=True)
-    st.caption(_summary_caption(counts))
-
-
-def _scar_complexity_distribution(df):
     scars = dorsal_scars(df)
+    if parents_d.empty or scars.empty:
+        return pd.DataFrame()
+
+    parent_view = (
+        parents_d[["image_id", "total_area", "total_dorsal_scars"]]
+        .rename(columns={
+            "total_area": "dorsal_area",
+            "total_dorsal_scars": "num_scars",
+        })
+    )
+    scar_agg = (
+        scars.groupby("image_id")["total_area"]
+        .agg(total_scar_area="sum", mean_scar_area="mean", sd_scar_area="std")
+        .reset_index()
+    )
+    out = parent_view.merge(scar_agg, on="image_id", how="left").dropna(
+        subset=["dorsal_area", "num_scars"],
+    )
+    out["coverage_pct"] = (
+        out["total_scar_area"] / out["dorsal_area"]
+    ).clip(0, 1) * 100
+    out["cv"] = out["sd_scar_area"] / out["mean_scar_area"]
+    out["calibration_method"] = parents_d.set_index("image_id").reindex(
+        out["image_id"]
+    )["calibration_method"].values
+    return out
+
+
+def _linear_fit_xy(x, y):
+    """Return ``(xs, ys)`` for a 1-degree fit line, or ``(None, None)``."""
+    import numpy as np
+    if len(x) < 2:
+        return None, None
+    slope, intercept = np.polyfit(x, y, 1)
+    xs = np.linspace(float(x.min()), float(x.max()), 50)
+    return xs, slope * xs + intercept
+
+
+def _flag_outliers(x, y, n_sd: float = 2.0):
+    """Boolean mask of points whose residual exceeds ``n_sd`` standard deviations."""
+    import numpy as np
+    if len(x) < 3:
+        return np.zeros(len(x), dtype=bool)
+    slope, intercept = np.polyfit(x, y, 1)
+    resid = y - (slope * x + intercept)
+    sd = float(np.std(resid))
+    if sd == 0:
+        return np.zeros(len(x), dtype=bool)
+    return np.abs(resid) > n_sd * sd
+
+
+def _scars_count_vs_area(lithics):
+    """Scatter: # scars vs. dorsal area, with linear fit and outlier halos."""
+    if lithics.empty:
+        st.info("No scar counts in the filtered selection.")
+        return
+    pts = lithics.dropna(subset=["dorsal_area", "num_scars"])
+    if pts.empty:
+        st.info("No scar counts in the filtered selection.")
+        return
+    x = pts["dorsal_area"].astype(float).values
+    y = pts["num_scars"].astype(float).values
+    outliers = _flag_outliers(x, y)
+    base = SURFACE_COLORS.get("Dorsal", "rgb(94, 60, 153)")
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=x, y=y, mode="markers",
+        marker=dict(size=8, color=_with_alpha(base, 0.65),
+                    line=dict(width=1, color="white")),
+        customdata=pts[["image_id"]].values,
+        hovertemplate=(
+            "Lithic: %{customdata[0]}<br>"
+            "Dorsal surface area: %{x:,.1f}<br>"
+            "Scars: %{y}<extra></extra>"
+        ),
+        name="Lithics",
+    ))
+    if outliers.any():
+        fig.add_trace(go.Scatter(
+            x=x[outliers], y=y[outliers], mode="markers",
+            marker=dict(size=14, color="rgba(0,0,0,0)",
+                        line=dict(width=2, color="#c62828")),
+            customdata=pts.loc[outliers, ["image_id"]].values,
+            hovertemplate=(
+                "Lithic: %{customdata[0]} (outlier)<br>"
+                "Dorsal surface area: %{x:,.1f}<br>"
+                "Scars: %{y}<extra></extra>"
+            ),
+            name="> 2 SD from trend",
+        ))
+    xs, ys = _linear_fit_xy(x, y)
+    if xs is not None:
+        fig.add_trace(go.Scatter(
+            x=xs, y=ys, mode="lines",
+            line=dict(color=_with_alpha(base, 0.9), dash="dash"),
+            hoverinfo="skip", name="Linear fit",
+        ))
+
+    fig.update_layout(
+        xaxis_title=label_with_units(lithics, "dorsal_area")
+                    if "dorsal_area" in lithics.columns
+                    else "Dorsal surface area",
+        yaxis_title="Number of scars",
+        margin=dict(l=60, r=20, t=40, b=80),
+        showlegend=False,
+    )
+    _suppress_si_suffix(fig.update_xaxes)
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        f"N: {len(pts)} lithics · "
+        f"Outliers (> 2 SD): {int(outliers.sum())}"
+    )
+    with st.expander("About this plot"):
+        st.write(
+            "Each dot is one lithic. The dashed line is the linear fit; "
+            "lithics circled in red sit more than two residual standard "
+            "deviations from that trend — they have unusually many or few "
+            "scars for their dorsal surface area."
+        )
+
+
+def _scars_coverage_vs_area(lithics):
+    """Scatter: scar-coverage % vs. dorsal surface area."""
+    if lithics.empty:
+        st.info("No coverage data in the filtered selection.")
+        return
+    pts = lithics.dropna(subset=["dorsal_area", "coverage_pct"])
+    if pts.empty:
+        st.info("No coverage data in the filtered selection.")
+        return
+    x = pts["dorsal_area"].astype(float).values
+    y = pts["coverage_pct"].astype(float).values
+    base = SURFACE_COLORS.get("Dorsal", "rgb(94, 60, 153)")
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=x, y=y, mode="markers",
+        marker=dict(size=8, color=_with_alpha(base, 0.65),
+                    line=dict(width=1, color="white")),
+        customdata=pts[["image_id"]].values,
+        hovertemplate=(
+            "Lithic: %{customdata[0]}<br>"
+            "Dorsal surface area: %{x:,.1f}<br>"
+            "Coverage: %{y:.1f}%<extra></extra>"
+        ),
+    ))
+    median_cov = float(pts["coverage_pct"].median())
+    fig.add_hline(
+        y=median_cov, line_dash="dot", line_color="#666",
+        annotation_text=f"median: {median_cov:.0f}%",
+        annotation_position="top left",
+    )
+
+    fig.update_layout(
+        xaxis_title=label_with_units(lithics, "dorsal_area")
+                    if "dorsal_area" in lithics.columns
+                    else "Dorsal surface area",
+        yaxis_title="Scar coverage (%)",
+        margin=dict(l=60, r=20, t=40, b=80),
+        showlegend=False,
+    )
+    fig.update_yaxes(range=[0, 105])
+    _suppress_si_suffix(fig.update_xaxes)
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        f"N: {len(pts)} lithics · "
+        f"Median coverage: {median_cov:.1f}%"
+    )
+    with st.expander("About this plot"):
+        st.write(
+            "Coverage is the fraction of the dorsal surface taken up by "
+            "all scar polygons combined. A flat trend means heavily- and "
+            "lightly-reduced surfaces sit at all sizes; a positive slope "
+            "would mean larger surfaces are also more thoroughly worked."
+        )
+
+
+def _scar_complexity_histogram(scars):
+    """Population-level histogram of scar complexity (existing chart, refactored)."""
     if scars.empty or "scar_complexity" not in scars.columns:
         st.info("No scar complexity data in the filtered selection.")
         return
@@ -675,12 +852,13 @@ def _scar_complexity_distribution(df):
     if values.empty:
         st.info("No scar complexity values in the filtered selection.")
         return
-    mean = values.mean()
+    mean = float(values.mean())
     fig = px.histogram(values, marginal="rug")
     fig.update_layout(
         showlegend=False,
         xaxis_title=label("scar_complexity"),
         yaxis_title="Count",
+        margin=dict(l=60, r=20, t=40, b=80),
     )
     fig.add_vline(
         x=mean, line_dash="dash",
@@ -691,56 +869,221 @@ def _scar_complexity_distribution(df):
     _force_integer_yaxis(fig, len(values))
     st.plotly_chart(fig, use_container_width=True)
     st.caption(_summary_caption(values))
+    with st.expander("About this plot"):
+        st.write(
+            "Complexity counts how many topological connections each scar "
+            "has to its neighbours on the surface. Higher values indicate "
+            "scars embedded in denser knapping networks."
+        )
 
 
-def _scar_size_distribution(df):
-    scars = dorsal_scars(df)
+def _per_lithic_complexity_strip(scars):
+    """Per-lithic strip plot: scar complexity values, lithics ordered by median."""
+    if scars.empty or "scar_complexity" not in scars.columns:
+        st.info("No scar complexity data in the filtered selection.")
+        return
+    s = scars.dropna(subset=["scar_complexity"]).copy()
+    if s.empty:
+        st.info("No scar complexity values in the filtered selection.")
+        return
+
+    counts = s.groupby("image_id").size()
+    multi = counts[counts >= 2].index
+    s = s[s["image_id"].isin(multi)]
+    if s.empty:
+        st.info("No lithics with two or more scored scars.")
+        return
+
+    medians = s.groupby("image_id")["scar_complexity"].median().sort_values()
+    s["image_id"] = s["image_id"].astype(str)
+    order = [str(i) for i in medians.index.tolist()]
+    base = SURFACE_COLORS.get("Dorsal", "rgb(94, 60, 153)")
+
+    fig = px.strip(
+        s, x="image_id", y="scar_complexity",
+        category_orders={"image_id": order},
+        hover_data={"image_id": True,
+                    "surface_feature": True,
+                    "scar_complexity": True},
+        color_discrete_sequence=[_with_alpha(base, 0.7)],
+    )
+    fig.update_traces(jitter=0.3, marker=dict(size=6,
+                                              line=dict(width=0)))
+    fig.update_layout(
+        xaxis_title="Lithic (ordered by median complexity)",
+        yaxis_title=label("scar_complexity"),
+        margin=dict(l=60, r=20, t=40, b=80),
+        showlegend=False,
+    )
+    fig.update_xaxes(showticklabels=False)
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        f"N: {len(s)} scars across {len(multi)} lithics · "
+        "ordered by median complexity"
+    )
+    with st.expander("About this plot"):
+        st.write(
+            "Each column is one lithic and each dot is one of its scars. "
+            "Tall vertical spreads mean a lithic mixes simple and complex "
+            "scars; tight clusters mean its scars share a similar level of "
+            "topological embedding. Lithics are ordered left-to-right by "
+            "their median scar complexity."
+        )
+
+
+def _scar_size_ecdf(scars):
+    """ECDF of per-scar total_area on a log x-axis."""
     if scars.empty or "total_area" not in scars.columns:
         st.info("No scar-size data in the filtered selection.")
         return
-    values = scars["total_area"].dropna()
+    values = scars[["image_id", "surface_feature", "total_area"]].dropna()
+    values = values[values["total_area"] > 0]
     if values.empty:
         st.info("No scar-size values in the filtered selection.")
         return
-    fig = px.histogram(scars, x="total_area", nbins=20, marginal="rug",
-                       labels={"total_area": label_with_units(scars, "total_area")})
-    fig.update_layout(yaxis_title="Count")
-    _force_integer_yaxis(fig, len(values))
-    _suppress_si_suffix(fig.update_xaxes)
-    st.plotly_chart(fig, use_container_width=True)
-    st.caption(_summary_caption(values))
+    s = values.sort_values("total_area").reset_index(drop=True)
+    s["cumulative"] = (s.index + 1) / len(s)
+    base = SURFACE_COLORS.get("Dorsal", "rgb(94, 60, 153)")
+    size = 6 if len(s) <= 200 else (4 if len(s) <= 1000 else 3)
 
-
-def _arrow_rate_per_image(df):
-    scars = dorsal_scars(df)
-    if scars.empty or "has_arrow" not in scars.columns:
-        st.info("No scar / arrow data in the filtered selection.")
-        return
-
-    import pandas as pd
-    scars = scars.copy()
-    # Coerce mixed bool / 'True'/'False' strings into a real bool series.
-    scars["_arrow"] = scars["has_arrow"].astype(str).str.strip().str.lower().eq("true")
-
-    rates = (
-        scars.groupby("image_id")["_arrow"]
-        .mean()
-        .mul(100)
-        .round(1)
-        .reset_index()
-        .rename(columns={"_arrow": "Arrow rate (%)"})
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=s["total_area"], y=s["cumulative"],
+        mode="lines+markers",
+        line=dict(color=_with_alpha(base, 0.9)),
+        marker=dict(size=size, color=_with_alpha(base, 0.7)),
+        customdata=s[["image_id", "surface_feature"]].values,
+        hovertemplate=(
+            "Lithic: %{customdata[0]}<br>"
+            "Scar: %{customdata[1]}<br>"
+            f"{label_with_units(scars, 'total_area')}: %{{x:,.1f}}<br>"
+            "Cumulative: %{y:.0%}<extra></extra>"
+        ),
+    ))
+    fig.update_layout(
+        xaxis_title=label_with_units(scars, "total_area"),
+        yaxis_title="Cumulative proportion",
+        margin=dict(l=60, r=20, t=40, b=80),
+        showlegend=False,
     )
-    if rates.empty:
-        st.info("No per-image arrow rates available.")
-        return
-    rates = rates.sort_values("Arrow rate (%)", ascending=False)
-    fig = px.bar(
-        rates, x="image_id", y="Arrow rate (%)",
-        labels={"image_id": label("image_id")},
-    )
-    fig.update_layout(yaxis_title="Arrow rate (%)")
-    fig.update_yaxes(range=[0, 105])
+    fig.update_xaxes(type="log")
+    fig.update_yaxes(range=[0, 1.0], tickformat=".0%")
     st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        f"Median: {_fmt_number(s['total_area'].median())} · "
+        f"N: {len(s)} scars"
+    )
+    with st.expander("About this plot"):
+        st.write(
+            "ECDF of individual scar areas on a log-scaled x-axis. The y "
+            "value at any x reads as “the share of scars at or below this "
+            "area”. Log scaling spreads the small scars (which dominate "
+            "most assemblages) so the curve isn't squashed against zero."
+        )
+
+
+def _scar_aspect_ecdf(scars):
+    """ECDF of per-scar aspect_ratio."""
+    if scars.empty or "aspect_ratio" not in scars.columns:
+        st.info("No scar aspect-ratio data in the filtered selection.")
+        return
+    values = scars[["image_id", "surface_feature", "aspect_ratio"]].dropna()
+    values = values[values["aspect_ratio"] > 0]
+    if values.empty:
+        st.info("No scar aspect-ratio values in the filtered selection.")
+        return
+    s = values.sort_values("aspect_ratio").reset_index(drop=True)
+    s["cumulative"] = (s.index + 1) / len(s)
+    base = SURFACE_COLORS.get("Dorsal", "rgb(94, 60, 153)")
+    size = 6 if len(s) <= 200 else (4 if len(s) <= 1000 else 3)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=s["aspect_ratio"], y=s["cumulative"],
+        mode="lines+markers",
+        line=dict(color="rgb(214, 39, 40)"),
+        marker=dict(size=size, color="rgba(214, 39, 40, 0.7)"),
+        customdata=s[["image_id", "surface_feature"]].values,
+        hovertemplate=(
+            "Lithic: %{customdata[0]}<br>"
+            "Scar: %{customdata[1]}<br>"
+            "Aspect ratio: %{x:.2f}<br>"
+            "Cumulative: %{y:.0%}<extra></extra>"
+        ),
+    ))
+    fig.update_layout(
+        xaxis_title=label("aspect_ratio"),
+        yaxis_title="Cumulative proportion",
+        margin=dict(l=60, r=20, t=40, b=80),
+        showlegend=False,
+    )
+    fig.update_yaxes(range=[0, 1.0], tickformat=".0%")
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        f"Median: {s['aspect_ratio'].median():.2f} · "
+        f"N: {len(s)} scars"
+    )
+    with st.expander("About this plot"):
+        st.write(
+            "ECDF of per-scar aspect ratio (longer / shorter side). A "
+            "value of 1 is square-ish; larger values are more elongated. "
+            "A steep early rise means most scars are roughly equant; "
+            "long right tails reveal assemblages with a minority of very "
+            "elongated removals."
+        )
+
+
+def _scar_cv_vs_count(lithics):
+    """Scatter: within-lithic scar-size variability (CV) vs. # scars."""
+    if lithics.empty:
+        st.info("No scar-size variability data in the filtered selection.")
+        return
+    pts = lithics.dropna(subset=["num_scars", "cv"])
+    pts = pts[pts["num_scars"] >= 2]
+    if pts.empty:
+        st.info("No lithics with two or more scars in the filtered selection.")
+        return
+    base = SURFACE_COLORS.get("Dorsal", "rgb(94, 60, 153)")
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=pts["num_scars"], y=pts["cv"], mode="markers",
+        marker=dict(size=8, color=_with_alpha(base, 0.65),
+                    line=dict(width=1, color="white")),
+        customdata=pts[["image_id"]].values,
+        hovertemplate=(
+            "Lithic: %{customdata[0]}<br>"
+            "Scars: %{x}<br>"
+            "Size CV: %{y:.2f}<extra></extra>"
+        ),
+    ))
+    median_cv = float(pts["cv"].median())
+    fig.add_hline(
+        y=median_cv, line_dash="dot", line_color="#666",
+        annotation_text=f"median CV: {median_cv:.2f}",
+        annotation_position="top left",
+    )
+    fig.update_layout(
+        xaxis_title="Number of scars",
+        yaxis_title="Scar-size coefficient of variation (sd / mean)",
+        margin=dict(l=60, r=20, t=40, b=80),
+        showlegend=False,
+    )
+    fig.update_xaxes(tickformat="d")
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        f"N: {len(pts)} lithics with ≥ 2 scars · "
+        f"Median CV: {median_cv:.2f}"
+    )
+    with st.expander("About this plot"):
+        st.write(
+            "Coefficient of variation captures how uniform a lithic's "
+            "scars are in size. CV near 0 means the scars are nearly all "
+            "the same size; CV above ~0.7 means the lithic mixes very "
+            "small and very large scars on the same surface. Plotting "
+            "against count separates monotonous reduction (low CV) from "
+            "mixed-strategy reduction (high CV)."
+        )
 
 
 # ---------------------------------------------------------------------------

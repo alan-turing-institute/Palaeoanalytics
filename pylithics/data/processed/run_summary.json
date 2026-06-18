@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "timestamp": "2026-06-17T21:35:40",
+  "total_images": 5,
+  "processed_successfully": 5,
+  "successful": [
+    {
+      "image_id": "awbari.png",
+      "dpi": 300
+    },
+    {
+      "image_id": "rub_al_khali.png",
+      "dpi": 300
+    },
+    {
+      "image_id": "KL3_5313_1.png",
+      "dpi": 300
+    },
+    {
+      "image_id": "replica_1.png",
+      "dpi": 300
+    },
+    {
+      "image_id": "qesem_cave.png",
+      "dpi": 300
+    }
+  ],
+  "failed": []
+}

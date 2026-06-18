@@ -25,13 +25,13 @@ affiliations:
     index: 2
   - name: Leverhulme Centre for Human Evolutionary Studies, United Kingdom
     index: 3
-date: 10 November 2025
+date: 17 June 2026
 bibliography: paper.bib
 ---
 
 # Summary
 
-PyLithics 2.0 represents a major advancement in automated quantitative analysis of prehistoric stone tool (lithic) illustrations. Building on the foundational capabilities of version 1.0 [@Gellis:2021], this release introduces sophisticated spatial analysis, morphological characterization, and expanded measurement capabilities. The software processes 2D line drawings of lithic artifacts using advanced computer vision techniques to extract comprehensive morphometric data. Key innovations include Voronoi-based spatial distribution analysis, bilateral symmetry quantification, scar complexity metrics based on adjacency relationships, lateral edge convexity analysis, and automated cortex detection. The modular architecture with YAML-based configuration enables researchers to customize analysis workflows for diverse illustration styles and research questions. PyLithics 2.0 addresses critical needs in archaeological lithic analysis by automating time-intensive measurements, ensuring inter-observer consistency, and enabling large-scale comparative studies essential for understanding prehistoric technological evolution and hominin behavior.
+PyLithics 2.0 represents a major advancement in automated quantitative analysis of prehistoric stone tool (lithic) illustrations. Building on version 1.0 [@Gellis:2021], this release introduces sophisticated spatial analysis, morphological characterization, and expanded measurement capabilities. The software processes 2D line drawings of lithic artifacts using advanced computer vision techniques to extract comprehensive morphometric data. Key innovations include Voronoi-based spatial distribution analysis, bilateral symmetry quantification, scar complexity metrics based on adjacency relationships, lateral edge convexity analysis, automated cortex detection, structured per-lithic JSON export, and a Streamlit-based dashboard that surfaces assemblage-level distributions and per-lithic drilldowns without writing code. The modular architecture with YAML-based configuration enables researchers to customize analysis workflows for diverse illustration styles and research questions. PyLithics 2.0 addresses critical needs in archaeological lithic analysis by automating time-intensive measurements, ensuring inter-observer consistency, and enabling large-scale comparative studies essential for understanding prehistoric technological evolution and hominin behavior.
 
 # Statement of Need
 
@@ -55,23 +55,25 @@ The analysis workflow comprises:
 8. **Cortex detection**: Automated identification of cortical areas (original stone surface) using texture analysis and grayscale intensity profiling
 9. **Arrow detection**: DPI-aware detection of flaking direction indicators using nested contour hierarchy analysis
 10. **Lateral convexity analysis**: Curvature quantification of lateral edges using geometric approximation methods
-11. **Data export**: Comprehensive CSV output with hierarchical organization and annotated visualization images
+11. **Data export**: Comprehensive CSV output, optional per-lithic JSON files (`--export_json`), and annotated visualization images
 
-The modular design allows selective activation of analysis components through YAML configuration files or command-line arguments, enabling researchers to optimize workflows for specific research questions and illustration styles. All processing modules include graceful error handling with fallback mechanisms to maximize data recovery from imperfect illustrations.
+The modular design allows selective activation of analysis components through YAML configuration files or command-line arguments. All processing modules include graceful error handling with fallback mechanisms to maximize data recovery from imperfect illustrations.
 
-PyLithics 2.0 depends on NumPy [@Harris:2020], SciPy [@Virtanen:2020], and Pandas [@McKinney:2010] for numerical operations, OpenCV [@opencv_library] for computer vision, Shapely [@Gillies:2007] for geometric operations, and Matplotlib [@Hunter:2007] for visualization.
+An opt-in interactive dashboard (`--explore`) reads the same outputs in a browser-based Streamlit application, organising assemblage-level distributions across thematic tabs (size and shape, symmetry, scars, spatial, cortex) and providing per-lithic drill-downs against the labeled image and Voronoi diagram. It lets archaeologists inspect results without writing code, complementing downstream R/Python workflows.
+
+PyLithics 2.0 depends on NumPy [@Harris:2020], SciPy [@Virtanen:2020], and Pandas [@McKinney:2010] for numerical operations, OpenCV [@opencv_library] for computer vision, Shapely [@Gillies:2007] for geometric operations, Matplotlib [@Hunter:2007] for static visualization, and Streamlit with Plotly for the interactive dashboard.
 
 # Results and Output
 
-PyLithics 2.0 generates three primary outputs:
+PyLithics 2.0 generates four primary outputs:
 
-**CSV data files** containing hierarchical measurements organized by surface type (Dorsal, Ventral, Platform, Lateral) and feature (individual scars, cortex areas). Measurements include: technical dimensions (length, width, thickness in mm), morphometric properties (area, perimeter, aspect ratio, circularity), symmetry scores (vertical and horizontal bilateral symmetry), spatial metrics (Voronoi cell areas, convex hull dimensions), complexity measures (scar adjacency counts), and directional data (arrow angles indicating flaking direction). The tabular format enables direct integration with statistical software (R, Python, SPSS) for downstream analysis.
+**CSV data files** containing hierarchical measurements organized by surface type (Dorsal, Ventral, Platform, Lateral) and feature (individual scars, cortex areas). Measurements include: technical dimensions (length, width, thickness in mm), morphometric properties (area, perimeter, aspect ratio, circularity), symmetry scores (vertical and horizontal bilateral symmetry), spatial metrics (Voronoi cell areas, convex hull dimensions), complexity measures (scar adjacency counts), cortex coverage, and directional data (arrow angles indicating flaking direction). The tabular format enables direct integration with statistical software (R, Python, SPSS) for downstream analysis.
 
-**Annotated visualization images** with color-coded contour overlays: purple for surface boundaries, orange for scars, red for cortex, light blue for arrows, and mint green for lateral edges (\autoref{fig:output}). Labels display measurement summaries enabling visual validation of automated detections against original illustrations.
+**Per-lithic JSON files** (`--export_json`) serialize the same measurements as structured records under `processed/json/`, with surfaces, scars, cortex blocks, symmetry, and arrows nested by relationship. JSON is well suited to programmatic pipelines and the interactive dashboard's drill-down view.
 
-**Voronoi diagrams** visualizing spatial distribution patterns of dorsal surface scars, with tessellation cells color-coded by area. These diagrams facilitate identification of reduction strategies through visual inspection of scar clustering patterns.
+**Annotated visualization images and Voronoi diagrams** with color-coded contour overlays: purple for surface boundaries, orange for scars, red for cortex, light blue for arrows, and mint green for lateral edges (\autoref{fig:output}). Voronoi tessellations of dorsal scar centroids visualize spatial distribution and reduction strategies, with cells color-coded by area.
 
-The combination of quantitative CSV data and visual validation outputs ensures analytical transparency and enables researchers to verify automated measurements against archaeological expertise.
+**Interactive dashboard** (`--explore`) provides a browser-based Streamlit interface that reads the CSV and JSON outputs in place. It organises distributions across thematic tabs, supports per-lithic drill-downs against the labeled image and Voronoi diagram, and gives non-programmer collaborators direct access to the data without changing the underlying outputs. Together these outputs ensure analytical transparency and let researchers verify automated measurements against archaeological expertise.
 
 # Acknowledgements
 
