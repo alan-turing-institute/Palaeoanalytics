@@ -8,6 +8,11 @@ Configuration management, error handling, and flexible command-line options.
 
 import sys
 
+if len(sys.argv) == 1:
+    from pylithics.cli_splash import print_splash
+    print_splash()
+    sys.exit(0)
+
 _EXPLORE_MODE = "--explore" in sys.argv
 _EXPLORE_PROGRESS_STOP = None
 _EXPLORE_PROGRESS_THREAD = None
