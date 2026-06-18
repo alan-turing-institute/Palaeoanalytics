@@ -10,6 +10,14 @@ After installation, PyLithics is run as a console script:
 pylithics [options]
 ```
 
+Run it with **no arguments** to see the welcome splash — a logo + Get-started panel listing the most common command patterns. Useful as a sanity check after install and as an in-terminal cheatsheet.
+
+```bash
+pylithics
+```
+
+Passing any flag at all (including `--help`) skips the splash and falls through to the normal CLI.
+
 ## Required Arguments
 
 | Argument | Description | Example |

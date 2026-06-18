@@ -2,7 +2,15 @@
 
 ## Your First Run
 
-After installing PyLithics, the fastest way to confirm everything works is to run it against the bundled sample data:
+After installing, the easiest starting point is to run the command on its own:
+
+```bash
+pylithics
+```
+
+This shows a **welcome splash** with the four most common command patterns. You can copy/paste whichever one you want from the panel. Running `pylithics` with no arguments only shows the splash and exits — it does not start a run.
+
+The fastest way to confirm the analysis pipeline itself works is to copy the quick-start command from the splash and run it against the bundled sample data:
 
 ```bash
 pylithics --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv
@@ -16,7 +24,11 @@ This will:
 4. Process every image with the default settings
 5. Write results to `pylithics/data/processed/`
 
-When it finishes you should see a `processed_metrics.csv` file plus one `*_labeled.png` and one `*_voronoi.png` for each successfully processed image.
+When it finishes you should see a `processed_metrics.csv` file plus one `*_labeled.png` and one `*_voronoi.png` for each successfully processed image. To analyse *and* open the dashboard in one shot, add `--explore`:
+
+```bash
+pylithics --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv --explore
+```
 
 ## Command-Line Basics
 

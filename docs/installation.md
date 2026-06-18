@@ -144,17 +144,23 @@ This command will:
 
 ## Step 5: Verify Installation
 
-Test that PyLithics is correctly installed:
+Test that PyLithics is correctly installed by running it with no arguments:
 
 ```bash
-# Check if PyLithics is available
-pylithics --help
-
-# Or use the alternative command
-pylithics-run --help
+pylithics
 ```
 
-You should see the help text displaying available options and commands.
+You should see the **welcome splash** — a chunky `PyLithics` logo above a Get-started panel listing the four common command patterns (quick start on the bundled sample data, analyze + visualize, open an existing run in the browser, help, and the GitHub repo URL). Copy whichever command you want to run next.
+
+Other useful checks:
+
+```bash
+# Full argparse help (every flag, every option)
+pylithics --help
+
+# Or use the alternative entry point
+pylithics-run --help
+```
 
 
 ## Updating PyLithics
