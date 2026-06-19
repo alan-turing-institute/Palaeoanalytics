@@ -25,7 +25,7 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     valid_hierarchy : ndarray or None
     """
     min_contour_area = get_contour_filtering_config()['min_area']
-    logging.info(
+    logging.debug(
         f"Using minimum contour area: {min_contour_area} pixels for image {image_id}"
     )
 
@@ -36,12 +36,12 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     if not contours:
         logging.warning("No contours found in image %s", image_id)
         return [], None
-    logging.info(f"Found {len(contours)} raw contours in image {image_id}")
+    logging.debug(f"Found {len(contours)} raw contours in image {image_id}")
 
     valid_contours, valid_hierarchy = _drop_border_touching(
         contours, hierarchy, inverted_image.shape,
     )
-    logging.info(
+    logging.debug(
         f"After border filtering: {len(valid_contours)} contours remain in {image_id}"
     )
 
@@ -54,7 +54,7 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
         )
         return [], None
 
-    logging.info(
+    logging.debug(
         "Extracted %d valid contours: %d parents/%d children total",
         len(valid_contours),
         np.sum(valid_hierarchy[:, 3] == -1),
@@ -147,7 +147,7 @@ def sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None):
                 # This is a nested child (child of a child)
                 nested.append(contours[i])
 
-    logging.info(
+    logging.debug(
         "Sorted contours: %d parents, %d children, %d nested",
         len(parents), len(children), len(nested)
     )
@@ -188,7 +188,7 @@ def hide_nested_child_contours(contours, hierarchy):
 
         pass
 
-    logging.info("Flagged %d single-child contours for exclusion.", sum(flags))
+    logging.debug("Flagged %d single-child contours for exclusion.", sum(flags))
     return flags
 
 

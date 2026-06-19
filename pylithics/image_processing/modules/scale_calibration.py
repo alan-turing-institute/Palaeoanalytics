@@ -56,8 +56,8 @@ def detect_scale_bar(scale_image_path: str, config: Dict) -> Optional[Tuple[int,
         aspect_ratio = max(w, h) / max(min(w, h), 1)  # Avoid division by zero
         confidence = min(1.0, aspect_ratio / 10.0)  # Higher aspect ratio = higher confidence
 
-        logging.info(f"Scale bar detected: {scale_length_pixels} pixels, "
-                    f"confidence: {confidence:.2f}, dimensions: {w}x{h}")
+        logging.debug(f"Scale bar detected: {scale_length_pixels} pixels, "
+                      f"confidence: {confidence:.2f}, dimensions: {w}x{h}")
 
         if config.get('debug_output', False):
             save_debug_image(scale_image_path, binary, x, y, w, h)
@@ -122,7 +122,7 @@ def calculate_conversion_factor(scale_pixels: int, scale_mm: float) -> float:
         raise ValueError(f"Invalid scale value: {scale_mm} mm")
 
     pixels_per_mm = scale_pixels / scale_mm
-    logging.info(f"Conversion factor: {pixels_per_mm:.3f} pixels/mm "
+    logging.debug(f"Conversion factor: {pixels_per_mm:.3f} pixels/mm "
                 f"({scale_pixels} pixels = {scale_mm} mm)")
     return pixels_per_mm
 
@@ -130,7 +130,7 @@ def calculate_conversion_factor(scale_pixels: int, scale_mm: float) -> float:
 def get_calibration_factor(image_path: str, scale_data: Dict,
                           config: Dict) -> Tuple[Optional[float], str, Optional[float]]:
     """
-    Get calibration factor using two-option system.
+    Get calibration factor using two-option system with a three-way status.
 
     Args:
         image_path: Path to the artifact image
@@ -138,51 +138,63 @@ def get_calibration_factor(image_path: str, scale_data: Dict,
         config: Configuration dictionary
 
     Returns:
-        tuple[float | None, str, float | None]: (pixels_per_mm, method_used, confidence)
-
-    Options:
-        1. Scale bar measurement (if scale_id and scale in CSV)
-        2. Pixel measurements (no calibration)
+        tuple[float | None, str, float | None]:
+            (pixels_per_mm, method_used, confidence) where method_used is one of:
+            - ``"scale_bar"`` — detection succeeded.
+            - ``"pixels_no_scale"`` — calibration disabled or no scale provided
+              in the metadata; pixel mode is intentional.
+            - ``"pixels_detection_failed"`` — scale was provided but the scale
+              image was missing or detection returned None; pixel mode is a
+              fallback. A WARNING has been logged with the underlying reason.
     """
     calibration_enabled = config.get('scale_calibration', {}).get('enabled', True)
+    user_supplied_scale = bool(
+        scale_data.get('scale_id') and scale_data.get('scale')
+    )
 
-    # Try scale bar calibration first
-    if calibration_enabled and scale_data.get('scale_id') and scale_data.get('scale'):
-        try:
-            # Build scale image path
-            data_dir = os.path.dirname(os.path.dirname(image_path))
-            scale_id = scale_data['scale_id']
-            scale_image_path = os.path.join(data_dir, 'scales', scale_id)
+    if not (calibration_enabled and user_supplied_scale):
+        logging.debug(
+            f"No scale calibration available for {os.path.basename(image_path)}, "
+            "measurements will be in pixels"
+        )
+        return None, "pixels_no_scale", None
 
-            # If file doesn't exist, try adding common extensions
-            if not os.path.exists(scale_image_path):
-                # Try common image extensions
-                for ext in ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp']:
-                    test_path = os.path.join(data_dir, 'scales', scale_id + ext)
-                    if os.path.exists(test_path):
-                        scale_image_path = test_path
-                        logging.debug(f"Found scale image with extension: {test_path}")
-                        break
+    try:
+        # Build scale image path
+        data_dir = os.path.dirname(os.path.dirname(image_path))
+        scale_id = scale_data['scale_id']
+        scale_image_path = os.path.join(data_dir, 'scales', scale_id)
 
-            if os.path.exists(scale_image_path):
-                # Detect and measure scale bar
-                result = detect_scale_bar(scale_image_path,
-                                        config.get('scale_calibration', {}))
-                if result:
-                    scale_pixels, confidence = result
-                    scale_mm = float(scale_data['scale'])
-                    pixels_per_mm = calculate_conversion_factor(scale_pixels, scale_mm)
-                    logging.info(f"Using scale bar calibration for {os.path.basename(image_path)}")
-                    return pixels_per_mm, "scale_bar", confidence
-            else:
-                logging.warning(f"Scale image not found: {scale_image_path}")
+        # If file doesn't exist, try adding common extensions
+        if not os.path.exists(scale_image_path):
+            for ext in ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp']:
+                test_path = os.path.join(data_dir, 'scales', scale_id + ext)
+                if os.path.exists(test_path):
+                    scale_image_path = test_path
+                    logging.debug(f"Found scale image with extension: {test_path}")
+                    break
 
-        except (ValueError, IOError, OSError) as e:
+        if not os.path.exists(scale_image_path):
+            logging.warning(f"Scale image not found: {scale_image_path}")
+            return None, "pixels_detection_failed", None
+
+        # Detect and measure scale bar
+        result = detect_scale_bar(scale_image_path,
+                                config.get('scale_calibration', {}))
+        if result is None:
             logging.warning(
-                f"Scale bar calibration failed: {e}"
+                f"Scale bar detection returned no match for {scale_image_path}"
             )
+            return None, "pixels_detection_failed", None
 
-    # No scale calibration available - use pixels
-    logging.info(f"No scale calibration available for {os.path.basename(image_path)}, "
-                "measurements will be in pixels")
-    return None, "pixels", None
+        scale_pixels, confidence = result
+        scale_mm = float(scale_data['scale'])
+        pixels_per_mm = calculate_conversion_factor(scale_pixels, scale_mm)
+        logging.debug(
+            f"Using scale bar calibration for {os.path.basename(image_path)}"
+        )
+        return pixels_per_mm, "scale_bar", confidence
+
+    except (ValueError, IOError, OSError) as e:
+        logging.warning(f"Scale bar calibration failed: {e}")
+        return None, "pixels_detection_failed", None

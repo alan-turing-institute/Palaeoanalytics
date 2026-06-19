@@ -273,7 +273,7 @@ def test_batch_writes_expected_lines_to_log_file(sample_config):
         log_content = log_path.read_text()
 
     assert "Starting batch processing" in log_content
-    assert "Batch processing completed" in log_content
+    assert "images processed" in log_content
 
 
 # ---------------------------------------------------------------------------

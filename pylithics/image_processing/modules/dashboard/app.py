@@ -60,12 +60,12 @@ def main() -> None:
         )
         return
 
-    processed_dir = Path(data_dir) / "processed"
+    processed_dir = Path(data_dir)
     csv_path = processed_dir / "processed_metrics.csv"
     if not csv_path.exists():
         st.error(
-            f"processed_metrics.csv not found at {csv_path}. "
-            "Run analysis first."
+            f"processed_metrics.csv not found in {processed_dir}. "
+            "Point --data_dir at the folder that contains it."
         )
         return
 

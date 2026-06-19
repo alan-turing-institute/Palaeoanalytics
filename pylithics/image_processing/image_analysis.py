@@ -105,7 +105,7 @@ def process_and_save_contours(
         Results saved to output_dir as CSV and images.
     """
     try:
-        logging.info(f"Starting analysis for image: {image_id}")
+        logging.debug(f"Starting analysis for image: {image_id}")
         image_stem = os.path.splitext(image_id)[0]
 
         contours, hierarchy, sorted_contours = _extract_and_sort_contours(
@@ -145,7 +145,7 @@ def process_and_save_contours(
             voronoi_data, conversion_factor, config_manager.config
         )
 
-        logging.info(f"Analysis complete for image: {image_id}")
+        logging.debug(f"Analysis complete for image: {image_id}")
 
     # Broad catch is intentional here: this is the outermost safety net that
     # prevents a single bad image from aborting a multi-image batch run.
@@ -180,7 +180,7 @@ def _extract_and_sort_contours(inverted_image, image_id, output_dir):
         logging.warning(f"No valid contours for image: {image_id}")
         return None, None, None
 
-    logging.info(
+    logging.debug(
         f"Extracted {len(contours)} contours, "
         f"hierarchy shape: {hierarchy.shape}"
     )
@@ -202,7 +202,7 @@ def _extract_and_sort_contours(inverted_image, image_id, output_dir):
     # Promote nested children if no direct children exist
     nested = sorted_contours.get("nested_children", [])
     if len(sorted_contours["children"]) == 0 and len(nested) > 0:
-        logging.info(
+        logging.debug(
             f"Promoting {len(nested)} nested children to "
             f"direct children for {image_id}"
         )
@@ -273,7 +273,7 @@ def _calculate_and_classify(
 
     try:
         metrics = classify_child_features(metrics)
-        logging.info("Child feature classification completed")
+        logging.debug("Child feature classification completed")
     except _STAGE_ERRORS:
         logging.exception("Error in classify_child_features")
 
@@ -296,12 +296,12 @@ def _run_cortex_detection(metrics, inverted_image) -> None:
         cortex_stats = calculate_total_cortex_metrics(metrics)
 
         if cortex_stats["cortex_count"] > 0:
-            logging.info(
+            logging.debug(
                 f"Cortex detected: {cortex_stats['cortex_count']} areas "
                 f"(area: {cortex_stats['total_cortex_area']:.1f})"
             )
         else:
-            logging.info("No cortex detected in this artifact")
+            logging.debug("No cortex detected in this artifact")
     except _STAGE_ERRORS:
         logging.exception("Error in cortex detection")
 
@@ -322,12 +322,12 @@ def _run_scar_complexity(metrics) -> None:
         )
         if complexity_results:
             _integrate_complexity_results(metrics, complexity_results)
-            logging.info(
+            logging.debug(
                 f"Scar complexity completed for "
                 f"{len(complexity_results)} scars"
             )
         else:
-            logging.info("No scar complexity results generated")
+            logging.debug("No scar complexity results generated")
     except _STAGE_ERRORS:
         logging.exception("Error in scar complexity analysis")
 
@@ -362,7 +362,7 @@ def _run_symmetry_analysis(
             for metric in metrics:
                 if metric.get("surface_type") == "Dorsal":
                     metric.update(scores)
-            logging.info("Symmetry analysis completed")
+            logging.debug("Symmetry analysis completed")
         else:
             logging.warning("No valid symmetry scores returned")
     except _STAGE_ERRORS:
@@ -394,7 +394,7 @@ def _run_voronoi_analysis(metrics, inverted_image):
         )
         if voronoi_data is not None:
             _integrate_voronoi_metrics(metrics, voronoi_data)
-            logging.info("Voronoi analysis completed")
+            logging.debug("Voronoi analysis completed")
         return voronoi_data
     except _STAGE_ERRORS:
         logging.exception("Error in Voronoi processing")
@@ -423,9 +423,9 @@ def _run_lateral_analysis(
         )
         if lateral_results:
             _integrate_lateral_metrics(metrics, lateral_results)
-            logging.info("Lateral surface analysis completed")
+            logging.debug("Lateral surface analysis completed")
         else:
-            logging.info("No lateral surface found or not applicable")
+            logging.debug("No lateral surface found or not applicable")
     except _STAGE_ERRORS:
         logging.exception("Error in lateral surface analysis")
 
@@ -460,7 +460,7 @@ def _run_arrow_detection(
         ]
 
         if scars_without_arrows:
-            logging.info(
+            logging.debug(
                 f"Running arrow detection for "
                 f"{len(scars_without_arrows)} scars"
             )
@@ -469,7 +469,7 @@ def _run_arrow_detection(
                 metrics, inverted_image, image_dpi
             )
         else:
-            logging.info("No scars need arrow detection")
+            logging.debug("No scars need arrow detection")
     except _STAGE_ERRORS:
         logging.exception("Error in arrow detection")
 
@@ -499,7 +499,7 @@ def _convert_and_export(
     if conversion_factor and conversion_factor != 1.0:
         try:
             convert_metrics_to_real_world(metrics, conversion_factor)
-            logging.info(
+            logging.debug(
                 f"Converted to mm using factor: "
                 f"{conversion_factor:.3f}"
             )

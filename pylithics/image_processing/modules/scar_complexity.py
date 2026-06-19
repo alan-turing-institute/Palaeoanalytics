@@ -37,12 +37,12 @@ def analyze_scar_complexity(
     try:
         scar_config = get_scar_complexity_config(config)
         if not scar_config.get('enabled', True):
-            logging.info("Scar complexity analysis is disabled")
+            logging.debug("Scar complexity analysis is disabled")
             return {}
 
         dorsal_scars = _find_dorsal_scars(metrics)
         if len(dorsal_scars) < 2:
-            logging.info(
+            logging.debug(
                 f"Not enough dorsal scars ({len(dorsal_scars)}) for complexity"
             )
             return {
@@ -52,7 +52,7 @@ def analyze_scar_complexity(
         threshold = scar_config.get('distance_threshold', 10.0)
         results = _count_shared_borders(dorsal_scars, threshold)
 
-        logging.info(
+        logging.debug(
             f"Scar complexity analysis completed for {len(results)} scars"
         )
         return results
@@ -73,7 +73,7 @@ def _find_dorsal_scars(metrics: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         None,
     )
     if not dorsal_parent:
-        logging.info("No dorsal parent surface found")
+        logging.debug("No dorsal parent surface found")
         return []
 
     scars = [
@@ -82,7 +82,7 @@ def _find_dorsal_scars(metrics: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             and m.get('parent') != m.get('scar')
             and 'scar' in m.get('surface_feature', '').lower())
     ]
-    logging.info(f"Found {len(scars)} dorsal scars out of {len(metrics)} metrics")
+    logging.debug(f"Found {len(scars)} dorsal scars out of {len(metrics)} metrics")
     return scars
 
 

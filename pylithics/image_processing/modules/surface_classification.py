@@ -53,7 +53,7 @@ def classify_parent_contours(
         return metrics
 
     if len(parents) == 1:
-        logging.info("Single parent contour, classified Dorsal.")
+        logging.debug("Single parent contour, classified Dorsal.")
         return metrics
 
     surfaces = ["Dorsal"]
@@ -75,7 +75,7 @@ def classify_parent_contours(
         if parent["surface_type"] is None:
             parent["surface_type"] = "Unclassified"
 
-    logging.info(
+    logging.debug(
         "Classified surfaces: %s.", ", ".join(surfaces)
     )
     return metrics
@@ -248,7 +248,7 @@ def classify_child_features(
     list
         Updated metrics with classified child features.
     """
-    logging.info("Starting child feature classification")
+    logging.debug("Starting child feature classification")
 
     try:
         parents = [
@@ -267,7 +267,7 @@ def classify_child_features(
             and m["parent"] not in parent_labels
         ]
 
-        logging.info(
+        logging.debug(
             f"Hierarchy: {len(parents)} parents, "
             f"{len(children)} children, "
             f"{len(grandchildren)} grandchildren"
@@ -284,7 +284,7 @@ def classify_child_features(
 
         result = parents + classified + grandchildren
 
-        logging.info(
+        logging.debug(
             "Child feature classification completed: "
             f"{len(classified)} classified"
         )
@@ -342,7 +342,7 @@ def _classify_children_by_surface(
 
     for child in groups["Platform"]:
         area = child.get("area", 0)
-        logging.info(
+        logging.debug(
             f"Excluding platform child (area={area}) "
             f"as likely empty space boundary"
         )
@@ -355,7 +355,7 @@ def _classify_children_by_surface(
 
     excluded = len(groups["Ventral"])
     if excluded > 0:
-        logging.info(
+        logging.debug(
             f"Excluded {excluded} ventral children"
         )
 

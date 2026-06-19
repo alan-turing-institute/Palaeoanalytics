@@ -6,7 +6,6 @@ is suppressed), waits until the server is listening, then prints our own
 launch message and opens the user's default browser.
 """
 
-import itertools
 import logging
 import os
 import socket
@@ -21,17 +20,17 @@ DATA_DIR_ENV = "PYLITHICS_DASHBOARD_DATA_DIR"
 
 _STARTUP_TIMEOUT_SECONDS = 30
 _POLL_INTERVAL_SECONDS = 0.2
-_SPINNER_FRAMES = ("|", "/", "-", "\\")
 
 
-def launch_dashboard(data_dir: str, port: int = DEFAULT_PORT) -> int:
+def launch_dashboard(processed_dir: str, port: int = DEFAULT_PORT) -> int:
     """
-    Start the PyLithics Streamlit dashboard pointed at ``data_dir``.
+    Start the PyLithics Streamlit dashboard pointed at ``processed_dir``.
 
     Parameters
     ----------
-    data_dir : str
-        Path containing a ``processed/processed_metrics.csv``.
+    processed_dir : str
+        Path to the folder containing ``processed_metrics.csv`` and the
+        accompanying labeled / Voronoi PNGs and per-lithic JSON files.
     port : int
         TCP port for Streamlit to bind. Defaults to 8501.
 
@@ -46,7 +45,7 @@ def launch_dashboard(data_dir: str, port: int = DEFAULT_PORT) -> int:
         return 1
 
     env = os.environ.copy()
-    env[DATA_DIR_ENV] = str(Path(data_dir).resolve())
+    env[DATA_DIR_ENV] = str(Path(processed_dir).resolve())
 
     cmd = [
         sys.executable, "-m", "streamlit", "run", str(app_path),
@@ -57,9 +56,7 @@ def launch_dashboard(data_dir: str, port: int = DEFAULT_PORT) -> int:
         "--client.toolbarMode", "minimal",
     ]
 
-    log_path = (
-        Path(data_dir).resolve() / "processed" / "dashboard.log"
-    )
+    log_path = Path(processed_dir).resolve() / "dashboard.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     url = f"http://localhost:{port}"
@@ -100,41 +97,48 @@ def _wait_for_port(
 ) -> bool:
     """Return True once the server accepts TCP connections on (host, port).
 
-    Shows an animated spinner with elapsed seconds while polling on a TTY,
-    so the user can see the wait is progressing rather than wonder if the
-    process has hung. Stays silent on non-TTY stdout (the upfront banner
-    in ``launch_dashboard`` already announces the wait).
+    Shows a rich spinner with elapsed seconds on a TTY; falls back to
+    silent polling on non-TTY stdout (the upfront banner in
+    ``launch_dashboard`` already announces the wait).
     """
-    is_tty = sys.stdout.isatty()
-    spinner = itertools.cycle(_SPINNER_FRAMES)
-    deadline = time.time() + _STARTUP_TIMEOUT_SECONDS
-    started = time.time()
+    from rich.console import Console
 
+    console = Console()
+    if not console.is_terminal:
+        return _poll_until_ready(host, port, proc)
+
+    with console.status(
+        "[cyan]Preparing dashboard...", spinner="dots"
+    ) as status:
+        started = time.time()
+        deadline = started + _STARTUP_TIMEOUT_SECONDS
+        while time.time() < deadline:
+            if proc.poll() is not None:
+                return False
+            try:
+                with socket.create_connection((host, port), timeout=1):
+                    return True
+            except OSError:
+                elapsed = time.time() - started
+                status.update(
+                    f"[cyan]Preparing dashboard...[/] "
+                    f"({elapsed:4.1f}s)"
+                )
+                time.sleep(_POLL_INTERVAL_SECONDS)
+        return False
+
+
+def _poll_until_ready(
+    host: str, port: int, proc: subprocess.Popen,
+) -> bool:
+    """Silent polling loop for non-TTY stdout."""
+    deadline = time.time() + _STARTUP_TIMEOUT_SECONDS
     while time.time() < deadline:
         if proc.poll() is not None:
-            if is_tty:
-                _clear_spinner_line()
             return False
         try:
             with socket.create_connection((host, port), timeout=1):
-                if is_tty:
-                    _clear_spinner_line()
                 return True
         except OSError:
-            if is_tty:
-                elapsed = time.time() - started
-                sys.stdout.write(
-                    f"\r{next(spinner)} Preparing dashboard… ({elapsed:4.1f}s) "
-                )
-                sys.stdout.flush()
             time.sleep(_POLL_INTERVAL_SECONDS)
-
-    if is_tty:
-        _clear_spinner_line()
     return False
-
-
-def _clear_spinner_line() -> None:
-    """Erase the spinner line so the next message starts clean."""
-    sys.stdout.write("\r" + " " * 60 + "\r")
-    sys.stdout.flush()

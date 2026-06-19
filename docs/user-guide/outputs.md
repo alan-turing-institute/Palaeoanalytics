@@ -11,7 +11,8 @@ After a successful run:
 ```
 processed/
 ├── processed_metrics.csv          # Combined metrics for every image
-├── pylithics.log                  # Processing log
+├── pylithics.log                  # Human-readable processing log
+├── run_summary.json               # Machine-readable manifest of the run
 ├── artifact_001_labeled.png       # Annotated visualization
 ├── artifact_001_voronoi.png       # Voronoi diagram (Dorsal surfaces only)
 ├── artifact_002_labeled.png
@@ -20,6 +21,8 @@ processed/
     ├── artifact_001.json
     └── artifact_002.json
 ```
+
+`run_summary.json` is a small structured record of the run — timestamp, total / succeeded counts, and per-image entries for both successful and failed images. The interactive dashboard reads it to populate its Overview tiles, particularly the "failed" count (failed images never make it into `processed_metrics.csv`, so the CSV alone can't tell the dashboard about them). It's regenerated on every run and safe to ignore if you don't use the dashboard. The schema is intentionally simple, so external scripts can also parse it as a machine-readable alternative to grepping the log — but no PyLithics code itself does that today.
 
 ## Primary Data Output: `processed_metrics.csv`
 
@@ -267,28 +270,42 @@ dorsal$features[[1]]
 
 ## Processing Log: `pylithics.log`
 
-The log captures everything the pipeline reports: which image is being processed, which calibration method was chosen, which stages succeeded, and any errors. Useful entries to grep for:
+The log captures the full per-step trace of every image the pipeline touches, regardless of how quiet you keep the console. Each run **truncates the previous log** by default so the file always reflects only the most recent invocation; if you need a history, copy the file off between runs or set a different `log_file` in `config.yaml`.
 
-- `Starting analysis for image:` — pipeline began on a new image
-- `Using scale_bar calibration:` or `No scale calibration available` — calibration outcome
-- `Cortex detection completed:` — number of cortex regions found
-- `Arrow detection succeeded` — per-scar arrow detection result
-- `Critical error analyzing image` — image was skipped due to a fatal error
+**Verbosity model:**
+
+- File handler: always at DEBUG — every preprocessing step, every contour, every arrow assignment, every cortex variance reading.
+- Console handler: INFO by default — startup metadata, one summary line per image, and the end-of-batch summary. Use `--verbose` (or `-v`) to mirror the file's DEBUG trace on screen.
+- Third-party libraries (`PIL`, `matplotlib`, `fontTools`, `asyncio`) are pinned to WARNING. Their chatty internals never appear in your log.
+
+**Useful entries to grep for:**
+
+- `Output directory:` — where the run wrote its results
+- `<image_id> · <px/mm>` — per-image summary at INFO (e.g. `awbari.png · 25.20 px/mm`)
+- `pixels (no scale provided)` — image was processed in pixel-only mode by design
+- `pixels (scale detection failed — see log)` — scale was provided but detection failed; a corresponding `[WARNING] Scale image not found:` or `Scale bar detection returned no match` line precedes it
+- `images processed without errors.` / `images processed successfully.` — the end-of-batch summary line
+- `[WARNING]` / `[ERROR]` — anything that surfaced above the default console level
 
 A typical successful run looks like this:
 
 ```
-2026-04-19 10:30:15 [INFO] Starting batch processing of 2 images
-2026-04-19 10:30:16 [INFO] Processing image 1/2: artifact_001.png
-2026-04-19 10:30:16 [INFO] Scale bar detected: 1260 pixels, confidence: 0.95
-2026-04-19 10:30:16 [INFO] Using scale_bar calibration: 25.200 pixels/mm
-2026-04-19 10:30:16 [INFO] Extracted 15 valid contours: 1 parents/14 children total
-2026-04-19 10:30:17 [INFO] Successfully processed artifact_001.png
-2026-04-19 10:30:17 [INFO] Processing image 2/2: artifact_002.png
-2026-04-19 10:30:17 [INFO] No calibration available, using pixel measurements
-2026-04-19 10:30:18 [INFO] Successfully processed artifact_002.png
-2026-04-19 10:30:18 [INFO] Batch processing completed: 2/2 (100.0%)
+2026-06-19 10:33:15 [INFO] Config: default
+2026-06-19 10:33:15 [INFO] Data directory: pylithics/data
+2026-06-19 10:33:15 [INFO] Metadata file: pylithics/data/meta_data.csv
+2026-06-19 10:33:15 [INFO] Input validation passed
+2026-06-19 10:33:15 [INFO] Output directory: pylithics/data/processed
+2026-06-19 10:33:15 [DEBUG] Starting batch processing of 5 images
+2026-06-19 10:33:15 [DEBUG] Processing image: awbari.png
+... (per-step DEBUG trace for awbari) ...
+2026-06-19 10:33:22 [INFO] awbari.png · 25.20 px/mm
+2026-06-19 10:33:22 [DEBUG] Processing image: rub_al_khali.png
+... etc. ...
+2026-06-19 10:34:12 [INFO] qesem_cave.png · 25.20 px/mm
+2026-06-19 10:34:12 [INFO] 5/5 images processed without errors.
 ```
+
+If any image fails the pipeline raises, the summary becomes `<N_succeeded>/<TOTAL> images processed successfully.` and a `[WARNING] Failed images: …` line lists the offenders.
 
 ## Validation Checklist
 

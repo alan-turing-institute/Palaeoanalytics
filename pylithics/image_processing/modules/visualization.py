@@ -73,7 +73,7 @@ def visualize_contours_with_hierarchy(
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     cv2.imwrite(output_path, labeled)
-    logging.info("Saved visualized contours with arrows to %s",
+    logging.debug("Saved visualized contours with arrows to %s",
                  output_path)
 
 
@@ -722,7 +722,7 @@ def _write_csv(
                 output_path, mode="a",
                 header=False, index=False
             )
-        logging.info("Appended metrics to CSV: %s", output_path)
+        logging.debug("Appended metrics to CSV: %s", output_path)
     else:
         df.to_csv(output_path, index=False)
-        logging.info("Saved metrics to CSV: %s", output_path)
+        logging.debug("Saved metrics to CSV: %s", output_path)

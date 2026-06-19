@@ -35,7 +35,8 @@ pylithics --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv
 |--------|-------------|---------|
 | `--config_file FILE` | Path to a custom YAML configuration file | (use built-in defaults) |
 | `--threshold_method METHOD` | One of `simple`, `otsu`, `adaptive`, `default` | `default` |
-| `--log_level LEVEL` | Log verbosity: `DEBUG`, `INFO`, `WARNING`, `ERROR` | `INFO` |
+| `--log_level LEVEL` | Console + file log verbosity: `DEBUG`, `INFO`, `WARNING`, `ERROR`. The log file *always* captures the full DEBUG trace regardless. | `INFO` on console |
+| `--verbose`, `-v` | Show the full per-step pipeline trace on screen (equivalent to `--log_level DEBUG` for console only). | off |
 
 ```bash
 pylithics --data_dir ./data --meta_file ./meta.csv --config_file ./my_config.yaml
@@ -93,7 +94,8 @@ lateral_analysis:
   enabled: true
 
 logging:
-  level: INFO
+  level: INFO                    # file handler level (always DEBUG-capable)
+  console_level: INFO            # console handler level; --verbose overrides to DEBUG
   log_to_file: true
   log_file: pylithics/data/processed/pylithics.log
 ```
@@ -196,7 +198,7 @@ pylithics --data_dir ./data --meta_file ./meta.csv \
 |--------|-------------|---------|
 | `--export_json` | Also write a per-lithic JSON file to `processed/json/{image_stem}.json` (in addition to the CSV) | off |
 | `--save_visualizations` | Generate labeled images and Voronoi diagrams | on |
-| `--explore` | Run analysis (if `--meta_file` is provided), then launch the interactive dashboard at `http://localhost:8501`. Without `--meta_file`, opens the dashboard against an existing `processed/` output. | off |
+| `--explore` | Run analysis (if `--meta_file` is provided), then launch the interactive dashboard at `http://localhost:8501`. Without `--meta_file`, point `--data_dir` directly at the folder that contains `processed_metrics.csv` (commonly `<project_root>/processed/`, but it can be any folder). | off |
 
 ```bash
 # Default — CSV only

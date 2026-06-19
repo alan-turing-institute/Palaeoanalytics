@@ -39,10 +39,10 @@ def detect_cortex_in_child_contours(
     """
     config = get_cortex_detection_config()
     if not config.get('enabled', True):
-        logging.info("Cortex detection is disabled in configuration")
+        logging.debug("Cortex detection is disabled in configuration")
         return metrics
 
-    logging.info("Starting cortex detection in child contours")
+    logging.debug("Starting cortex detection in child contours")
 
     try:
         parents = [m for m in metrics if m["parent"] == m["scar"]]
@@ -61,7 +61,7 @@ def detect_cortex_in_child_contours(
             non_cortex_children, parent_surface
         )
 
-        logging.info(
+        logging.debug(
             f"Cortex detection completed: {len(cortex_children)} cortex areas "
             f"detected, {len(renumbered)} non-cortex children processed"
         )
@@ -114,7 +114,7 @@ def _label_cortex_children(
         child["cortex_percentage"] = round(percentage, 2)
         child["is_cortex"] = True
 
-        logging.info(
+        logging.debug(
             f"Relabeled {original} -> {child['scar']} "
             f"(area: {cortex_area}, {percentage:.1f}% of surface)"
         )
@@ -139,7 +139,7 @@ def _renumber_non_cortex_children(
         renamed.append(child)
 
     for child in by_surface["Platform"]:
-        logging.info(
+        logging.debug(
             f"Excluding platform child (area={child.get('area', 0)}) "
             f"as likely empty space boundary"
         )
@@ -182,7 +182,7 @@ def _detect_cortex_texture(
             and variance > config.get('texture_variance_threshold', 100)
             and edge_density > config.get('edge_density_threshold', 0.05)
         )
-        logging.info(
+        logging.debug(
             f"Cortex analysis: stippling_density={stippling:.3f}, "
             f"variance={variance:.1f}, edge_density={edge_density:.3f} -> "
             f"cortex={cortex_detected}"

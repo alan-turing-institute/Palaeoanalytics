@@ -138,7 +138,7 @@ class TestGetCalibrationFactor:
             "/any/path/img.png", scale_data, config
         )
         assert factor is None
-        assert method == "pixels"
+        assert method == "pixels_no_scale"
         assert confidence is None
 
     def test_falls_back_to_pixels_when_no_scale_data(self):
@@ -146,7 +146,7 @@ class TestGetCalibrationFactor:
             "/any/path/img.png", {}, {}
         )
         assert factor is None
-        assert method == "pixels"
+        assert method == "pixels_no_scale"
         assert confidence is None
 
     def test_falls_back_when_scale_image_missing(self, tmp_path):
@@ -157,7 +157,7 @@ class TestGetCalibrationFactor:
         scale_data = {"scale_id": "missing.png", "scale": "50"}
         factor, method, _ = get_calibration_factor(str(artifact), scale_data, {})
         assert factor is None
-        assert method == "pixels"
+        assert method == "pixels_detection_failed"
 
     def test_successful_scale_bar_calibration(self, tmp_path):
         synthetic = _make_horizontal_bar_image(tmp_path, length_px=200)
@@ -206,4 +206,4 @@ class TestGetCalibrationFactor:
             )
 
         assert factor is None
-        assert method == "pixels"
+        assert method == "pixels_detection_failed"

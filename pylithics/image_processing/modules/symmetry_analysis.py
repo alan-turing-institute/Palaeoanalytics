@@ -139,7 +139,7 @@ def _calculate_symmetry(
         if (left + right) > 0 else None
     )
 
-    logging.info("Symmetry analysis complete for Dorsal surface.")
+    logging.debug("Symmetry analysis complete for Dorsal surface.")
 
     return {
         "top_area": top, "bottom_area": bottom,

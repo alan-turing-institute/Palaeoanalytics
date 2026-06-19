@@ -14,56 +14,44 @@ if len(sys.argv) == 1:
     sys.exit(0)
 
 _EXPLORE_MODE = "--explore" in sys.argv
-_EXPLORE_PROGRESS_STOP = None
-_EXPLORE_PROGRESS_THREAD = None
+_EXPLORE_PROGRESS = None
 
 
 def _start_explore_progress() -> None:
-    """Animate a progress bar during slow module imports for ``--explore``."""
-    global _EXPLORE_PROGRESS_STOP, _EXPLORE_PROGRESS_THREAD
-    import threading
-    import time
-
-    print(
-        "Starting PyLithics data explorer... "
-        "(loading modules and PyLithics data).",
-        flush=True,
+    """Show a rich spinner during slow module imports for ``--explore``."""
+    global _EXPLORE_PROGRESS
+    from rich.console import Console
+    from rich.progress import (
+        Progress, SpinnerColumn, TextColumn, TimeElapsedColumn,
     )
-    if not sys.stdout.isatty():
+
+    console = Console()
+    if not console.is_terminal:
+        print(
+            "Starting PyLithics data explorer... "
+            "(loading modules and PyLithics data).",
+            flush=True,
+        )
         return
 
-    _EXPLORE_PROGRESS_STOP = threading.Event()
-
-    def _loop() -> None:
-        spinner = "|/-\\"
-        bar_width = 30
-        est_seconds = 30.0
-        start = time.time()
-        i = 0
-        while not _EXPLORE_PROGRESS_STOP.is_set():
-            elapsed = time.time() - start
-            pct = min(0.99, elapsed / est_seconds)
-            filled = int(pct * bar_width)
-            bar = "#" * filled + "-" * (bar_width - filled)
-            sys.stdout.write(
-                f"\r{spinner[i % 4]} [{bar}] {elapsed:4.1f}s "
-            )
-            sys.stdout.flush()
-            i += 1
-            time.sleep(0.1)
-        sys.stdout.write("\r" + " " * (bar_width + 20) + "\r")
-        sys.stdout.flush()
-
-    _EXPLORE_PROGRESS_THREAD = threading.Thread(target=_loop, daemon=True)
-    _EXPLORE_PROGRESS_THREAD.start()
+    _EXPLORE_PROGRESS = Progress(
+        SpinnerColumn(style="cyan"),
+        TextColumn(
+            "[cyan]Starting PyLithics data explorer...[/] "
+            "loading modules and PyLithics data"
+        ),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+    )
+    _EXPLORE_PROGRESS.start()
+    _EXPLORE_PROGRESS.add_task("loading", total=None)
 
 
 def _stop_explore_progress() -> None:
-    """Halt the explore-mode progress bar and clear its line."""
-    if _EXPLORE_PROGRESS_STOP is not None:
-        _EXPLORE_PROGRESS_STOP.set()
-    if _EXPLORE_PROGRESS_THREAD is not None:
-        _EXPLORE_PROGRESS_THREAD.join(timeout=1.0)
+    """Halt the explore-mode progress spinner and clear its line."""
+    if _EXPLORE_PROGRESS is not None:
+        _EXPLORE_PROGRESS.stop()
 
 
 if _EXPLORE_MODE:
@@ -138,6 +126,17 @@ def _read_image_dpi(image_path: str) -> Optional[float]:
         return None
 
 
+def _calibration_suffix(
+    method: str, conversion_factor: Optional[float],
+) -> str:
+    """Render a one-shot per-image calibration summary suffix."""
+    if method == "scale_bar" and conversion_factor:
+        return f"{conversion_factor:.2f} px/mm"
+    if method == "pixels_detection_failed":
+        return "pixels (scale detection failed — see log)"
+    return "pixels (no scale provided)"
+
+
 def _write_run_summary(
     processed_dir: str,
     images_dir: str,
@@ -180,7 +179,7 @@ def _write_run_summary(
     try:
         with open(summary_path, "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2)
-        logging.info("Wrote run summary to %s", summary_path)
+        logging.debug("Wrote run summary to %s", summary_path)
     except OSError as e:
         logging.warning("Could not write run summary: %s", e)
 
@@ -203,44 +202,90 @@ class PyLithicsApplication:
         self.setup_logging()
 
     def setup_logging(self) -> None:
-        """Set up logging configuration from config manager."""
+        """Set up logging configuration from config manager.
+
+        Console output goes through ``rich.logging.RichHandler`` for
+        coloured level icons and syntax-highlighted tracebacks. The file
+        handler keeps a plain text format for grep-friendly logs.
+
+        Default split:
+            - Console: INFO (concise — shows per-image summaries, warnings,
+              errors). ``--verbose`` flips this to DEBUG.
+            - File: always at DEBUG so the full per-step trace is preserved
+              for reproducibility regardless of console verbosity.
+
+        The console ``rich.console.Console`` is stored on ``self.rich_console``
+        so other code (e.g. the batch-loop progress bar) can share the same
+        Console instance — without sharing, ``Progress`` and ``RichHandler``
+        collide on stdout and the live bar renders inline with log lines.
+        """
+        from rich.console import Console
+        from rich.logging import RichHandler
+
         logging_config = self.config_manager.get_section('logging')
-        log_level = logging_config.get('level', 'INFO').upper()
+        configured_level = logging_config.get('level', 'INFO').upper()
+        console_level = logging_config.get(
+            'console_level', configured_level,
+        )
+        if isinstance(console_level, str):
+            console_level = console_level.upper()
 
         # Remove existing handlers
         for handler in logging.root.handlers[:]:
             logging.root.removeHandler(handler)
 
-        # Create formatters
-        formatter = logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
-        )
-
-        # Console handler
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(formatter)
-
-        # Set up logger
         logger = logging.getLogger()
-        logger.setLevel(log_level)
+        # Root level low enough that all handlers can filter independently.
+        logger.setLevel(logging.DEBUG)
+
+        # Suppress noisy third-party DEBUG output so the log file stays
+        # focused on lithic-processing events. PIL dumps every PNG chunk;
+        # matplotlib logs every font it scores; both bury the actual
+        # pipeline trace under hundreds of irrelevant lines.
+        for noisy in ("PIL", "matplotlib", "fontTools", "asyncio"):
+            logging.getLogger(noisy).setLevel(logging.WARNING)
+
+        # Single Console shared with the batch-loop Progress bar so live
+        # output and log lines render cooperatively.
+        self.rich_console = Console()
+        console_handler = RichHandler(
+            level=console_level,
+            console=self.rich_console,
+            show_time=False,
+            show_path=False,
+            rich_tracebacks=True,
+            markup=False,
+        )
+        console_handler.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(console_handler)
 
-        # File handler if enabled
+        # File handler — plain text, always captures full trace.
+        self.log_file_path: Optional[str] = None
+
+        class _ConsoleOnlyFilter(logging.Filter):
+            """Drop records flagged ``console_only`` from the file handler."""
+
+            def filter(self, record: logging.LogRecord) -> bool:
+                return not getattr(record, "console_only", False)
+
         if logging_config.get('log_to_file', True):
-            log_file = logging_config.get('log_file', 'pylithics/data/processed/pylithics.log')
+            log_file = logging_config.get(
+                'log_file', 'pylithics/data/processed/pylithics.log',
+            )
             log_dir = os.path.dirname(log_file)
 
             if log_dir:
                 os.makedirs(log_dir, exist_ok=True)
 
             file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(formatter)
+            file_handler.setLevel(logging.DEBUG)
+            file_handler.setFormatter(logging.Formatter(
+                "%(asctime)s [%(levelname)s] %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            ))
+            file_handler.addFilter(_ConsoleOnlyFilter())
             logger.addHandler(file_handler)
-
-            logging.info(f"Logging to file: {log_file}")
-
-        logging.info(f"Logging level set to {log_level}")
+            self.log_file_path = log_file
 
     def validate_inputs(self, data_dir: str, meta_file: str) -> bool:
         """
@@ -300,7 +345,9 @@ class PyLithicsApplication:
                            real_world_scale_mm: Optional[float],
                            images_dir: str,
                            processed_dir: str,
-                           scale_data: Optional[Dict] = None) -> bool:
+                           scale_data: Optional[Dict] = None,
+                           progress_index: Optional[int] = None,
+                           progress_total: Optional[int] = None) -> bool:
         """
         Process a single image through the complete pipeline.
 
@@ -316,6 +363,10 @@ class PyLithicsApplication:
             Directory for processed outputs
         scale_data : dict, optional
             Full metadata entry including scale_id for scale calibration
+        progress_index, progress_total : int, optional
+            1-based image index and total. When supplied and stdout is not
+            a TTY, the per-image summary line is prefixed with ``N/TOTAL``
+            so CI logs still show per-image progress without a live bar.
 
         Returns
         -------
@@ -329,7 +380,7 @@ class PyLithicsApplication:
             )
             return False
 
-        logging.info(f"Processing image: {image_id}")
+        logging.debug(f"Processing image: {image_id}")
 
         try:
             processed_image = execute_preprocessing_pipeline(
@@ -344,17 +395,32 @@ class PyLithicsApplication:
                 self._resolve_calibration(image_path, scale_data or {})
             )
 
+            # Keep the CSV's calibration_method column on the legacy
+            # two-value convention ("scale_bar" / "pixels") so downstream
+            # analysis scripts and the dashboard's unit_suffix() filter
+            # still work. The three-way status survives only as the
+            # per-image summary suffix below.
+            csv_method = (
+                "scale_bar" if calibration_method == "scale_bar" else "pixels"
+            )
+
             process_and_save_contours(
                 processed_image,
                 conversion_factor,
                 processed_dir,
                 image_id,
                 image_dpi,
-                calibration_method,
+                csv_method,
                 scale_confidence,
             )
 
-            logging.info(f"Successfully processed {image_id}")
+            suffix = _calibration_suffix(calibration_method, conversion_factor)
+            if progress_index is not None and progress_total is not None:
+                logging.info(
+                    f"{progress_index}/{progress_total} {image_id} · {suffix}"
+                )
+            else:
+                logging.info(f"{image_id} · {suffix}")
             return True
 
         except (FileNotFoundError, ValueError, IOError) as e:
@@ -374,13 +440,13 @@ class PyLithicsApplication:
             )
         )
         if conversion_factor:
-            logging.info(
+            logging.debug(
                 f"Using {calibration_method} calibration: "
                 f"{conversion_factor:.3f} pixels/mm"
             )
             return conversion_factor, calibration_method, scale_confidence
 
-        logging.info("No calibration available, using pixel measurements")
+        logging.debug("No calibration available, using pixel measurements")
         return 1.0, calibration_method, scale_confidence
 
     def _extract_image_dpi(self, image_path: str) -> Optional[float]:
@@ -402,7 +468,7 @@ class PyLithicsApplication:
                 dpi_info = img.info.get('dpi')
                 if dpi_info:
                     image_dpi = round(float(dpi_info[0]))
-                    logging.info(f"Image DPI detected: {image_dpi}")
+                    logging.debug(f"Image DPI detected: {image_dpi}")
                     return image_dpi
                 else:
                     logging.warning(f"No DPI information found in {image_path}")
@@ -438,6 +504,7 @@ class PyLithicsApplication:
         images_dir = os.path.join(data_dir, 'images')
         processed_dir = os.path.join(data_dir, 'processed')
         os.makedirs(processed_dir, exist_ok=True)
+        logging.info(f"Output directory: {processed_dir}")
 
         metadata = read_metadata(meta_file)
         results = {
@@ -448,41 +515,109 @@ class PyLithicsApplication:
             'processing_errors': [],
         }
 
-        logging.info(f"Starting batch processing of {len(metadata)} images")
+        logging.debug(f"Starting batch processing of {len(metadata)} images")
 
-        for i, entry in enumerate(metadata, 1):
-            image_id = entry['image_id']
-            logging.info(f"Processing image {i}/{len(metadata)}: {image_id}")
-            scale_mm = _parse_scale(entry.get('scale'), image_id)
-            success = self.process_single_image(
-                image_id, scale_mm, images_dir, processed_dir, entry,
-            )
-            if success:
-                results['processed_successfully'] += 1
-            else:
-                results['failed_images'].append(image_id)
-                results['processing_errors'].append(
-                    f"Failed to process {image_id}"
-                )
+        self._run_batch_loop(metadata, images_dir, processed_dir, results)
 
         self._log_batch_summary(results)
         _write_run_summary(processed_dir, images_dir, results, metadata)
 
         return results
 
-    @staticmethod
-    def _log_batch_summary(results: Dict[str, Any]) -> None:
-        """Log a human-readable summary line after a batch run."""
+    def _run_batch_loop(
+        self,
+        metadata: list,
+        images_dir: str,
+        processed_dir: str,
+        results: Dict[str, Any],
+    ) -> None:
+        """Iterate the batch with a rich progress bar on TTY, plain on CI."""
+        total = len(metadata)
+        use_progress = sys.stdout.isatty()
+
+        if use_progress:
+            from rich.progress import (
+                BarColumn, MofNCompleteColumn, Progress, SpinnerColumn,
+                TextColumn, TimeElapsedColumn, TimeRemainingColumn,
+            )
+
+            with Progress(
+                SpinnerColumn(style="cyan"),
+                TextColumn("[cyan]Processing[/]"),
+                BarColumn(),
+                MofNCompleteColumn(),
+                TextColumn("[dim]{task.fields[image]}[/]"),
+                TimeElapsedColumn(),
+                TimeRemainingColumn(),
+                console=self.rich_console,
+            ) as progress:
+                task = progress.add_task(
+                    "processing", total=total, image="",
+                )
+                for i, entry in enumerate(metadata, 1):
+                    image_id = entry['image_id']
+                    progress.update(task, image=image_id)
+                    self._process_one_in_batch(
+                        i, total, entry, images_dir, processed_dir, results,
+                        include_index_prefix=False,
+                    )
+                    progress.advance(task)
+        else:
+            for i, entry in enumerate(metadata, 1):
+                self._process_one_in_batch(
+                    i, total, entry, images_dir, processed_dir, results,
+                    include_index_prefix=True,
+                )
+
+    def _process_one_in_batch(
+        self,
+        index: int,
+        total: int,
+        entry: Dict,
+        images_dir: str,
+        processed_dir: str,
+        results: Dict[str, Any],
+        include_index_prefix: bool,
+    ) -> None:
+        """Run one image through the pipeline and tally success/failure."""
+        image_id = entry['image_id']
+        scale_mm = _parse_scale(entry.get('scale'), image_id)
+        success = self.process_single_image(
+            image_id, scale_mm, images_dir, processed_dir, entry,
+            progress_index=index if include_index_prefix else None,
+            progress_total=total if include_index_prefix else None,
+        )
+        if success:
+            results['processed_successfully'] += 1
+        else:
+            results['failed_images'].append(image_id)
+            results['processing_errors'].append(
+                f"Failed to process {image_id}"
+            )
+
+    def _log_batch_summary(self, results: Dict[str, Any]) -> None:
+        """Print the end-of-batch summary lines with a pointer to the log."""
         total = results['total_images']
         done = results['processed_successfully']
-        rate = (done / total) * 100 if total else 0.0
-        logging.info(
-            f"Batch processing completed: {done}/{total} ({rate:.1f}%)"
-        )
-        if results['failed_images']:
-            logging.warning(
-                f"Failed images: {', '.join(results['failed_images'])}"
+        log_path = self.log_file_path or "the log file"
+        console_only = {"console_only": True}
+        if total > 0 and done == total:
+            logging.info(f"{done}/{total} images processed without errors.")
+            logging.info(
+                f"Please check logs at {log_path}", extra=console_only,
             )
+        else:
+            logging.info(f"{done}/{total} images processed successfully.")
+            logging.info(
+                f"Please check logs at {log_path} for errors.",
+                extra=console_only,
+            )
+            if results['failed_images']:
+                logging.warning(
+                    f"Failed images: {', '.join(results['failed_images'])}"
+                )
+        if hasattr(self, 'rich_console'):
+            self.rich_console.print()
 
     def update_configuration(self, **kwargs) -> None:
         """
@@ -558,7 +693,15 @@ def _add_config_args(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         '--log_level',
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-        metavar='LEVEL', help='Logging level (default: INFO)'
+        metavar='LEVEL',
+        help='Logging level for both console and file handlers '
+             '(default: INFO on console, DEBUG always in file)'
+    )
+    group.add_argument(
+        '--verbose', '-v', action='store_true',
+        help='Show the full per-step pipeline trace on screen. '
+             'Equivalent to --log_level DEBUG for the console only; the '
+             'log file always captures the full trace.'
     )
 
 
@@ -679,8 +822,9 @@ def _add_explore_args(parser: argparse.ArgumentParser) -> None:
         '--explore', action='store_true',
         help=(
             'Run analysis (if --meta_file is provided) and then launch the '
-            'PyLithics dashboard. Without --meta_file, opens the dashboard '
-            "against the existing processed/ output."
+            'PyLithics dashboard. Without --meta_file, point --data_dir at '
+            'the folder containing processed_metrics.csv (commonly '
+            '<project_root>/processed/).'
         )
     )
 
@@ -752,8 +896,11 @@ def show_examples_help() -> None:
     Analyze and immediately launch the interactive dashboard:
       pylithics --data_dir ./artifacts --meta_file ./metadata.csv --explore
 
-    Re-open the dashboard later (no re-analysis):
-      pylithics --data_dir ./artifacts --explore
+    Re-open the dashboard later (no re-analysis). --data_dir is the
+    folder that actually contains processed_metrics.csv (the folder name
+    doesn't have to be 'processed/' — it can be any folder you've moved
+    or renamed):
+      pylithics --data_dir ./artifacts/processed --explore
 
     For full documentation: pylithics --docs
     """)
@@ -827,6 +974,9 @@ def _apply_config_overrides(
         overrides['thresholding.method'] = args.threshold_method
     if args.log_level:
         overrides['logging.level'] = args.log_level
+        overrides['logging.console_level'] = args.log_level
+    if getattr(args, 'verbose', False):
+        overrides['logging.console_level'] = 'DEBUG'
     if args.disable_arrow_detection:
         overrides['arrow_detection.enabled'] = False
     if args.arrow_debug:
@@ -948,6 +1098,9 @@ def main() -> int:
     try:
         app = PyLithicsApplication(args.config_file)
         _apply_config_overrides(app, args)
+        # Re-configure logging now that CLI overrides (e.g. --verbose,
+        # --log_level) have been merged into the config.
+        app.setup_logging()
 
         logging.info(f"Config: {args.config_file or 'default'}")
         logging.info(f"Data directory: {args.data_dir}")
@@ -961,13 +1114,12 @@ def main() -> int:
                 logging.error("Batch processing failed")
                 return 1
 
-            if results['processed_successfully'] < results['total_images']:
-                logging.warning("Some images failed to process")
-            else:
-                logging.info("All images processed successfully!")
-
         if explore:
-            return _launch_explore(args.data_dir)
+            if args.meta_file:
+                processed_dir = os.path.join(args.data_dir, 'processed')
+            else:
+                processed_dir = args.data_dir
+            return _launch_explore(processed_dir)
         return 0
 
     except KeyboardInterrupt:
@@ -978,23 +1130,24 @@ def main() -> int:
         return 1
 
 
-def _launch_explore(data_dir: str) -> int:
-    """Open the dashboard for the processed/ output under ``data_dir``."""
+def _launch_explore(processed_dir: str) -> int:
+    """Open the dashboard against ``processed_dir`` (the folder containing
+    ``processed_metrics.csv``).
+    """
     from pylithics.image_processing.modules.dashboard.runner import (
         launch_dashboard,
     )
 
-    csv_path = os.path.join(
-        data_dir, "processed", "processed_metrics.csv",
-    )
+    csv_path = os.path.join(processed_dir, "processed_metrics.csv")
     if not os.path.exists(csv_path):
         logging.error(
-            "No processed_metrics.csv found at %s. "
-            "Run analysis first by passing --meta_file.",
-            csv_path,
+            "No processed_metrics.csv found in %s. "
+            "Point --data_dir at the folder that contains it, or pass "
+            "--meta_file to run analysis first.",
+            processed_dir,
         )
         return 1
-    return launch_dashboard(data_dir)
+    return launch_dashboard(processed_dir)
 
 
 if __name__ == "__main__":

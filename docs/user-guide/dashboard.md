@@ -1,17 +1,25 @@
 # Dashboard
 
-PyLithics ships with an interactive dashboard for exploring the results of a batch run. It opens in your default browser and reads from the same `processed/processed_metrics.csv` your normal analysis writes — no extra setup, no separate export step.
+PyLithics ships with an interactive dashboard for exploring the results of a batch run. It opens in your default browser and reads from the `processed_metrics.csv` your normal analysis writes — no extra setup, no separate export step.
+
+When you analyze, PyLithics writes outputs to `<data_dir>/processed/`. When you later open the dashboard against an existing run, point `--data_dir` directly at whichever folder contains the `processed_metrics.csv` you want to explore — the folder name doesn't have to be `processed/`, and you can keep multiple runs in separate folders.
 
 ## Launching
 
 There is one flag, `--explore`, with two flows:
 
 ```bash
-# First-time use: analyze and immediately open the dashboard
+# First-time use: analyze and immediately open the dashboard.
+# --data_dir is the project root (contains images/ and scales/);
+# analysis writes outputs to ./assemblage/processed/ and the
+# dashboard opens against that folder automatically.
 pylithics --data_dir ./assemblage --meta_file ./meta.csv --explore
 
-# Re-open the dashboard later (no re-analysis)
-pylithics --data_dir ./assemblage --explore
+# Re-open the dashboard later (no re-analysis).
+# --data_dir is now the folder that actually contains processed_metrics.csv
+# — usually <project_root>/processed/, but it can be any folder.
+pylithics --data_dir ./assemblage/processed --explore
+pylithics --data_dir ./other_run_folder --explore   # different assemblage, same flag
 ```
 
 The dashboard binds to `http://localhost:8501` by default. Press `Ctrl+C` in the terminal to stop it.

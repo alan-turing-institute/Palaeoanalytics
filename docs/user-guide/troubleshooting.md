@@ -69,8 +69,11 @@ pip install .
 **Diagnosis**:
 
 ```bash
+# --verbose mirrors the full per-step pipeline trace on your screen.
+# The same trace is always in pylithics/data/processed/pylithics.log,
+# so you can also run without --verbose and grep the log file after.
 pylithics --data_dir ./data --meta_file ./meta.csv \
-    --log_level DEBUG --show_thresholded_images
+    --verbose --show_thresholded_images
 ```
 
 **Solutions**:

@@ -352,7 +352,7 @@ def convert_metrics_to_real_world(
     list
         Metrics with measurements in millimeters.
     """
-    logging.info(
+    logging.debug(
         f"Converting {len(metrics)} metrics with "
         f"factor: {pixels_per_mm:.3f} pixels/mm"
     )

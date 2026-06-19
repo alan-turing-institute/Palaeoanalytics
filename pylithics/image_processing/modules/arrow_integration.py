@@ -58,7 +58,7 @@ def integrate_arrows(
     ]
 
     if scars_without:
-        logging.info(
+        logging.debug(
             f"{len(scars_without)} scars without arrows. "
             f"Running independent detection."
         )
@@ -67,7 +67,7 @@ def integrate_arrows(
             original_contours, metrics, image, image_dpi
         )
     else:
-        logging.info("All scars have arrows. Skipping.")
+        logging.debug("All scars have arrows. Skipping.")
 
     return metrics
 
@@ -125,16 +125,30 @@ def process_nested_arrows(
     )
 
     if not scar_metrics and sorted_contours.get("nested_children"):
-        logging.info("No direct children — skipping nested processing")
+        logging.debug("No direct children — skipping nested processing")
         return metrics
 
+    skip_counts = {"parent_is_cortex": 0, "no_parent_scar": 0}
     for ni, cnt in enumerate(
         sorted_contours.get("nested_children", [])
     ):
-        _process_single_nested(
+        status = _process_single_nested(
             ni, cnt, index_map, hierarchy,
             original_contours, scar_metrics,
             image_shape, image_dpi
+        )
+        if status in skip_counts:
+            skip_counts[status] += 1
+
+    if skip_counts["parent_is_cortex"]:
+        logging.debug(
+            f"Skipped {skip_counts['parent_is_cortex']} nested contours "
+            "whose parent is cortex"
+        )
+    if skip_counts["no_parent_scar"]:
+        logging.debug(
+            f"Skipped {skip_counts['no_parent_scar']} nested contours "
+            "with no matching parent scar"
         )
 
     return metrics
@@ -186,27 +200,28 @@ def _process_single_nested(
     scar_metrics: Dict[str, Dict],
     image_shape,
     image_dpi: Optional[float]
-) -> None:
-    """Process a single nested contour for arrow detection."""
+) -> Optional[str]:
+    """Process a single nested contour for arrow detection.
+
+    Returns a status string ("no_parent_scar", "parent_is_cortex") when
+    the contour is skipped so the caller can aggregate counts, or None
+    if the contour was processed.
+    """
     nested_idx = index_map.get(str(cnt.tobytes()))
     if nested_idx is None or nested_idx >= len(hierarchy):
         logging.warning(
             f"Could not find nested contour {ni} in hierarchy"
         )
-        return
+        return None
 
     parent_scar = _find_parent_scar(
         nested_idx, hierarchy, original_contours, scar_metrics
     )
     if parent_scar is None:
-        logging.debug(f"No parent scar for nested contour {ni}")
-        return
+        return "no_parent_scar"
 
     if parent_scar.get('is_cortex', False):
-        logging.debug(
-            f"Skipping nested contour {ni} — parent is cortex"
-        )
-        return
+        return "parent_is_cortex"
 
     temp_entry = {"scar": f"nested_{ni}"}
     result = analyze_child_contour_for_arrow(
@@ -214,7 +229,7 @@ def _process_single_nested(
     )
 
     if result:
-        logging.info(
+        logging.debug(
             f"Arrow in nested contour {ni} "
             f"(parent: {parent_scar['scar']}) "
             f"angle {result.get('compass_angle', '?')}"
@@ -297,7 +312,7 @@ def detect_arrows_independently(
         m for m in metrics if m["parent"] != m["scar"]
     ]
 
-    logging.info("Starting independent arrow detection...")
+    logging.debug("Starting independent arrow detection...")
 
     parent_indices = _find_metric_contour_indices(
         metrics, original_contours,
@@ -321,7 +336,7 @@ def detect_arrows_independently(
         candidates, scar_map, metrics
     )
 
-    logging.info(
+    logging.debug(
         f"Independent detection completed. "
         f"Assigned {len(assigned)} arrows."
     )
@@ -408,6 +423,7 @@ def _find_arrow_candidates(
     max_sol = config.get('max_solidity', 0.9)
 
     candidates = []
+    cortex_skips = 0
     for i, cnt in enumerate(contours):
         if i in parent_indices or i in scar_indices:
             continue
@@ -416,6 +432,7 @@ def _find_arrow_candidates(
             continue
 
         if _is_within_cortex(cnt, cortex_map):
+            cortex_skips += 1
             continue
 
         temp_entry = {"scar": f"candidate_{i}"}
@@ -423,12 +440,17 @@ def _find_arrow_candidates(
             cnt, temp_entry, image, image_dpi
         )
         if result:
-            logging.info(
+            logging.debug(
                 f"Arrow found in contour {i}, "
                 f"angle {result.get('compass_angle', '?')}"
             )
             candidates.append((i, cnt, result))
 
+    if cortex_skips:
+        logging.debug(
+            f"Skipped {cortex_skips} contours inside cortex regions "
+            "during arrow detection"
+        )
     return candidates
 
 
@@ -467,11 +489,8 @@ def _is_within_cortex(
         x, y, w, h = cv2.boundingRect(cnt)
         cx, cy = x + w / 2, y + h / 2
 
-    for label, cortex_cnt in cortex_map.items():
+    for _label, cortex_cnt in cortex_map.items():
         if cv2.pointPolygonTest(cortex_cnt, (cx, cy), False) >= 0:
-            logging.debug(
-                f"Skipping contour within cortex '{label}'"
-            )
             return True
     return False
 
@@ -529,7 +548,7 @@ def _assign_arrows_to_scars(
         if metric is None or metric.get('is_cortex', False):
             continue
 
-        logging.info(
+        logging.debug(
             f"Assigning arrow {arrow_idx} to scar {best_scar}"
         )
         _apply_arrow_result(metric, arrow_result)

@@ -30,6 +30,25 @@ When it finishes you should see a `processed_metrics.csv` file plus one `*_label
 pylithics --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv --explore
 ```
 
+### What you'll see on screen
+
+PyLithics shows a live progress bar during batch processing plus one short summary line per image. The per-image suffix reflects how that image was calibrated:
+
+- `awbari.png · 25.20 px/mm` — scale bar detected, real-world measurements.
+- `image.png · pixels (no scale provided)` — pixel-only mode (no scale in metadata, or `--force_pixels`).
+- `image.png · pixels (scale detection failed — see log)` — scale was provided but detection failed; the underlying reason is in `pylithics/data/processed/pylithics.log` as a `WARNING`.
+
+At the end you get a single summary line:
+
+- All succeeded: `100/100 images processed without errors. Please check logs at pylithics/data/processed/pylithics.log`
+- Some failed: `90/100 images processed successfully. Please check logs at pylithics/data/processed/pylithics.log for errors.`
+
+The full per-step trace (every preprocessing step, every contour, every arrow assignment) **always lands in the log file** for reproducibility. If you want it on screen too, pass `--verbose` (or `-v`):
+
+```bash
+pylithics --data_dir ./data --meta_file ./meta.csv --verbose
+```
+
 ## Command-Line Basics
 
 ### Required Arguments
@@ -117,14 +136,20 @@ The CSV is unchanged. See [Outputs](outputs.md#per-lithic-json-output-optional) 
 
 ### Launch the interactive dashboard
 
-Pass `--explore` to open the [PyLithics Dashboard](dashboard.md) in your browser. With `--meta_file` it analyzes first; without it, it opens the existing results:
+Pass `--explore` to open the [PyLithics Dashboard](dashboard.md) in your browser. With `--meta_file` it analyzes first then auto-opens against the new output; without it, `--data_dir` should point directly at the folder containing the `processed_metrics.csv` you want to explore (the folder name does not have to be `processed/` — it can be any folder, anywhere):
 
 ```bash
-# Analyze and immediately explore
+# Analyze and immediately explore.
+# --data_dir is the project root (with images/, scales/); output is
+# written to ./data/processed/ and the dashboard opens against it.
 pylithics --data_dir ./data --meta_file ./metadata.csv --explore
 
-# Re-open the dashboard later (no re-analysis)
-pylithics --data_dir ./data --explore
+# Re-open the dashboard later (no re-analysis).
+# --data_dir is the actual folder containing processed_metrics.csv.
+pylithics --data_dir ./data/processed --explore
+
+# Explore a different run kept in its own folder.
+pylithics --data_dir ./tanzania_run_2025 --explore
 ```
 
 ## Understanding the PyLithics Pipeline

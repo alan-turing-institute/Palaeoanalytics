@@ -293,7 +293,7 @@ def visualize_voronoi_diagram(
     plt.savefig(output_path, bbox_inches='tight', dpi=300)
     plt.close()
 
-    logging.info(
+    logging.debug(
         "Saved Voronoi diagram visualization to: %s",
         output_path
     )

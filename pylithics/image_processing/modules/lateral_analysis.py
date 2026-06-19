@@ -52,15 +52,15 @@ def analyze_lateral_surface(
         if lateral_contour is None:
             return None
 
-        logging.info("Starting lateral surface convexity analysis")
+        logging.debug("Starting lateral surface convexity analysis")
 
         convexity = detect_lateral_convexity(lateral_contour)
-        logging.info(f"Lateral convexity: {convexity}")
+        logging.debug(f"Lateral convexity: {convexity}")
 
         distance = _calculate_lateral_distance_to_max_width(
             lateral_contour
         )
-        logging.info(f"Distance to max width: {distance}")
+        logging.debug(f"Distance to max width: {distance}")
 
         return {
             'lateral_convexity': (
@@ -106,7 +106,7 @@ def _find_lateral_contour(
             break
 
     if lateral_index == -1:
-        logging.info("No Lateral surface found for convexity analysis")
+        logging.debug("No Lateral surface found for convexity analysis")
         return None
 
     if lateral_index < len(parent_contours):

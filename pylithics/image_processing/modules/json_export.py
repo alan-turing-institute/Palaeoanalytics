@@ -86,7 +86,7 @@ def save_measurements_to_json(
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(document, f, indent=2, default=_json_default)
-    logging.info("Saved per-lithic JSON to %s", output_path)
+    logging.debug("Saved per-lithic JSON to %s", output_path)
 
 
 def _build_document(

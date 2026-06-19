@@ -48,7 +48,7 @@ def get_image_dpi(image_path: str) -> float:
                 float(dpi[0]) if isinstance(dpi, tuple)
                 else float(dpi)
             )
-            logging.info(f"Image DPI detected: {image_dpi}")
+            logging.debug(f"Image DPI detected: {image_dpi}")
             return image_dpi
     except Exception as e:
         logging.error(
@@ -79,7 +79,7 @@ def calculate_dpi_scale_factor(
     dpi_config = config.get('dpi_processing', {})
 
     if not dpi_config.get('enabled', True):
-        logging.info(
+        logging.debug(
             "DPI-aware processing disabled, using 1.0"
         )
         return 1.0
@@ -107,7 +107,7 @@ def calculate_dpi_scale_factor(
             f"limited to {max_scale:.2f}"
         )
 
-    logging.info(
+    logging.debug(
         f"DPI scale: {scale:.2f} "
         f"(image: {image_dpi}, ref: {reference_dpi}, "
         f"mode: {label})"
@@ -133,7 +133,7 @@ def read_image_from_path(
             raise ValueError(
                 f"Image at {image_path} could not be loaded."
             )
-        logging.info("Loaded image: %s", image_path)
+        logging.debug("Loaded image: %s", image_path)
         return image
     except ValueError as e:
         logging.error("Image loading error: %s", e)
@@ -157,14 +157,14 @@ def apply_grayscale_conversion(
     try:
         if method == "standard":
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            logging.info("Converted to standard grayscale.")
+            logging.debug("Converted to standard grayscale.")
         elif method == "clahe":
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             clahe = cv2.createCLAHE(
                 clipLimit=2.0, tileGridSize=(8, 8)
             )
             gray = clahe.apply(gray)
-            logging.info("Converted to CLAHE grayscale.")
+            logging.debug("Converted to CLAHE grayscale.")
         else:
             raise ValueError(
                 f"Unsupported grayscale method: {method}"
@@ -194,12 +194,12 @@ def apply_contrast_normalization(
                 alpha=clip[0], beta=clip[1],
                 norm_type=cv2.NORM_MINMAX
             )
-            logging.info("Applied Min-Max normalization.")
+            logging.debug("Applied Min-Max normalization.")
         elif method == "zscore":
             mean = gray_image.mean()
             std = gray_image.std()
             normalized = (gray_image - mean) / std
-            logging.info("Applied Z-score normalization.")
+            logging.debug("Applied Z-score normalization.")
         else:
             raise ValueError(
                 f"Unsupported normalization method: {method}"
@@ -233,7 +233,7 @@ def perform_thresholding(
         result = _apply_threshold_method(
             blurred, method, max_val, thresh_val, base_block, dpi_scale,
         )
-        logging.info("Applied %s thresholding.", method)
+        logging.debug("Applied %s thresholding.", method)
         return result
 
     except ValueError as e:
@@ -250,7 +250,7 @@ def _gaussian_blur_with_log(
     """Apply Gaussian blur with DPI-scaled kernel size."""
     blur_size = ensure_odd_kernel_size(base_blur * dpi_scale)
     blurred = cv2.GaussianBlur(image, (blur_size, blur_size), 0)
-    logging.info(
+    logging.debug(
         f"Gaussian blur: {blur_size}x{blur_size} "
         f"(base: {base_blur}, scale: {dpi_scale:.2f})"
     )
@@ -268,7 +268,7 @@ def _apply_threshold_method(
     """Dispatch to the requested thresholding algorithm."""
     if method == "adaptive":
         block = ensure_odd_kernel_size(base_block * dpi_scale)
-        logging.info(
+        logging.debug(
             f"Adaptive threshold: {block}x{block} "
             f"(base: {base_block}, scale: {dpi_scale:.2f})"
         )
@@ -333,7 +333,7 @@ def morphological_closing(
     closed = cv2.morphologyEx(
         inverted_image, cv2.MORPH_CLOSE, kernel
     )
-    logging.info(
+    logging.debug(
         f"Morphological closing: {scaled_size}x{scaled_size} "
         f"(base: {base_size}, scale: {dpi_scale:.2f})"
     )
@@ -372,7 +372,7 @@ def verify_image_dpi_and_scale(
 
             pixels_per_mm = dpi[0] / 25.4
             scale_px = real_world_scale_mm * pixels_per_mm
-            logging.info(
+            logging.debug(
                 "DPI: %.2f, Scale (mm): %.2f, "
                 "Scale (px): %.2f",
                 round(dpi[0], 2),
