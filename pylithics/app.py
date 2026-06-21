@@ -822,7 +822,7 @@ def _add_explore_args(parser: argparse.ArgumentParser) -> None:
         '--explore', action='store_true',
         help=(
             'Run analysis (if --meta_file is provided) and then launch the '
-            'PyLithics dashboard. Without --meta_file, point --data_dir at '
+            'PyLithics Explorer. Without --meta_file, point --data_dir at '
             'the folder containing processed_metrics.csv (commonly '
             '<project_root>/processed/).'
         )

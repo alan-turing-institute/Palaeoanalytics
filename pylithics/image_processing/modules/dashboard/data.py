@@ -1,5 +1,5 @@
 """
-Pure data-shaping helpers for the PyLithics dashboard.
+Pure data-shaping helpers for the PyLithics Explorer dashboard.
 
 These functions know nothing about Streamlit. They load the canonical CSV,
 inventory the per-image artifacts, and produce summary numbers and filtered

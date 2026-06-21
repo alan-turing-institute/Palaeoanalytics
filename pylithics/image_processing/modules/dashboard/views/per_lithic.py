@@ -3,11 +3,27 @@
 import json
 
 import streamlit as st
+from PIL import Image
 
 from pylithics.image_processing.modules.dashboard.data import (
     label,
     per_image_image_paths,
 )
+
+# Square canvas (pixels) used to letterbox the labeled image and the
+# Voronoi diagram so they share an identical display footprint
+# regardless of their native aspect ratios.
+_PANEL_BOX_PX = 700
+
+
+def _letterbox(path, box: int = _PANEL_BOX_PX) -> Image.Image:
+    """Fit ``path`` into a ``box × box`` white canvas, preserving aspect."""
+    img = Image.open(path).convert("RGB")
+    img.thumbnail((box, box), Image.LANCZOS)
+    canvas = Image.new("RGB", (box, box), (255, 255, 255))
+    offset = ((box - img.size[0]) // 2, (box - img.size[1]) // 2)
+    canvas.paste(img, offset)
+    return canvas
 
 
 def render(bundle: dict) -> None:
@@ -32,13 +48,13 @@ def render(bundle: dict) -> None:
     with left:
         st.subheader("Labeled image")
         if paths["labeled"]:
-            st.image(str(paths["labeled"]), use_container_width=True)
+            st.image(_letterbox(paths["labeled"]), use_container_width=True)
         else:
             st.info(f"No labeled image found for {image_id}.")
     with right:
         st.subheader("Voronoi diagram")
         if paths["voronoi"]:
-            st.image(str(paths["voronoi"]), use_container_width=True)
+            st.image(_letterbox(paths["voronoi"]), use_container_width=True)
         else:
             st.info(f"No Voronoi diagram found for {image_id}.")
 

@@ -29,8 +29,11 @@ def render(bundle: dict) -> None:
 
     parents = parent_rows(filtered)
 
-    size_tab, sym_tab, scar_tab, spatial_tab, cortex_tab = st.tabs([
-        "Size & shape", "Symmetry", "Scars", "Spatial", "Cortex",
+    # size_tab, sym_tab, scar_tab, spatial_tab, cortex_tab = st.tabs([
+    #     "Size & shape", "Symmetry", "Scars", "Spatial", "Cortex",
+    # ])
+    size_tab, sym_tab, scar_tab, spatial_tab = st.tabs([
+        "Size & shape", "Symmetry", "Scars", "Spatial",
     ])
 
     with size_tab:
@@ -41,8 +44,8 @@ def render(bundle: dict) -> None:
         _render_scars_tab(filtered)
     with spatial_tab:
         _render_spatial_tab(parents)
-    with cortex_tab:
-        _render_cortex_tab(filtered)
+    # with cortex_tab:
+    #     _render_cortex_tab(filtered)
 
 
 # ---------------------------------------------------------------------------
@@ -93,12 +96,12 @@ def _render_size_tab(parents) -> None:
     with cols[0]:
         _dim_scatter(
             parents, "technical_length", "technical_width",
-            title="Technical length × width",
+            title="Technical length × technical width",
         )
     with cols[1]:
         _dim_scatter(
             parents, "max_length", "max_width",
-            title="Max length × width",
+            title="Max length × max width",
         )
 
     st.subheader("Perimeter and aspect ratio")
@@ -456,27 +459,13 @@ def _asymmetry_direction_scatter(dorsal):
         f"N: {n} dorsal surfaces"
     )
     with st.expander("About this plot"):
-        st.markdown(
-            "**What it shows.** Each dot is one dorsal surface. Its "
-            "position tells you *how much* the artefact deviates from a "
-            "perfectly symmetric outline, and *which way* it leans.\n\n"
-            "**How to read it.** The centre of the plot represents perfect "
-            "symmetry. Distance from the centre = how lopsided an artefact "
-            "is. Direction from the centre = which way the extra mass sits "
-            "(top, bottom, left, or right). The corner labels name each "
-            "combination.\n\n"
-            "**What to look for.** A tight cloud near the centre means a "
-            "balanced assemblage. A cloud sitting *off* the centre suggests "
-            "a systematic bias — possibly a knapping or drawing convention. "
-            "An elongated cloud points to anisotropy: the artefacts vary "
-            "along one axis more than the other. Two separate clouds may "
-            "indicate a real subgroup (different reduction stages or raw "
-            "materials).\n\n"
-            "**How it's calculated.** Each dorsal contour is split at its "
-            "centroid into four quadrants (top, bottom, left, right). The "
-            "horizontal bias is `(right − left) / (right + left)`; the "
-            "vertical bias is `(top − bottom) / (top + bottom)`. Both range "
-            "from −1 to +1; zero means perfectly balanced on that axis."
+        st.write(
+            "Directional asymmetry of dorsal outlines relative to their "
+            "centroid. The x-axis shows left–right bias and the y-axis "
+            "shows top–bottom bias, calculated from the relative "
+            "distribution of dorsal area around the centroid. Points "
+            "near the origin are more symmetric; increasing distance "
+            "from the origin indicates stronger asymmetry."
         )
 
 
@@ -559,7 +548,7 @@ def _symmetry_ecdf(dorsal):
         float(h_df["horizontal_symmetry"].min()) if not h_df.empty else 1.0,
     )
     fig.update_layout(
-        title="Cumulative distribution of symmetry (Dorsal surfaces)",
+        title="Cumulative Proportion of Dorsal Surfaces by Symmetry Score",
         xaxis_title="Symmetry score (1 = perfect)",
         yaxis_title="Cumulative proportion",
         plot_bgcolor="white",
@@ -593,29 +582,17 @@ def _symmetry_ecdf(dorsal):
     parts.append(f"N: {n} dorsal surfaces")
     st.caption(" · ".join(parts))
     with st.expander("About this plot"):
-        st.markdown(
-            "**What it shows.** Every dorsal surface in the filtered "
-            "selection, sorted from least to most symmetric. Each dot is one "
-            "artefact — hover to see its image_id.\n\n"
-            "**How to read it.** Read *up* from any symmetry score on the "
-            "x-axis to find what fraction of the assemblage scores at or "
-            "below that value. The point where a curve crosses y = 50% is "
-            "the **median**. A curve hugging the right edge means most "
-            "artefacts are highly symmetric; a long left tail means some "
-            "asymmetric outliers are pulling the distribution down.\n\n"
-            "**The two lines.** Blue = vertical symmetry (top vs. bottom). "
-            "Red = horizontal symmetry (left vs. right). Comparing them "
-            "shows which axis is more consistent across the assemblage. If "
-            "the lines diverge, one axis varies more than the other.\n\n"
-            "**Why an ECDF instead of a histogram.** Histograms depend on "
-            "bin choice and squash detail when scores cluster near 1.0 (as "
-            "symmetry scores tend to). An ECDF shows every artefact, makes "
-            "no binning choice, and lets you read percentiles directly off "
-            "the y-axis — even at small N.\n\n"
-            "**How the score is calculated.** "
-            "`vertical_symmetry = 1 − |top − bottom| / (top + bottom)`, and "
-            "the horizontal version is the same with left/right. Both run "
-            "from 0 (maximally lopsided) to 1 (perfectly balanced)."
+        st.write(
+            "This plot summarizes the distribution of symmetry scores "
+            "across all dorsal surfaces in the current selection. For "
+            "any symmetry value on the x-axis, the y-axis shows the "
+            "proportion of specimens with scores at or below that "
+            "value. Curves further to the right indicate greater "
+            "overall symmetry, while steeper curves indicate less "
+            "variation among specimens. Blue represents vertical "
+            "symmetry (top–bottom balance) and red represents "
+            "horizontal symmetry (left–right balance). Scores range "
+            "from 0 (maximally asymmetric) to 1 (perfectly symmetric)."
         )
 
 
@@ -823,7 +800,7 @@ def _scars_coverage_vs_area(lithics):
         xaxis_title=label_with_units(lithics, "dorsal_area")
                     if "dorsal_area" in lithics.columns
                     else "Dorsal surface area",
-        yaxis_title="Scar coverage (%)",
+        yaxis_title="Scar coverage (% of dorsal area)",
         margin=dict(l=60, r=20, t=40, b=80),
         showlegend=False,
     )
@@ -837,9 +814,11 @@ def _scars_coverage_vs_area(lithics):
     with st.expander("About this plot"):
         st.write(
             "Coverage is the fraction of the dorsal surface taken up by "
-            "all scar polygons combined. A flat trend means heavily- and "
-            "lightly-reduced surfaces sit at all sizes; a positive slope "
-            "would mean larger surfaces are also more thoroughly worked."
+            "all scar polygons combined. Inter-scar ridges, the flake "
+            "margin, and small contour gaps between adjacent scars are "
+            "not counted as scar area, so coverage rarely reaches 100 % "
+            "even on fully-worked dorsals. For cortex specifically, see "
+            "the Cortex tab."
         )
 
 
@@ -853,11 +832,18 @@ def _scar_complexity_histogram(scars):
         st.info("No scar complexity values in the filtered selection.")
         return
     mean = float(values.mean())
-    fig = px.histogram(values, marginal="rug")
+    fig = px.histogram(values)
+    fig.update_traces(
+        hovertemplate=(
+            "Scar complexity: %{x}<br>"
+            "Number of scars: %{y}<extra></extra>"
+        ),
+        selector=dict(type="histogram"),
+    )
     fig.update_layout(
         showlegend=False,
-        xaxis_title=label("scar_complexity"),
-        yaxis_title="Count",
+        xaxis_title="Scar complexity (neighbours touched)",
+        yaxis_title="Number of scars",
         margin=dict(l=60, r=20, t=40, b=80),
     )
     fig.add_vline(
@@ -868,7 +854,7 @@ def _scar_complexity_histogram(scars):
     _align_integer_bins(fig, values)
     _force_integer_yaxis(fig, len(values))
     st.plotly_chart(fig, use_container_width=True)
-    st.caption(_summary_caption(values))
+    st.caption(f"{_summary_caption(values)} scars")
     with st.expander("About this plot"):
         st.write(
             "Complexity counts how many topological connections each scar "
@@ -878,7 +864,9 @@ def _scar_complexity_histogram(scars):
 
 
 def _per_lithic_complexity_strip(scars):
-    """Per-lithic strip plot: scar complexity values, lithics ordered by median."""
+    """Per-lithic sized-circle dot plot: circle size = count of scars at
+    that (lithic, complexity) cell. Lithics ordered by median complexity.
+    """
     if scars.empty or "scar_complexity" not in scars.columns:
         st.info("No scar complexity data in the filtered selection.")
         return
@@ -895,39 +883,75 @@ def _per_lithic_complexity_strip(scars):
         return
 
     medians = s.groupby("image_id")["scar_complexity"].median().sort_values()
-    s["image_id"] = s["image_id"].astype(str)
     order = [str(i) for i in medians.index.tolist()]
-    base = SURFACE_COLORS.get("Dorsal", "rgb(94, 60, 153)")
+    s["image_id"] = s["image_id"].astype(str)
 
-    fig = px.strip(
-        s, x="image_id", y="scar_complexity",
-        category_orders={"image_id": order},
-        hover_data={"image_id": True,
-                    "surface_feature": True,
-                    "scar_complexity": True},
-        color_discrete_sequence=[_with_alpha(base, 0.7)],
+    grid = (
+        s.groupby(["image_id", "scar_complexity"])
+        .size().reset_index(name="count")
     )
-    fig.update_traces(jitter=0.3, marker=dict(size=6,
-                                              line=dict(width=0)))
+
+    palette = px.colors.qualitative.Bold
+    lithic_color = {
+        lithic: _with_alpha(palette[i % len(palette)], 0.8)
+        for i, lithic in enumerate(order)
+    }
+    colors = [lithic_color[lid] for lid in grid["image_id"]]
+
+    max_count = int(grid["count"].max())
+    min_px, max_px = 6, 28
+    if max_count > 1:
+        sizes = min_px + (grid["count"] - 1) * (
+            (max_px - min_px) / (max_count - 1)
+        )
+    else:
+        sizes = [min_px] * len(grid)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=grid["image_id"],
+        y=grid["scar_complexity"],
+        mode="markers",
+        marker=dict(
+            size=sizes,
+            color=colors,
+            line=dict(width=1, color="white"),
+        ),
+        customdata=grid[["image_id", "count"]].values,
+        hovertemplate=(
+            "Lithic: %{customdata[0]}<br>"
+            "Scar complexity: %{y}<br>"
+            "Number of scars: %{customdata[1]}<extra></extra>"
+        ),
+    ))
     fig.update_layout(
         xaxis_title="Lithic (ordered by median complexity)",
-        yaxis_title=label("scar_complexity"),
+        yaxis_title="Scar complexity (neighbours touched)",
         margin=dict(l=60, r=20, t=40, b=80),
         showlegend=False,
     )
-    fig.update_xaxes(showticklabels=False)
+    fig.update_xaxes(
+        categoryorder="array", categoryarray=order, showticklabels=False,
+    )
+    fig.update_yaxes(tickformat="d", dtick=1)
     st.plotly_chart(fig, use_container_width=True)
     st.caption(
-        f"N: {len(s)} scars across {len(multi)} lithics · "
-        "ordered by median complexity"
+        f"{len(s)} scars across {len(multi)} lithics · "
+        "circle size = number of scars at that complexity on each lithic"
     )
     with st.expander("About this plot"):
         st.write(
-            "Each column is one lithic and each dot is one of its scars. "
-            "Tall vertical spreads mean a lithic mixes simple and complex "
-            "scars; tight clusters mean its scars share a similar level of "
-            "topological embedding. Lithics are ordered left-to-right by "
-            "their median scar complexity."
+            "Each column is one lithic. Each circle marks a complexity "
+            "value that occurs on that lithic, and the circle's size is "
+            "the number of scars on that lithic with that exact "
+            "complexity. A big circle at complexity 2 means the lithic "
+            "has many scars that each touch two other scars."
+        )
+        st.write(
+            "Lithics are ordered left-to-right by their median scar "
+            "complexity. Tall vertical spreads of circles mean a lithic "
+            "mixes simple and densely-connected scars; tight clusters "
+            "mean its scars all sit at similar connectivity levels."
         )
 
 
@@ -957,7 +981,7 @@ def _scar_size_ecdf(scars):
             "Lithic: %{customdata[0]}<br>"
             "Scar: %{customdata[1]}<br>"
             f"{label_with_units(scars, 'total_area')}: %{{x:,.1f}}<br>"
-            "Cumulative: %{y:.0%}<extra></extra>"
+            "Larger than %{y:.0%} of all scars<extra></extra>"
         ),
     ))
     fig.update_layout(
@@ -994,7 +1018,6 @@ def _scar_aspect_ecdf(scars):
         return
     s = values.sort_values("aspect_ratio").reset_index(drop=True)
     s["cumulative"] = (s.index + 1) / len(s)
-    base = SURFACE_COLORS.get("Dorsal", "rgb(94, 60, 153)")
     size = 6 if len(s) <= 200 else (4 if len(s) <= 1000 else 3)
 
     fig = go.Figure()
@@ -1008,7 +1031,7 @@ def _scar_aspect_ecdf(scars):
             "Lithic: %{customdata[0]}<br>"
             "Scar: %{customdata[1]}<br>"
             "Aspect ratio: %{x:.2f}<br>"
-            "Cumulative: %{y:.0%}<extra></extra>"
+            "More elongated than %{y:.0%} of all scars<extra></extra>"
         ),
     ))
     fig.update_layout(
@@ -1097,14 +1120,16 @@ def _render_spatial_tab(parents) -> None:
         st.info("No dorsal surfaces in the filtered data.")
         return
 
-    st.subheader("Voronoi cells per dorsal")
-    _voronoi_distribution(dorsal)
+    cols = st.columns(2)
+    with cols[0]:
+        st.subheader("Voronoi cells per dorsal surface")
+        _voronoi_distribution(dorsal)
+    with cols[1]:
+        st.subheader("Scar-Centroid Dispersion (Hull Area / Dorsal Area)")
+        _hull_utilization_distribution(dorsal)
 
     st.subheader("Convex hull area vs dorsal area")
     _hull_vs_dorsal_scatter(dorsal)
-
-    st.subheader("Hull utilization (hull / dorsal area)")
-    _hull_utilization_distribution(dorsal)
 
 
 def _voronoi_distribution(dorsal):
@@ -1115,16 +1140,26 @@ def _voronoi_distribution(dorsal):
     if values.empty:
         st.info("No Voronoi cell counts in the filtered selection.")
         return
-    fig = px.histogram(values, marginal="rug")
+    fig = px.histogram(values)
+    fig.update_traces(
+        hovertemplate=(
+            f"{label('voronoi_num_cells')}: %{{x}}<br>"
+            "Number of dorsal surfaces: %{y}<extra></extra>"
+        ),
+        selector=dict(type="histogram"),
+    )
     fig.update_layout(
         showlegend=False,
         xaxis_title=label("voronoi_num_cells"),
-        yaxis_title="Count",
+        yaxis_title="Number of dorsal surfaces",
+        height=320,
+        margin=dict(l=50, r=20, t=20, b=60),
+        bargap=0.15,
     )
     _align_integer_bins(fig, values)
     _force_integer_yaxis(fig, len(values))
     st.plotly_chart(fig, use_container_width=True)
-    st.caption(_summary_caption(values))
+    st.caption(f"{_summary_caption(values)} dorsal surfaces")
 
 
 def _hull_vs_dorsal_scatter(dorsal):
@@ -1153,31 +1188,103 @@ def _hull_vs_dorsal_scatter(dorsal):
             "<extra></extra>"
         )
     )
+    fig.update_layout(
+        height=320,
+        margin=dict(l=60, r=20, t=20, b=60),
+    )
     _suppress_si_suffix(fig.update_xaxes)
     _suppress_si_suffix(fig.update_yaxes)
     st.plotly_chart(fig, use_container_width=True)
 
 
 def _hull_utilization_distribution(dorsal):
-    needed = {"convex_hull_area", "total_area"}
+    """Sorted lollipop: one stick per lithic, height = hull/dorsal ratio."""
+    needed = {"convex_hull_area", "total_area", "image_id"}
     if not needed.issubset(dorsal.columns):
         st.info("Convex-hull columns missing from filtered data.")
         return
-    points = dorsal.dropna(subset=["convex_hull_area", "total_area"])
+    points = dorsal.dropna(
+        subset=["convex_hull_area", "total_area", "image_id"],
+    ).copy()
     points = points[points["total_area"] > 0]
     if points.empty:
         st.info("No hull / area values in the filtered selection.")
         return
-    ratio = points["convex_hull_area"] / points["total_area"]
-    fig = px.histogram(ratio, nbins=15, marginal="rug")
-    fig.update_layout(
-        showlegend=False,
-        xaxis_title="Hull / dorsal area",
-        yaxis_title="Count",
+
+    points["hull_ratio"] = (
+        points["convex_hull_area"] / points["total_area"]
     )
-    _force_integer_yaxis(fig, len(ratio))
+    if "calibration_method" in points.columns:
+        points["_area_unit"] = points["calibration_method"].apply(
+            lambda m: "mm²" if m == "scale_bar" else "px²"
+        )
+    else:
+        points["_area_unit"] = "px²"
+    points = points.sort_values("hull_ratio").reset_index(drop=True)
+    points["rank"] = points.index
+    base = SURFACE_COLORS.get("Dorsal", "rgb(94, 60, 153)")
+
+    stick_x, stick_y = [], []
+    for _, row in points.iterrows():
+        stick_x.extend([row["rank"], row["rank"], None])
+        stick_y.extend([0.0, row["hull_ratio"], None])
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=stick_x, y=stick_y, mode="lines",
+        line=dict(color=_with_alpha(base, 0.5), width=2),
+        hoverinfo="skip",
+        showlegend=False,
+    ))
+    fig.add_trace(go.Scatter(
+        x=points["rank"], y=points["hull_ratio"],
+        mode="markers",
+        marker=dict(
+            size=10,
+            color=_with_alpha(base, 0.9),
+            line=dict(width=1, color="white"),
+        ),
+        customdata=points[
+            ["image_id", "convex_hull_area", "total_area", "_area_unit"]
+        ].values,
+        hovertemplate=(
+            "Lithic: %{customdata[0]}<br><br>"
+            "Scar dispersion: %{y:.2f}<br><br>"
+            "Scar-centroid hull area: %{customdata[1]:,.0f} %{customdata[3]}<br>"
+            "Dorsal area: %{customdata[2]:,.0f} %{customdata[3]}<br><br>"
+            "Centroid hull area = %{y:.0%} of dorsal area"
+            "<extra></extra>"
+        ),
+        showlegend=False,
+    ))
+    fig.add_hline(
+        y=1.0, line_dash="dash", line_color="#666",
+        annotation_text="centroid hull = dorsal area (1.0)",
+        annotation_position="top left",
+    )
+    fig.update_layout(
+        xaxis_title="Lithic (sorted by centroid-hull ratio)",
+        yaxis_title="Centroid-hull area / dorsal area",
+        margin=dict(l=60, r=20, t=20, b=60),
+        height=320,
+    )
+    fig.update_xaxes(showticklabels=False)
     st.plotly_chart(fig, use_container_width=True)
-    st.caption(_summary_caption(ratio))
+    st.caption(
+        f"{_summary_caption(points['hull_ratio'])} dorsal surfaces"
+    )
+    with st.expander("About this plot"):
+        st.write(
+            "Scar dispersion quantifies the spatial extent of dorsal "
+            "scar-centroid distribution. For each lithic, the area of "
+            "the convex hull enclosing scar centroids is expressed as a "
+            "proportion of dorsal surface area. Higher ratios indicate "
+            "a broader distribution of scar centres across the dorsal "
+            "surface; lower ratios indicate a more localized "
+            "concentration. Lithics are sorted from lowest to highest "
+            "ratio. The dashed line at 1.0 denotes the theoretical "
+            "upper limit."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -1219,6 +1326,13 @@ def _cortex_percentage_distribution(cortex):
         st.info("No cortex-percentage values.")
         return
     fig = px.histogram(values, nbins=15, marginal="rug")
+    fig.update_traces(
+        hovertemplate=(
+            "Cortex percentage: %{x:.1f}%<br>"
+            "Number of cortex regions: %{y}<extra></extra>"
+        ),
+        selector=dict(type="histogram"),
+    )
     fig.update_layout(
         showlegend=False,
         xaxis_title="Cortex percentage of parent surface (%)",
@@ -1239,6 +1353,13 @@ def _cortex_area_distribution(cortex):
         return
     fig = px.histogram(cortex, x="cortex_area", nbins=15, marginal="rug",
                        labels={"cortex_area": label_with_units(cortex, "cortex_area")})
+    fig.update_traces(
+        hovertemplate=(
+            f"{label_with_units(cortex, 'cortex_area')}: %{{x:,.1f}}<br>"
+            "Number of cortex regions: %{y}<extra></extra>"
+        ),
+        selector=dict(type="histogram"),
+    )
     fig.update_layout(yaxis_title="Count")
     _force_integer_yaxis(fig, len(values))
     _suppress_si_suffix(fig.update_xaxes)
