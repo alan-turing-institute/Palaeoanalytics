@@ -1,19 +1,20 @@
 name: Deploy MkDocs Documentation
+
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     - name: Setup Python
       uses: actions/setup-python@v4
       with:
@@ -21,20 +22,9 @@ jobs:
     - name: Install dependencies
       run: |
         pip install mkdocs mkdocs-material
-    - name: Build docs
-      run: mkdocs build
-    - name: Upload Pages artifact
-      uses: actions/upload-pages-artifact@v2
-      with:
-        path: site/
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v2
+    - name: Configure git
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+    - name: Deploy docs
+      run: mkdocs gh-deploy --force
