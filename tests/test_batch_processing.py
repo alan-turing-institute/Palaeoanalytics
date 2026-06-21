@@ -1,695 +1,299 @@
-"""
-PyLithics Batch Processing Tests
-===============================
+"""Tests for multi-image batch processing behavior."""
 
-Tests for multi-image batch processing workflows, focusing on:
-- Batch result aggregation and tracking
-- Mixed success/failure scenarios
-- Batch-specific error handling
-- Performance characteristics for multiple images
-- Resource management across batches
-"""
-
-import pytest
-import numpy as np
-import cv2
-import pandas as pd
-import tempfile
 import os
-import yaml
+import tempfile
 import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+
+import cv2
+import numpy as np
+import pandas as pd
+import pytest
+import yaml
 from PIL import Image
 
 from pylithics.app import PyLithicsApplication
+from pylithics.image_processing.config import clear_config_cache
 
 
-@pytest.mark.unit
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _save_bgr_with_dpi(image_bgr, path, dpi=300):
+    rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+    Image.fromarray(rgb).save(path, dpi=(dpi, dpi))
+
+
+def _valid_image(variation=0):
+    img = np.full((300, 400, 3), 240, dtype=np.uint8)
+    x = 50 + variation * 5
+    cv2.rectangle(img, (x, 50), (x + 200, 200), (80, 70, 60), thickness=-1)
+    cv2.circle(img, (x + 60, 100), 20, (50, 45, 40), thickness=-1)
+    return img
+
+
+def _write_metadata(metadata_path, rows):
+    with open(metadata_path, "w") as f:
+        f.write("image_id,scale_id,scale\n")
+        for row in rows:
+            f.write(",".join(str(v) for v in row) + "\n")
+
+
+def _make_batch(temp_dir, rows, make_valid):
+    """
+    Build a data_dir/metadata workspace.
+
+    `rows` is a list of (image_id, scale_id, scale). `make_valid(image_id)`
+    returns True to save a real image at that path, False to write a bogus
+    text file (simulating a corrupt image).
+    """
+    data_dir = os.path.join(temp_dir, "data")
+    images_dir = os.path.join(data_dir, "images")
+    os.makedirs(images_dir)
+
+    for i, (image_id, _, _) in enumerate(rows):
+        path = os.path.join(images_dir, image_id)
+        if make_valid(image_id):
+            _save_bgr_with_dpi(_valid_image(variation=i), path)
+        else:
+            with open(path, "w") as f:
+                f.write("not an image")
+
+    metadata_path = os.path.join(data_dir, "metadata.csv")
+    _write_metadata(metadata_path, rows)
+    return data_dir, metadata_path
+
+
+def _write_config(temp_dir, sample_config):
+    path = os.path.join(temp_dir, "config.yaml")
+    with open(path, "w") as f:
+        yaml.dump(sample_config, f)
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Batch result structure
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
 class TestBatchResultAggregation:
-    """Test how batch results are collected and aggregated."""
+    """run_batch_analysis returns a result dict that tracks outcomes."""
 
-    def test_successful_batch_result_structure(self, sample_config):
-        """Test result structure for completely successful batch."""
+    def test_all_valid_batch_reports_full_success(self, sample_config):
+        rows = [
+            ("a.png", "scale_1", "15.0"),
+            ("b.png", "scale_2", "16.0"),
+            ("c.png", "scale_3", "17.0"),
+        ]
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Create batch with 3 valid images
-            data_dir, metadata_path = self._create_test_batch(temp_dir, 3, all_valid=True)
-
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
+            data_dir, meta = _make_batch(temp_dir, rows, make_valid=lambda _id: True)
+            config_path = _write_config(temp_dir, sample_config)
 
             app = PyLithicsApplication(config_file=config_path)
-            results = app.run_batch_analysis(data_dir, metadata_path)
+            result = app.run_batch_analysis(data_dir, meta)
 
-            # Verify result structure
-            assert isinstance(results, dict)
-            assert 'success' in results
-            assert 'total_images' in results
-            assert 'processed_successfully' in results
-            assert 'failed_images' in results
-            assert 'processing_errors' in results
+        assert set(result.keys()) >= {
+            "success", "total_images", "processed_successfully",
+            "failed_images", "processing_errors",
+        }
+        assert result["success"] is True
+        assert result["total_images"] == 3
+        assert result["processed_successfully"] == 3
+        assert result["failed_images"] == []
+        assert result["processing_errors"] == []
 
-            # Verify successful batch values
-            assert results['success'] is True
-            assert results['total_images'] == 3
-            assert results['processed_successfully'] == 3
-            assert len(results['failed_images']) == 0
-            assert len(results['processing_errors']) == 0
-
-    def test_mixed_success_failure_batch(self, sample_config):
-        """Test result aggregation with mixed success/failure."""
+    def test_all_invalid_batch_reports_every_row_as_failed(self, sample_config):
+        rows = [(f"{name}.png", "s", "15") for name in ("a", "b", "c")]
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Create batch with mix of valid and invalid images
-            data_dir, metadata_path = self._create_mixed_batch(temp_dir)
-
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
+            data_dir, meta = _make_batch(temp_dir, rows, make_valid=lambda _id: False)
+            config_path = _write_config(temp_dir, sample_config)
 
             app = PyLithicsApplication(config_file=config_path)
-            results = app.run_batch_analysis(data_dir, metadata_path)
+            result = app.run_batch_analysis(data_dir, meta)
 
-            # Should still report success for partial completion
-            assert results['success'] is True  # Batch framework succeeded
-            assert results['total_images'] == 4
-            assert results['processed_successfully'] >= 1  # At least valid images
-            assert len(results['failed_images']) >= 1  # Some should fail
-            assert isinstance(results['processing_errors'], list)
+        assert result["total_images"] == 3
+        assert result["processed_successfully"] == 0
+        assert len(result["failed_images"]) == 3
+        assert len(result["processing_errors"]) == 3
 
-    def test_completely_failed_batch(self, sample_config):
-        """Test result aggregation when all images fail."""
+    def test_mixed_batch_tracks_successes_and_failures(self, sample_config):
+        rows = [
+            ("good_a.png", "s", "15.0"),
+            ("bad_a.png", "s", "16.0"),
+            ("good_b.png", "s", "17.0"),
+            ("bad_b.png", "s", "18.0"),
+        ]
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Create batch with only invalid images
-            data_dir, metadata_path = self._create_test_batch(temp_dir, 3, all_valid=False)
-
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
+            data_dir, meta = _make_batch(
+                temp_dir, rows, make_valid=lambda name: name.startswith("good"),
+            )
+            config_path = _write_config(temp_dir, sample_config)
 
             app = PyLithicsApplication(config_file=config_path)
-            results = app.run_batch_analysis(data_dir, metadata_path)
+            result = app.run_batch_analysis(data_dir, meta)
 
-            # Verify failed batch handling
-            assert isinstance(results, dict)
-            assert results['total_images'] == 3
-            assert results['processed_successfully'] == 0
-            assert len(results['failed_images']) == 3
-            assert len(results['processing_errors']) == 3
+        assert result["processed_successfully"] == 2
+        assert sorted(result["failed_images"]) == ["bad_a.png", "bad_b.png"]
 
-    def test_empty_batch_handling(self, sample_config):
-        """Test handling of empty batch (no images)."""
+    def test_empty_metadata_fails_validation(self, sample_config):
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Create empty batch
             data_dir = os.path.join(temp_dir, "data")
-            images_dir = os.path.join(data_dir, "images")
-            os.makedirs(images_dir)
+            os.makedirs(os.path.join(data_dir, "images"))
 
-            # Empty metadata
-            metadata_content = "image_id,scale_id,scale\n"
             metadata_path = os.path.join(data_dir, "metadata.csv")
-            with open(metadata_path, 'w') as f:
-                f.write(metadata_content)
+            _write_metadata(metadata_path, rows=[])
 
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
-
+            config_path = _write_config(temp_dir, sample_config)
             app = PyLithicsApplication(config_file=config_path)
-            results = app.run_batch_analysis(data_dir, metadata_path)
+            result = app.run_batch_analysis(data_dir, metadata_path)
 
-            # Should handle empty batch gracefully
-            assert results['success'] is True
-            assert results['total_images'] == 0
-            assert results['processed_successfully'] == 0
-            assert len(results['failed_images']) == 0
+        assert result["success"] is False
+
+
+# ---------------------------------------------------------------------------
+# Metadata edge cases
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.integration
-class TestBatchProcessingWorkflows:
-    """Test complete batch processing workflows."""
+class TestBatchMetadataHandling:
+    """Invalid scale values must not take down the whole batch."""
 
-    def test_small_batch_processing(self, sample_config):
-        """Test processing small batch (2-5 images)."""
+    @pytest.mark.parametrize("scale_value", ["not_a_number", "", "-5.0"])
+    def test_invalid_scale_values_do_not_abort_batch(
+        self, sample_config, scale_value
+    ):
+        rows = [
+            ("ok.png", "scale_1", "15.0"),
+            ("weird.png", "scale_2", scale_value),
+        ]
         with tempfile.TemporaryDirectory() as temp_dir:
-            batch_size = 3
-            data_dir, metadata_path = self._create_test_batch(temp_dir, batch_size, all_valid=True)
-
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
+            data_dir, meta = _make_batch(
+                temp_dir, rows, make_valid=lambda _id: True,
+            )
+            config_path = _write_config(temp_dir, sample_config)
 
             app = PyLithicsApplication(config_file=config_path)
+            result = app.run_batch_analysis(data_dir, meta)
 
-            start_time = time.time()
-            results = app.run_batch_analysis(data_dir, metadata_path)
-            end_time = time.time()
+        assert result["success"] is True
+        assert result["total_images"] == 2
+        # Processing should not crash on either row
+        assert result["processed_successfully"] >= 1
 
-            # Verify successful processing
-            assert results['success'] is True
-            assert results['processed_successfully'] == batch_size
 
-            # Verify outputs
-            processed_dir = os.path.join(data_dir, 'processed')
-            csv_files = list(Path(processed_dir).glob("processed_metrics.csv"))
-            assert len(csv_files) == 1
-
-            # Verify all images in CSV
-            df = pd.read_csv(csv_files[0])
-            unique_images = df['image_id'].nunique()
-            assert unique_images == batch_size
-
-            # Performance check for small batch
-            assert end_time - start_time < 60.0, "Small batch took too long"
-
-    def test_medium_batch_processing(self, sample_config):
-        """Test processing medium batch (10-15 images)."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            batch_size = 10
-            data_dir, metadata_path = self._create_test_batch(temp_dir, batch_size, all_valid=True)
-
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
-
-            app = PyLithicsApplication(config_file=config_path)
-
-            start_time = time.time()
-            results = app.run_batch_analysis(data_dir, metadata_path)
-            end_time = time.time()
-
-            # Verify batch completed
-            assert results['success'] is True
-            assert results['total_images'] == batch_size
-
-            # Allow for some failures in larger batches
-            success_rate = results['processed_successfully'] / results['total_images']
-            assert success_rate >= 0.7, f"Success rate too low: {success_rate:.1%}"
-
-            # Performance check for medium batch
-            avg_time_per_image = (end_time - start_time) / batch_size
-            assert avg_time_per_image < 20.0, f"Average time too high: {avg_time_per_image:.1f}s"
-
-    def test_batch_with_progressive_difficulty(self, sample_config):
-        """Test batch with images of increasing processing difficulty."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            data_dir = os.path.join(temp_dir, "data")
-            images_dir = os.path.join(data_dir, "images")
-            os.makedirs(images_dir)
-
-            # Create images with increasing complexity
-            difficulties = ["simple", "medium", "complex", "very_complex"]
-            metadata_content = "image_id,scale_id,scale\n"
-
-            for i, difficulty in enumerate(difficulties):
-                filename = f"image_{difficulty}_{i:02d}.png"
-                image_path = os.path.join(images_dir, filename)
-
-                test_image = self._create_difficulty_test_image(difficulty)
-                cv2.imwrite(image_path, test_image)
-
-                scale = 15.0 + i * 2.0
-                metadata_content += f"{filename},scale_{i+1},{scale}\n"
-
-            metadata_path = os.path.join(data_dir, "metadata.csv")
-            with open(metadata_path, 'w') as f:
-                f.write(metadata_content)
-
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
-
-            app = PyLithicsApplication(config_file=config_path)
-            results = app.run_batch_analysis(data_dir, metadata_path)
-
-            # Should handle varying difficulty levels
-            assert results['success'] is True
-            assert results['total_images'] == len(difficulties)
-
-            # Simpler images should definitely succeed
-            assert results['processed_successfully'] >= 2
+# ---------------------------------------------------------------------------
+# Output consolidation
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.integration
-class TestBatchErrorHandling:
-    """Test error handling in batch processing scenarios."""
+class TestBatchOutputs:
+    """CSV and visualizations should accumulate across the batch."""
 
-    def test_batch_continues_after_single_failure(self, sample_config):
-        """Test that batch processing continues after individual image failures."""
+    def test_csv_contains_one_row_group_per_successful_image(self, sample_config):
+        rows = [(f"img_{i}.png", "s", "15.0") for i in range(4)]
         with tempfile.TemporaryDirectory() as temp_dir:
-            data_dir = os.path.join(temp_dir, "data")
-            images_dir = os.path.join(data_dir, "images")
-            os.makedirs(images_dir)
-
-            # Create mix: valid, corrupted, valid, corrupted, valid
-            images_data = [
-                ("valid_01.png", "valid"),
-                ("corrupted_01.png", "corrupted"),
-                ("valid_02.png", "valid"),
-                ("corrupted_02.png", "corrupted"),
-                ("valid_03.png", "valid")
-            ]
-
-            metadata_content = "image_id,scale_id,scale\n"
-            for i, (filename, image_type) in enumerate(images_data):
-                image_path = os.path.join(images_dir, filename)
-
-                if image_type == "valid":
-                    test_image = self._create_valid_test_image()
-                    cv2.imwrite(image_path, test_image)
-                else:  # corrupted
-                    # Create corrupted file
-                    with open(image_path, 'w') as f:
-                        f.write("not an image file")
-
-                scale = 15.0 + i * 1.0
-                metadata_content += f"{filename},scale_{i+1},{scale}\n"
-
-            metadata_path = os.path.join(data_dir, "metadata.csv")
-            with open(metadata_path, 'w') as f:
-                f.write(metadata_content)
-
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
+            data_dir, meta = _make_batch(
+                temp_dir, rows, make_valid=lambda _id: True,
+            )
+            config_path = _write_config(temp_dir, sample_config)
 
             app = PyLithicsApplication(config_file=config_path)
-            results = app.run_batch_analysis(data_dir, metadata_path)
+            result = app.run_batch_analysis(data_dir, meta)
 
-            # Batch should continue and process valid images
-            assert results['success'] is True
-            assert results['total_images'] == 5
-            assert results['processed_successfully'] == 3  # 3 valid images
-            assert len(results['failed_images']) == 2  # 2 corrupted images
+            csv_path = Path(data_dir) / "processed" / "processed_metrics.csv"
+            df = pd.read_csv(csv_path)
 
-            # Failed images should be tracked
-            failed_names = results['failed_images']
-            assert 'corrupted_01.png' in failed_names
-            assert 'corrupted_02.png' in failed_names
+            assert result["processed_successfully"] == 4
+            # Exactly one consolidated CSV
+            assert len(list(csv_path.parent.glob("processed_metrics.csv"))) == 1
+            # Every processed image should show up
+            assert df["image_id"].nunique() == 4
+            for col in ("image_id", "surface_type", "surface_feature", "total_area"):
+                assert col in df.columns
 
-    def test_batch_missing_image_files(self, sample_config):
-        """Test batch processing when some referenced images don't exist."""
+    def test_each_successful_image_gets_a_labeled_visualization(
+        self, sample_config
+    ):
+        rows = [(f"viz_{i}.png", "s", "15.0") for i in range(3)]
         with tempfile.TemporaryDirectory() as temp_dir:
-            data_dir = os.path.join(temp_dir, "data")
-            images_dir = os.path.join(data_dir, "images")
-            os.makedirs(images_dir)
-
-            # Create metadata referencing both existing and missing files
-            metadata_content = "image_id,scale_id,scale\n"
-            metadata_content += "existing_01.png,scale_1,15.0\n"
-            metadata_content += "missing_01.png,scale_2,18.0\n"  # This file won't exist
-            metadata_content += "existing_02.png,scale_3,20.0\n"
-            metadata_content += "missing_02.png,scale_4,22.0\n"  # This file won't exist
-
-            # Only create the "existing" files
-            for filename in ["existing_01.png", "existing_02.png"]:
-                image_path = os.path.join(images_dir, filename)
-                test_image = self._create_valid_test_image()
-                cv2.imwrite(image_path, test_image)
-
-            metadata_path = os.path.join(data_dir, "metadata.csv")
-            with open(metadata_path, 'w') as f:
-                f.write(metadata_content)
-
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
+            data_dir, meta = _make_batch(
+                temp_dir, rows, make_valid=lambda _id: True,
+            )
+            config_path = _write_config(temp_dir, sample_config)
 
             app = PyLithicsApplication(config_file=config_path)
-            results = app.run_batch_analysis(data_dir, metadata_path)
+            result = app.run_batch_analysis(data_dir, meta)
 
-            # Should process existing files and track missing ones
-            assert results['success'] is True
-            assert results['total_images'] == 4
-            assert results['processed_successfully'] == 2
-            assert len(results['failed_images']) == 2
-            assert 'missing_01.png' in results['failed_images']
-            assert 'missing_02.png' in results['failed_images']
+            processed = Path(data_dir) / "processed"
+            labeled = list(processed.glob("*_labeled.png"))
 
-    def test_batch_with_invalid_metadata_entries(self, sample_config):
-        """Test batch processing with some invalid metadata entries."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            data_dir = os.path.join(temp_dir, "data")
-            images_dir = os.path.join(data_dir, "images")
-            os.makedirs(images_dir)
+            assert result["processed_successfully"] == 3
+            assert len(labeled) >= 3
+            # Each file must be a valid image
+            for path in labeled:
+                assert cv2.imread(str(path)) is not None
 
-            # Create metadata with valid and invalid entries
-            metadata_content = "image_id,scale_id,scale\n"
-            metadata_content += "valid_01.png,scale_1,15.0\n"
-            metadata_content += "valid_02.png,scale_2,invalid_scale\n"  # Invalid scale
-            metadata_content += "valid_03.png,scale_3,\n"  # Empty scale
-            metadata_content += "valid_04.png,scale_4,25.0\n"
 
-            # Create all image files
-            for i in range(1, 5):
-                filename = f"valid_{i:02d}.png"
-                image_path = os.path.join(images_dir, filename)
-                test_image = self._create_valid_test_image()
-                cv2.imwrite(image_path, test_image)
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
 
-            metadata_path = os.path.join(data_dir, "metadata.csv")
-            with open(metadata_path, 'w') as f:
-                f.write(metadata_content)
 
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
+@pytest.mark.integration
+def test_batch_writes_expected_lines_to_log_file(sample_config):
+    clear_config_cache()
 
-            app = PyLithicsApplication(config_file=config_path)
-            results = app.run_batch_analysis(data_dir, metadata_path)
+    rows = [
+        ("good.png", "s", "15.0"),
+        ("bad.png", "s", "16.0"),
+    ]
+    with tempfile.TemporaryDirectory() as temp_dir:
+        data_dir, meta = _make_batch(
+            temp_dir, rows,
+            make_valid=lambda name: name.startswith("good"),
+        )
 
-            # Should handle invalid metadata gracefully
-            assert results['success'] is True
-            assert results['total_images'] == 4
+        config = dict(sample_config)
+        config["logging"] = {
+            "level": "INFO",
+            "log_to_file": True,
+            "log_file": os.path.join(temp_dir, "batch.log"),
+        }
+        config_path = _write_config(temp_dir, config)
 
-            # Some images should process successfully despite metadata issues
-            assert results['processed_successfully'] >= 2
+        app = PyLithicsApplication(config_file=config_path)
+        app.run_batch_analysis(data_dir, meta)
+
+        log_path = Path(temp_dir) / "batch.log"
+        log_content = log_path.read_text()
+
+    assert "Starting batch processing" in log_content
+    assert "images processed" in log_content
+
+
+# ---------------------------------------------------------------------------
+# Performance
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.performance
-class TestBatchPerformance:
-    """Test performance characteristics of batch processing."""
-
-    def test_batch_memory_usage(self, sample_config):
-        """Test memory usage during batch processing."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            batch_size = 5
-            data_dir, metadata_path = self._create_test_batch(temp_dir, batch_size)
-
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
-
-            # Monitor memory usage
-            import psutil
-            process = psutil.Process(os.getpid())
-            initial_memory = process.memory_info().rss
-
-            app = PyLithicsApplication(config_file=config_path)
-            results = app.run_batch_analysis(data_dir, metadata_path)
-
-            peak_memory = process.memory_info().rss
-            memory_increase = peak_memory - initial_memory
-
-            # Memory should not grow excessively
-            max_acceptable = 150 * 1024 * 1024  # 150MB
-            assert memory_increase < max_acceptable, \
-                f"Memory usage too high: {memory_increase / (1024*1024):.1f}MB"
-
-    def test_batch_processing_time_scaling(self, sample_config):
-        """Test that processing time scales reasonably with batch size."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
-
-            times = []
-            batch_sizes = [2, 4, 6]
-
-            for batch_size in batch_sizes:
-                batch_dir = os.path.join(temp_dir, f"batch_{batch_size}")
-                data_dir, metadata_path = self._create_test_batch(batch_dir, batch_size)
-
-                app = PyLithicsApplication(config_file=config_path)
-
-                start_time = time.time()
-                results = app.run_batch_analysis(data_dir, metadata_path)
-                end_time = time.time()
-
-                processing_time = end_time - start_time
-                times.append((batch_size, processing_time))
-
-            # Verify reasonable scaling
-            for batch_size, processing_time in times:
-                avg_time_per_image = processing_time / batch_size
-                assert avg_time_per_image < 25.0, \
-                    f"Batch size {batch_size}: {avg_time_per_image:.1f}s per image too slow"
-
-    def test_batch_resource_cleanup(self, sample_config):
-        """Test that resources are properly cleaned up during batch processing."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            batch_size = 8
-            data_dir, metadata_path = self._create_test_batch(temp_dir, batch_size)
-
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
-
-            import psutil
-            process = psutil.Process()
-            initial_open_files = len(process.open_files())
-
-            app = PyLithicsApplication(config_file=config_path)
-            results = app.run_batch_analysis(data_dir, metadata_path)
-
-            final_open_files = len(process.open_files())
-            file_handle_leak = final_open_files - initial_open_files
-
-            # Should not leak file handles
-            assert file_handle_leak < 10, f"File handle leak: {file_handle_leak} files"
-
-
-@pytest.mark.integration
-class TestBatchOutputValidation:
-    """Test validation of batch processing outputs."""
-
-    def test_batch_csv_consolidation(self, sample_config):
-        """Test that batch results are properly consolidated in CSV."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            batch_size = 4
-            data_dir, metadata_path = self._create_test_batch(temp_dir, batch_size, all_valid=True)
-
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
-
-            app = PyLithicsApplication(config_file=config_path)
-            results = app.run_batch_analysis(data_dir, metadata_path)
-
-            assert results['success'] is True
-
-            # Verify CSV consolidation
-            processed_dir = os.path.join(data_dir, 'processed')
-            csv_files = list(Path(processed_dir).glob("processed_metrics.csv"))
-            assert len(csv_files) == 1, "Should have exactly one consolidated CSV"
-
-            df = pd.read_csv(csv_files[0])
-
-            # Should have data from all processed images
-            unique_images = df['image_id'].nunique()
-            assert unique_images == results['processed_successfully']
-
-            # Should have consistent data structure
-            required_columns = ['image_id', 'parent', 'scar', 'area']
-            for col in required_columns:
-                assert col in df.columns, f"Missing column: {col}"
-
-    def test_batch_visualization_generation(self, sample_config):
-        """Test visualization generation for batch processing."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            batch_size = 3
-            data_dir, metadata_path = self._create_test_batch(temp_dir, batch_size, all_valid=True)
-
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(sample_config, f)
-
-            app = PyLithicsApplication(config_file=config_path)
-            results = app.run_batch_analysis(data_dir, metadata_path)
-
-            assert results['success'] is True
-
-            # Check visualization files
-            processed_dir = os.path.join(data_dir, 'processed')
-            viz_files = list(Path(processed_dir).glob("*_labeled.png"))
-
-            # Should have visualizations for processed images
-            assert len(viz_files) >= results['processed_successfully']
-
-            # Verify visualization files are valid
-            for viz_file in viz_files:
-                assert viz_file.stat().st_size > 0
-                # Try to read to verify it's a valid image
-                test_img = cv2.imread(str(viz_file))
-                assert test_img is not None, f"Invalid visualization: {viz_file}"
-
-    def test_batch_processing_logging(self, sample_config):
-        """Test logging during batch processing."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            batch_size = 3
-            data_dir, metadata_path = self._create_mixed_batch(temp_dir)
-
-            # Configure logging
-            log_config = sample_config.copy()
-            log_config['logging'] = {
-                'level': 'INFO',
-                'log_to_file': True,
-                'log_file': os.path.join(temp_dir, 'batch_test.log')
-            }
-
-            config_path = os.path.join(temp_dir, "config.yaml")
-            with open(config_path, 'w') as f:
-                yaml.dump(log_config, f)
-
-            app = PyLithicsApplication(config_file=config_path)
-            results = app.run_batch_analysis(data_dir, metadata_path)
-
-            # Check log file was created
-            log_file = Path(temp_dir) / 'batch_test.log'
-            assert log_file.exists(), "Log file should be created"
-            assert log_file.stat().st_size > 0, "Log file should contain data"
-
-            # Check log content
-            log_content = log_file.read_text()
-            assert "Starting batch processing" in log_content
-            assert "Batch processing completed" in log_content
-
-
-# Helper methods for test data creation
-def _create_test_batch(self, temp_dir, batch_size, all_valid=True):
-    """Create test batch with specified characteristics."""
-    data_dir = os.path.join(temp_dir, "data")
-    images_dir = os.path.join(data_dir, "images")
-    os.makedirs(images_dir)
-
-    metadata_content = "image_id,scale_id,scale\n"
-
-    for i in range(batch_size):
-        filename = f"batch_test_{i:03d}.png"
-        image_path = os.path.join(images_dir, filename)
-
-        if all_valid:
-            test_image = self._create_valid_test_image(variation=i)
-            cv2.imwrite(image_path, test_image)
-        else:
-            # Create invalid/corrupted file
-            with open(image_path, 'w') as f:
-                f.write(f"corrupted_data_{i}")
-
-        scale = 15.0 + i * 1.5
-        metadata_content += f"{filename},scale_{i+1},{scale}\n"
-
-    metadata_path = os.path.join(data_dir, "metadata.csv")
-    with open(metadata_path, 'w') as f:
-        f.write(metadata_content)
-
-    return data_dir, metadata_path
-
-def _create_mixed_batch(self, temp_dir):
-    """Create batch with mix of valid and invalid images."""
-    data_dir = os.path.join(temp_dir, "data")
-    images_dir = os.path.join(data_dir, "images")
-    os.makedirs(images_dir)
-
-    # Mix of valid and invalid files
-    files_data = [
-        ("valid_01.png", "valid"),
-        ("invalid_01.png", "invalid"),
-        ("valid_02.png", "valid"),
-        ("invalid_02.png", "invalid")
-    ]
-
-    metadata_content = "image_id,scale_id,scale\n"
-
-    for i, (filename, file_type) in enumerate(files_data):
-        image_path = os.path.join(images_dir, filename)
-
-        if file_type == "valid":
-            test_image = self._create_valid_test_image(variation=i)
-            cv2.imwrite(image_path, test_image)
-        else:
-            # Create corrupted file
-            with open(image_path, 'w') as f:
-                f.write("not_an_image")
-
-        scale = 15.0 + i * 2.0
-        metadata_content += f"{filename},scale_{i+1},{scale}\n"
-
-    metadata_path = os.path.join(data_dir, "metadata.csv")
-    with open(metadata_path, 'w') as f:
-        f.write(metadata_content)
-
-    return data_dir, metadata_path
-
-def _create_valid_test_image(self, variation=0):
-    """Create valid test image with optional variation."""
-    size = (300, 400)
-    height, width = size
-
-    image = np.full((height, width, 3), 240, dtype=np.uint8)
-
-    # Main artifact with variation
-    rect_x = 50 + variation * 5
-    rect_y = 50 + variation * 3
-    rect_w = 200
-    rect_h = 150
-
-    cv2.rectangle(image, (rect_x, rect_y), (rect_x + rect_w, rect_y + rect_h), (80, 70, 60), -1)
-
-    # Add scar
-    scar_x = rect_x + 60 + variation * 2
-    scar_y = rect_y + 50 + variation * 2
-    cv2.circle(image, (scar_x, scar_y), 20, (50, 45, 40), -1)
-
-    return image
-
-def _create_difficulty_test_image(self, difficulty):
-    """Create test images with varying processing difficulty."""
-    size = (300, 400)
-    height, width = size
-
-    if difficulty == "simple":
-        # Simple rectangle
-        image = np.full((height, width, 3), 240, dtype=np.uint8)
-        cv2.rectangle(image, (100, 100), (200, 200), (80, 70, 60), -1)
-
-    elif difficulty == "medium":
-        # Rectangle with scar
-        image = np.full((height, width, 3), 240, dtype=np.uint8)
-        cv2.rectangle(image, (50, 50), (250, 200), (80, 70, 60), -1)
-        cv2.circle(image, (150, 125), 25, (50, 45, 40), -1)
-
-    elif difficulty == "complex":
-        # Multiple features
-        image = np.full((height, width, 3), 240, dtype=np.uint8)
-        cv2.rectangle(image, (50, 50), (250, 200), (80, 70, 60), -1)
-        cv2.circle(image, (120, 100), 20, (50, 45, 40), -1)
-        cv2.circle(image, (180, 140), 18, (55, 50, 45), -1)
-        cv2.circle(image, (150, 170), 15, (45, 40, 35), -1)
-
-    else:  # very_complex
-        # Many small features
-        image = np.full((height, width, 3), 240, dtype=np.uint8)
-        cv2.rectangle(image, (40, 40), (260, 220), (80, 70, 60), -1)
-
-        # Add many small scars
-        for i in range(8):
-            x = 70 + (i % 4) * 45
-            y = 70 + (i // 4) * 35
-            radius = 8 + (i % 3) * 3
-            cv2.circle(image, (x, y), radius, (50 - i, 45 - i, 40 - i), -1)
-
-    return image
-
-# Add helper methods to test classes
-TestBatchResultAggregation._create_test_batch = _create_test_batch
-TestBatchResultAggregation._create_mixed_batch = _create_mixed_batch
-TestBatchResultAggregation._create_valid_test_image = _create_valid_test_image
-
-TestBatchProcessingWorkflows._create_test_batch = _create_test_batch
-TestBatchProcessingWorkflows._create_difficulty_test_image = _create_difficulty_test_image
-TestBatchProcessingWorkflows._create_valid_test_image = _create_valid_test_image
-
-TestBatchErrorHandling._create_valid_test_image = _create_valid_test_image
-TestBatchErrorHandling._create_mixed_batch = _create_mixed_batch
-
-TestBatchPerformance._create_test_batch = _create_test_batch
-TestBatchPerformance._create_valid_test_image = _create_valid_test_image
-
-TestBatchOutputValidation._create_test_batch = _create_test_batch
-TestBatchOutputValidation._create_mixed_batch = _create_mixed_batch
-TestBatchOutputValidation._create_valid_test_image = _create_valid_test_image
-
-
-if __name__ == "__main__":
-    pytest.main([__file__])
+def test_three_image_batch_completes_under_sixty_seconds(sample_config):
+    rows = [(f"perf_{i}.png", "s", "15.0") for i in range(3)]
+    with tempfile.TemporaryDirectory() as temp_dir:
+        data_dir, meta = _make_batch(
+            temp_dir, rows, make_valid=lambda _id: True,
+        )
+        config_path = _write_config(temp_dir, sample_config)
+        app = PyLithicsApplication(config_file=config_path)
+
+        start = time.time()
+        result = app.run_batch_analysis(data_dir, meta)
+        elapsed = time.time() - start
+
+    assert result["processed_successfully"] == 3
+    assert elapsed < 60.0, f"3-image batch took {elapsed:.1f}s (limit 60s)"

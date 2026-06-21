@@ -18,6 +18,17 @@ from typing import Optional, Dict, Any, List, Tuple, Union
 from ..config import get_arrow_detection_config
 
 
+class _DebugWriter:
+    """No-op wrapper so debug code paths can call `.write` unconditionally."""
+
+    def __init__(self, target):
+        self._target = target
+
+    def write(self, msg: str) -> None:
+        if self._target is not None:
+            self._target.write(msg)
+
+
 class ArrowDetector:
     """
     Enhanced arrow detection class with configurable parameters and better error handling.
@@ -73,12 +84,23 @@ class ArrowDetector:
         depth_safety = self.config.get('min_defect_depth_scale_factor', 0.8)
         height_safety = self.config.get('min_triangle_height_scale_factor', 0.8)
 
+        ref = self.ref_thresholds
         return {
-            'min_area': self.ref_thresholds['min_area'] * area_scale * area_safety,
-            'min_defect_depth': self.ref_thresholds['min_defect_depth'] * linear_scale * depth_safety,
-            'solidity_bounds': self.ref_thresholds['solidity_bounds'],
-            'min_triangle_height': self.ref_thresholds['min_triangle_height'] * linear_scale * height_safety,
-            'min_significant_defects': self.ref_thresholds['min_significant_defects']
+            'min_area': (
+                ref['min_area'] * area_scale * area_safety
+            ),
+            'min_defect_depth': (
+                ref['min_defect_depth']
+                * linear_scale * depth_safety
+            ),
+            'solidity_bounds': ref['solidity_bounds'],
+            'min_triangle_height': (
+                ref['min_triangle_height']
+                * linear_scale * height_safety
+            ),
+            'min_significant_defects': (
+                ref['min_significant_defects']
+            ),
         }
 
     def analyze_contour_for_arrow(self,
@@ -107,45 +129,17 @@ class ArrowDetector:
         """
         debug_dir = entry.get('debug_dir') if self.debug_enabled else None
         contour_id = entry.get('scar', 'unknown')
-
-        # Scale parameters based on image DPI
         params = self.scale_parameters_for_dpi(image_dpi)
 
-        debug_log = None
-        if debug_dir:
-            debug_log = self._setup_debug_logging(debug_dir, contour_id, image_dpi, params)
+        debug_log = (
+            self._setup_debug_logging(debug_dir, contour_id, image_dpi, params)
+            if debug_dir else None
+        )
 
         try:
-            # Step 1: Basic filtering
-            if not self._validate_basic_properties(contour, params, debug_log):
-                return None
-
-            # Step 2: Find significant defects
-            significant_defects = self._find_significant_defects(contour, params['min_defect_depth'])
-            if not self._validate_defects(significant_defects, params, debug_log):
-                return None
-
-            # Step 3: Triangle analysis
-            triangle_data = self._analyze_triangle_structure(
-                contour, significant_defects, params, debug_log
+            return self._run_detection_pipeline(
+                contour, image, debug_dir, debug_log, params,
             )
-            if triangle_data is None:
-                return None
-
-            # Step 4: Calculate arrow properties
-            arrow_data = self._calculate_arrow_properties(triangle_data, debug_log)
-
-            # Step 5: Generate debug visualizations
-            if debug_dir and image is not None:
-                self._create_debug_visualizations(
-                    contour, triangle_data, arrow_data, image, debug_dir
-                )
-
-            if debug_log:
-                debug_log.write("Arrow detection succeeded\n")
-
-            return arrow_data
-
         except Exception as e:
             if debug_log:
                 debug_log.write(f"Error in arrow detection: {str(e)}\n")
@@ -154,6 +148,41 @@ class ArrowDetector:
         finally:
             if debug_log:
                 debug_log.close()
+
+    def _run_detection_pipeline(
+        self,
+        contour: np.ndarray,
+        image: np.ndarray,
+        debug_dir: Optional[str],
+        debug_log,
+        params: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Run the 5-step detection pipeline and return arrow data or None."""
+        if not self._validate_basic_properties(contour, params, debug_log):
+            return None
+
+        significant_defects = self._find_significant_defects(
+            contour, params['min_defect_depth'],
+        )
+        if not self._validate_defects(significant_defects, params, debug_log):
+            return None
+
+        triangle_data = self._analyze_triangle_structure(
+            contour, significant_defects, params, debug_log,
+        )
+        if triangle_data is None:
+            return None
+
+        arrow_data = self._calculate_arrow_properties(triangle_data, debug_log)
+
+        if debug_dir and image is not None:
+            self._create_debug_visualizations(
+                contour, triangle_data, arrow_data, image, debug_dir,
+            )
+
+        if debug_log:
+            debug_log.write("Arrow detection succeeded\n")
+        return arrow_data
 
     def _setup_debug_logging(self,
                            debug_dir: str,
@@ -235,10 +264,12 @@ class ArrowDetector:
                     significant_defects.append((start, end, far, depth))
 
             # Sort by depth (deepest first)
-            significant_defects.sort(key=lambda x: x[3], reverse=True)
+            significant_defects.sort(
+                key=lambda x: x[3], reverse=True
+            )
             return significant_defects
 
-        except Exception:
+        except (cv2.error, ValueError, IndexError):
             return None
 
     def _validate_defects(self,
@@ -267,69 +298,52 @@ class ArrowDetector:
                                   params: Dict[str, Any],
                                   debug_log) -> Optional[Dict[str, Any]]:
         """Analyze the triangle structure from defects."""
-        # Keep only the two deepest defects
+        log = _DebugWriter(debug_log)
         significant_defects = significant_defects[:2]
 
-        # Identify triangle base
         triangle_base_info = self._identify_triangle_base(significant_defects)
         if triangle_base_info is None:
-            if debug_log:
-                debug_log.write("Failed: Could not identify triangle base\n")
+            log.write("Failed: Could not identify triangle base\n")
             return None
-
         base_p1, base_p2, base_midpoint, base_length = triangle_base_info
+        log.write(f"Triangle base length: {base_length:.2f} pixels\n")
 
-        if debug_log:
-            debug_log.write(f"Triangle base length: {base_length:.2f} pixels\n")
-
-        # Analyze half-spaces
         halfspace_results = self._analyze_halfspaces(contour, triangle_base_info)
         if halfspace_results is None:
-            if debug_log:
-                debug_log.write("Failed: Half-space analysis failed\n")
+            log.write("Failed: Half-space analysis failed\n")
             return None
-
         shaft_halfspace, tip_halfspace, solidity1, solidity2 = halfspace_results
+        log.write(f"Half-space solidities: {solidity1:.3f}, {solidity2:.3f}\n")
+        log.write(f"Shaft: {shaft_halfspace}, Tip: {tip_halfspace}\n")
 
-        if debug_log:
-            debug_log.write(f"Half-space solidities: {solidity1:.3f}, {solidity2:.3f}\n")
-            debug_log.write(f"Shaft half-space: {shaft_halfspace}, Tip half-space: {tip_halfspace}\n")
-
-        # Find triangle tip
         halfspace_points = self._divide_contour_points(contour, triangle_base_info)
-        triangle_tip = self._find_triangle_tip(halfspace_points[tip_halfspace], base_midpoint)
-
-        if triangle_tip is None:
-            if debug_log:
-                debug_log.write("Failed: Could not find triangle tip\n")
-            return None
-
-        # Validate triangle height
-        triangle_height = np.sqrt(
-            (triangle_tip[0] - base_midpoint[0])**2 +
-            (triangle_tip[1] - base_midpoint[1])**2
+        triangle_tip = self._find_triangle_tip(
+            halfspace_points[tip_halfspace], base_midpoint,
         )
-
-        min_height = params['min_triangle_height']
-
-        if debug_log:
-            debug_log.write(f"Triangle height test: {triangle_height:.2f} >= {min_height:.2f}\n")
-
-        if triangle_height < min_height:
-            if debug_log:
-                debug_log.write("Failed: Triangle height too small\n")
+        if triangle_tip is None:
+            log.write("Failed: Could not find triangle tip\n")
             return None
 
-        if debug_log:
-            debug_log.write("Triangle analysis: PASSED\n")
+        triangle_height = np.sqrt(
+            (triangle_tip[0] - base_midpoint[0]) ** 2
+            + (triangle_tip[1] - base_midpoint[1]) ** 2
+        )
+        min_height = params['min_triangle_height']
+        log.write(
+            f"Triangle height test: {triangle_height:.2f} >= {min_height:.2f}\n"
+        )
+        if triangle_height < min_height:
+            log.write("Failed: Triangle height too small\n")
+            return None
 
+        log.write("Triangle analysis: PASSED\n")
         return {
             'base_p1': base_p1,
             'base_p2': base_p2,
             'base_midpoint': base_midpoint,
             'triangle_tip': triangle_tip,
             'triangle_height': triangle_height,
-            'significant_defects': significant_defects
+            'significant_defects': significant_defects,
         }
 
     def _calculate_arrow_properties(self,
@@ -429,7 +443,7 @@ class ArrowDetector:
             else:
                 return (2, 1, solidities[1], solidities[2])
 
-        except Exception:
+        except (cv2.error, ValueError, ZeroDivisionError):
             return None
 
     def _find_triangle_tip(self,
@@ -450,14 +464,19 @@ class ArrowDetector:
 
         return tip_point
 
-    def _create_debug_visualizations(self,
-                                   contour: np.ndarray,
-                                   triangle_data: Dict[str, Any],
-                                   arrow_data: Dict[str, Any],
-                                   image: np.ndarray,
-                                   debug_dir: str) -> None:
+    def _create_debug_visualizations(
+        self,
+        contour: np.ndarray,
+        triangle_data: Dict[str, Any],
+        arrow_data: Dict[str, Any],
+        image: np.ndarray,
+        debug_dir: str
+    ) -> None:
         """Create debug visualization images."""
-        vis = image.copy() if len(image.shape) == 3 else cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
+        if len(image.shape) == 3:
+            vis = image.copy()
+        else:
+            vis = cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
 
         # Draw contour
         cv2.drawContours(vis, [contour], 0, (0, 255, 0), 2)
@@ -495,135 +514,34 @@ class ArrowDetector:
         cv2.imwrite(os.path.join(debug_dir, "arrow_debug.png"), vis)
 
 
-# Backward compatibility functions
-def scale_parameters_for_dpi(image_dpi: Optional[float]) -> Dict[str, Any]:
-    """Scale detection parameters based on image DPI (backward compatibility)."""
-    detector = ArrowDetector()
-    return detector.scale_parameters_for_dpi(image_dpi)
-
-
-def analyze_child_contour_for_arrow(contour: np.ndarray,
-                                   entry: Dict[str, Any],
-                                   image: np.ndarray,
-                                   image_dpi: Optional[float] = None) -> Optional[Dict[str, Any]]:
+def analyze_child_contour_for_arrow(
+    contour: np.ndarray,
+    entry: Dict[str, Any],
+    image: np.ndarray,
+    image_dpi: Optional[float] = None
+) -> Optional[Dict[str, Any]]:
     """
-    Detect an arrow within a given contour (backward compatibility).
+    Detect an arrow within a given contour.
+
+    Module-level convenience function used by arrow_integration.
 
     Parameters
     ----------
     contour : ndarray
-        Single child contour from cv2.findContours
+        Single child contour from cv2.findContours.
     entry : dict
-        Metrics dictionary for this contour
+        Metrics dictionary for this contour.
     image : ndarray
-        Original image for overlaying debug visualizations
+        Original image for debug visualizations.
     image_dpi : float, optional
-        DPI of the image being processed
+        DPI of the image being processed.
 
     Returns
     -------
     dict or None
-        Arrow properties if valid arrow found, None otherwise
+        Arrow properties if valid arrow found, None otherwise.
     """
     detector = ArrowDetector()
-    return detector.analyze_contour_for_arrow(contour, entry, image, image_dpi)
-
-
-# Additional utility functions for the pipeline
-def create_arrow_detection_pipeline(config: Optional[Dict[str, Any]] = None) -> ArrowDetector:
-    """
-    Create a configured arrow detection pipeline.
-
-    Parameters
-    ----------
-    config : dict, optional
-        Arrow detection configuration
-
-    Returns
-    -------
-    ArrowDetector
-        Configured arrow detector instance
-    """
-    return ArrowDetector(config)
-
-
-def batch_detect_arrows(contours: List[np.ndarray],
-                       entries: List[Dict[str, Any]],
-                       image: np.ndarray,
-                       image_dpi: Optional[float] = None,
-                       config: Optional[Dict[str, Any]] = None) -> List[Optional[Dict[str, Any]]]:
-    """
-    Detect arrows in multiple contours efficiently.
-
-    Parameters
-    ----------
-    contours : list
-        List of contours to analyze
-    entries : list
-        List of metric dictionaries corresponding to contours
-    image : ndarray
-        Original image for debug visualizations
-    image_dpi : float, optional
-        DPI of the image being processed
-    config : dict, optional
-        Arrow detection configuration
-
-    Returns
-    -------
-    list
-        List of arrow detection results (None for failed detections)
-    """
-    detector = ArrowDetector(config)
-    results = []
-
-    for contour, entry in zip(contours, entries):
-        try:
-            result = detector.analyze_contour_for_arrow(contour, entry, image, image_dpi)
-            results.append(result)
-        except Exception as e:
-            logging.error(f"Failed to detect arrow for {entry.get('scar', 'unknown')}: {e}")
-            results.append(None)
-
-    return results
-
-
-def validate_arrow_detection_config(config: Dict[str, Any]) -> bool:
-    """
-    Validate arrow detection configuration.
-
-    Parameters
-    ----------
-    config : dict
-        Configuration dictionary to validate
-
-    Returns
-    -------
-    bool
-        True if configuration is valid, False otherwise
-    """
-    required_keys = ['reference_dpi']
-    optional_keys = [
-        'min_area_scale_factor', 'min_defect_depth_scale_factor',
-        'min_triangle_height_scale_factor', 'debug_enabled'
-    ]
-
-    # Check required keys
-    for key in required_keys:
-        if key not in config:
-            logging.error(f"Missing required arrow detection config key: {key}")
-            return False
-
-    # Validate types and ranges
-    if not isinstance(config['reference_dpi'], (int, float)) or config['reference_dpi'] <= 0:
-        logging.error("reference_dpi must be a positive number")
-        return False
-
-    # Validate optional scale factors
-    for key in ['min_area_scale_factor', 'min_defect_depth_scale_factor', 'min_triangle_height_scale_factor']:
-        if key in config:
-            value = config[key]
-            if not isinstance(value, (int, float)) or not (0 < value <= 1):
-                logging.error(f"{key} must be a number between 0 and 1")
-                return False
-
-    return True
+    return detector.analyze_contour_for_arrow(
+        contour, entry, image, image_dpi
+    )

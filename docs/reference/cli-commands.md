@@ -1,439 +1,286 @@
 # CLI Commands Reference
 
-## Command Overview
+This page lists every flag accepted by the `pylithics` CLI in the current release. The authoritative source is `pylithics --help`; this reference mirrors it with examples.
 
-PyLithics is run using Python directly:
+## Invocation
+
+After installation, PyLithics is run as a console script:
 
 ```bash
-python pylithics/app.py [options]
+pylithics [options]
 ```
+
+Run it with **no arguments** to see the welcome splash — a logo + Get-started panel listing the most common command patterns. Useful as a sanity check after install and as an in-terminal cheatsheet.
+
+```bash
+pylithics
+```
+
+Passing any flag at all (including `--help`) skips the splash and falls through to the normal CLI.
 
 ## Required Arguments
 
-Every PyLithics run requires these two arguments:
-
 | Argument | Description | Example |
 |----------|-------------|---------|
-| `--data_dir` | Directory containing images/ and scales/ subdirectories | `pylithics/data` |
-| `--meta_file` | Path to metadata CSV file | `pylithics/data/meta_data.csv` |
-
-### Basic Usage
+| `--data_dir` | Directory containing `images/` and `scales/` subdirectories | `pylithics/data` |
+| `--meta_file` | CSV metadata file (columns: `image_id`, `scale_id`, `scale`) | `pylithics/data/meta_data.csv` |
 
 ```bash
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv
+pylithics --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv
 ```
 
-## Configuration Options
-
-### Configuration Hierarchy
-
-PyLithics uses a three-layer configuration system:
-
-1. **Default settings** - Built into the code
-2. **YAML configuration** - From config.yaml file
-3. **CLI overrides** - Command-line arguments (highest priority)
-
-### Using a Configuration File
+## Configuration
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--config_file` | Path to YAML configuration file | None (uses defaults) |
+| `--config_file FILE` | Path to a custom YAML configuration file | (use built-in defaults) |
+| `--threshold_method METHOD` | One of `simple`, `otsu`, `adaptive`, `default` | `default` |
+| `--log_level LEVEL` | Console + file log verbosity: `DEBUG`, `INFO`, `WARNING`, `ERROR`. The log file *always* captures the full DEBUG trace regardless. | `INFO` on console |
+| `--verbose`, `-v` | Show the full per-step pipeline trace on screen (equivalent to `--log_level DEBUG` for console only). | off |
 
 ```bash
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
-         --config_file ./my_config.yaml
+pylithics --data_dir ./data --meta_file ./meta.csv --config_file ./my_config.yaml
 ```
+
+### Configuration Hierarchy
+
+1. **Defaults** — baked into the code
+2. **YAML file** — loaded from `--config_file` (or `$PYLITHICS_CONFIG`)
+3. **CLI flags** — override everything else
 
 ### Example Configuration File
 
 ```yaml
 # config.yaml
 thresholding:
-  method: otsu              # simple, otsu, or adaptive
-  threshold_value: 127      # For simple method
+  method: otsu
+  threshold_value: 127
   max_value: 255
 
 scale_calibration:
-  enabled: true             # Enable scale bar detection
-  debug_output: false       # Save detection debug images
+  enabled: true
+  debug_output: false
 
 arrow_detection:
   enabled: true
   reference_dpi: 300.0
   min_area_scale_factor: 0.7
-  max_area_scale_factor: 10.0
-  min_aspect_ratio: 1.5
+  min_defect_depth_scale_factor: 0.8
+  min_triangle_height_scale_factor: 0.8
   debug_enabled: false
 
 surface_classification:
   enabled: true
-  classification_rules:
-    dorsal_area_threshold: 0.6
-    ventral_area_threshold: 0.4
+  tolerance: 0.1
 
 scar_complexity:
   enabled: true
-  distance_threshold: 10.0
+  distance_threshold: 5.0
 
 cortex_detection:
   enabled: true
-  min_area: 100
-  detection_method: color_threshold
+  stippling_density_threshold: 0.2
+  texture_variance_threshold: 100
+  edge_density_threshold: 0.05
 
 symmetry_analysis:
   enabled: true
-  axis: both              # vertical, horizontal, or both
 
 voronoi_analysis:
   enabled: true
-  output_diagrams: true
+  padding_factor: 0.02
 
 lateral_analysis:
   enabled: true
-  convexity_threshold: 0.8
 
 logging:
-  level: INFO            # DEBUG, INFO, WARNING, ERROR
+  level: INFO                    # file handler level (always DEBUG-capable)
+  console_level: INFO            # console handler level; --verbose overrides to DEBUG
   log_to_file: true
-  log_file: pylithics.log
+  log_file: pylithics/data/processed/pylithics.log
 ```
 
-### Common Usage Patterns
-
-#### Basic Analysis
-
-```bash
-# Simple processing with default settings
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv
-```
-
-#### With Arrow Detection
-
-```bash
-# Enable arrow detection for flaking direction
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
-         --arrow_debug
-```
-
-#### Debug Mode
-
-```bash
-# Verbose output for troubleshooting
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
-         --log_level DEBUG
-```
-
-#### DPI-Aware Processing
-
-```bash
-# Default: Fixed kernels optimized for archaeological line drawings (recommended)
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv
-
-# Enable DPI-aware scaling for noisy photographs or degraded scans
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
-         --enable_dpi_scaling
-
-# DPI scaling with conservative mode (minimal scaling)
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
-         --enable_dpi_scaling --dpi_scaling_mode conservative
-
-# DPI scaling with aggressive mode (maximum noise removal)
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
-         --enable_dpi_scaling --dpi_scaling_mode aggressive
-
-# Custom DPI settings
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
-         --enable_dpi_scaling --dpi_reference 150 --dpi_max_scale 2.0
-```
-
-#### Fast Processing
-
-```bash
-# Disable time-consuming features for speed
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
-         --disable_arrow_detection \
-         --disable_voronoi
-```
-
-#### Custom Thresholding
-
-```bash
-# Use adaptive thresholding for poor contrast
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
-         --threshold_method adaptive
-```
-
-### Thresholding Options
-
-| Option | Values | Description | Default |
-|--------|--------|-------------|---------|
-| `--threshold_method` | `simple`, `otsu`, `adaptive` | Image binarization method | `simple` |
-| `--threshold_value` | 0-255 | Threshold for simple method | 127 |
-| `--max_value` | 0-255 | Maximum value after thresholding | 255 |
-
-```bash
-# Use Otsu automatic thresholding
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
-         --threshold_method otsu
-
-# Use adaptive thresholding for poor contrast
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
-         --threshold_method adaptive
-
-# Manual threshold adjustment
-python pylithics/app.py --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv \
-         --threshold_method simple --threshold_value 100
-```
-
-## Feature Control
-
-### Enabling/Disabling Analysis Modules
-
-| Feature | Enable | Disable | Default |
-|---------|--------|---------|---------|
-| Scale Calibration | Default enabled | `--disable_scale_calibration` | Enabled |
-| Arrow Detection | Default enabled | `--disable_arrow_detection` | Enabled |
-| Voronoi Analysis | Default enabled | `--disable_voronoi` | Enabled |
-| Symmetry Analysis | Default enabled | `--disable_symmetry` | Enabled |
-| Scar Complexity | Default enabled | `--disable_scar_complexity` | Enabled |
-| Cortex Detection | `--enable_cortex_detection` | Default disabled | Disabled |
-| Lateral Analysis | Default enabled | `--disable_lateral` | Enabled |
-
-### Scale Calibration Options
+## Processing Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--disable_scale_calibration` | Skip scale bar detection entirely | False |
-| `--scale_debug` | Save scale detection debug images | False |
-| `--force_scale_method` | Force specific calibration method: `scale_bar`, `pixels` | None |
+| `--show_thresholded_images` | Display thresholded images during analysis | off |
+| `--closing BOOL` | Apply morphological closing | `True` |
+
+## DPI Scaling
+
+PyLithics auto-detects each image's DPI. By default it uses fixed kernel sizes that work across the 75–600 DPI range. Enable DPI-aware scaling for noisy photographs or degraded scans.
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--enable_dpi_scaling` | Enable DPI-aware kernel scaling | off |
+| `--dpi_scaling_mode MODE` | `conservative`, `standard`, or `aggressive` | `standard` |
+| `--dpi_reference DPI` | Reference DPI for scaling | `300.0` |
+| `--dpi_max_scale FACTOR` | Maximum scaling factor | `1.5` |
+
+**Modes:**
+
+- **conservative** — minimal scaling, preserves fine line detail
+- **standard** — moderate linear scaling with caps
+- **aggressive** — full proportional scaling, maximum noise removal
 
 ```bash
-# Enable scale debugging
+# Default
+pylithics --data_dir ./data --meta_file ./meta.csv
+
+# Enable DPI scaling
+pylithics --data_dir ./data --meta_file ./meta.csv --enable_dpi_scaling
+
+# Aggressive scaling
+pylithics --data_dir ./data --meta_file ./meta.csv \
+    --enable_dpi_scaling --dpi_scaling_mode aggressive
+
+# Custom reference & cap
+pylithics --data_dir ./data --meta_file ./meta.csv \
+    --enable_dpi_scaling --dpi_reference 150 --dpi_max_scale 2.0
+```
+
+## Arrow Detection
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--disable_arrow_detection` | Skip arrow detection | enabled |
+| `--arrow_debug` | Save arrow-detection debug images to `processed/arrow_debug/` | off |
+| `--show-arrow-lines` | Draw red arrow lines on labeled images | off |
+
+```bash
+pylithics --data_dir ./data --meta_file ./meta.csv --arrow_debug
+pylithics --data_dir ./data --meta_file ./meta.csv --disable_arrow_detection
+pylithics --data_dir ./data --meta_file ./meta.csv --show-arrow-lines
+```
+
+## Scale Calibration
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--disable_scale_calibration` | Skip scale-bar detection (use pixel measurements) | enabled |
+| `--scale_debug` | Save scale-detection debug images | off |
+| `--force_pixels` | Force pixel measurements only (skip calibration) | off |
+
+```bash
 pylithics --data_dir ./data --meta_file ./meta.csv --scale_debug
-
-# Force pixel measurements only
-pylithics --data_dir ./data --meta_file ./meta.csv --force_scale_method pixels
-
-# Disable scale calibration (pixel measurements only)
+pylithics --data_dir ./data --meta_file ./meta.csv --force_pixels
 pylithics --data_dir ./data --meta_file ./meta.csv --disable_scale_calibration
 ```
 
-### DPI Processing Options
-
-PyLithics automatically detects image DPI and processes accordingly. By default, it uses fixed kernel sizes optimized for archaeological line drawings (75-600 DPI range).
+## Cortex Detection
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--enable_dpi_scaling` | Enable DPI-aware kernel scaling | False (fixed kernels) |
-| `--dpi_scaling_mode` | Scaling strategy: `conservative`, `standard`, `aggressive` | `standard` |
-| `--dpi_reference` | Reference DPI for scaling calculations | 300.0 |
-| `--dpi_max_scale` | Maximum scaling factor limit | 1.5 |
-
-**Scaling Modes:**
-
-- **Conservative**: Minimal scaling, preserves fine line details
-- **Standard**: Moderate linear scaling with caps (default when DPI scaling enabled)
-- **Aggressive**: Full proportional scaling, maximum noise removal
+| `--disable_cortex_detection` | Skip cortex detection | enabled |
+| `--cortex_sensitivity {low,medium,high}` | Detection sensitivity | `medium` |
 
 ```bash
-# Default: Fixed kernels (recommended for archaeological line drawings)
+pylithics --data_dir ./data --meta_file ./meta.csv --cortex_sensitivity high
+pylithics --data_dir ./data --meta_file ./meta.csv --disable_cortex_detection
+```
+
+## Scar Complexity
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--disable_scar_complexity` | Skip scar adjacency analysis | enabled |
+| `--scar_complexity_distance_threshold PIXELS` | Adjacency distance in pixels | `10.0` |
+
+```bash
+pylithics --data_dir ./data --meta_file ./meta.csv \
+    --scar_complexity_distance_threshold 15.0
+```
+
+## Output
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--export_json` | Also write a per-lithic JSON file to `processed/json/{image_stem}.json` (in addition to the CSV) | off |
+| `--save_visualizations` | Generate labeled images and Voronoi diagrams | on |
+| `--explore` | Run analysis (if `--meta_file` is provided), then launch the interactive dashboard at `http://localhost:8501`. Without `--meta_file`, point `--data_dir` directly at the folder that contains `processed_metrics.csv` (commonly `<project_root>/processed/`, but it can be any folder). | off |
+
+```bash
+# Default — CSV only
 pylithics --data_dir ./data --meta_file ./meta.csv
 
-# Enable DPI scaling for noisy photographs
-pylithics --data_dir ./data --meta_file ./meta.csv --enable_dpi_scaling
-
-# Conservative scaling (minimal)
-pylithics --data_dir ./data --meta_file ./meta.csv --enable_dpi_scaling --dpi_scaling_mode conservative
-
-# Aggressive scaling (maximum noise removal)
-pylithics --data_dir ./data --meta_file ./meta.csv --enable_dpi_scaling --dpi_scaling_mode aggressive
-
-# Custom DPI settings
-pylithics --data_dir ./data --meta_file ./meta.csv --enable_dpi_scaling \
-         --dpi_reference 150 --dpi_max_scale 2.0
+# CSV plus per-lithic JSON files
+pylithics --data_dir ./data --meta_file ./meta.csv --export_json
 ```
 
-**When to Use DPI Scaling:**
+The same behavior is available from `config.yaml`:
 
-- ✅ **Enable for**: Noisy photographs, degraded scans, mixed-quality datasets
-- ❌ **Disable for**: Clean archaeological line drawings, consistent quality scans
-
-### Arrow Detection Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--disable_arrow_detection` | Skip arrow detection entirely | False |
-| `--arrow_debug` | Save arrow detection debug images | False |
-| `--show_arrow_lines` | Draw red arrow lines on output | False |
-| `--arrow_reference_dpi` | Reference DPI for scaling | 300.0 |
-
-```bash\n# Enable arrow debugging\npylithics --data_dir ./data --meta_file ./meta.csv --arrow_debug\n\n# Disable arrow detection for speed\npylithics --data_dir ./data --meta_file ./meta.csv --disable_arrow_detection\n\n# Show arrow direction lines\npylithics --data_dir ./data --meta_file ./meta.csv --show_arrow_lines
+```yaml
+data_export:
+  csv: true
+  json_per_lithic: true   # equivalent to --export_json
 ```
 
-### Scar Complexity Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--scar_complexity_distance_threshold` | Adjacency detection distance (pixels) | 10.0 |
-| `--disable_scar_complexity` | Skip scar adjacency analysis | False |
-
-```bash\n# Adjust adjacency sensitivity\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --scar_complexity_distance_threshold 15.0
-```
-
-### Cortex Detection Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--enable_cortex_detection` | Enable cortex area detection | False |
-| `--cortex_method` | Detection method: `color`, `texture`, `pattern` | `color` |
-| `--cortex_threshold` | Detection sensitivity | 0.5 |
-
-```bash\n# Enable cortex detection\npylithics --data_dir ./data --meta_file ./meta.csv --enable_cortex_detection
-```
-
-## Output Options
-
-### Output Format
-
-| Option | Values | Description | Default |
-|--------|--------|-------------|---------|
-| `--output_format` | `csv`, `json` | Data output format | `csv` |
-| `--output_dir` | Directory path | Custom output location | `./processed` |
-
-```bash\n# JSON output\npylithics --data_dir ./data --meta_file ./meta.csv --output_format json\n\n# Custom output directory\npylithics --data_dir ./data --meta_file ./meta.csv --output_dir ./results
-```
-
-### Visualization Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--save_visualizations` | Save all visualization outputs | True |
-| `--no_images` | Skip image output generation | False |
-| `--show_thresholded_images` | Display thresholding results | False |
-
-```bash\n# Data only, no images\npylithics --data_dir ./data --meta_file ./meta.csv --no_images\n\n# Show intermediate processing steps\npylithics --data_dir ./data --meta_file ./meta.csv --show_thresholded_images
-```
-
-## Preprocessing Options
-
-### Image Enhancement
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--closing` | Apply morphological closing | True |
-| `--closing_kernel_size` | Closing operation kernel size | 3 |
-| `--denoise` | Apply noise reduction | False |
-| `--contrast_stretch` | Enhance image contrast | False |
-
-```bash\n# Disable morphological closing\npylithics --data_dir ./data --meta_file ./meta.csv --no_closing\n\n# Enable denoising for noisy scans\npylithics --data_dir ./data --meta_file ./meta.csv --denoise
-```
-
-## Logging and Debug Options
-
-### Logging Control
-
-| Option | Values | Description | Default |
-|--------|--------|-------------|---------|
-| `--log_level` | `DEBUG`, `INFO`, `WARNING`, `ERROR` | Logging verbosity | `INFO` |
-| `--log_file` | File path | Custom log file location | `./processed/pylithics.log` |
-| `--quiet` | - | Suppress console output | False |
-
-```bash\n# Debug mode with verbose output\npylithics --data_dir ./data --meta_file ./meta.csv --log_level DEBUG\n\n# Quiet mode\npylithics --data_dir ./data --meta_file ./meta.csv --quiet\n\n# Custom log file\npylithics --data_dir ./data --meta_file ./meta.csv --log_file ./my_analysis.log
-```
-
-### Debug Options
-
-| Option | Description | Output Location |
-|--------|-------------|-----------------|
-| `--arrow_debug` | Arrow detection debug images | `processed/arrow_debug/` |
-| `--contour_debug` | Contour detection debug images | `processed/contour_debug/` |
-| `--show_thresholded_images` | Display threshold results | Console |
-| `--save_intermediate` | Save all intermediate processing steps | `processed/intermediate/` |
-
-```bash\n# Full debug mode\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --log_level DEBUG \\\n         --arrow_debug \\\n         --contour_debug \\\n         --save_intermediate
-```
-
-## Performance Options
-
-### Speed Optimization
-
-```bash\n# Fastest processing (minimal features)\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --disable_arrow_detection \\\n         --disable_voronoi \\\n         --disable_symmetry \\\n         --disable_scar_complexity \\\n         --threshold_method simple \\\n         --no_images\n\n# Balanced speed/features\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --disable_arrow_detection \\\n         --threshold_method otsu
-```
-
-### Memory Management
+## Help
 
 | Option | Description |
 |--------|-------------|
-| `--batch_size` | Process images in batches |
-| `--max_image_size` | Resize large images |
-| `--cleanup_temp` | Remove temporary files |
-
-```bash\n# Memory-efficient processing\npylithics --data_dir ./large_dataset --meta_file ./meta.csv \\\n         --batch_size 10 \\\n         --max_image_size 2048 \\\n         --cleanup_temp
-```
-
-## Configuration File Override
-
-### CLI Override Pattern
-
-Command-line arguments override configuration file settings using dot notation:
-
-```bash\n# Override arrow detection settings\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --config_file ./config.yaml \\\n         --arrow_reference_dpi 600 \\\n         --disable_arrow_detection\n\n# Override thresholding settings\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --config_file ./config.yaml \\\n         --threshold_method adaptive \\\n         --threshold_value 120
-```
-
-### Complete Configuration Example
-
-```yaml\n# config.yaml - Complete configuration template\nthresholding:\n  method: otsu\n  threshold_value: 127\n  max_value: 255\n  adaptive_block_size: 11\n  adaptive_constant: 2\n\nscale_calibration:\n  enabled: true\n  debug_output: false\n\narrow_detection:\n  enabled: true\n  reference_dpi: 300.0\n  min_area_scale_factor: 0.7\n  max_area_scale_factor: 10.0\n  min_aspect_ratio: 1.5\n  debug_enabled: false\n\nsurface_classification:\n  enabled: true\n  classification_rules:\n    dorsal_area_threshold: 0.6\n    ventral_area_threshold: 0.4\n    platform_area_threshold: 0.1\n\nscar_complexity:\n  enabled: true\n  distance_threshold: 10.0\n  min_scar_area: 50\n\ncortex_detection:\n  enabled: false\n  method: color_threshold\n  threshold: 0.5\n  min_area: 100\n\nsymmetry_analysis:\n  enabled: true\n  axis: both\n  tolerance: 0.1\n\nvoronoi_analysis:\n  enabled: true\n  min_scars: 3\n  output_diagrams: true\n  boundary_method: convex\n\nlateral_analysis:\n  enabled: true\n  convexity_threshold: 0.8\n  edge_sensitivity: 0.5\n\npreprocessing:\n  denoise: false\n  morphological_closing: true\n  closing_kernel_size: 3\n  contrast_stretch: false\n\nlogging:\n  level: INFO\n  log_to_file: true\n  log_file: pylithics.log\n\noutput:\n  format: csv\n  save_visualizations: true\n  save_intermediate: false\n```
-
-## Help Commands
-
-### Built-in Help
-
-| Command | Description |
-|---------|-------------|
-| `--help`, `-h` | Show all available options |
-| `--help-config` | Show configuration file options |
+| `-h`, `--help` | Show all available options |
+| `--help-config` | Show built-in configuration documentation |
 | `--help-examples` | Show usage examples |
-| `--help-troubleshooting` | Show common issues and fixes |
-| `--version` | Show PyLithics version |
+| `--help-troubleshooting` | Show common problems and solutions |
+| `--docs` | Launch the documentation server at <http://127.0.0.1:8000> |
 
-```bash\n# Get help\npylithics --help\n\n# Configuration help\npylithics --help-config\n\n# Example commands\npylithics --help-examples\n\n# Troubleshooting guide\npylithics --help-troubleshooting
+```bash
+pylithics --help
+pylithics --help-config
+pylithics --docs
 ```
 
-## Common Command Patterns
+## Common Patterns
 
-### Development and Testing
+### Quick test on the bundled sample data
 
-```bash\n# Quick test with sample data\npylithics --data_dir ./pylithics/data --meta_file ./pylithics/data/meta_data.csv\n\n# Test single image\npylithics --data_dir ./test_single --meta_file ./single_meta.csv --log_level DEBUG\n\n# Validation run with all debug output\npylithics --data_dir ./validation --meta_file ./val_meta.csv \\\n         --log_level DEBUG \\\n         --arrow_debug \\\n         --save_intermediate
+```bash
+pylithics --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv
 ```
 
-### Production Analysis
+### Debug a problem image
 
-```bash\n# Standard archaeological analysis\npylithics --data_dir ./assemblage --meta_file ./metadata.csv \\\n         --config_file ./site_config.yaml \\\n         --log_level INFO\n\n# Publication-quality analysis\npylithics --data_dir ./publication_data --meta_file ./pub_meta.csv \\\n         --arrow_debug \\\n         --save_visualizations \\\n         --output_format csv\n\n# Batch processing multiple sites\nfor site in site_*; do\n    pylithics --data_dir ./$site --meta_file ./$site/metadata.csv \\\n             --output_dir ./results/$site\ndone
+```bash
+pylithics --data_dir ./data --meta_file ./meta.csv \
+    --log_level DEBUG \
+    --arrow_debug \
+    --scale_debug \
+    --show_thresholded_images
 ```
 
-### Performance-Optimized
+### Faster runs
 
-```bash\n# Large dataset processing\npylithics --data_dir ./large_assemblage --meta_file ./large_meta.csv \\\n         --disable_arrow_detection \\\n         --disable_voronoi \\\n         --threshold_method simple \\\n         --no_images \\\n         --quiet\n\n# Memory-constrained environment\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --batch_size 5 \\\n         --max_image_size 1024 \\\n         --cleanup_temp
+```bash
+# Disable arrow detection (the most expensive optional step)
+pylithics --data_dir ./data --meta_file ./meta.csv --disable_arrow_detection
+```
+
+### Override config from CLI
+
+CLI flags always win over the YAML file:
+
+```bash
+pylithics --data_dir ./data --meta_file ./meta.csv \
+    --config_file ./site_config.yaml \
+    --threshold_method adaptive
+```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `PYLITHICS_CONFIG` | Default config file path used when `--config_file` is omitted |
+
+```bash
+export PYLITHICS_CONFIG=./default_config.yaml
+pylithics --data_dir ./data --meta_file ./meta.csv
 ```
 
 ## Exit Codes
 
 | Code | Meaning |
 |------|---------|
-| 0 | Successful completion |
-| 1 | General error |
-| 2 | Invalid arguments |
-| 3 | File not found |
-| 4 | Configuration error |
-| 5 | Processing error |
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PYLITHICS_CONFIG` | Default config file path | None |
-| `PYLITHICS_DATA_DIR` | Default data directory | None |
-| `PYLITHICS_LOG_LEVEL` | Default log level | INFO |
-
-```bash\n# Set environment variables\nexport PYLITHICS_CONFIG=./default_config.yaml\nexport PYLITHICS_LOG_LEVEL=DEBUG\n\n# Then run with simplified command\npylithics --data_dir ./data --meta_file ./meta.csv
-```
+| `0` | Success (all images processed, or partial success with at least one done) |
+| `1` | Input validation failed, processing failed, or an unhandled error |

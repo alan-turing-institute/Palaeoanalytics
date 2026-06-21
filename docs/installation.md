@@ -1,10 +1,10 @@
 # Installation Guide
 
-This guide will walk you through installing PyLithics on your system. PyLithics requires Python 3.7 or greater and works on macOS, Windows, and Linux.
+This guide will walk you through installing PyLithics on your system. PyLithics requires Python 3.8 or greater and works on macOS, Windows, and Linux.
 
 ## System Requirements
 
-- **Python**: Version 3.7 or higher
+- **Python**: Version 3.8 or higher
 - **Operating System**:
   - macOS 10.14 or later
   - Windows 10 or later
@@ -21,12 +21,12 @@ Before installing PyLithics, ensure you have Python and Git installed on your sy
 === "macOS & Linux"
 
     ```bash
-    # Check Python version (should be 3.7+)
+    # Check Python version (should be 3.8+)
     python3 --version
 
     # If not installed, install Python
     # macOS (using Homebrew - install from https://brew.sh/)
-    brew install python@3.7
+    brew install python@3.11
 
     # Ubuntu/Debian
     sudo apt-get update
@@ -39,7 +39,7 @@ Before installing PyLithics, ensure you have Python and Git installed on your sy
 === "Windows"
 
     ```powershell
-    # Check Python version (should be 3.7+)
+    # Check Python version (should be 3.8+)
     python --version
 
     # If not installed, download from https://python.org
@@ -75,7 +75,7 @@ Before installing PyLithics, ensure you have Python and Git installed on your sy
     ```
 
 !!! warning "Python Version"
-    PyLithics requires Python 3.7 or higher. If you have an older version, please upgrade before proceeding.
+    PyLithics requires Python 3.8 or higher. If you have an older version, please upgrade before proceeding.
 
 ## Step 2: Set Up a Virtual Environment
 
@@ -144,17 +144,23 @@ This command will:
 
 ## Step 5: Verify Installation
 
-Test that PyLithics is correctly installed:
+Test that PyLithics is correctly installed by running it with no arguments:
 
 ```bash
-# Check if PyLithics is available
-pylithics --help
-
-# Or use the alternative command
-pylithics-run --help
+pylithics
 ```
 
-You should see the help text displaying available options and commands.
+You should see the **welcome splash** — a chunky `PyLithics` logo above a Get-started panel listing the four common command patterns (quick start on the bundled sample data, analyze + visualize, open an existing run in the browser, help, and the GitHub repo URL). Copy whichever command you want to run next.
+
+Other useful checks:
+
+```bash
+# Full argparse help (every flag, every option)
+pylithics --help
+
+# Or use the alternative entry point
+pylithics-run --help
+```
 
 
 ## Updating PyLithics
@@ -194,13 +200,13 @@ If you encounter Python version errors:
 # Check your Python version
 python --version
 
-# If needed, install Python 3.7+ using your system's package manager
+# If needed, install Python 3.8+ using your system's package manager
 # macOS (using Homebrew)
-brew install python@3.9
+brew install python@3.11
 
 # Ubuntu/Debian
 sudo apt-get update
-sudo apt-get install python3.9
+sudo apt-get install python3.11
 
 # Windows - download from python.org
 ```

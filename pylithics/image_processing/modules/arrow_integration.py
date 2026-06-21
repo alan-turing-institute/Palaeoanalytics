@@ -1,374 +1,557 @@
+"""
+PyLithics: Arrow Integration
+=============================
+
+Detects arrows in contours and associates them with scar metrics.
+Arrow detection is excluded from cortex regions.
+"""
+
 import cv2
 import numpy as np
 import logging
+from typing import List, Dict, Optional, Set, Tuple
+
 from .arrow_detection import analyze_child_contour_for_arrow
+from ..config import get_arrow_integration_config
 
 
-# IMPORTANT: Arrow detection is excluded from cortex regions
-# Cortex detection runs before arrow detection in the pipeline, marking child contours 
-# with is_cortex=True. This module respects those boundaries and skips arrow detection 
-# for any grandchild contours within cortex areas, preventing stippling patterns 
-# from being incorrectly identified as arrows.
-
-
-def process_nested_arrows(sorted_contours, hierarchy, original_contours, metrics, image_shape, image_dpi=None):
+def integrate_arrows(
+    sorted_contours: Dict[str, List],
+    hierarchy: np.ndarray,
+    original_contours: List[np.ndarray],
+    metrics: List[Dict],
+    image_shape,
+    image_dpi: Optional[float] = None
+) -> List[Dict]:
     """
-    Process nested children contours for arrow detection and update parent scar metrics.
-    This contains the logic that was previously in calculate_contour_metrics().
+    Main orchestrator for arrow integration.
 
     Parameters
     ----------
     sorted_contours : dict
-        {"parents":…, "children":…, "nested_children":…}
+        {"parents":..., "children":..., "nested_children":...}
     hierarchy : np.ndarray
-        contour hierarchy array
+        Contour hierarchy array.
     original_contours : list
-        list of all extracted contours
-    metrics : list of dict
-        existing metrics to update with arrow information
-    image_shape : tuple
-        shape of the source image (h, w)
+        All detected contours.
+    metrics : list
+        Metric dictionaries to update with arrow info.
+    image_shape : ndarray or tuple
+        Source image or image shape.
     image_dpi : float, optional
-        DPI of the image being processed, used for scaling detection parameters
+        Image DPI for scaling detection parameters.
 
     Returns
     -------
-    metrics : list of dict
-        updated metrics with arrow information
+    list
+        Updated metrics with arrow information.
     """
-    # Create mapping for scar metrics
-    scar_metrics = {}  # Map from contour key to scar entry
-    scar_entries = {}  # Map from scar label to entry
-
-    # Build contour index mapping
-    contour_index_map = {}
-    all_sorted_contours = (
-        sorted_contours["parents"] +
-        sorted_contours["children"] +
-        sorted_contours.get("nested_children", [])
+    metrics = process_nested_arrows(
+        sorted_contours, hierarchy, original_contours,
+        metrics, image_shape, image_dpi
     )
 
-    for contour in all_sorted_contours:
-        for i, orig_cnt in enumerate(original_contours):
-            if np.array_equal(contour, orig_cnt):
-                contour_key = str(contour.tobytes())
-                contour_index_map[contour_key] = i
-                break
+    scars_without = [
+        m for m in metrics
+        if m["parent"] != m["scar"]
+        and not m.get('has_arrow', False)
+    ]
 
-    # Map scar metrics for arrow integration
-    for metric in metrics:
-        if metric["parent"] != metric["scar"]:  # This is a scar
-            # Find the corresponding contour
-            for cnt in sorted_contours["children"]:
-                if abs(cv2.contourArea(cnt) - metric["area"]) < 1.0:  # Match by area
-                    contour_key = str(cnt.tobytes())
-                    scar_metrics[contour_key] = metric
-                    scar_entries[metric["scar"]] = metric
-                    break
-
-    # Skip nested children processing if there are no direct children
-    if not scar_metrics and sorted_contours.get("nested_children", []):
-        logging.info("Skipping nested children processing as there are no direct children (scars)")
-        return metrics
-
-    # Process nested children (detect arrows and update parent scars)
-    for ni, cnt in enumerate(sorted_contours.get("nested_children", [])):
-        contour_key = str(cnt.tobytes())
-        nested_idx = contour_index_map.get(contour_key)
-        if nested_idx is None or nested_idx >= len(hierarchy):
-            logging.warning(f"Could not find nested contour {ni} in original contours or hierarchy")
-            continue
-
-        parent_idx = hierarchy[nested_idx][3]  # Get parent contour index
-
-        # Find which scar this belongs to
-        parent_scar = None
-        parent_contour_key = None
-
-        # Try to find parent contour in original contours
-        if parent_idx < len(original_contours):
-            parent_contour = original_contours[parent_idx]
-            parent_contour_key = str(parent_contour.tobytes())
-
-        # Check if the parent contour is in our scar metrics
-        if parent_contour_key in scar_metrics:
-            parent_scar = scar_metrics[parent_contour_key]
-        else:
-            # Find parent through hierarchy relationships if not direct
-            found = False
-            for idx, h in enumerate(hierarchy):
-                if idx == parent_idx and h[3] != -1 and idx < len(original_contours):
-                    grandparent_idx = h[3]
-                    for cidx, ch in enumerate(hierarchy):
-                        if ch[3] == grandparent_idx and cidx < len(original_contours):
-                            cidx_contour = original_contours[cidx]
-                            cidx_key = str(cidx_contour.tobytes())
-                            if cidx_key in scar_metrics:
-                                parent_scar = scar_metrics[cidx_key]
-                                found = True
-                                break
-                    if found:
-                        break
-
-        if parent_scar is None:
-            logging.debug(f"Could not find parent scar for nested contour {ni}")
-            continue
-
-        # Skip arrow detection if parent scar is cortex
-        if parent_scar.get('is_cortex', False):
-            logging.debug(f"Skipping arrow detection for nested contour {ni} - parent scar '{parent_scar['scar']}' is cortex")
-            continue
-
-        # Create temporary entry for arrow detection
-        temp_entry = {
-            "scar": f"nested_{ni}"
-        }
-
-        # Run arrow detection
-        logging.debug(f"Running arrow detection on nested contour {ni}")
-        result = analyze_child_contour_for_arrow(cnt, temp_entry, image_shape, image_dpi)
-
-        # If arrow detected, update the parent scar's entry
-        if result:
-            logging.info(f"Arrow detected in nested contour {ni} (parent: {parent_scar['scar']}) with angle {result.get('compass_angle', 'unknown')}")
-            parent_scar.update({
-                "has_arrow": True,
-                "arrow_angle_rad": round(result["angle_rad"], 0),
-                "arrow_angle_deg": round(result["angle_deg"], 0),
-                "arrow_angle": round(result["compass_angle"], 0),
-                "arrow_tip": result["arrow_tip"],
-                "arrow_back": result["arrow_back"]
-            })
-        else:
-            logging.debug(f"No arrow detected in nested contour {ni}")
+    if scars_without:
+        logging.debug(
+            f"{len(scars_without)} scars without arrows. "
+            f"Running independent detection."
+        )
+        image = _resolve_image(image_shape)
+        metrics = detect_arrows_independently(
+            original_contours, metrics, image, image_dpi
+        )
+    else:
+        logging.debug("All scars have arrows. Skipping.")
 
     return metrics
 
 
-def detect_arrows_independently(original_contours, metrics, image, image_dpi=None):
+def _resolve_image(image_shape) -> np.ndarray:
+    """Resolve image_shape to an actual image array."""
+    if hasattr(image_shape, 'shape'):
+        return image_shape
+    logging.warning(
+        "Image shape provided instead of image "
+        "for independent arrow detection"
+    )
+    return np.zeros(image_shape, dtype=np.uint8)
+
+
+def process_nested_arrows(
+    sorted_contours: Dict[str, List],
+    hierarchy: np.ndarray,
+    original_contours: List[np.ndarray],
+    metrics: List[Dict],
+    image_shape,
+    image_dpi: Optional[float] = None
+) -> List[Dict]:
     """
-    Detect arrows in contours independently of hierarchy relationships.
-    Searches all contours for potential arrows and associates them with the
-    appropriate scar metrics.
-
-    Parameters
-    ----------
-    original_contours : list
-        List of all detected contours.
-    metrics : list
-        List of metric dictionaries for parents and scars.
-    image : ndarray
-        Original image for visualization and debug purposes.
-    image_dpi : float, optional
-        DPI of the image being processed, used for scaling detection parameters.
-
-    Returns
-    -------
-    metrics : list
-        Updated metrics list with arrow information added.
-    """
-    # Find all scar metrics (they have a parent that's not themselves)
-    scar_metrics = [m for m in metrics if m["parent"] != m["scar"]]
-
-    # Track which scars have arrows assigned
-    scars_with_arrows = set()
-
-    # For each contour, test if it could be an arrow
-    logging.info("Starting independent arrow detection on all contours...")
-
-    # First, find parent contours to exclude them from arrow detection
-    parent_contours = set()
-    parent_indices = []
-    for i, m in enumerate(metrics):
-        if m["parent"] == m["scar"]:  # This is a parent contour
-            for j, cnt in enumerate(original_contours):
-                # Find matching contour for this parent metric
-                if cv2.contourArea(cnt) == m["area"]:
-                    parent_contours.add(j)
-                    parent_indices.append(j)
-                    break
-
-    # Now find scar contours to exclude them too
-    scar_contours = set()
-    scar_indices = []
-    for i, m in enumerate(metrics):
-        if m["parent"] != m["scar"] and "parent" in m:  # This is a scar
-            for j, cnt in enumerate(original_contours):
-                if j in parent_contours:
-                    continue  # Skip already identified parent contours
-                # Find matching contour for this scar metric
-                if cv2.contourArea(cnt) == m["area"]:
-                    scar_contours.add(j)
-                    scar_indices.append(j)
-                    break
-
-    # Prepare scar contours for containment testing
-    scar_contour_map = {}  # Maps scar label to its contour
-    cortex_contour_map = {}  # Maps cortex label to its contour
-    for idx in scar_indices:
-        cnt = original_contours[idx]
-        # Find which metric this corresponds to
-        for m in scar_metrics:
-            if abs(cv2.contourArea(cnt) - m["area"]) < 1.0:  # Allow small rounding differences
-                scar_contour_map[m["scar"]] = cnt
-                # Also track cortex contours separately for exclusion
-                if m.get('is_cortex', False):
-                    cortex_contour_map[m["scar"]] = cnt
-                break
-
-    arrow_candidates = []
-    # Test all contours that aren't parents or scars
-    for i, cnt in enumerate(original_contours):
-        if i in parent_contours or i in scar_contours:
-            continue  # Skip parents and scars
-
-        # Basic filtering criteria for arrow candidates (must have reasonable area and solidity)
-        area = cv2.contourArea(cnt)
-        if area < 1.0:  # Skip very tiny contours
-            continue
-
-        hull = cv2.convexHull(cnt)
-        hull_area = cv2.contourArea(hull)
-        if hull_area <= 0:
-            continue
-
-        solidity = area / hull_area
-        if solidity < 0.4 or solidity > 0.9:  # Solidity range for arrow shapes
-            continue
-
-        temp_entry = {
-            "scar": f"candidate_{i}"
-        }
-
-        # Check if this contour is within a cortex region before proceeding with arrow detection
-        # Calculate contour centroid for cortex containment check
-        M = cv2.moments(cnt)
-        if M["m00"] > 0:
-            cx = M["m10"] / M["m00"]
-            cy = M["m01"] / M["m00"]
-        else:
-            x, y, w, h = cv2.boundingRect(cnt)
-            cx, cy = x + w/2, y + h/2
-
-        # Skip arrow detection if this contour is within any cortex area
-        within_cortex = False
-        for cortex_label, cortex_cnt in cortex_contour_map.items():
-            if cv2.pointPolygonTest(cortex_cnt, (cx, cy), False) >= 0:
-                logging.debug(f"Skipping arrow detection for contour {i} - within cortex area '{cortex_label}'")
-                within_cortex = True
-                break
-
-        if within_cortex:
-            continue
-
-        # Try arrow detection
-        result = analyze_child_contour_for_arrow(cnt, temp_entry, image, image_dpi)
-
-        if result:
-            logging.info(f"Independent arrow detection found arrow in contour {i} with angle {result.get('compass_angle', 'unknown')}")
-            arrow_candidates.append((i, cnt, result))
-
-    # Now assign arrows to scars based on containment
-    for arrow_idx, arrow_cnt, arrow_result in arrow_candidates:
-        # Calculate arrow centroid
-        M = cv2.moments(arrow_cnt)
-        if M["m00"] > 0:
-            arrow_cx = M["m10"] / M["m00"]
-            arrow_cy = M["m01"] / M["m00"]
-        else:
-            x, y, w, h = cv2.boundingRect(arrow_cnt)
-            arrow_cx, arrow_cy = x + w/2, y + h/2
-
-        # Find containing scar
-        containing_scar = None
-        smallest_area = float('inf')
-
-        for scar_label, scar_cnt in scar_contour_map.items():
-            # Check if the arrow centroid is inside this scar
-            if cv2.pointPolygonTest(scar_cnt, (arrow_cx, arrow_cy), False) >= 0:
-                scar_area = cv2.contourArea(scar_cnt)
-                if scar_area < smallest_area:
-                    smallest_area = scar_area
-                    containing_scar = scar_label
-
-        if containing_scar and containing_scar not in scars_with_arrows:
-            # Check if the containing scar is cortex - if so, don't assign arrow
-            containing_metric = None
-            for metric in metrics:
-                if metric["scar"] == containing_scar:
-                    containing_metric = metric
-                    break
-            
-            if containing_metric and containing_metric.get('is_cortex', False):
-                logging.debug(f"Not assigning arrow from contour {arrow_idx} to cortex scar {containing_scar}")
-                continue
-            
-            # Found a containing scar that doesn't have an arrow yet and is not cortex
-            # Update the scar's metrics with arrow information
-            if containing_metric:
-                logging.info(f"Assigning arrow from contour {arrow_idx} to scar {containing_scar}")
-                containing_metric.update({
-                    "has_arrow": True,
-                    "arrow_angle_rad": round(arrow_result["angle_rad"], 0),
-                    "arrow_angle_deg": round(arrow_result["angle_deg"], 0),
-                    "arrow_angle": round(arrow_result["compass_angle"], 0),
-                    "arrow_tip": arrow_result["arrow_tip"],
-                    "arrow_back": arrow_result["arrow_back"]
-                })
-                scars_with_arrows.add(containing_scar)
-
-    logging.info(f"Independent arrow detection completed. Found and assigned {len(scars_with_arrows)} arrows.")
-    return metrics
-
-
-def integrate_arrows(sorted_contours, hierarchy, original_contours, metrics, image_shape, image_dpi=None):
-    """
-    Main orchestrator function for arrow integration.
-    Handles both nested children arrow detection and independent arrow detection.
+    Detect arrows in nested children and update parent scars.
 
     Parameters
     ----------
     sorted_contours : dict
-        {"parents":…, "children":…, "nested_children":…}
+        Sorted contour structure.
     hierarchy : np.ndarray
-        contour hierarchy array
+        Contour hierarchy array.
     original_contours : list
-        list of all extracted contours
-    metrics : list of dict
-        existing metrics to update with arrow information
-    image_shape : tuple or ndarray
-        shape of the source image (h, w) or the image itself
+        All detected contours.
+    metrics : list
+        Metric dictionaries to update.
+    image_shape : ndarray or tuple
+        Source image or shape.
     image_dpi : float, optional
-        DPI of the image being processed, used for scaling detection parameters
+        Image DPI for detection scaling.
 
     Returns
     -------
-    metrics : list of dict
-        updated metrics with arrow information
+    list
+        Updated metrics.
     """
-    # First, try to detect arrows in nested children
-    metrics = process_nested_arrows(sorted_contours, hierarchy, original_contours, metrics, image_shape, image_dpi)
+    config = get_arrow_integration_config()
+    tolerance = config.get('area_match_tolerance', 1.0)
 
-    # Then, run independent arrow detection for scars without arrows
-    scars_without_arrows = [m for m in metrics if m["parent"] != m["scar"] and not m.get('has_arrow', False)]
+    index_map = _build_contour_index_map(
+        sorted_contours, original_contours
+    )
+    scar_metrics = _build_scar_metrics_map(
+        metrics, sorted_contours["children"], tolerance
+    )
 
-    if scars_without_arrows:
-        logging.info(f"Found {len(scars_without_arrows)} scars without arrows. Running independent detection.")
-        scar_labels = [m["scar"] for m in scars_without_arrows]
-        logging.info(f"Scars without arrows: {scar_labels}")
+    if not scar_metrics and sorted_contours.get("nested_children"):
+        logging.debug("No direct children — skipping nested processing")
+        return metrics
 
-        # For independent detection, we need the actual image, not just the shape
-        if hasattr(image_shape, 'shape'):
-            # image_shape is actually an image
-            image = image_shape
-        else:
-            # We only have the shape, create a dummy image for independent detection
-            # This shouldn't happen in normal usage, but provides a fallback
-            logging.warning("Image shape provided instead of image for independent arrow detection")
-            image = np.zeros(image_shape, dtype=np.uint8)
+    skip_counts = {"parent_is_cortex": 0, "no_parent_scar": 0}
+    for ni, cnt in enumerate(
+        sorted_contours.get("nested_children", [])
+    ):
+        status = _process_single_nested(
+            ni, cnt, index_map, hierarchy,
+            original_contours, scar_metrics,
+            image_shape, image_dpi
+        )
+        if status in skip_counts:
+            skip_counts[status] += 1
 
-        metrics = detect_arrows_independently(original_contours, metrics, image, image_dpi)
-    else:
-        logging.info("All scars already have arrows or no scars found. Skipping independent detection.")
+    if skip_counts["parent_is_cortex"]:
+        logging.debug(
+            f"Skipped {skip_counts['parent_is_cortex']} nested contours "
+            "whose parent is cortex"
+        )
+    if skip_counts["no_parent_scar"]:
+        logging.debug(
+            f"Skipped {skip_counts['no_parent_scar']} nested contours "
+            "with no matching parent scar"
+        )
 
     return metrics
+
+
+def _build_contour_index_map(
+    sorted_contours: Dict[str, List],
+    original_contours: List[np.ndarray]
+) -> Dict[str, int]:
+    """Map sorted contours to original indices."""
+    all_sorted = (
+        sorted_contours["parents"]
+        + sorted_contours["children"]
+        + sorted_contours.get("nested_children", [])
+    )
+    index_map = {}
+    for contour in all_sorted:
+        for i, orig in enumerate(original_contours):
+            if np.array_equal(contour, orig):
+                index_map[str(contour.tobytes())] = i
+                break
+    return index_map
+
+
+def _build_scar_metrics_map(
+    metrics: List[Dict],
+    children: List[np.ndarray],
+    tolerance: float
+) -> Dict[str, Dict]:
+    """Map contour keys to their scar metric entries."""
+    scar_map = {}
+    for metric in metrics:
+        if metric["parent"] == metric["scar"]:
+            continue
+        for cnt in children:
+            area_diff = abs(cv2.contourArea(cnt) - metric["area"])
+            if area_diff < tolerance:
+                scar_map[str(cnt.tobytes())] = metric
+                break
+    return scar_map
+
+
+def _process_single_nested(
+    ni: int,
+    cnt: np.ndarray,
+    index_map: Dict[str, int],
+    hierarchy: np.ndarray,
+    original_contours: List[np.ndarray],
+    scar_metrics: Dict[str, Dict],
+    image_shape,
+    image_dpi: Optional[float]
+) -> Optional[str]:
+    """Process a single nested contour for arrow detection.
+
+    Returns a status string ("no_parent_scar", "parent_is_cortex") when
+    the contour is skipped so the caller can aggregate counts, or None
+    if the contour was processed.
+    """
+    nested_idx = index_map.get(str(cnt.tobytes()))
+    if nested_idx is None or nested_idx >= len(hierarchy):
+        logging.warning(
+            f"Could not find nested contour {ni} in hierarchy"
+        )
+        return None
+
+    parent_scar = _find_parent_scar(
+        nested_idx, hierarchy, original_contours, scar_metrics
+    )
+    if parent_scar is None:
+        return "no_parent_scar"
+
+    if parent_scar.get('is_cortex', False):
+        return "parent_is_cortex"
+
+    temp_entry = {"scar": f"nested_{ni}"}
+    result = analyze_child_contour_for_arrow(
+        cnt, temp_entry, image_shape, image_dpi
+    )
+
+    if result:
+        logging.debug(
+            f"Arrow in nested contour {ni} "
+            f"(parent: {parent_scar['scar']}) "
+            f"angle {result.get('compass_angle', '?')}"
+        )
+        _apply_arrow_result(parent_scar, result)
+
+
+def _find_parent_scar(
+    nested_idx: int,
+    hierarchy: np.ndarray,
+    original_contours: List[np.ndarray],
+    scar_metrics: Dict[str, Dict]
+) -> Optional[Dict]:
+    """Find the parent scar metric for a nested contour."""
+    parent_idx = hierarchy[nested_idx][3]
+
+    if parent_idx < len(original_contours):
+        key = str(original_contours[parent_idx].tobytes())
+        if key in scar_metrics:
+            return scar_metrics[key]
+
+    # Search through hierarchy relationships
+    for idx, h in enumerate(hierarchy):
+        if idx != parent_idx or h[3] == -1:
+            continue
+        if idx >= len(original_contours):
+            continue
+        grandparent = h[3]
+        for cidx, ch in enumerate(hierarchy):
+            if ch[3] != grandparent or cidx >= len(original_contours):
+                continue
+            key = str(original_contours[cidx].tobytes())
+            if key in scar_metrics:
+                return scar_metrics[key]
+
+    return None
+
+
+def _apply_arrow_result(metric: Dict, result: Dict) -> None:
+    """Apply arrow detection result to a metric entry."""
+    metric.update({
+        "has_arrow": True,
+        "arrow_angle_rad": round(result["angle_rad"], 0),
+        "arrow_angle_deg": round(result["angle_deg"], 0),
+        "arrow_angle": round(result["compass_angle"], 0),
+        "arrow_tip": result["arrow_tip"],
+        "arrow_back": result["arrow_back"],
+    })
+
+
+def detect_arrows_independently(
+    original_contours: List[np.ndarray],
+    metrics: List[Dict],
+    image: np.ndarray,
+    image_dpi: Optional[float] = None
+) -> List[Dict]:
+    """
+    Detect arrows independently of hierarchy and assign to scars.
+
+    Parameters
+    ----------
+    original_contours : list
+        All detected contours.
+    metrics : list
+        Metric dictionaries.
+    image : ndarray
+        Source image.
+    image_dpi : float, optional
+        Image DPI for detection scaling.
+
+    Returns
+    -------
+    list
+        Updated metrics with arrow information.
+    """
+    config = get_arrow_integration_config()
+    tolerance = config.get('area_match_tolerance', 1.0)
+
+    scar_metrics = [
+        m for m in metrics if m["parent"] != m["scar"]
+    ]
+
+    logging.debug("Starting independent arrow detection...")
+
+    parent_indices = _find_metric_contour_indices(
+        metrics, original_contours,
+        is_parent=True, exclude=set()
+    )
+    scar_indices = _find_metric_contour_indices(
+        metrics, original_contours,
+        is_parent=False, exclude=parent_indices
+    )
+
+    scar_map, cortex_map = _build_scar_contour_maps(
+        scar_indices, original_contours, scar_metrics, tolerance
+    )
+
+    candidates = _find_arrow_candidates(
+        original_contours, parent_indices, scar_indices,
+        image, image_dpi, cortex_map, config
+    )
+
+    assigned = _assign_arrows_to_scars(
+        candidates, scar_map, metrics
+    )
+
+    logging.debug(
+        f"Independent detection completed. "
+        f"Assigned {len(assigned)} arrows."
+    )
+    return metrics
+
+
+def _find_metric_contour_indices(
+    metrics: List[Dict],
+    contours: List[np.ndarray],
+    is_parent: bool,
+    exclude: Set[int]
+) -> Set[int]:
+    """Find original contour indices matching metrics."""
+    indices = set()
+    for m in metrics:
+        match = (m["parent"] == m["scar"]) == is_parent
+        if not match:
+            continue
+        for j, cnt in enumerate(contours):
+            if j in exclude:
+                continue
+            if cv2.contourArea(cnt) == m["area"]:
+                indices.add(j)
+                break
+    return indices
+
+
+def _build_scar_contour_maps(
+    scar_indices: Set[int],
+    contours: List[np.ndarray],
+    scar_metrics: List[Dict],
+    tolerance: float
+) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+    """Build maps from scar labels to their contours."""
+    scar_map = {}
+    cortex_map = {}
+    for idx in scar_indices:
+        cnt = contours[idx]
+        for m in scar_metrics:
+            if abs(cv2.contourArea(cnt) - m["area"]) < tolerance:
+                scar_map[m["scar"]] = cnt
+                if m.get('is_cortex', False):
+                    cortex_map[m["scar"]] = cnt
+                break
+    return scar_map, cortex_map
+
+
+def _find_arrow_candidates(
+    contours: List[np.ndarray],
+    parent_indices: Set[int],
+    scar_indices: Set[int],
+    image: np.ndarray,
+    image_dpi: Optional[float],
+    cortex_map: Dict[str, np.ndarray],
+    config: Dict
+) -> List[Tuple[int, np.ndarray, Dict]]:
+    """
+    Find contours that could be arrows.
+
+    Parameters
+    ----------
+    contours : list
+        All contours.
+    parent_indices : set
+        Indices of parent contours.
+    scar_indices : set
+        Indices of scar contours.
+    image : ndarray
+        Source image.
+    image_dpi : float or None
+        Image DPI.
+    cortex_map : dict
+        Cortex contour map for exclusion.
+    config : dict
+        Arrow integration configuration.
+
+    Returns
+    -------
+    list
+        List of (index, contour, result) tuples.
+    """
+    min_area = config.get('min_candidate_area', 1.0)
+    min_sol = config.get('min_solidity', 0.4)
+    max_sol = config.get('max_solidity', 0.9)
+
+    candidates = []
+    cortex_skips = 0
+    for i, cnt in enumerate(contours):
+        if i in parent_indices or i in scar_indices:
+            continue
+
+        if not _passes_arrow_filters(cnt, min_area, min_sol, max_sol):
+            continue
+
+        if _is_within_cortex(cnt, cortex_map):
+            cortex_skips += 1
+            continue
+
+        temp_entry = {"scar": f"candidate_{i}"}
+        result = analyze_child_contour_for_arrow(
+            cnt, temp_entry, image, image_dpi
+        )
+        if result:
+            logging.debug(
+                f"Arrow found in contour {i}, "
+                f"angle {result.get('compass_angle', '?')}"
+            )
+            candidates.append((i, cnt, result))
+
+    if cortex_skips:
+        logging.debug(
+            f"Skipped {cortex_skips} contours inside cortex regions "
+            "during arrow detection"
+        )
+    return candidates
+
+
+def _passes_arrow_filters(
+    cnt: np.ndarray,
+    min_area: float,
+    min_solidity: float,
+    max_solidity: float
+) -> bool:
+    """Check if a contour passes basic arrow shape filters."""
+    area = cv2.contourArea(cnt)
+    if area < min_area:
+        return False
+
+    hull = cv2.convexHull(cnt)
+    hull_area = cv2.contourArea(hull)
+    if hull_area <= 0:
+        return False
+
+    solidity = area / hull_area
+    return min_solidity <= solidity <= max_solidity
+
+
+def _is_within_cortex(
+    cnt: np.ndarray,
+    cortex_map: Dict[str, np.ndarray]
+) -> bool:
+    """Check if a contour centroid falls within a cortex area."""
+    if not cortex_map:
+        return False
+
+    M = cv2.moments(cnt)
+    if M["m00"] > 0:
+        cx, cy = M["m10"] / M["m00"], M["m01"] / M["m00"]
+    else:
+        x, y, w, h = cv2.boundingRect(cnt)
+        cx, cy = x + w / 2, y + h / 2
+
+    for _label, cortex_cnt in cortex_map.items():
+        if cv2.pointPolygonTest(cortex_cnt, (cx, cy), False) >= 0:
+            return True
+    return False
+
+
+def _assign_arrows_to_scars(
+    candidates: List[Tuple],
+    scar_map: Dict[str, np.ndarray],
+    metrics: List[Dict]
+) -> Set[str]:
+    """
+    Assign detected arrows to the smallest containing scar.
+
+    Parameters
+    ----------
+    candidates : list
+        Arrow candidate tuples (index, contour, result).
+    scar_map : dict
+        Maps scar labels to contour arrays.
+    metrics : list
+        All metric dictionaries.
+
+    Returns
+    -------
+    set
+        Labels of scars that received arrows.
+    """
+    assigned = set()
+
+    for arrow_idx, arrow_cnt, arrow_result in candidates:
+        M = cv2.moments(arrow_cnt)
+        if M["m00"] > 0:
+            acx = M["m10"] / M["m00"]
+            acy = M["m01"] / M["m00"]
+        else:
+            x, y, w, h = cv2.boundingRect(arrow_cnt)
+            acx, acy = x + w / 2, y + h / 2
+
+        best_scar = None
+        best_area = float('inf')
+
+        for label, scar_cnt in scar_map.items():
+            if cv2.pointPolygonTest(scar_cnt, (acx, acy), False) >= 0:
+                area = cv2.contourArea(scar_cnt)
+                if area < best_area:
+                    best_area = area
+                    best_scar = label
+
+        if best_scar is None or best_scar in assigned:
+            continue
+
+        metric = next(
+            (m for m in metrics if m["scar"] == best_scar),
+            None
+        )
+        if metric is None or metric.get('is_cortex', False):
+            continue
+
+        logging.debug(
+            f"Assigning arrow {arrow_idx} to scar {best_scar}"
+        )
+        _apply_arrow_result(metric, arrow_result)
+        assigned.add(best_scar)
+
+    return assigned

@@ -1,18 +1,14 @@
-matrix:
- include:
-  language: python
-  python:
-   - "3.7"
-  # command to install dependencies
-  install:
-   - pip install --upgrade pip
-   - pip install .
-  # command to run tests
-  script:
-   - pytest -s
+language: python
+python:
+  - "3.11"
+install:
+  - pip install --upgrade pip
+  - pip install .
+script:
+  - pytest -s
 
 after_failure:
- - cat config.log
+  - cat config.log
 
 after_success:
- - echo "All tests passed!"
+  - echo "All tests passed!"

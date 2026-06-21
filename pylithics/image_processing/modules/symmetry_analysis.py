@@ -1,78 +1,149 @@
+"""
+PyLithics: Symmetry Analysis
+=============================
+
+Calculates area-based symmetry metrics for dorsal surfaces
+using geometric centroid analysis.
+"""
+
 import cv2
 import numpy as np
 import logging
+from typing import List, Dict, Optional
 
-def analyze_dorsal_symmetry(metrics, contours, inverted_image):
+
+def analyze_dorsal_symmetry(
+    metrics: List[Dict],
+    contours: List[np.ndarray],
+    inverted_image: np.ndarray
+) -> Dict[str, Optional[float]]:
     """
-    Perform symmetry analysis for the Dorsal surface and calculate areas for its halves.
+    Calculate symmetry metrics for the dorsal surface.
 
-    Args:
-        metrics (list): List of dictionaries containing contour metrics.
-        contours (list): List of valid contours.
-        inverted_image (numpy.ndarray): Inverted binary thresholded image.
+    Splits the dorsal contour at its centroid into four quadrants
+    and measures area ratios to quantify vertical and horizontal
+    symmetry.
 
-    Returns:
-        dict: Symmetry areas for the Dorsal surface (top, bottom, left, right).
+    Parameters
+    ----------
+    metrics : list
+        Metric dictionaries with surface classifications.
+    contours : list
+        Contour arrays corresponding to metrics.
+    inverted_image : np.ndarray
+        Inverted binary thresholded image.
+
+    Returns
+    -------
+    dict
+        Symmetry results:
+        - top_area, bottom_area, left_area, right_area (float)
+        - vertical_symmetry, horizontal_symmetry (float 0-1)
+        Values are None if analysis cannot be performed.
     """
-    # Find the Dorsal surface from metrics
-    dorsal_metric = next((m for m in metrics if m.get("surface_type") == "Dorsal"), None)
-    if not dorsal_metric:
-        return {"top_area": None, "bottom_area": None, "left_area": None, "right_area": None}
+    empty = {
+        "top_area": None, "bottom_area": None,
+        "left_area": None, "right_area": None,
+    }
 
-    # Extract Dorsal contour based on parent label
-    dorsal_parent = dorsal_metric["parent"]
-    dorsal_contour = next(
-        (contour for i, contour in enumerate(contours) if metrics[i]["parent"] == dorsal_parent),
+    dorsal_metric = next(
+        (m for m in metrics
+         if m.get("surface_type") == "Dorsal"),
         None
     )
+    if not dorsal_metric:
+        return empty
 
-    if dorsal_contour is None or len(dorsal_contour) < 3:
-        return {"top_area": None, "bottom_area": None, "left_area": None, "right_area": None}
+    contour = _find_dorsal_contour(
+        metrics, contours, dorsal_metric
+    )
+    if contour is None or len(contour) < 3:
+        return empty
 
-    # Extract centroid from the metrics
-    centroid_x = int(dorsal_metric["centroid_x"])
-    centroid_y = int(dorsal_metric["centroid_y"])
+    cx = int(dorsal_metric["centroid_x"])
+    cy = int(dorsal_metric["centroid_y"])
 
-    # Verify that the centroid belongs to the selected contour
-    if cv2.pointPolygonTest(dorsal_contour, (centroid_x, centroid_y), measureDist=False) < 0:
-        return {"top_area": None, "bottom_area": None, "left_area": None, "right_area": None}
+    if cv2.pointPolygonTest(contour, (cx, cy), False) < 0:
+        return empty
 
-    # Create a binary mask for the Dorsal contour
+    return _calculate_symmetry(contour, inverted_image, cx, cy)
+
+
+def _find_dorsal_contour(
+    metrics: List[Dict],
+    contours: List[np.ndarray],
+    dorsal_metric: Dict
+) -> Optional[np.ndarray]:
+    """
+    Find the contour matching the dorsal surface metric.
+
+    Parameters
+    ----------
+    metrics : list
+        All metric dictionaries.
+    contours : list
+        Contour arrays.
+    dorsal_metric : dict
+        The dorsal surface metric.
+
+    Returns
+    -------
+    np.ndarray or None
+        Dorsal contour, or None if not found.
+    """
+    parent_label = dorsal_metric["parent"]
+    for i, contour in enumerate(contours):
+        if i < len(metrics) and metrics[i]["parent"] == parent_label:
+            return contour
+    return None
+
+
+def _calculate_symmetry(
+    contour: np.ndarray,
+    inverted_image: np.ndarray,
+    cx: int, cy: int
+) -> Dict[str, Optional[float]]:
+    """
+    Calculate symmetry areas and ratios from a contour.
+
+    Parameters
+    ----------
+    contour : np.ndarray
+        Dorsal surface contour.
+    inverted_image : np.ndarray
+        Image for mask dimensions.
+    cx : int
+        Centroid x coordinate.
+    cy : int
+        Centroid y coordinate.
+
+    Returns
+    -------
+    dict
+        Symmetry areas and ratios.
+    """
     mask = np.zeros_like(inverted_image, dtype=np.uint8)
-    cv2.drawContours(mask, [dorsal_contour], -1, 255, thickness=cv2.FILLED)
+    cv2.drawContours(mask, [contour], -1, 255, cv2.FILLED)
 
-    # Split the mask into regions
-    top_half = mask[:centroid_y, :]
-    bottom_half = mask[centroid_y:, :]
-    left_half = mask[:, :centroid_x]
-    right_half = mask[:, centroid_x:]
+    top = round(float(np.sum(mask[:cy, :] == 255)), 2)
+    bottom = round(float(np.sum(mask[cy:, :] == 255)), 2)
+    left = round(float(np.sum(mask[:, :cx] == 255)), 2)
+    right = round(float(np.sum(mask[:, cx:] == 255)), 2)
 
-    # Calculate areas (number of non-zero pixels) and convert to floats
-    top_area = round(float(np.sum(top_half == 255)), 2)
-    bottom_area = round(float(np.sum(bottom_half == 255)), 2)
-    left_area = round(float(np.sum(left_half == 255)), 2)
-    right_area = round(float(np.sum(right_half == 255)), 2)
-    # Vertical symmetry calculation
-    vertical_symmetry = (
-        round(
-            1 - abs(top_area - bottom_area) / (top_area + bottom_area), 2
-        ) if (top_area + bottom_area) > 0 else None
+    v_sym = (
+        round(1 - abs(top - bottom) / (top + bottom), 2)
+        if (top + bottom) > 0 else None
+    )
+    h_sym = (
+        round(1 - abs(left - right) / (left + right), 2)
+        if (left + right) > 0 else None
     )
 
-    # Horizontal symmetry calculation
-    horizontal_symmetry = (
-        round(
-            1 - abs(left_area - right_area) / (left_area + right_area), 2
-        ) if (left_area + right_area) > 0 else None
-    )
+    logging.debug("Symmetry analysis complete for Dorsal surface.")
 
-    # Logging for analysis completion
-    logging.info("Symmetry analysis complete for Dorsal surface.")
     return {
-    "top_area": top_area,
-    "bottom_area": bottom_area,
-    "left_area": left_area,
-    "right_area": right_area,
-    "vertical_symmetry": vertical_symmetry,
-    "horizontal_symmetry": horizontal_symmetry
-}
+        "top_area": top, "bottom_area": bottom,
+        "left_area": left, "right_area": right,
+        "vertical_symmetry": v_sym,
+        "horizontal_symmetry": h_sym,
+    }

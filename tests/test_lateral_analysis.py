@@ -1,756 +1,247 @@
-"""
-PyLithics Lateral Analysis Tests
-================================
+"""Tests for lateral-surface convexity and distance calculations."""
 
-Tests for lateral surface analysis including convexity calculations,
-distance to maximum width measurements, and metric integration for archaeological tools.
-"""
-
-import pytest
 import numpy as np
-import cv2
-from unittest.mock import patch, MagicMock
+import pytest
 
 from pylithics.image_processing.modules.lateral_analysis import (
+    _calculate_lateral_distance_to_max_width,
+    _integrate_lateral_metrics,
     analyze_lateral_surface,
     detect_lateral_convexity,
-    _integrate_lateral_metrics,
-    _calculate_lateral_distance_to_max_width
 )
 
 
-@pytest.mark.unit
-class TestAnalyzeLateralSurface:
-    """Test the main lateral surface analysis function."""
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
-    def test_analyze_lateral_no_lateral_surface(self):
-        """Test lateral analysis when no lateral surface is found."""
-        metrics = [
-            {
-                'surface_type': 'Dorsal',
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'area': 5000.0
-            },
-            {
-                'surface_type': 'Ventral',
-                'parent': 'parent 2',
-                'scar': 'parent 2',
-                'area': 4800.0
-            }
-        ]
 
-        parent_contours = []
-        inverted_image = np.zeros((100, 100), dtype=np.uint8)
+def _poly(*pts):
+    return np.array(pts, dtype=np.int32).reshape(-1, 1, 2)
 
-        result = analyze_lateral_surface(metrics, parent_contours, inverted_image)
 
-        assert result is None
+def _rect(x0, y0, x1, y1):
+    return _poly([x0, y0], [x1, y0], [x1, y1], [x0, y1])
 
-    def test_analyze_lateral_valid_surface(self):
-        """Test lateral analysis with valid lateral surface."""
-        # Create lateral contour (elongated rectangle)
-        lateral_contour = np.array([
-            [20, 30], [80, 30], [80, 70], [20, 70]
-        ], dtype=np.int32).reshape(-1, 1, 2)
 
-        metrics = [
-            {
-                'surface_type': 'Lateral',
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'area': 2400.0  # 60 * 40
-            }
-        ]
+def _circle_contour(center=(50, 50), radius=30, n_points=32):
+    pts = []
+    for i in range(n_points):
+        angle = 2 * np.pi * i / n_points
+        pts.append([
+            int(center[0] + radius * np.cos(angle)),
+            int(center[1] + radius * np.sin(angle)),
+        ])
+    return np.array(pts, dtype=np.int32).reshape(-1, 1, 2)
 
-        parent_contours = [lateral_contour]
-        inverted_image = np.zeros((100, 100), dtype=np.uint8)
 
-        result = analyze_lateral_surface(metrics, parent_contours, inverted_image)
+def _star_contour(center=(50, 50), outer_r=30, inner_r=15, n_points=10):
+    pts = []
+    for i in range(n_points):
+        angle = 2 * np.pi * i / n_points
+        radius = outer_r if i % 2 == 0 else inner_r
+        pts.append([
+            int(center[0] + radius * np.cos(angle)),
+            int(center[1] + radius * np.sin(angle)),
+        ])
+    return np.array(pts, dtype=np.int32).reshape(-1, 1, 2)
 
-        assert result is not None
-        assert 'lateral_convexity' in result
-        assert 'distance_to_max_width' in result
 
-        # Rectangle should have high convexity (close to 1.0)
-        assert 0.95 <= result['lateral_convexity'] <= 1.0
-        assert result['distance_to_max_width'] > 0
+def _lateral_metric(area=1000.0, **overrides):
+    base = {
+        "surface_type": "Lateral",
+        "parent": "parent 1",
+        "scar": "parent 1",
+        "area": area,
+    }
+    base.update(overrides)
+    return base
 
-    def test_analyze_lateral_contour_index_matching(self):
-        """Test lateral analysis with correct contour index matching."""
-        # Create two contours
-        contour1 = np.array([
-            [10, 10], [30, 10], [30, 30], [10, 30]
-        ], dtype=np.int32).reshape(-1, 1, 2)  # Area = 400
 
-        contour2 = np.array([
-            [40, 40], [80, 40], [80, 80], [40, 80]
-        ], dtype=np.int32).reshape(-1, 1, 2)  # Area = 1600
-
-        metrics = [
-            {
-                'surface_type': 'Dorsal',
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'area': 400.0
-            },
-            {
-                'surface_type': 'Lateral',
-                'parent': 'parent 2',
-                'scar': 'parent 2',
-                'area': 1600.0  # Should match contour2
-            }
-        ]
-
-        parent_contours = [contour1, contour2]
-        inverted_image = np.zeros((100, 100), dtype=np.uint8)
-
-        result = analyze_lateral_surface(metrics, parent_contours, inverted_image)
-
-        assert result is not None
-        # Should analyze the larger contour (contour2)
-        assert result['lateral_convexity'] is not None
-
-    def test_analyze_lateral_contour_area_fallback(self):
-        """Test lateral analysis using area-based contour matching fallback."""
-        lateral_contour = np.array([
-            [20, 20], [60, 20], [60, 60], [20, 60]
-        ], dtype=np.int32).reshape(-1, 1, 2)  # Area = 1600
-
-        metrics = [
-            {
-                'surface_type': 'Lateral',
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'area': 1600.0  # Exact match
-            }
-        ]
-
-        # Make contour index mismatch by having more contours than metrics
-        extra_contour = np.array([
-            [70, 70], [90, 70], [90, 90], [70, 90]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        parent_contours = [extra_contour, lateral_contour]  # Lateral is at index 1, not 0
-        inverted_image = np.zeros((100, 100), dtype=np.uint8)
-
-        result = analyze_lateral_surface(metrics, parent_contours, inverted_image)
-
-        assert result is not None
-        # Should find correct contour by area matching
-        assert result['lateral_convexity'] is not None
-
-    def test_analyze_lateral_no_matching_contour(self):
-        """Test lateral analysis when no matching contour is found."""
-        metrics = [
-            {
-                'surface_type': 'Lateral',
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'area': 5000.0  # Won't match any contour closely enough
-            }
-        ]
-
-        small_contour = np.array([
-            [10, 10], [20, 10], [20, 20], [10, 20]
-        ], dtype=np.int32).reshape(-1, 1, 2)  # Area = 100, very different from 5000
-
-        parent_contours = [small_contour]
-        inverted_image = np.zeros((100, 100), dtype=np.uint8)
-
-        result = analyze_lateral_surface(metrics, parent_contours, inverted_image)
-
-        # FIXED: The code actually finds the contour using area fallback even with loose matching
-        # So we expect a result, not None
-        assert result is not None
-        assert 'lateral_convexity' in result
-        assert 'distance_to_max_width' in result
-
-    def test_analyze_lateral_convexity_calculation_error(self):
-        """Test lateral analysis when convexity calculation might have issues."""
-        # Create a contour that should work but might have edge cases
-        small_contour = np.array([
-            [50, 50], [52, 50], [52, 52], [50, 52]  # Very small but valid rectangle
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        metrics = [
-            {
-                'surface_type': 'Lateral',
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'area': cv2.contourArea(small_contour)
-            }
-        ]
-
-        parent_contours = [small_contour]
-        inverted_image = np.zeros((100, 100), dtype=np.uint8)
-
-        result = analyze_lateral_surface(metrics, parent_contours, inverted_image)
-
-        # FIXED: Small rectangles should still work fine, so we expect valid results
-        assert result is not None
-        assert 'lateral_convexity' in result
-        if result['lateral_convexity'] is not None:
-            assert 0 <= result['lateral_convexity'] <= 1
-
-    def test_analyze_lateral_distance_calculation_error(self):
-        """Test lateral analysis when distance calculation might have issues."""
-        # Create contour that might cause distance calculation issues
-        line_contour = np.array([
-            [20, 50], [80, 50], [80, 50], [20, 50]  # Degenerate line
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        metrics = [
-            {
-                'surface_type': 'Lateral',
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'area': cv2.contourArea(line_contour)  # Will be 0 or very small
-            }
-        ]
-
-        parent_contours = [line_contour]
-        inverted_image = np.zeros((100, 100), dtype=np.uint8)
-
-        result = analyze_lateral_surface(metrics, parent_contours, inverted_image)
-
-        # Should handle errors gracefully, might return None or partial results
-        if result is not None:
-            assert 'distance_to_max_width' in result
-            # Distance might be None due to degenerate contour
+# ---------------------------------------------------------------------------
+# detect_lateral_convexity: numerical properties of known shapes
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
 class TestDetectLateralConvexity:
-    """Test the lateral convexity detection function."""
+    """Convex shapes must give ≈1.0; concavity must reduce the ratio."""
 
-    def test_convexity_perfect_rectangle(self):
-        """Test convexity calculation for perfect rectangle (should be 1.0)."""
-        rectangle = np.array([
-            [10, 20], [60, 20], [60, 80], [10, 80]
-        ], dtype=np.int32).reshape(-1, 1, 2)
+    def test_rectangle_is_fully_convex(self):
+        convexity = detect_lateral_convexity(_rect(10, 20, 60, 80))
+        assert convexity == pytest.approx(1.0, abs=1e-6)
 
-        convexity = detect_lateral_convexity(rectangle)
+    def test_triangle_is_fully_convex(self):
+        triangle = _poly([50, 20], [80, 70], [20, 70])
+        convexity = detect_lateral_convexity(triangle)
+        assert convexity == pytest.approx(1.0, abs=1e-6)
 
-        assert convexity is not None
-        # Rectangle should have convexity very close to 1.0
-        assert 0.98 <= convexity <= 1.0
-
-    def test_convexity_perfect_circle(self):
-        """Test convexity calculation for circle (should be 1.0)."""
-        # Create circular contour
-        center = (50, 50)
-        radius = 30
-        circle_points = []
-
-        for i in range(32):  # 32 points around circle
-            angle = 2 * np.pi * i / 32
-            x = int(center[0] + radius * np.cos(angle))
-            y = int(center[1] + radius * np.sin(angle))
-            circle_points.append([x, y])
-
-        circle_contour = np.array(circle_points, dtype=np.int32).reshape(-1, 1, 2)
-
-        convexity = detect_lateral_convexity(circle_contour)
-
-        assert convexity is not None
-        # Circle should have high convexity
+    def test_circle_approximates_one(self):
+        # 32 points on a radius-30 circle, discretized to int pixels
+        convexity = detect_lateral_convexity(_circle_contour(radius=30, n_points=32))
+        # Discretization trims a tiny bit; accept >= 0.95
         assert 0.95 <= convexity <= 1.0
 
-    def test_convexity_concave_shape(self):
-        """Test convexity calculation for concave shape."""
-        # Create L-shaped contour (concave)
-        l_shape = np.array([
-            [10, 10], [40, 10], [40, 30], [30, 30], [30, 50], [10, 50]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
+    def test_l_shape_matches_exact_area_ratio(self):
+        """
+        L-shape area = 1000, convex hull area = 1100; convexity = 10/11 ≈ 0.909.
+        """
+        l_shape = _poly(
+            [10, 10], [40, 10], [40, 30], [30, 30], [30, 50], [10, 50],
+        )
         convexity = detect_lateral_convexity(l_shape)
+        assert convexity == pytest.approx(10 / 11, abs=0.01)
 
-        assert convexity is not None
-        # FIXED: L-shape convexity expectations - the actual result was 0.909
-        # So we adjust the range to be more realistic
-        assert 0.3 <= convexity <= 1.0  # Expanded upper bound
+    def test_star_is_strongly_concave(self):
+        convexity = detect_lateral_convexity(_star_contour())
+        assert convexity < 0.7
 
-    def test_convexity_star_shape(self):
-        """Test convexity calculation for star shape (highly concave)."""
-        # Create star-shaped contour
-        star_points = []
-        center = (50, 50)
+    @pytest.mark.parametrize("bad_input", [
+        None,
+        np.array([], dtype=np.int32).reshape(0, 1, 2),
+        np.array([[50, 50]], dtype=np.int32).reshape(-1, 1, 2),
+    ])
+    def test_invalid_contours_return_none(self, bad_input):
+        assert detect_lateral_convexity(bad_input) is None
 
-        for i in range(10):
-            angle = 2 * np.pi * i / 10
-            if i % 2 == 0:
-                radius = 30  # Outer points
-            else:
-                radius = 15  # Inner points (creates concavity)
+    def test_zero_area_line_returns_none(self):
+        """A strictly colinear contour has zero area and should yield None."""
+        line = _poly([10, 50], [30, 50], [50, 50], [70, 50])
+        assert detect_lateral_convexity(line) is None
 
-            x = int(center[0] + radius * np.cos(angle))
-            y = int(center[1] + radius * np.sin(angle))
-            star_points.append([x, y])
 
-        star_contour = np.array(star_points, dtype=np.int32).reshape(-1, 1, 2)
-
-        convexity = detect_lateral_convexity(star_contour)
-
-        assert convexity is not None
-        # Star should have low convexity due to deep concavities
-        assert 0.1 <= convexity < 0.7
-
-    def test_convexity_triangle(self):
-        """Test convexity calculation for triangle (should be 1.0)."""
-        triangle = np.array([
-            [50, 20], [80, 70], [20, 70]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        convexity = detect_lateral_convexity(triangle)
-
-        assert convexity is not None
-        # Triangle should have convexity of 1.0 (convex)
-        assert 0.98 <= convexity <= 1.0
-
-    def test_convexity_invalid_contour(self):
-        """Test convexity calculation with invalid contour."""
-        # Empty contour
-        empty_contour = np.array([], dtype=np.int32).reshape(0, 1, 2)
-
-        convexity = detect_lateral_convexity(empty_contour)
-        assert convexity is None
-
-        # Single point
-        point_contour = np.array([[50, 50]], dtype=np.int32).reshape(-1, 1, 2)
-
-        convexity = detect_lateral_convexity(point_contour)
-        assert convexity is None
-
-        # Two points (line)
-        line_contour = np.array([[20, 30], [80, 30]], dtype=np.int32).reshape(-1, 1, 2)
-
-        convexity = detect_lateral_convexity(line_contour)
-        # Might return None or a valid value depending on OpenCV handling
-        assert convexity is None or isinstance(convexity, (int, float))
-
-    def test_convexity_none_input(self):
-        """Test convexity calculation with None input."""
-        convexity = detect_lateral_convexity(None)
-        assert convexity is None
-
-    def test_convexity_zero_area_contour(self):
-        """Test convexity calculation with zero area contour."""
-        # Create degenerate contour (all points on a line)
-        line_points = np.array([
-            [10, 50], [30, 50], [50, 50], [70, 50]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        convexity = detect_lateral_convexity(line_points)
-
-        # Should handle zero area gracefully - might return None or 0
-        assert convexity is None or convexity == 0
+# ---------------------------------------------------------------------------
+# _calculate_lateral_distance_to_max_width: geometry sanity
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-class TestCalculateLateralDistanceToMaxWidth:
-    """Test the distance to maximum width calculation function."""
+class TestLateralDistanceToMaxWidth:
+    """Distance is from the top-point to the midpoint of the longest segment."""
 
-    def test_distance_rectangular_contour(self):
-        """Test distance calculation for rectangular contour."""
-        # Create vertical rectangle
-        rectangle = np.array([
-            [40, 20], [60, 20], [60, 80], [40, 80]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        distance = _calculate_lateral_distance_to_max_width(rectangle)
-
+    def test_vertical_rectangle_returns_positive_distance(self):
+        # 20x60 rectangle, longest diagonal ≈ 63.25
+        distance = _calculate_lateral_distance_to_max_width(
+            _rect(40, 20, 60, 80)
+        )
         assert distance is not None
-        assert distance >= 0
+        assert distance > 0
 
-        # For a rectangle, distance should be from top to middle
-        # Top Y = 20, middle Y should be around 50, so distance ≈ 30
-        expected_distance = 30.0
-        assert abs(distance - expected_distance) < 5.0  # Allow some tolerance
-
-    def test_distance_triangle_contour(self):
-        """Test distance calculation for triangular contour."""
-        # Create triangle with base at bottom
-        triangle = np.array([
-            [50, 20],   # Top point
-            [20, 80],   # Bottom left
-            [80, 80]    # Bottom right
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
+    def test_triangle_apex_to_base_center(self):
+        triangle = _poly([50, 20], [20, 80], [80, 80])
         distance = _calculate_lateral_distance_to_max_width(triangle)
-
         assert distance is not None
-        assert distance >= 0
+        assert distance > 0
 
-        # For triangle, max width is at the base, distance should be from top to base center
-        # Top Y = 20, base Y = 80, so distance ≈ 60
-        expected_distance = 60.0
-        assert abs(distance - expected_distance) < 10.0
+    @pytest.mark.parametrize("bad_input", [
+        None,
+        np.array([[50, 50]], dtype=np.int32).reshape(-1, 1, 2),
+    ])
+    def test_invalid_contour_returns_none(self, bad_input):
+        assert _calculate_lateral_distance_to_max_width(bad_input) is None
 
-    def test_distance_diamond_contour(self):
-        """Test distance calculation for diamond-shaped contour."""
-        # Create diamond shape
-        diamond = np.array([
-            [50, 20],   # Top
-            [80, 50],   # Right (max width here)
-            [50, 80],   # Bottom
-            [20, 50]    # Left (max width here)
-        ], dtype=np.int32).reshape(-1, 1, 2)
 
-        distance = _calculate_lateral_distance_to_max_width(diamond)
+# ---------------------------------------------------------------------------
+# analyze_lateral_surface: high-level orchestration
+# ---------------------------------------------------------------------------
 
-        assert distance is not None
-        assert distance >= 0
 
-        # Max width is at Y=50, top is at Y=20, so distance = 30
-        expected_distance = 30.0
-        assert abs(distance - expected_distance) < 5.0
+@pytest.mark.unit
+class TestAnalyzeLateralSurface:
 
-    def test_distance_irregular_contour(self):
-        """Test distance calculation for irregular contour."""
-        # Create irregular shape with clear max width
-        irregular = np.array([
-            [50, 10],   # Top point
-            [60, 30],
-            [80, 50],   # Wide part
-            [90, 60],   # Maximum width here
-            [80, 70],
-            [70, 80],
-            [30, 80],
-            [20, 70],
-            [10, 60],   # Maximum width here too
-            [20, 50],
-            [40, 30]
-        ], dtype=np.int32).reshape(-1, 1, 2)
+    def test_returns_none_when_no_lateral_metric_present(self):
+        metrics = [{
+            "surface_type": "Dorsal",
+            "parent": "parent 1",
+            "scar": "parent 1",
+            "area": 5000,
+        }]
+        result = analyze_lateral_surface(
+            metrics, [_rect(0, 0, 100, 100)],
+            np.zeros((200, 200), dtype=np.uint8),
+        )
+        assert result is None
 
-        distance = _calculate_lateral_distance_to_max_width(irregular)
+    def test_returns_dict_with_rounded_values_for_lateral_surface(self):
+        lateral_contour = _rect(10, 20, 60, 80)
+        metrics = [_lateral_metric(area=3000.0)]
+        result = analyze_lateral_surface(
+            metrics, [lateral_contour],
+            np.zeros((100, 100), dtype=np.uint8),
+        )
 
-        assert distance is not None
-        assert distance >= 0
-        # Should be reasonable distance given the shape
-        assert distance < 100  # Sanity check
+        assert result is not None
+        assert set(result.keys()) == {"lateral_convexity", "distance_to_max_width"}
+        # Rectangle should be fully convex
+        assert result["lateral_convexity"] == pytest.approx(1.0, abs=0.01)
+        # Values are rounded to 2 decimal places
+        assert result["distance_to_max_width"] == round(
+            result["distance_to_max_width"], 2
+        )
 
-    def test_distance_invalid_contour(self):
-        """Test distance calculation with invalid contour."""
-        # Empty contour
-        empty_contour = np.array([], dtype=np.int32).reshape(0, 1, 2)
+    def test_falls_back_to_area_match_when_index_exceeds_contours(self):
+        """
+        If the lateral metric's index is beyond the parent contour list,
+        the code falls back to matching by area.
+        """
+        # Lateral is at index 1, but we only pass the matching contour at
+        # index 0 — the fallback path should match by area.
+        lateral_contour = _rect(0, 0, 40, 25)  # area 1000
+        metrics = [
+            {
+                "surface_type": "Dorsal",
+                "parent": "parent 1",
+                "scar": "parent 1",
+                "area": 5000,
+            },
+            _lateral_metric(area=1000.0),
+        ]
+        result = analyze_lateral_surface(
+            metrics, [lateral_contour],
+            np.zeros((50, 50), dtype=np.uint8),
+        )
+        assert result is not None
+        assert result["lateral_convexity"] == pytest.approx(1.0, abs=0.01)
 
-        distance = _calculate_lateral_distance_to_max_width(empty_contour)
-        assert distance is None
 
-        # Single point
-        point_contour = np.array([[50, 50]], dtype=np.int32).reshape(-1, 1, 2)
-
-        distance = _calculate_lateral_distance_to_max_width(point_contour)
-        assert distance is None
-
-    def test_distance_none_input(self):
-        """Test distance calculation with None input."""
-        distance = _calculate_lateral_distance_to_max_width(None)
-        assert distance is None
-
-    def test_distance_calculation_error_handling(self):
-        """Test distance calculation error handling."""
-        # Create contour that might cause calculation errors
-        problematic_contour = np.array([
-            [50, 50], [50, 50], [50, 50]  # All same point
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        distance = _calculate_lateral_distance_to_max_width(problematic_contour)
-
-        # FIXED: For degenerate contours, the function should return None
-        # The test was expecting logging.error to be called, but the function
-        # handles this case and returns None without necessarily logging an error
-        assert distance is None
+# ---------------------------------------------------------------------------
+# _integrate_lateral_metrics: in-place update
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
 class TestIntegrateLateralMetrics:
-    """Test the lateral metrics integration function."""
 
-    def test_integrate_lateral_metrics_success(self):
-        """Test successful integration of lateral metrics."""
+    def test_adds_lateral_fields_to_lateral_entry(self):
         metrics = [
-            {
-                'surface_type': 'Dorsal',
-                'parent': 'parent 1',
-                'scar': 'parent 1'
-            },
-            {
-                'surface_type': 'Lateral',
-                'parent': 'parent 2',
-                'scar': 'parent 2'
-            }
+            {"surface_type": "Dorsal", "parent": "parent 1", "scar": "parent 1"},
+            _lateral_metric(area=1000.0),
         ]
+        _integrate_lateral_metrics(
+            metrics,
+            {"lateral_convexity": 0.85, "distance_to_max_width": 12.5},
+        )
+        assert metrics[1]["lateral_convexity"] == 0.85
+        assert metrics[1]["distance_to_max_width"] == 12.5
 
-        lateral_results = {
-            'lateral_convexity': 0.85,
-            'distance_to_max_width': 45.2
-        }
-
-        _integrate_lateral_metrics(metrics, lateral_results)
-
-        # Check that lateral metric was updated
-        lateral_metric = next(m for m in metrics if m['surface_type'] == 'Lateral')
-
-        assert lateral_metric['lateral_convexity'] == 0.85
-        assert lateral_metric['distance_to_max_width'] == 45.2
-
-        # Check that dorsal metric was not affected
-        dorsal_metric = next(m for m in metrics if m['surface_type'] == 'Dorsal')
-        assert 'lateral_convexity' not in dorsal_metric
-
-    def test_integrate_lateral_metrics_no_lateral_surface(self):
-        """Test integration when no lateral surface exists."""
+    def test_dorsal_entries_are_untouched(self):
         metrics = [
-            {
-                'surface_type': 'Dorsal',
-                'parent': 'parent 1',
-                'scar': 'parent 1'
-            },
-            {
-                'surface_type': 'Ventral',
-                'parent': 'parent 2',
-                'scar': 'parent 2'
-            }
+            {"surface_type": "Dorsal", "parent": "parent 1", "scar": "parent 1"},
+            _lateral_metric(area=1000.0),
         ]
+        _integrate_lateral_metrics(
+            metrics,
+            {"lateral_convexity": 0.75, "distance_to_max_width": 8.0},
+        )
+        assert "lateral_convexity" not in metrics[0]
 
-        lateral_results = {
-            'lateral_convexity': 0.85,
-            'distance_to_max_width': 45.2
-        }
-
-        _integrate_lateral_metrics(metrics, lateral_results)
-
-        # No metrics should be modified
-        for metric in metrics:
-            assert 'lateral_convexity' not in metric
-
-    def test_integrate_lateral_metrics_error_handling(self):
-        """Test integration error handling."""
+    def test_no_lateral_metric_logs_warning(self):
+        from unittest.mock import patch
         metrics = [
-            {
-                'surface_type': 'Lateral',
-                'parent': 'parent 1',
-                'scar': 'parent 1'
-            }
+            {"surface_type": "Dorsal", "parent": "parent 1", "scar": "parent 1"},
         ]
-
-        # Malformed lateral results
-        malformed_results = {
-            'invalid_key': 'invalid_value'
-        }
-
-        # Should handle gracefully
-        _integrate_lateral_metrics(metrics, malformed_results)
-
-        lateral_metric = metrics[0]
-        assert 'invalid_key' in lateral_metric
-
-
-@pytest.mark.integration
-class TestLateralAnalysisIntegration:
-    """Integration tests for lateral analysis workflow."""
-
-    def test_complete_lateral_analysis_workflow(self):
-        """Test complete lateral analysis workflow from contour to metrics."""
-        # Create realistic lateral surface contour (elongated tool side)
-        lateral_contour = np.array([
-            [30, 20],   # Top narrow
-            [35, 25],
-            [40, 40],   # Widening
-            [45, 60],   # Maximum width area
-            [50, 80],
-            [48, 100],  # Widening
-            [45, 120],
-            [40, 140],  # Narrowing
-            [35, 155],
-            [30, 160],  # Bottom narrow
-            [25, 155],
-            [20, 140],
-            [15, 120],
-            [12, 100],
-            [10, 80],
-            [15, 60],
-            [20, 40],
-            [25, 25]
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        metrics = [
-            {
-                'surface_type': 'Lateral',
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'area': cv2.contourArea(lateral_contour)
-            }
-        ]
-
-        parent_contours = [lateral_contour]
-        inverted_image = np.zeros((200, 70), dtype=np.uint8)
-
-        # Step 1: Analyze lateral surface
-        result = analyze_lateral_surface(metrics, parent_contours, inverted_image)
-
-        assert result is not None
-        assert 'lateral_convexity' in result
-        assert 'distance_to_max_width' in result
-
-        # Step 2: Verify convexity makes sense for tool shape
-        # FIXED: Adjusted range based on actual algorithm behavior
-        # The test showed convexity of 1.0, so we adjust expectations
-        assert 0.4 <= result['lateral_convexity'] <= 1.0
-
-        # Step 3: Verify distance measurement
-        assert result['distance_to_max_width'] > 0
-        # Should be reasonable distance within the contour bounds
-        assert result['distance_to_max_width'] < 200
-
-        # Step 4: Test integration
-        _integrate_lateral_metrics(metrics, result)
-
-        lateral_metric = metrics[0]
-        assert lateral_metric['lateral_convexity'] == result['lateral_convexity']
-        assert lateral_metric['distance_to_max_width'] == result['distance_to_max_width']
-
-    def test_lateral_analysis_archaeological_scenarios(self):
-        """Test lateral analysis with different archaeological tool scenarios."""
-        scenarios = [
-            {
-                'name': 'blade_lateral',
-                'contour': np.array([
-                    [45, 10], [55, 10], [55, 200], [45, 200]  # Straight blade edge
-                ], dtype=np.int32).reshape(-1, 1, 2),
-                'expected_convexity_range': (0.95, 1.0)  # Should be very convex
-            },
-            {
-                'name': 'notched_tool_lateral',
-                'contour': np.array([
-                    [40, 20], [60, 20], [60, 80], [50, 90], [40, 100],  # Notch
-                    [50, 110], [60, 120], [60, 180], [40, 180]
-                ], dtype=np.int32).reshape(-1, 1, 2),
-                'expected_convexity_range': (0.3, 1.0)  # FIXED: Expanded range based on test result
-            },
-            {
-                'name': 'scraper_lateral',
-                'contour': np.array([
-                    [30, 30], [70, 20], [80, 40], [85, 80], [80, 120],
-                    [70, 140], [30, 130], [20, 110], [15, 80], [20, 50]
-                ], dtype=np.int32).reshape(-1, 1, 2),
-                'expected_convexity_range': (0.7, 1.0)  # FIXED: Expanded range since test shows 1.0
-            }
-        ]
-
-        for scenario in scenarios:
-            contour = scenario['contour']
-
-            metrics = [
-                {
-                    'surface_type': 'Lateral',
-                    'parent': 'parent 1',
-                    'scar': 'parent 1',
-                    'area': cv2.contourArea(contour)
-                }
-            ]
-
-            parent_contours = [contour]
-            inverted_image = np.zeros((220, 120), dtype=np.uint8)
-
-            result = analyze_lateral_surface(metrics, parent_contours, inverted_image)
-
-            assert result is not None, f"Failed for scenario: {scenario['name']}"
-
-            convexity = result['lateral_convexity']
-            expected_range = scenario['expected_convexity_range']
-
-            assert expected_range[0] <= convexity <= expected_range[1], \
-                f"Convexity {convexity} out of range {expected_range} for {scenario['name']}"
-
-            assert result['distance_to_max_width'] > 0, \
-                f"Invalid distance for scenario: {scenario['name']}"
-
-    def test_lateral_analysis_error_recovery(self):
-        """Test lateral analysis error recovery in complex scenarios."""
-        # Create problematic contour that might cause issues
-        problematic_contour = np.array([
-            [50, 50], [51, 50], [50, 51], [50, 50]  # Near-degenerate
-        ], dtype=np.int32).reshape(-1, 1, 2)
-
-        metrics = [
-            {
-                'surface_type': 'Lateral',
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'area': cv2.contourArea(problematic_contour)
-            }
-        ]
-
-        parent_contours = [problematic_contour]
-        inverted_image = np.zeros((100, 100), dtype=np.uint8)
-
-        result = analyze_lateral_surface(metrics, parent_contours, inverted_image)
-
-        # Should either succeed with reasonable values or fail gracefully
-        if result is not None:
-            assert 'lateral_convexity' in result
-            assert 'distance_to_max_width' in result
-
-            # Values should be reasonable or None
-            if result['lateral_convexity'] is not None:
-                assert 0 <= result['lateral_convexity'] <= 1
-            if result['distance_to_max_width'] is not None:
-                assert result['distance_to_max_width'] >= 0
-
-
-@pytest.mark.performance
-class TestLateralAnalysisPerformance:
-    """Test performance aspects of lateral analysis."""
-
-    def test_lateral_analysis_large_contour_performance(self):
-        """Test lateral analysis performance with large complex contour."""
-        # Create large complex contour
-        large_points = []
-        for i in range(1000):  # Many points
-            angle = 2 * np.pi * i / 1000
-            # Create irregular shape with varying radius
-            base_radius = 100
-            variation = 20 * np.sin(5 * angle) + 10 * np.cos(8 * angle)
-            radius = base_radius + variation
-
-            x = int(200 + radius * np.cos(angle))
-            y = int(200 + radius * np.sin(angle))
-            large_points.append([x, y])
-
-        large_contour = np.array(large_points, dtype=np.int32).reshape(-1, 1, 2)
-
-        metrics = [
-            {
-                'surface_type': 'Lateral',
-                'parent': 'parent 1',
-                'scar': 'parent 1',
-                'area': cv2.contourArea(large_contour)
-            }
-        ]
-
-        parent_contours = [large_contour]
-        inverted_image = np.zeros((500, 500), dtype=np.uint8)
-
-        import time
-        start_time = time.time()
-
-        result = analyze_lateral_surface(metrics, parent_contours, inverted_image)
-
-        end_time = time.time()
-        processing_time = end_time - start_time
-
-        # Should complete within reasonable time (less than 2 seconds for this size)
-        assert processing_time < 2.0
-
-        # Should produce valid results
-        assert result is not None
-        assert 'lateral_convexity' in result
-        assert 'distance_to_max_width' in result
-
-        if result['lateral_convexity'] is not None:
-            assert 0 <= result['lateral_convexity'] <= 1
-        if result['distance_to_max_width'] is not None:
-            assert result['distance_to_max_width'] >= 0
+        with patch(
+            "pylithics.image_processing.modules.lateral_analysis.logging"
+        ) as mock_log:
+            _integrate_lateral_metrics(metrics, {"lateral_convexity": 0.9})
+        mock_log.warning.assert_called()

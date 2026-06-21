@@ -13,6 +13,9 @@ shapely>=2.0.0,<3.0.0                    # Geometric operations and spatial anal
 
 # Visualization and plotting
 matplotlib>=3.6.0,<4.0.0                 # For plotting and visualization (Voronoi diagrams)
+streamlit>=1.30,<2.0                     # Interactive dashboard launched via --explore
+plotly>=5.0,<6.0                         # Charts inside the Streamlit dashboard
+rich>=13.0,<14.0                         # Welcome splash and styled CLI output
 
 # Documentation generation
 mkdocs>=1.5.0                            # Static site generator for documentation

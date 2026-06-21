@@ -1,213 +1,362 @@
+"""
+PyLithics: Surface Classification
+==================================
+
+Classifies parent contours into archaeological surface types
+(Dorsal, Ventral, Platform, Lateral) and applies surface-specific
+labeling to child contours.
+"""
+
 import logging
+from typing import List, Dict, Optional
+
+from ..config import get_surface_classification_config
 
 
-def classify_parent_contours(metrics, tolerance=0.1):
+def classify_parent_contours(
+    metrics: List[Dict],
+    config: Optional[Dict] = None,
+    tolerance: Optional[float] = None
+) -> List[Dict]:
     """
-    Classify parent contours into surfaces: Dorsal, Ventral, Platform, Lateral.
-    Robustly handles cases with fewer than all four surface types.
+    Classify parent contours into surface types.
 
-    Args:
-        metrics (list): List of dictionaries containing contour metrics.
-        tolerance (float): Dimensional tolerance for surface comparison.
+    Parameters
+    ----------
+    metrics : list
+        Metric dictionaries with contour data.
+    config : dict, optional
+        Full configuration dictionary.
+    tolerance : float, optional
+        Dimensional tolerance override. If None, uses config.
 
-    Returns:
-        list: Updated metrics with surface classifications.
+    Returns
+    -------
+    list
+        Updated metrics with surface classifications.
     """
-    # Extract parent contours only
+    sc_config = get_surface_classification_config(config)
+    if tolerance is None:
+        tolerance = sc_config.get('tolerance', 0.1)
+
     parents = [m for m in metrics if m["parent"] == m["scar"]]
 
     if not parents:
-        logging.warning("No parent contours found for classification.")
+        logging.warning("No parent contours for classification.")
         return metrics
 
-    # Initialize classification
     for parent in parents:
         parent["surface_type"] = None
 
-    surfaces_identified = []
-
-    # Identify Dorsal Surface (always present if any parents exist)
-    try:
-        dorsal = max(parents, key=lambda p: p["area"])
-        dorsal["surface_type"] = "Dorsal"
-        surfaces_identified.append("Dorsal")
-    except ValueError:
-        logging.error("Unable to identify the dorsal surface due to missing or invalid parent metrics.")
+    dorsal = _identify_dorsal(parents)
+    if dorsal is None:
         return metrics
 
-    # If only one parent contour, we're done - it's the dorsal surface
     if len(parents) == 1:
-        logging.info("Only one parent contour found, classified as Dorsal surface.")
+        logging.debug("Single parent contour, classified Dorsal.")
         return metrics
 
-    # Identify Ventral Surface
-    ventral = None
-    for parent in parents:
-        if parent["surface_type"] is None:
-            if (
-                abs(parent["technical_length"] - dorsal["technical_length"]) <= tolerance * dorsal["technical_length"]
-                and abs(parent["technical_width"] - dorsal["technical_width"]) <= tolerance * dorsal["technical_width"]
-                and abs(parent["area"] - dorsal["area"]) <= tolerance * dorsal["area"]
-            ):
-                parent["surface_type"] = "Ventral"
-                ventral = parent
-                surfaces_identified.append("Ventral")
-                break
+    surfaces = ["Dorsal"]
+    ventral = _identify_ventral(parents, dorsal, tolerance)
+    if ventral:
+        surfaces.append("Ventral")
 
-    # Identify Platform Surface
-    platform = None
-    platform_candidates = [
-        p for p in parents if p["surface_type"] is None and p["technical_length"] < dorsal["technical_length"] and p["technical_width"] < dorsal["technical_width"]
-    ]
-    if platform_candidates:
-        platform = min(platform_candidates, key=lambda p: p["area"])
-        platform["surface_type"] = "Platform"
-        surfaces_identified.append("Platform")
+    platform = _identify_platform(parents, dorsal)
+    if platform:
+        surfaces.append("Platform")
 
-    # Identify Lateral Surface - only if platform exists
-    if platform is not None:
-        for parent in parents:
-            if parent["surface_type"] is None:
-                if (
-                    abs(parent["technical_length"] - dorsal["technical_length"]) <= tolerance * dorsal["technical_length"]
-                    and abs(parent["technical_length"] - platform["technical_length"]) > tolerance * platform["technical_length"]
-                    and parent["technical_width"] != dorsal["technical_width"]
-                ):
-                    parent["surface_type"] = "Lateral"
-                    surfaces_identified.append("Lateral")
-                    break
-    # Alternative logic when platform doesn't exist but we need to classify lateral
-    elif ventral is not None:
-        for parent in parents:
-            if parent["surface_type"] is None:
-                if (
-                    abs(parent["technical_length"] - dorsal["technical_length"]) <= tolerance * dorsal["technical_length"]
-                    and abs(parent["technical_width"] - dorsal["technical_width"]) > tolerance * dorsal["technical_width"]
-                ):
-                    parent["surface_type"] = "Lateral"
-                    surfaces_identified.append("Lateral")
-                    break
+    lateral = _identify_lateral(
+        parents, dorsal, ventral, platform, tolerance
+    )
+    if lateral:
+        surfaces.append("Lateral")
 
-    # Assign default surface type if still None
     for parent in parents:
         if parent["surface_type"] is None:
             parent["surface_type"] = "Unclassified"
 
-    logging.info("Classified parent contours into surfaces: %s.", ", ".join(surfaces_identified))
+    logging.debug(
+        "Classified surfaces: %s.", ", ".join(surfaces)
+    )
     return metrics
 
 
-def classify_child_features(metrics):
-    """
-    Classify child contours based on their parent surface type.
-
-    Applies archaeologically accurate labeling:
-    - Dorsal children: "scar 1", "scar 2", etc.
-    - Platform children: "mark 1", "mark 2", etc.
-    - Lateral children: "edge 1", "edge 2", etc.
-    - Ventral children: Excluded from output
-
-    Args:
-        metrics (list): List of dictionaries containing contour metrics with classified parents.
-
-    Returns:
-        list: Updated metrics with properly classified child features.
-    """
-    logging.info("Starting child feature classification based on parent surface types")
-
+def _identify_dorsal(parents: List[Dict]) -> Optional[Dict]:
+    """Identify the dorsal surface (largest area)."""
     try:
-        # Separate parents, children, and grandchildren
-        parents = [m for m in metrics if m["parent"] == m["scar"]]
+        dorsal = max(parents, key=lambda p: p["area"])
+        dorsal["surface_type"] = "Dorsal"
+        return dorsal
+    except ValueError:
+        logging.error("Unable to identify dorsal surface.")
+        return None
 
-        # Create set of parent labels for efficient lookup
-        parent_labels = {p["scar"] for p in parents}
 
-        # True children: their parent is a surface (in parent_labels)
-        # Grandchildren: their parent is a child (not in parent_labels) - EXCLUDE these
-        children = [m for m in metrics if m["parent"] != m["scar"] and m["parent"] in parent_labels]
-        grandchildren = [m for m in metrics if m["parent"] != m["scar"] and m["parent"] not in parent_labels]
-
-        logging.info(f"Hierarchy breakdown: {len(parents)} parents, {len(children)} children, {len(grandchildren)} grandchildren")
-        logging.info(f"Grandchildren (arrows) excluded from surface classification: {[g.get('scar', 'unknown') for g in grandchildren]}")
-
-        # Create mapping of parent labels to surface types
-        parent_surface_map = {}
-        for parent in parents:
-            parent_label = parent.get("parent", "")
-            surface_type = parent.get("surface_type", "Unknown")
-            parent_surface_map[parent_label] = surface_type
-
-        # Group children by parent surface type
-        surface_children = {
-            "Dorsal": [],
-            "Platform": [],
-            "Lateral": [],
-            "Ventral": []
-        }
-
-        for child in children:
-            parent_label = child.get("parent", "")
-            parent_surface = parent_surface_map.get(parent_label, "Unknown")
-
-            if parent_surface in surface_children:
-                surface_children[parent_surface].append(child)
-            else:
-                logging.warning(f"Unknown parent surface type '{parent_surface}' for child, defaulting to Dorsal")
-                surface_children["Dorsal"].append(child)
-
-        # Apply surface-specific labeling rules
-        classified_children = []
-
-        # Dorsal children → scars (archaeologically correct)
-        for i, child in enumerate(surface_children["Dorsal"]):
-            child["scar"] = f"scar {i+1}"
-            child["surface_feature"] = f"scar {i+1}"
-            classified_children.append(child)
-            logging.debug(f"Classified dorsal child as {child['scar']}")
-
-        # Platform children → marks (but exclude empty space boundaries)
-        platform_mark_count = 0
-        for child in surface_children["Platform"]:
-            # Filter out platform holes/empty space boundaries
-            # Platform holes are typically the inner boundaries of hollow platforms
-            # For now, exclude ALL platform children as they are likely empty space boundaries
-            # Real platform marks are rare and would need more sophisticated detection
-            area = child.get("area", 0)
-
-            # Conservative approach: Exclude all platform children as they are typically empty space
-            # In most archaeological samples, platform "children" are hollow spaces, not real marks
-            logging.info(f"Excluding platform child (area={area}) as likely empty space boundary, not a mark")
+def _identify_ventral(
+    parents: List[Dict],
+    dorsal: Dict,
+    tolerance: float
+) -> Optional[Dict]:
+    """Identify the ventral surface (similar to dorsal)."""
+    for parent in parents:
+        if parent["surface_type"] is not None:
             continue
 
-            # Uncomment below if platform marks need to be detected in the future:
-            # platform_mark_count += 1
-            # child["scar"] = f"mark_{platform_mark_count}"
-            # child["surface_feature"] = f"mark_{platform_mark_count}"
-            # classified_children.append(child)
-            # logging.debug(f"Classified platform child as {child['scar']}")
+        d_len = dorsal["technical_length"]
+        d_wid = dorsal["technical_width"]
+        d_area = dorsal["area"]
 
-        # Lateral children → edges
-        for i, child in enumerate(surface_children["Lateral"]):
-            child["scar"] = f"edge {i+1}"
-            child["surface_feature"] = f"edge {i+1}"
-            classified_children.append(child)
-            logging.debug(f"Classified lateral child as {child['scar']}")
+        len_match = (
+            abs(parent["technical_length"] - d_len)
+            <= tolerance * d_len
+        )
+        wid_match = (
+            abs(parent["technical_width"] - d_wid)
+            <= tolerance * d_wid
+        )
+        area_match = (
+            abs(parent["area"] - d_area)
+            <= tolerance * d_area
+        )
 
-        # Ventral children → EXCLUDED (for now)
-        excluded_count = len(surface_children["Ventral"])
-        if excluded_count > 0:
-            logging.info(f"Excluded {excluded_count} ventral surface children from analysis")
+        if len_match and wid_match and area_match:
+            parent["surface_type"] = "Ventral"
+            return parent
 
-        # Combine parents with classified children and preserve grandchildren (arrows)
-        result_metrics = parents + classified_children + grandchildren
+    return None
 
-        logging.info(f"Child feature classification completed: {len(surface_children['Dorsal'])} scars, "
-                    f"{len(surface_children['Platform'])} marks, {len(surface_children['Lateral'])} edges, "
-                    f"{excluded_count} ventral features excluded")
 
-        return result_metrics
+def _identify_platform(
+    parents: List[Dict], dorsal: Dict
+) -> Optional[Dict]:
+    """Identify the platform surface (smallest, shorter)."""
+    candidates = [
+        p for p in parents
+        if (p["surface_type"] is None
+            and p["technical_length"] < dorsal["technical_length"]
+            and p["technical_width"] < dorsal["technical_width"])
+    ]
+    if not candidates:
+        return None
+
+    platform = min(candidates, key=lambda p: p["area"])
+    platform["surface_type"] = "Platform"
+    return platform
+
+
+def _identify_lateral(
+    parents: List[Dict],
+    dorsal: Dict,
+    ventral: Optional[Dict],
+    platform: Optional[Dict],
+    tolerance: float
+) -> Optional[Dict]:
+    """Identify the lateral surface."""
+    if platform is not None:
+        return _lateral_with_platform(
+            parents, dorsal, platform, tolerance
+        )
+    if ventral is not None:
+        return _lateral_without_platform(
+            parents, dorsal, tolerance
+        )
+    return None
+
+
+def _lateral_with_platform(
+    parents: List[Dict],
+    dorsal: Dict,
+    platform: Dict,
+    tolerance: float
+) -> Optional[Dict]:
+    """Find lateral when platform exists."""
+    d_len = dorsal["technical_length"]
+    p_len = platform["technical_length"]
+
+    for parent in parents:
+        if parent["surface_type"] is not None:
+            continue
+
+        similar_length = (
+            abs(parent["technical_length"] - d_len)
+            <= tolerance * d_len
+        )
+        diff_from_platform = (
+            abs(parent["technical_length"] - p_len)
+            > tolerance * p_len
+        )
+        diff_width = (
+            parent["technical_width"]
+            != dorsal["technical_width"]
+        )
+
+        if similar_length and diff_from_platform and diff_width:
+            parent["surface_type"] = "Lateral"
+            return parent
+
+    return None
+
+
+def _lateral_without_platform(
+    parents: List[Dict],
+    dorsal: Dict,
+    tolerance: float
+) -> Optional[Dict]:
+    """Find lateral when no platform but ventral exists."""
+    d_len = dorsal["technical_length"]
+    d_wid = dorsal["technical_width"]
+
+    for parent in parents:
+        if parent["surface_type"] is not None:
+            continue
+
+        similar_length = (
+            abs(parent["technical_length"] - d_len)
+            <= tolerance * d_len
+        )
+        diff_width = (
+            abs(parent["technical_width"] - d_wid)
+            > tolerance * d_wid
+        )
+
+        if similar_length and diff_width:
+            parent["surface_type"] = "Lateral"
+            return parent
+
+    return None
+
+
+def classify_child_features(
+    metrics: List[Dict]
+) -> List[Dict]:
+    """
+    Classify child contours based on parent surface type.
+
+    Labeling rules:
+    - Dorsal children: "scar 1", "scar 2", etc.
+    - Platform children: excluded (empty space boundaries)
+    - Lateral children: "edge 1", "edge 2", etc.
+    - Ventral children: excluded from output
+
+    Parameters
+    ----------
+    metrics : list
+        Metric dicts with classified parents.
+
+    Returns
+    -------
+    list
+        Updated metrics with classified child features.
+    """
+    logging.debug("Starting child feature classification")
+
+    try:
+        parents = [
+            m for m in metrics if m["parent"] == m["scar"]
+        ]
+        parent_labels = {p["scar"] for p in parents}
+
+        children = [
+            m for m in metrics
+            if m["parent"] != m["scar"]
+            and m["parent"] in parent_labels
+        ]
+        grandchildren = [
+            m for m in metrics
+            if m["parent"] != m["scar"]
+            and m["parent"] not in parent_labels
+        ]
+
+        logging.debug(
+            f"Hierarchy: {len(parents)} parents, "
+            f"{len(children)} children, "
+            f"{len(grandchildren)} grandchildren"
+        )
+
+        surface_map = {
+            p["parent"]: p.get("surface_type", "Unknown")
+            for p in parents
+        }
+
+        classified = _classify_children_by_surface(
+            children, surface_map
+        )
+
+        result = parents + classified + grandchildren
+
+        logging.debug(
+            "Child feature classification completed: "
+            f"{len(classified)} classified"
+        )
+        return result
 
     except Exception as e:
-        logging.error(f"Error in child feature classification: {e}")
-        # Return original metrics on error to prevent pipeline failure
+        logging.error(f"Error in child classification: {e}")
         return metrics
+
+
+def _classify_children_by_surface(
+    children: List[Dict],
+    surface_map: Dict[str, str]
+) -> List[Dict]:
+    """
+    Apply surface-specific labels to children.
+
+    Parameters
+    ----------
+    children : list
+        Child metric dictionaries.
+    surface_map : dict
+        Maps parent labels to surface types.
+
+    Returns
+    -------
+    list
+        Classified children (ventral/platform excluded).
+    """
+    groups: Dict[str, List[Dict]] = {
+        "Dorsal": [], "Platform": [],
+        "Lateral": [], "Ventral": [],
+    }
+
+    for child in children:
+        surface = surface_map.get(
+            child.get("parent", ""), "Unknown"
+        )
+        if surface in groups:
+            groups[surface].append(child)
+        else:
+            logging.warning(
+                f"Unknown surface '{surface}', "
+                f"defaulting to Dorsal"
+            )
+            groups["Dorsal"].append(child)
+
+    classified = []
+
+    for i, child in enumerate(groups["Dorsal"]):
+        child["scar"] = f"scar {i + 1}"
+        child["surface_feature"] = f"scar {i + 1}"
+        classified.append(child)
+        logging.debug(f"Classified dorsal child as scar {i + 1}")
+
+    for child in groups["Platform"]:
+        area = child.get("area", 0)
+        logging.debug(
+            f"Excluding platform child (area={area}) "
+            f"as likely empty space boundary"
+        )
+
+    for i, child in enumerate(groups["Lateral"]):
+        child["scar"] = f"edge {i + 1}"
+        child["surface_feature"] = f"edge {i + 1}"
+        classified.append(child)
+        logging.debug(f"Classified lateral child as edge {i + 1}")
+
+    excluded = len(groups["Ventral"])
+    if excluded > 0:
+        logging.debug(
+            f"Excluded {excluded} ventral children"
+        )
+
+    return classified

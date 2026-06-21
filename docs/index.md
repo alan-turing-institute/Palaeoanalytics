@@ -63,6 +63,10 @@ PyLithics offers extensive configuration options through both YAML configuration
 
 ## Getting Started
 
+Once PyLithics is installed, type `pylithics` on its own to see a welcome splash with the most common command patterns — quick start, run sample data and visualize, open an existing run in the browser, help, and the GitHub URL. Copy whichever command suits your situation.
+
+Then dig in:
+
 1. **[Installation Guide](installation.md)** - Set up PyLithics on your system
 2. **[User Guide](user-guide/index.md)** - Learn how to use PyLithics effectively
 3. **[Image Requirements](user-guide/image-requirements.md)** - Prepare your lithic illustrations

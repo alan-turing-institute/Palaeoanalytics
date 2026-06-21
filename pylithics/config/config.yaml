@@ -107,6 +107,14 @@ arrow_detection:
                            # - true: Draw both light blue contour outlines AND red arrow lines
                            # - false: Draw only light blue contour outlines (default)
 
+# Arrow Integration Configuration
+# Controls how detected arrows are matched to scar contours
+arrow_integration:
+  min_candidate_area: 1.0    # Minimum contour area (pixels) to consider as arrow candidate
+  min_solidity: 0.4          # Minimum solidity for arrow-shaped contours (0-1)
+  max_solidity: 0.9          # Maximum solidity for arrow-shaped contours (0-1)
+  area_match_tolerance: 1.0  # Tolerance for matching contours by area (pixels)
+
   # Advanced parameters (modify with caution)
   reference_thresholds:
     min_area: 1  # Minimum contour area at reference DPI
@@ -118,6 +126,7 @@ arrow_detection:
 # Surface Classification Configuration
 surface_classification:
   enabled: true  # Enable surface type classification
+  tolerance: 0.1  # Dimensional tolerance for surface comparison (0-1)
 
   # Classification rules based on contour hierarchy and properties
   classification_rules:
@@ -132,6 +141,25 @@ symmetry_analysis:
   # Symmetry calculation parameters
   reflection_axes: 8  # Number of reflection axes to test
   symmetry_threshold: 0.7  # Minimum symmetry score to consider symmetric
+  calculation_method: area_based  # Method for symmetry calculation
+
+  # Surface types to analyze
+  surfaces:
+    dorsal: true
+    ventral: false
+    platform: true
+    lateral: true
+
+  # Include scars on surfaces
+  include_scars:
+    dorsal: true
+    ventral: false
+    platform: false
+    lateral: false
+
+# Lateral Analysis Configuration
+lateral_analysis:
+  enabled: true  # Enable lateral surface convexity analysis
 
 # Voronoi Analysis Configuration
 voronoi_analysis:
@@ -155,26 +183,6 @@ visualization:
 
   font_scale: 0.7  # Font size for labels
   line_thickness: 2  # Line thickness for contours and arrows
-
-symmetry_analysis:
-  enabled: true
-
-  # Surface types to analyze
-  surfaces:
-    dorsal: true
-    ventral: false    # You said skip ventral
-    platform: true
-    lateral: true
-
-  # Include scars on surfaces
-  include_scars:
-    dorsal: true      # All scars on dorsal surface
-    ventral: false
-    platform: false   # Platform typically has no meaningful scars
-    lateral: false    # Lateral typically has no meaningful scars
-
-  # Analysis parameters
-  calculation_method: area_based
 
 # Cortex Detection Configuration
 cortex_detection:
@@ -208,13 +216,10 @@ scar_complexity:
 
 # Data Export Configuration
 data_export:
-  csv_format: true  # Export data in CSV format
-  include_debug_info: false  # Include debug information in exports
-
-  # Units for measurements
-  default_units: mm  # Default units for measurements (mm, cm, inches)
-  coordinate_precision: 2  # Decimal places for coordinate values
-  measurement_precision: 3  # Decimal places for area/length measurements
+  csv: true  # Always write the consolidated processed_metrics.csv
+  json_per_lithic: false  # Set to true to also write one JSON file per lithic
+                          # to processed/json/{image_stem}.json. CLI flag
+                          # --export_json overrides this to true.
 
 # Scale Calibration Configuration
 scale_calibration:
