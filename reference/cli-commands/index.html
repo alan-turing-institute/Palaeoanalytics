@@ -15,8 +15,11 @@
       
       
       
+        
+      
+      
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -24,10 +27,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.84d31ad4.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -50,7 +53,6 @@
     
       
 
-    
     
     
   </head>
@@ -353,9 +355,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Home
+  
+
     
   </span>
+  
   
 
       </a>
@@ -375,9 +382,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Installation
+  
+
     
   </span>
+  
   
 
       </a>
@@ -415,9 +427,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     User Guide
+  
+
     
   </span>
+  
   
 
             <span class="md-nav__icon md-icon"></span>
@@ -426,7 +443,11 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
-            User Guide
+            
+  
+    User Guide
+  
+
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -442,9 +463,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Overview
+  
+
     
   </span>
+  
   
 
       </a>
@@ -465,9 +491,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Image Requirements
+  
+
     
   </span>
+  
   
 
       </a>
@@ -488,9 +519,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Metadata Setup
+  
+
     
   </span>
+  
   
 
       </a>
@@ -511,9 +547,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Basic Usage
+  
+
     
   </span>
+  
   
 
       </a>
@@ -534,9 +575,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Outputs
+  
+
     
   </span>
+  
   
 
       </a>
@@ -557,9 +603,42 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Voronoi Analysis
+  
+
     
   </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dashboard
+  
+
+    
+  </span>
+  
   
 
       </a>
@@ -580,9 +659,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Lithic Editor
+  
+
     
   </span>
+  
   
 
       </a>
@@ -603,9 +687,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Troubleshooting
+  
+
     
   </span>
+  
   
 
       </a>
@@ -626,9 +715,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     Glossary
+  
+
     
   </span>
+  
   
 
       </a>
@@ -656,9 +750,14 @@
   
   
   <span class="md-ellipsis">
+    
+  
     About
+  
+
     
   </span>
+  
   
 
       </a>
@@ -676,6 +775,15 @@
           
           
             <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
               <article class="md-content__inner md-typeset">
                 
                   
@@ -686,12 +794,16 @@
 
 
 <h1 id="cli-commands-reference">CLI Commands Reference<a class="headerlink" href="#cli-commands-reference" title="Permanent link">&para;</a></h1>
-<h2 id="command-overview">Command Overview<a class="headerlink" href="#command-overview" title="Permanent link">&para;</a></h2>
-<p>PyLithics is run using Python directly:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+<p>This page lists every flag accepted by the <code>pylithics</code> CLI in the current release. The authoritative source is <code>pylithics --help</code>; this reference mirrors it with examples.</p>
+<h2 id="invocation">Invocation<a class="headerlink" href="#invocation" title="Permanent link">&para;</a></h2>
+<p>After installation, PyLithics is run as a console script:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pylithics<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
 </code></pre></div>
+<p>Run it with <strong>no arguments</strong> to see the welcome splash — a logo + Get-started panel listing the most common command patterns. Useful as a sanity check after install and as an in-terminal cheatsheet.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pylithics
+</code></pre></div>
+<p>Passing any flag at all (including <code>--help</code>) skips the splash and falls through to the normal CLI.</p>
 <h2 id="required-arguments">Required Arguments<a class="headerlink" href="#required-arguments" title="Permanent link">&para;</a></h2>
-<p>Every PyLithics run requires these two arguments:</p>
 <table>
 <thead>
 <tr>
@@ -703,244 +815,108 @@
 <tbody>
 <tr>
 <td><code>--data_dir</code></td>
-<td>Directory containing images/ and scales/ subdirectories</td>
+<td>Directory containing <code>images/</code> and <code>scales/</code> subdirectories</td>
 <td><code>pylithics/data</code></td>
 </tr>
 <tr>
 <td><code>--meta_file</code></td>
-<td>Path to metadata CSV file</td>
+<td>CSV metadata file (columns: <code>image_id</code>, <code>scale_id</code>, <code>scale</code>)</td>
 <td><code>pylithics/data/meta_data.csv</code></td>
 </tr>
 </tbody>
 </table>
-<h3 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv
 </code></pre></div>
-<h2 id="configuration-options">Configuration Options<a class="headerlink" href="#configuration-options" title="Permanent link">&para;</a></h2>
+<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--config_file FILE</code></td>
+<td>Path to a custom YAML configuration file</td>
+<td>(use built-in defaults)</td>
+</tr>
+<tr>
+<td><code>--threshold_method METHOD</code></td>
+<td>One of <code>simple</code>, <code>otsu</code>, <code>adaptive</code>, <code>default</code></td>
+<td><code>default</code></td>
+</tr>
+<tr>
+<td><code>--log_level LEVEL</code></td>
+<td>Console + file log verbosity: <code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>. The log file <em>always</em> captures the full DEBUG trace regardless.</td>
+<td><code>INFO</code> on console</td>
+</tr>
+<tr>
+<td><code>--verbose</code>, <code>-v</code></td>
+<td>Show the full per-step pipeline trace on screen (equivalent to <code>--log_level DEBUG</code> for console only).</td>
+<td>off</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--config_file<span class="w"> </span>./my_config.yaml
+</code></pre></div>
 <h3 id="configuration-hierarchy">Configuration Hierarchy<a class="headerlink" href="#configuration-hierarchy" title="Permanent link">&para;</a></h3>
-<p>PyLithics uses a three-layer configuration system:</p>
 <ol>
-<li><strong>Default settings</strong> - Built into the code</li>
-<li><strong>YAML configuration</strong> - From config.yaml file</li>
-<li><strong>CLI overrides</strong> - Command-line arguments (highest priority)</li>
+<li><strong>Defaults</strong> — baked into the code</li>
+<li><strong>YAML file</strong> — loaded from <code>--config_file</code> (or <code>$PYLITHICS_CONFIG</code>)</li>
+<li><strong>CLI flags</strong> — override everything else</li>
 </ol>
-<h3 id="using-a-configuration-file">Using a Configuration File<a class="headerlink" href="#using-a-configuration-file" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--config_file</code></td>
-<td>Path to YAML configuration file</td>
-<td>None (uses defaults)</td>
-</tr>
-</tbody>
-</table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">         </span>--config_file<span class="w"> </span>./my_config.yaml
-</code></pre></div>
 <h3 id="example-configuration-file">Example Configuration File<a class="headerlink" href="#example-configuration-file" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># config.yaml</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">thresholding</span><span class="p">:</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">otsu</span><span class="w">              </span><span class="c1"># simple, otsu, or adaptive</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">threshold_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">127</span><span class="w">      </span><span class="c1"># For simple method</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">max_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">255</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="nt">scale_calibration</span><span class="p">:</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">             </span><span class="c1"># Enable scale bar detection</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="nt">debug_output</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w">       </span><span class="c1"># Save detection debug images</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="nt">arrow_detection</span><span class="p">:</span>
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">  </span><span class="nt">reference_dpi</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">300.0</span>
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">  </span><span class="nt">min_area_scale_factor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.7</span>
-<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">  </span><span class="nt">max_area_scale_factor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10.0</span>
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">  </span><span class="nt">min_aspect_ratio</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.5</span>
-<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">  </span><span class="nt">debug_enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
-<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>
-<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="nt">surface_classification</span><span class="p">:</span>
-<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="w">  </span><span class="nt">classification_rules</span><span class="p">:</span>
-<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">    </span><span class="nt">dorsal_area_threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.6</span>
-<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="w">    </span><span class="nt">ventral_area_threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.4</span>
-<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>
-<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="nt">scar_complexity</span><span class="p">:</span>
-<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="w">  </span><span class="nt">distance_threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10.0</span>
-<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>
-<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="nt">cortex_detection</span><span class="p">:</span>
-<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a><span class="w">  </span><span class="nt">min_area</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
-<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="w">  </span><span class="nt">detection_method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">color_threshold</span>
-<a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a>
-<a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a><span class="nt">symmetry_analysis</span><span class="p">:</span>
-<a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a><span class="w">  </span><span class="nt">axis</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">both</span><span class="w">              </span><span class="c1"># vertical, horizontal, or both</span>
-<a id="__codelineno-3-37" name="__codelineno-3-37" href="#__codelineno-3-37"></a>
-<a id="__codelineno-3-38" name="__codelineno-3-38" href="#__codelineno-3-38"></a><span class="nt">voronoi_analysis</span><span class="p">:</span>
-<a id="__codelineno-3-39" name="__codelineno-3-39" href="#__codelineno-3-39"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-40" name="__codelineno-3-40" href="#__codelineno-3-40"></a><span class="w">  </span><span class="nt">output_diagrams</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-41" name="__codelineno-3-41" href="#__codelineno-3-41"></a>
-<a id="__codelineno-3-42" name="__codelineno-3-42" href="#__codelineno-3-42"></a><span class="nt">lateral_analysis</span><span class="p">:</span>
-<a id="__codelineno-3-43" name="__codelineno-3-43" href="#__codelineno-3-43"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-44" name="__codelineno-3-44" href="#__codelineno-3-44"></a><span class="w">  </span><span class="nt">convexity_threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.8</span>
-<a id="__codelineno-3-45" name="__codelineno-3-45" href="#__codelineno-3-45"></a>
-<a id="__codelineno-3-46" name="__codelineno-3-46" href="#__codelineno-3-46"></a><span class="nt">logging</span><span class="p">:</span>
-<a id="__codelineno-3-47" name="__codelineno-3-47" href="#__codelineno-3-47"></a><span class="w">  </span><span class="nt">level</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">INFO</span><span class="w">            </span><span class="c1"># DEBUG, INFO, WARNING, ERROR</span>
-<a id="__codelineno-3-48" name="__codelineno-3-48" href="#__codelineno-3-48"></a><span class="w">  </span><span class="nt">log_to_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-49" name="__codelineno-3-49" href="#__codelineno-3-49"></a><span class="w">  </span><span class="nt">log_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pylithics.log</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># config.yaml</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">thresholding</span><span class="p">:</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">otsu</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">threshold_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">127</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">max_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">255</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="nt">scale_calibration</span><span class="p">:</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span><span class="nt">debug_output</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="nt">arrow_detection</span><span class="p">:</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">  </span><span class="nt">reference_dpi</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">300.0</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">  </span><span class="nt">min_area_scale_factor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.7</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">  </span><span class="nt">min_defect_depth_scale_factor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.8</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">  </span><span class="nt">min_triangle_height_scale_factor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.8</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">  </span><span class="nt">debug_enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="nt">surface_classification</span><span class="p">:</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">  </span><span class="nt">tolerance</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.1</span>
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="nt">scar_complexity</span><span class="p">:</span>
+<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="w">  </span><span class="nt">distance_threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5.0</span>
+<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a>
+<a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a><span class="nt">cortex_detection</span><span class="p">:</span>
+<a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a><span class="w">  </span><span class="nt">stippling_density_threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.2</span>
+<a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a><span class="w">  </span><span class="nt">texture_variance_threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a><span class="w">  </span><span class="nt">edge_density_threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05</span>
+<a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a>
+<a id="__codelineno-4-33" name="__codelineno-4-33" href="#__codelineno-4-33"></a><span class="nt">symmetry_analysis</span><span class="p">:</span>
+<a id="__codelineno-4-34" name="__codelineno-4-34" href="#__codelineno-4-34"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-4-35" name="__codelineno-4-35" href="#__codelineno-4-35"></a>
+<a id="__codelineno-4-36" name="__codelineno-4-36" href="#__codelineno-4-36"></a><span class="nt">voronoi_analysis</span><span class="p">:</span>
+<a id="__codelineno-4-37" name="__codelineno-4-37" href="#__codelineno-4-37"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-4-38" name="__codelineno-4-38" href="#__codelineno-4-38"></a><span class="w">  </span><span class="nt">padding_factor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.02</span>
+<a id="__codelineno-4-39" name="__codelineno-4-39" href="#__codelineno-4-39"></a>
+<a id="__codelineno-4-40" name="__codelineno-4-40" href="#__codelineno-4-40"></a><span class="nt">lateral_analysis</span><span class="p">:</span>
+<a id="__codelineno-4-41" name="__codelineno-4-41" href="#__codelineno-4-41"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-4-42" name="__codelineno-4-42" href="#__codelineno-4-42"></a>
+<a id="__codelineno-4-43" name="__codelineno-4-43" href="#__codelineno-4-43"></a><span class="nt">logging</span><span class="p">:</span>
+<a id="__codelineno-4-44" name="__codelineno-4-44" href="#__codelineno-4-44"></a><span class="w">  </span><span class="nt">level</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">INFO</span><span class="w">                    </span><span class="c1"># file handler level (always DEBUG-capable)</span>
+<a id="__codelineno-4-45" name="__codelineno-4-45" href="#__codelineno-4-45"></a><span class="w">  </span><span class="nt">console_level</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">INFO</span><span class="w">            </span><span class="c1"># console handler level; --verbose overrides to DEBUG</span>
+<a id="__codelineno-4-46" name="__codelineno-4-46" href="#__codelineno-4-46"></a><span class="w">  </span><span class="nt">log_to_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-4-47" name="__codelineno-4-47" href="#__codelineno-4-47"></a><span class="w">  </span><span class="nt">log_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pylithics/data/processed/pylithics.log</span>
 </code></pre></div>
-<h3 id="common-usage-patterns">Common Usage Patterns<a class="headerlink" href="#common-usage-patterns" title="Permanent link">&para;</a></h3>
-<h4 id="basic-analysis">Basic Analysis<a class="headerlink" href="#basic-analysis" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Simple processing with default settings</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv
-</code></pre></div>
-<h4 id="with-arrow-detection">With Arrow Detection<a class="headerlink" href="#with-arrow-detection" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Enable arrow detection for flaking direction</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">         </span>--arrow_debug
-</code></pre></div>
-<h4 id="debug-mode">Debug Mode<a class="headerlink" href="#debug-mode" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Verbose output for troubleshooting</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">         </span>--log_level<span class="w"> </span>DEBUG
-</code></pre></div>
-<h4 id="dpi-aware-processing">DPI-Aware Processing<a class="headerlink" href="#dpi-aware-processing" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Default: Fixed kernels optimized for archaeological line drawings (recommended)</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Enable DPI-aware scaling for noisy photographs or degraded scans</span>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">         </span>--enable_dpi_scaling
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>
-<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="c1"># DPI scaling with conservative mode (minimal scaling)</span>
-<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">         </span>--enable_dpi_scaling<span class="w"> </span>--dpi_scaling_mode<span class="w"> </span>conservative
-<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>
-<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="c1"># DPI scaling with aggressive mode (maximum noise removal)</span>
-<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">         </span>--enable_dpi_scaling<span class="w"> </span>--dpi_scaling_mode<span class="w"> </span>aggressive
-<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>
-<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="c1"># Custom DPI settings</span>
-<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a><span class="w">         </span>--enable_dpi_scaling<span class="w"> </span>--dpi_reference<span class="w"> </span><span class="m">150</span><span class="w"> </span>--dpi_max_scale<span class="w"> </span><span class="m">2</span>.0
-</code></pre></div>
-<h4 id="fast-processing">Fast Processing<a class="headerlink" href="#fast-processing" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Disable time-consuming features for speed</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">         </span>--disable_arrow_detection<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">         </span>--disable_voronoi
-</code></pre></div>
-<h4 id="custom-thresholding">Custom Thresholding<a class="headerlink" href="#custom-thresholding" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Use adaptive thresholding for poor contrast</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">         </span>--threshold_method<span class="w"> </span>adaptive
-</code></pre></div>
-<h3 id="thresholding-options">Thresholding Options<a class="headerlink" href="#thresholding-options" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Values</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--threshold_method</code></td>
-<td><code>simple</code>, <code>otsu</code>, <code>adaptive</code></td>
-<td>Image binarization method</td>
-<td><code>simple</code></td>
-</tr>
-<tr>
-<td><code>--threshold_value</code></td>
-<td>0-255</td>
-<td>Threshold for simple method</td>
-<td>127</td>
-</tr>
-<tr>
-<td><code>--max_value</code></td>
-<td>0-255</td>
-<td>Maximum value after thresholding</td>
-<td>255</td>
-</tr>
-</tbody>
-</table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Use Otsu automatic thresholding</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">         </span>--threshold_method<span class="w"> </span>otsu
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="c1"># Use adaptive thresholding for poor contrast</span>
-<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">         </span>--threshold_method<span class="w"> </span>adaptive
-<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>
-<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="c1"># Manual threshold adjustment</span>
-<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>python<span class="w"> </span>pylithics/app.py<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">         </span>--threshold_method<span class="w"> </span>simple<span class="w"> </span>--threshold_value<span class="w"> </span><span class="m">100</span>
-</code></pre></div>
-<h2 id="feature-control">Feature Control<a class="headerlink" href="#feature-control" title="Permanent link">&para;</a></h2>
-<h3 id="enablingdisabling-analysis-modules">Enabling/Disabling Analysis Modules<a class="headerlink" href="#enablingdisabling-analysis-modules" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Feature</th>
-<th>Enable</th>
-<th>Disable</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Scale Calibration</td>
-<td>Default enabled</td>
-<td><code>--disable_scale_calibration</code></td>
-<td>Enabled</td>
-</tr>
-<tr>
-<td>Arrow Detection</td>
-<td>Default enabled</td>
-<td><code>--disable_arrow_detection</code></td>
-<td>Enabled</td>
-</tr>
-<tr>
-<td>Voronoi Analysis</td>
-<td>Default enabled</td>
-<td><code>--disable_voronoi</code></td>
-<td>Enabled</td>
-</tr>
-<tr>
-<td>Symmetry Analysis</td>
-<td>Default enabled</td>
-<td><code>--disable_symmetry</code></td>
-<td>Enabled</td>
-</tr>
-<tr>
-<td>Scar Complexity</td>
-<td>Default enabled</td>
-<td><code>--disable_scar_complexity</code></td>
-<td>Enabled</td>
-</tr>
-<tr>
-<td>Cortex Detection</td>
-<td><code>--enable_cortex_detection</code></td>
-<td>Default disabled</td>
-<td>Disabled</td>
-</tr>
-<tr>
-<td>Lateral Analysis</td>
-<td>Default enabled</td>
-<td><code>--disable_lateral</code></td>
-<td>Enabled</td>
-</tr>
-</tbody>
-</table>
-<h3 id="scale-calibration-options">Scale Calibration Options<a class="headerlink" href="#scale-calibration-options" title="Permanent link">&para;</a></h3>
+<h2 id="processing-options">Processing Options<a class="headerlink" href="#processing-options" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -951,33 +927,19 @@
 </thead>
 <tbody>
 <tr>
-<td><code>--disable_scale_calibration</code></td>
-<td>Skip scale bar detection entirely</td>
-<td>False</td>
+<td><code>--show_thresholded_images</code></td>
+<td>Display thresholded images during analysis</td>
+<td>off</td>
 </tr>
 <tr>
-<td><code>--scale_debug</code></td>
-<td>Save scale detection debug images</td>
-<td>False</td>
-</tr>
-<tr>
-<td><code>--force_scale_method</code></td>
-<td>Force specific calibration method: <code>scale_bar</code>, <code>pixels</code></td>
-<td>None</td>
+<td><code>--closing BOOL</code></td>
+<td>Apply morphological closing</td>
+<td><code>True</code></td>
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Enable scale debugging</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--scale_debug
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Force pixel measurements only</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--force_scale_method<span class="w"> </span>pixels
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>
-<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="c1"># Disable scale calibration (pixel measurements only)</span>
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--disable_scale_calibration
-</code></pre></div>
-<h3 id="dpi-processing-options">DPI Processing Options<a class="headerlink" href="#dpi-processing-options" title="Permanent link">&para;</a></h3>
-<p>PyLithics automatically detects image DPI and processes accordingly. By default, it uses fixed kernel sizes optimized for archaeological line drawings (75-600 DPI range).</p>
+<h2 id="dpi-scaling">DPI Scaling<a class="headerlink" href="#dpi-scaling" title="Permanent link">&para;</a></h2>
+<p>PyLithics auto-detects each image's DPI. By default it uses fixed kernel sizes that work across the 75–600 DPI range. Enable DPI-aware scaling for noisy photographs or degraded scans.</p>
 <table>
 <thead>
 <tr>
@@ -990,53 +952,46 @@
 <tr>
 <td><code>--enable_dpi_scaling</code></td>
 <td>Enable DPI-aware kernel scaling</td>
-<td>False (fixed kernels)</td>
+<td>off</td>
 </tr>
 <tr>
-<td><code>--dpi_scaling_mode</code></td>
-<td>Scaling strategy: <code>conservative</code>, <code>standard</code>, <code>aggressive</code></td>
+<td><code>--dpi_scaling_mode MODE</code></td>
+<td><code>conservative</code>, <code>standard</code>, or <code>aggressive</code></td>
 <td><code>standard</code></td>
 </tr>
 <tr>
-<td><code>--dpi_reference</code></td>
-<td>Reference DPI for scaling calculations</td>
-<td>300.0</td>
+<td><code>--dpi_reference DPI</code></td>
+<td>Reference DPI for scaling</td>
+<td><code>300.0</code></td>
 </tr>
 <tr>
-<td><code>--dpi_max_scale</code></td>
-<td>Maximum scaling factor limit</td>
-<td>1.5</td>
+<td><code>--dpi_max_scale FACTOR</code></td>
+<td>Maximum scaling factor</td>
+<td><code>1.5</code></td>
 </tr>
 </tbody>
 </table>
-<p><strong>Scaling Modes:</strong></p>
+<p><strong>Modes:</strong></p>
 <ul>
-<li><strong>Conservative</strong>: Minimal scaling, preserves fine line details</li>
-<li><strong>Standard</strong>: Moderate linear scaling with caps (default when DPI scaling enabled)</li>
-<li><strong>Aggressive</strong>: Full proportional scaling, maximum noise removal</li>
+<li><strong>conservative</strong> — minimal scaling, preserves fine line detail</li>
+<li><strong>standard</strong> — moderate linear scaling with caps</li>
+<li><strong>aggressive</strong> — full proportional scaling, maximum noise removal</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Default: Fixed kernels (recommended for archaeological line drawings)</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Enable DPI scaling for noisy photographs</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--enable_dpi_scaling
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="c1"># Conservative scaling (minimal)</span>
-<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--enable_dpi_scaling<span class="w"> </span>--dpi_scaling_mode<span class="w"> </span>conservative
-<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>
-<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="c1"># Aggressive scaling (maximum noise removal)</span>
-<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--enable_dpi_scaling<span class="w"> </span>--dpi_scaling_mode<span class="w"> </span>aggressive
-<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>
-<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="c1"># Custom DPI settings</span>
-<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--enable_dpi_scaling<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a><span class="w">         </span>--dpi_reference<span class="w"> </span><span class="m">150</span><span class="w"> </span>--dpi_max_scale<span class="w"> </span><span class="m">2</span>.0
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Default</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Enable DPI scaling</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--enable_dpi_scaling
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Aggressive scaling</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span>--enable_dpi_scaling<span class="w"> </span>--dpi_scaling_mode<span class="w"> </span>aggressive
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="c1"># Custom reference &amp; cap</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span>--enable_dpi_scaling<span class="w"> </span>--dpi_reference<span class="w"> </span><span class="m">150</span><span class="w"> </span>--dpi_max_scale<span class="w"> </span><span class="m">2</span>.0
 </code></pre></div>
-<p><strong>When to Use DPI Scaling:</strong></p>
-<ul>
-<li>✅ <strong>Enable for</strong>: Noisy photographs, degraded scans, mixed-quality datasets</li>
-<li>❌ <strong>Disable for</strong>: Clean archaeological line drawings, consistent quality scans</li>
-</ul>
-<h3 id="arrow-detection-options">Arrow Detection Options<a class="headerlink" href="#arrow-detection-options" title="Permanent link">&para;</a></h3>
+<h2 id="arrow-detection">Arrow Detection<a class="headerlink" href="#arrow-detection" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -1048,37 +1003,26 @@
 <tbody>
 <tr>
 <td><code>--disable_arrow_detection</code></td>
-<td>Skip arrow detection entirely</td>
-<td>False</td>
+<td>Skip arrow detection</td>
+<td>enabled</td>
 </tr>
 <tr>
 <td><code>--arrow_debug</code></td>
-<td>Save arrow detection debug images</td>
-<td>False</td>
+<td>Save arrow-detection debug images to <code>processed/arrow_debug/</code></td>
+<td>off</td>
 </tr>
 <tr>
-<td><code>--show_arrow_lines</code></td>
-<td>Draw red arrow lines on output</td>
-<td>False</td>
-</tr>
-<tr>
-<td><code>--arrow_reference_dpi</code></td>
-<td>Reference DPI for scaling</td>
-<td>300.0</td>
+<td><code>--show-arrow-lines</code></td>
+<td>Draw red arrow lines on labeled images</td>
+<td>off</td>
 </tr>
 </tbody>
 </table>
-<p>```bash\n# Enable arrow debugging\npylithics --data_dir ./data --meta_file ./meta.csv --arrow_debug\n\n# Disable arrow detection for speed\npylithics --data_dir ./data --meta_file ./meta.csv --disable_arrow_detection\n\n# Show arrow direction lines\npylithics --data_dir ./data --meta_file ./meta.csv --show_arrow_lines
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>### Scar Complexity Options
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>| Option | Description | Default |
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>|--------|-------------|---------|
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>| `--scar_complexity_distance_threshold` | Adjacency detection distance (pixels) | 10.0 |
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>| `--disable_scar_complexity` | Skip scar adjacency analysis | False |
-<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>
-<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>```bash\n# Adjust adjacency sensitivity\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --scar_complexity_distance_threshold 15.0
-</code></pre></div></p>
-<h3 id="cortex-detection-options">Cortex Detection Options<a class="headerlink" href="#cortex-detection-options" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--arrow_debug
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--disable_arrow_detection
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--show-arrow-lines
+</code></pre></div>
+<h2 id="scale-calibration">Scale Calibration<a class="headerlink" href="#scale-calibration" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -1089,35 +1033,52 @@
 </thead>
 <tbody>
 <tr>
-<td><code>--enable_cortex_detection</code></td>
-<td>Enable cortex area detection</td>
-<td>False</td>
+<td><code>--disable_scale_calibration</code></td>
+<td>Skip scale-bar detection (use pixel measurements)</td>
+<td>enabled</td>
 </tr>
 <tr>
-<td><code>--cortex_method</code></td>
-<td>Detection method: <code>color</code>, <code>texture</code>, <code>pattern</code></td>
-<td><code>color</code></td>
+<td><code>--scale_debug</code></td>
+<td>Save scale-detection debug images</td>
+<td>off</td>
 </tr>
 <tr>
-<td><code>--cortex_threshold</code></td>
+<td><code>--force_pixels</code></td>
+<td>Force pixel measurements only (skip calibration)</td>
+<td>off</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--scale_debug
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--force_pixels
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--disable_scale_calibration
+</code></pre></div>
+<h2 id="cortex-detection">Cortex Detection<a class="headerlink" href="#cortex-detection" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--disable_cortex_detection</code></td>
+<td>Skip cortex detection</td>
+<td>enabled</td>
+</tr>
+<tr>
+<td><code>--cortex_sensitivity {low,medium,high}</code></td>
 <td>Detection sensitivity</td>
-<td>0.5</td>
+<td><code>medium</code></td>
 </tr>
 </tbody>
 </table>
-<p>```bash\n# Enable cortex detection\npylithics --data_dir ./data --meta_file ./meta.csv --enable_cortex_detection
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>## Output Options
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>### Output Format
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>| Option | Values | Description | Default |
-<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>|--------|--------|-------------|---------|
-<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>| `--output_format` | `csv`, `json` | Data output format | `csv` |
-<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>| `--output_dir` | Directory path | Custom output location | `./processed` |
-<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>
-<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>```bash\n# JSON output\npylithics --data_dir ./data --meta_file ./meta.csv --output_format json\n\n# Custom output directory\npylithics --data_dir ./data --meta_file ./meta.csv --output_dir ./results
-</code></pre></div></p>
-<h3 id="visualization-options">Visualization Options<a class="headerlink" href="#visualization-options" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--cortex_sensitivity<span class="w"> </span>high
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--disable_cortex_detection
+</code></pre></div>
+<h2 id="scar-complexity">Scar Complexity<a class="headerlink" href="#scar-complexity" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -1127,146 +1088,152 @@
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>--disable_scar_complexity</code></td>
+<td>Skip scar adjacency analysis</td>
+<td>enabled</td>
+</tr>
+<tr>
+<td><code>--scar_complexity_distance_threshold PIXELS</code></td>
+<td>Adjacency distance in pixels</td>
+<td><code>10.0</code></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span>--scar_complexity_distance_threshold<span class="w"> </span><span class="m">15</span>.0
+</code></pre></div>
+<h2 id="output">Output<a class="headerlink" href="#output" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--export_json</code></td>
+<td>Also write a per-lithic JSON file to <code>processed/json/{image_stem}.json</code> (in addition to the CSV)</td>
+<td>off</td>
+</tr>
 <tr>
 <td><code>--save_visualizations</code></td>
-<td>Save all visualization outputs</td>
-<td>True</td>
+<td>Generate labeled images and Voronoi diagrams</td>
+<td>on</td>
 </tr>
 <tr>
-<td><code>--no_images</code></td>
-<td>Skip image output generation</td>
-<td>False</td>
-</tr>
-<tr>
-<td><code>--show_thresholded_images</code></td>
-<td>Display thresholding results</td>
-<td>False</td>
+<td><code>--explore</code></td>
+<td>Run analysis (if <code>--meta_file</code> is provided), then launch the interactive dashboard at <code>http://localhost:8501</code>. Without <code>--meta_file</code>, point <code>--data_dir</code> directly at the folder that contains <code>processed_metrics.csv</code> (commonly <code>&lt;project_root&gt;/processed/</code>, but it can be any folder).</td>
+<td>off</td>
 </tr>
 </tbody>
 </table>
-<p>```bash\n# Data only, no images\npylithics --data_dir ./data --meta_file ./meta.csv --no_images\n\n# Show intermediate processing steps\npylithics --data_dir ./data --meta_file ./meta.csv --show_thresholded_images
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>## Preprocessing Options
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>### Image Enhancement
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>| Option | Description | Default |
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>|--------|-------------|---------|
-<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>| `--closing` | Apply morphological closing | True |
-<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>| `--closing_kernel_size` | Closing operation kernel size | 3 |
-<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>| `--denoise` | Apply noise reduction | False |
-<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>| `--contrast_stretch` | Enhance image contrast | False |
-<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>
-<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>```bash\n# Disable morphological closing\npylithics --data_dir ./data --meta_file ./meta.csv --no_closing\n\n# Enable denoising for noisy scans\npylithics --data_dir ./data --meta_file ./meta.csv --denoise
-</code></pre></div></p>
-<h2 id="logging-and-debug-options">Logging and Debug Options<a class="headerlink" href="#logging-and-debug-options" title="Permanent link">&para;</a></h2>
-<h3 id="logging-control">Logging Control<a class="headerlink" href="#logging-control" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Default — CSV only</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># CSV plus per-lithic JSON files</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--export_json
+</code></pre></div>
+<p>The same behavior is available from <code>config.yaml</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">data_export</span><span class="p">:</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">csv</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">json_per_lithic</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">   </span><span class="c1"># equivalent to --export_json</span>
+</code></pre></div>
+<h2 id="help">Help<a class="headerlink" href="#help" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Option</th>
-<th>Values</th>
 <th>Description</th>
-<th>Default</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>--log_level</code></td>
-<td><code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code></td>
-<td>Logging verbosity</td>
-<td><code>INFO</code></td>
+<td><code>-h</code>, <code>--help</code></td>
+<td>Show all available options</td>
 </tr>
 <tr>
-<td><code>--log_file</code></td>
-<td>File path</td>
-<td>Custom log file location</td>
-<td><code>./processed/pylithics.log</code></td>
+<td><code>--help-config</code></td>
+<td>Show built-in configuration documentation</td>
 </tr>
 <tr>
-<td><code>--quiet</code></td>
-<td>-</td>
-<td>Suppress console output</td>
-<td>False</td>
+<td><code>--help-examples</code></td>
+<td>Show usage examples</td>
+</tr>
+<tr>
+<td><code>--help-troubleshooting</code></td>
+<td>Show common problems and solutions</td>
+</tr>
+<tr>
+<td><code>--docs</code></td>
+<td>Launch the documentation server at <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a></td>
 </tr>
 </tbody>
 </table>
-<p>```bash\n# Debug mode with verbose output\npylithics --data_dir ./data --meta_file ./meta.csv --log_level DEBUG\n\n# Quiet mode\npylithics --data_dir ./data --meta_file ./meta.csv --quiet\n\n# Custom log file\npylithics --data_dir ./data --meta_file ./meta.csv --log_file ./my_analysis.log
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>### Debug Options
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>| Option | Description | Output Location |
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>|--------|-------------|-----------------|
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>| `--arrow_debug` | Arrow detection debug images | `processed/arrow_debug/` |
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>| `--contour_debug` | Contour detection debug images | `processed/contour_debug/` |
-<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>| `--show_thresholded_images` | Display threshold results | Console |
-<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>| `--save_intermediate` | Save all intermediate processing steps | `processed/intermediate/` |
-<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>
-<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>```bash\n# Full debug mode\npylithics --data_dir ./data --meta_file ./meta.csv \\\n         --log_level DEBUG \\\n         --arrow_debug \\\n         --contour_debug \\\n         --save_intermediate
-</code></pre></div></p>
-<h2 id="performance-options">Performance Options<a class="headerlink" href="#performance-options" title="Permanent link">&para;</a></h2>
-<h3 id="speed-optimization">Speed Optimization<a class="headerlink" href="#speed-optimization" title="Permanent link">&para;</a></h3>
-<p>```bash\n# Fastest processing (minimal features)\npylithics --data_dir ./data --meta_file ./meta.csv \\n         --disable_arrow_detection \\n         --disable_voronoi \\n         --disable_symmetry \\n         --disable_scar_complexity \\n         --threshold_method simple \\n         --no_images\n\n# Balanced speed/features\npylithics --data_dir ./data --meta_file ./meta.csv \\n         --disable_arrow_detection \\n         --threshold_method otsu
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>### Memory Management
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>| Option | Description |
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>|--------|-------------|
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>| `--batch_size` | Process images in batches |
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>| `--max_image_size` | Resize large images |
-<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>| `--cleanup_temp` | Remove temporary files |
-<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>
-<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>```bash\n# Memory-efficient processing\npylithics --data_dir ./large_dataset --meta_file ./meta.csv \\\n         --batch_size 10 \\\n         --max_image_size 2048 \\\n         --cleanup_temp
-</code></pre></div></p>
-<h2 id="configuration-file-override">Configuration File Override<a class="headerlink" href="#configuration-file-override" title="Permanent link">&para;</a></h2>
-<h3 id="cli-override-pattern">CLI Override Pattern<a class="headerlink" href="#cli-override-pattern" title="Permanent link">&para;</a></h3>
-<p>Command-line arguments override configuration file settings using dot notation:</p>
-<p>```bash\n# Override arrow detection settings\npylithics --data_dir ./data --meta_file ./meta.csv \\n         --config_file ./config.yaml \\n         --arrow_reference_dpi 600 \\n         --disable_arrow_detection\n\n# Override thresholding settings\npylithics --data_dir ./data --meta_file ./meta.csv \\n         --config_file ./config.yaml \\n         --threshold_method adaptive \\n         --threshold_value 120
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>### Complete Configuration Example
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>```yaml\n# config.yaml - Complete configuration template\nthresholding:\n  method: otsu\n  threshold_value: 127\n  max_value: 255\n  adaptive_block_size: 11\n  adaptive_constant: 2\n\nscale_calibration:\n  enabled: true\n  debug_output: false\n\narrow_detection:\n  enabled: true\n  reference_dpi: 300.0\n  min_area_scale_factor: 0.7\n  max_area_scale_factor: 10.0\n  min_aspect_ratio: 1.5\n  debug_enabled: false\n\nsurface_classification:\n  enabled: true\n  classification_rules:\n    dorsal_area_threshold: 0.6\n    ventral_area_threshold: 0.4\n    platform_area_threshold: 0.1\n\nscar_complexity:\n  enabled: true\n  distance_threshold: 10.0\n  min_scar_area: 50\n\ncortex_detection:\n  enabled: false\n  method: color_threshold\n  threshold: 0.5\n  min_area: 100\n\nsymmetry_analysis:\n  enabled: true\n  axis: both\n  tolerance: 0.1\n\nvoronoi_analysis:\n  enabled: true\n  min_scars: 3\n  output_diagrams: true\n  boundary_method: convex\n\nlateral_analysis:\n  enabled: true\n  convexity_threshold: 0.8\n  edge_sensitivity: 0.5\n\npreprocessing:\n  denoise: false\n  morphological_closing: true\n  closing_kernel_size: 3\n  contrast_stretch: false\n\nlogging:\n  level: INFO\n  log_to_file: true\n  log_file: pylithics.log\n\noutput:\n  format: csv\n  save_visualizations: true\n  save_intermediate: false\n```
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>
-<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>## Help Commands
-<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>
-<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>### Built-in Help
-<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>
-<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>| Command | Description |
-<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>|---------|-------------|
-<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>| `--help`, `-h` | Show all available options |
-<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>| `--help-config` | Show configuration file options |
-<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a>| `--help-examples` | Show usage examples |
-<a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a>| `--help-troubleshooting` | Show common issues and fixes |
-<a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a>| `--version` | Show PyLithics version |
-<a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a>
-<a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a>```bash\n# Get help\npylithics --help\n\n# Configuration help\npylithics --help-config\n\n# Example commands\npylithics --help-examples\n\n# Troubleshooting guide\npylithics --help-troubleshooting
-</code></pre></div></p>
-<h2 id="common-command-patterns">Common Command Patterns<a class="headerlink" href="#common-command-patterns" title="Permanent link">&para;</a></h2>
-<h3 id="development-and-testing">Development and Testing<a class="headerlink" href="#development-and-testing" title="Permanent link">&para;</a></h3>
-<p>```bash\n# Quick test with sample data\npylithics --data_dir ./pylithics/data --meta_file ./pylithics/data/meta_data.csv\n\n# Test single image\npylithics --data_dir ./test_single --meta_file ./single_meta.csv --log_level DEBUG\n\n# Validation run with all debug output\npylithics --data_dir ./validation --meta_file ./val_meta.csv \\n         --log_level DEBUG \\n         --arrow_debug \\n         --save_intermediate
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>### Production Analysis
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>```bash\n# Standard archaeological analysis\npylithics --data_dir ./assemblage --meta_file ./metadata.csv \\\n         --config_file ./site_config.yaml \\\n         --log_level INFO\n\n# Publication-quality analysis\npylithics --data_dir ./publication_data --meta_file ./pub_meta.csv \\\n         --arrow_debug \\\n         --save_visualizations \\\n         --output_format csv\n\n# Batch processing multiple sites\nfor site in site_*; do\n    pylithics --data_dir ./$site --meta_file ./$site/metadata.csv \\\n             --output_dir ./results/$site\ndone
-</code></pre></div></p>
-<h3 id="performance-optimized">Performance-Optimized<a class="headerlink" href="#performance-optimized" title="Permanent link">&para;</a></h3>
-<p>```bash\n# Large dataset processing\npylithics --data_dir ./large_assemblage --meta_file ./large_meta.csv \\n         --disable_arrow_detection \\n         --disable_voronoi \\n         --threshold_method simple \\n         --no_images \\n         --quiet\n\n# Memory-constrained environment\npylithics --data_dir ./data --meta_file ./meta.csv \\n         --batch_size 5 \\n         --max_image_size 1024 \\n         --cleanup_temp
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>## Exit Codes
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>| Code | Meaning |
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>|------|---------|
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>| 0 | Successful completion |
-<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>| 1 | General error |
-<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>| 2 | Invalid arguments |
-<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>| 3 | File not found |
-<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>| 4 | Configuration error |
-<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a>| 5 | Processing error |
-<a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a>
-<a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a>## Environment Variables
-<a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a>
-<a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a>| Variable | Description | Default |
-<a id="__codelineno-20-15" name="__codelineno-20-15" href="#__codelineno-20-15"></a>|----------|-------------|---------|
-<a id="__codelineno-20-16" name="__codelineno-20-16" href="#__codelineno-20-16"></a>| `PYLITHICS_CONFIG` | Default config file path | None |
-<a id="__codelineno-20-17" name="__codelineno-20-17" href="#__codelineno-20-17"></a>| `PYLITHICS_DATA_DIR` | Default data directory | None |
-<a id="__codelineno-20-18" name="__codelineno-20-18" href="#__codelineno-20-18"></a>| `PYLITHICS_LOG_LEVEL` | Default log level | INFO |
-<a id="__codelineno-20-19" name="__codelineno-20-19" href="#__codelineno-20-19"></a>
-<a id="__codelineno-20-20" name="__codelineno-20-20" href="#__codelineno-20-20"></a>```bash\n# Set environment variables\nexport PYLITHICS_CONFIG=./default_config.yaml\nexport PYLITHICS_LOG_LEVEL=DEBUG\n\n# Then run with simplified command\npylithics --data_dir ./data --meta_file ./meta.csv
-</code></pre></div></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>pylithics<span class="w"> </span>--help
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>pylithics<span class="w"> </span>--help-config
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>pylithics<span class="w"> </span>--docs
+</code></pre></div>
+<h2 id="common-patterns">Common Patterns<a class="headerlink" href="#common-patterns" title="Permanent link">&para;</a></h2>
+<h3 id="quick-test-on-the-bundled-sample-data">Quick test on the bundled sample data<a class="headerlink" href="#quick-test-on-the-bundled-sample-data" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv
+</code></pre></div>
+<h3 id="debug-a-problem-image">Debug a problem image<a class="headerlink" href="#debug-a-problem-image" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">    </span>--log_level<span class="w"> </span>DEBUG<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span>--arrow_debug<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span>--scale_debug<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span>--show_thresholded_images
+</code></pre></div>
+<h3 id="faster-runs">Faster runs<a class="headerlink" href="#faster-runs" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Disable arrow detection (the most expensive optional step)</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--disable_arrow_detection
+</code></pre></div>
+<h3 id="override-config-from-cli">Override config from CLI<a class="headerlink" href="#override-config-from-cli" title="Permanent link">&para;</a></h3>
+<p>CLI flags always win over the YAML file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">    </span>--config_file<span class="w"> </span>./site_config.yaml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span>--threshold_method<span class="w"> </span>adaptive
+</code></pre></div>
+<h2 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PYLITHICS_CONFIG</code></td>
+<td>Default config file path used when <code>--config_file</code> is omitted</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PYLITHICS_CONFIG</span><span class="o">=</span>./default_config.yaml
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv
+</code></pre></div>
+<h2 id="exit-codes">Exit Codes<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td>Success (all images processed, or partial success with at least one done)</td>
+</tr>
+<tr>
+<td><code>1</code></td>
+<td>Input validation failed, processing failed, or an unhandled error</td>
+</tr>
+</tbody>
+</table>
 
 
 
@@ -1323,10 +1290,11 @@
     
     
       
-      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.path", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "toc.integrate"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": "2.0.0"}</script>
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.path", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "toc.integrate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": "2.0.0"}</script>
     
     
-      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
