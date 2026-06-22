@@ -73,10 +73,14 @@ logging:
                # - "ERROR" logs only critical errors that prevent PyLithics from running.
 
   log_to_file: true  # Enable or disable logging to a file.
-                     # - true: Logs will be saved to the file specified below.
+                     # - true: Logs will be saved alongside the run's
+                     #   processed/ folder as pylithics.log.
                      # - false: Logs will only appear in the console.
 
-  log_file: pylithics/data/processed/pylithics.log  # File path for saving logs.
+  # log_file:  # Optional. Uncomment and set an explicit path to override
+              # the default, which is <data_dir>/processed/pylithics.log.
+              # If left commented, the log lands next to the analysis
+              # output so it follows your dataset, not your shell cwd.
 
 contour_filtering:
   min_area: 50.0  # Minimum contour area in pixels

@@ -201,7 +201,7 @@ class PyLithicsApplication:
         self.config_manager = get_config_manager(config_file)
         self.setup_logging()
 
-    def setup_logging(self) -> None:
+    def setup_logging(self, data_dir: Optional[str] = None) -> None:
         """Set up logging configuration from config manager.
 
         Console output goes through ``rich.logging.RichHandler`` for
@@ -213,6 +213,15 @@ class PyLithicsApplication:
               errors). ``--verbose`` flips this to DEBUG.
             - File: always at DEBUG so the full per-step trace is preserved
               for reproducibility regardless of console verbosity.
+
+        Parameters
+        ----------
+        data_dir : str, optional
+            When provided and the config has no explicit ``logging.log_file``
+            entry, the log file is written to
+            ``<data_dir>/processed/pylithics.log``. This avoids creating
+            stray ``pylithics/data/processed/`` folder trees wherever the
+            user happens to launch the command.
 
         The console ``rich.console.Console`` is stored on ``self.rich_console``
         so other code (e.g. the batch-loop progress bar) can share the same
@@ -269,23 +278,42 @@ class PyLithicsApplication:
                 return not getattr(record, "console_only", False)
 
         if logging_config.get('log_to_file', True):
-            log_file = logging_config.get(
-                'log_file', 'pylithics/data/processed/pylithics.log',
-            )
-            log_dir = os.path.dirname(log_file)
+            # Resolve log file path. Priority:
+            #   1. Explicit ``logging.log_file`` in config (honour as-is).
+            #   2. Derived from ``data_dir`` when provided
+            #      (``<data_dir>/processed/pylithics.log``).
+            #   3. Otherwise skip the file handler entirely (avoids
+            #      creating stray ``pylithics/data/processed/`` trees in
+            #      whatever directory the user happens to launch from).
+            log_file = logging_config.get('log_file')
+            if not log_file and data_dir:
+                log_file = os.path.join(
+                    data_dir, 'processed', 'pylithics.log',
+                )
 
-            if log_dir:
-                os.makedirs(log_dir, exist_ok=True)
+            if log_file:
+                # Best-effort: if the log directory can't be created
+                # (read-only filesystem, permission denied, a fake path
+                # used during tests, etc.) skip the file handler rather
+                # than aborting the run. Console logging is always set
+                # up above, so the user still sees output.
+                try:
+                    log_dir = os.path.dirname(log_file)
+                    if log_dir:
+                        os.makedirs(log_dir, exist_ok=True)
 
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setLevel(logging.DEBUG)
-            file_handler.setFormatter(logging.Formatter(
-                "%(asctime)s [%(levelname)s] %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
-            ))
-            file_handler.addFilter(_ConsoleOnlyFilter())
-            logger.addHandler(file_handler)
-            self.log_file_path = log_file
+                    file_handler = logging.FileHandler(log_file)
+                except OSError:
+                    pass
+                else:
+                    file_handler.setLevel(logging.DEBUG)
+                    file_handler.setFormatter(logging.Formatter(
+                        "%(asctime)s [%(levelname)s] %(message)s",
+                        datefmt="%Y-%m-%d %H:%M:%S",
+                    ))
+                    file_handler.addFilter(_ConsoleOnlyFilter())
+                    logger.addHandler(file_handler)
+                    self.log_file_path = log_file
 
     def validate_inputs(self, data_dir: str, meta_file: str) -> bool:
         """
@@ -1099,8 +1127,10 @@ def main() -> int:
         app = PyLithicsApplication(args.config_file)
         _apply_config_overrides(app, args)
         # Re-configure logging now that CLI overrides (e.g. --verbose,
-        # --log_level) have been merged into the config.
-        app.setup_logging()
+        # --log_level) have been merged into the config. Pass data_dir so
+        # the log file is written next to the user's processed/ folder
+        # rather than wherever the shell happened to be.
+        app.setup_logging(data_dir=args.data_dir)
 
         logging.info(f"Config: {args.config_file or 'default'}")
         logging.info(f"Data directory: {args.data_dir}")
@@ -1115,11 +1145,7 @@ def main() -> int:
                 return 1
 
         if explore:
-            if args.meta_file:
-                processed_dir = os.path.join(args.data_dir, 'processed')
-            else:
-                processed_dir = args.data_dir
-            return _launch_explore(processed_dir)
+            return _launch_explore(_resolve_explore_dir(args.data_dir))
         return 0
 
     except KeyboardInterrupt:
@@ -1128,6 +1154,23 @@ def main() -> int:
     except (FileNotFoundError, ValueError) as e:
         logging.error(f"Input error: {e}")
         return 1
+
+
+def _resolve_explore_dir(data_dir: str) -> str:
+    """Resolve ``--data_dir`` to the processed-results folder for ``--explore``.
+
+    ``--data_dir`` historically meant two different things: the parent
+    folder (when running analysis, which expects ``data_dir/images/`` and
+    writes to ``data_dir/processed/``) versus the processed folder itself
+    (when re-opening the dashboard with no ``--meta_file``). That was a
+    footgun. Accept either form here: probe for the standard
+    ``processed/processed_metrics.csv`` layout first, and only fall back
+    to treating ``data_dir`` as the processed folder if that probe fails.
+    """
+    candidate = os.path.join(data_dir, 'processed')
+    if os.path.isfile(os.path.join(candidate, 'processed_metrics.csv')):
+        return candidate
+    return data_dir
 
 
 def _launch_explore(processed_dir: str) -> int:

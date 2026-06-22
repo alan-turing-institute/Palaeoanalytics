@@ -6,11 +6,15 @@ from unittest.mock import patch
 
 import pytest
 
+import logging
+
 from pylithics.app import (
     PyLithicsApplication,
+    _resolve_explore_dir,
     create_argument_parser,
     main,
 )
+from pylithics.image_processing.config import clear_config_cache
 
 
 # ---------------------------------------------------------------------------
@@ -235,3 +239,115 @@ class TestProcessSingleImage:
                 "fake.png", 15.0, str(tmp_path), str(tmp_path)
             )
         assert result is False
+
+
+# ---------------------------------------------------------------------------
+# --explore data_dir resolution
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestResolveExploreDir:
+    """``--data_dir`` for --explore must accept either the parent folder or
+    the processed folder directly."""
+
+    def test_resolves_parent_to_processed_subfolder_when_csv_present(
+        self, tmp_path
+    ):
+        processed = tmp_path / "processed"
+        processed.mkdir()
+        (processed / "processed_metrics.csv").write_text("image_id\n")
+
+        resolved = _resolve_explore_dir(str(tmp_path))
+
+        assert resolved == str(processed)
+
+    def test_falls_back_to_data_dir_when_no_processed_subfolder(
+        self, tmp_path
+    ):
+        (tmp_path / "processed_metrics.csv").write_text("image_id\n")
+
+        resolved = _resolve_explore_dir(str(tmp_path))
+
+        assert resolved == str(tmp_path)
+
+    def test_falls_back_to_data_dir_when_processed_subfolder_lacks_csv(
+        self, tmp_path
+    ):
+        (tmp_path / "processed").mkdir()  # empty subfolder, no CSV inside
+
+        resolved = _resolve_explore_dir(str(tmp_path))
+
+        assert resolved == str(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# setup_logging() log-file resolution
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestSetupLoggingLogFile:
+    """The default log file should follow the user's ``--data_dir``, not the
+    shell's current working directory."""
+
+    def _config_path(self, tmp_path, logging_section):
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(
+            "logging:\n"
+            + "\n".join(f"  {k}: {v}" for k, v in logging_section.items())
+            + "\n"
+        )
+        return str(config_path)
+
+    def test_derives_log_path_from_data_dir_when_config_omits_log_file(
+        self, tmp_path
+    ):
+        clear_config_cache()
+        config_path = self._config_path(
+            tmp_path, {"level": "INFO", "log_to_file": "true"},
+        )
+        data_dir = tmp_path / "my_dataset"
+
+        app = PyLithicsApplication(config_file=config_path)
+        app.setup_logging(data_dir=str(data_dir))
+
+        expected = str(data_dir / "processed" / "pylithics.log")
+        assert app.log_file_path == expected
+        assert os.path.isdir(os.path.dirname(expected))
+
+    def test_honours_explicit_log_file_when_config_sets_it(self, tmp_path):
+        clear_config_cache()
+        explicit_path = tmp_path / "custom.log"
+        config_path = self._config_path(
+            tmp_path,
+            {
+                "level": "INFO",
+                "log_to_file": "true",
+                "log_file": str(explicit_path),
+            },
+        )
+
+        app = PyLithicsApplication(config_file=config_path)
+        # data_dir should be ignored when an explicit log_file is configured.
+        app.setup_logging(data_dir=str(tmp_path / "elsewhere"))
+
+        assert app.log_file_path == str(explicit_path)
+
+    def test_no_file_handler_when_no_data_dir_and_no_config_log_file(
+        self, tmp_path
+    ):
+        clear_config_cache()
+        config_path = self._config_path(
+            tmp_path, {"level": "INFO", "log_to_file": "true"},
+        )
+
+        app = PyLithicsApplication(config_file=config_path)
+        app.setup_logging()  # no data_dir, no config log_file
+
+        assert app.log_file_path is None
+        # Verify no FileHandler is attached to the root logger.
+        assert not any(
+            isinstance(h, logging.FileHandler)
+            for h in logging.getLogger().handlers
+        )

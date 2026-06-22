@@ -17,7 +17,9 @@ git clone https://github.com/alan-turing-institute/Palaeoanalytics.git
 cd Palaeoanalytics
 pip install .
 pylithics
+```
 
+```bash
 # Upgrade from version 1.0
 cd Palaeoanalytics
 git pull
