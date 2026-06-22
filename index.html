@@ -437,10 +437,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#accurate-surface-identification" class="md-nav__link">
+  <a href="#surface-and-feature-identification" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Accurate Surface Identification
+        Surface and feature identification
       
     </span>
   </a>
@@ -451,7 +451,7 @@
   <a href="#comprehensive-measurements" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Comprehensive Measurements
+        Comprehensive measurements
       
     </span>
   </a>
@@ -459,10 +459,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#advanced-analysis" class="md-nav__link">
+  <a href="#spatial-analysis" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Advanced Analysis
+        Spatial analysis
       
     </span>
   </a>
@@ -470,10 +470,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#configuration-and-customization" class="md-nav__link">
+  <a href="#real-world-scale-calibration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration and Customization
+        Real-world scale calibration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interactive-results-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interactive results dashboard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration-and-customisation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration and customisation
       
     </span>
   </a>
@@ -484,7 +506,7 @@
   <a href="#research-ready-output" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Research-Ready Output
+        Research-ready output
       
     </span>
   </a>
@@ -1012,52 +1034,57 @@
 
 <h1 id="welcome-to-pylithics">Welcome to PyLithics<a class="headerlink" href="#welcome-to-pylithics" title="Permanent link">&para;</a></h1>
 <h2 id="archaeological-lithic-analysis-with-computer-vision">Archaeological Lithic Analysis with Computer Vision<a class="headerlink" href="#archaeological-lithic-analysis-with-computer-vision" title="Permanent link">&para;</a></h2>
-<p>PyLithics is an open-source Python package that applies advanced computer vision techniques to extract quantitative morphological data from 2D line drawings of prehistoric stone artifacts. PyLithics processes scanned 2D illustrations of stone tools (lithics) from archaeological publications, automatically identifying and measuring key technological and morphological features. The tool has been optimized for feature extraction using cutting-edge computer vision techniques including:</p>
-<ul>
-<li>Pixel intensity thresholding</li>
-<li>Edge detection and contour finding</li>
-<li>Custom template matching</li>
-<li>Advanced geometric analysis</li>
-<li>Machine learning-based feature recognition</li>
-</ul>
+<p>PyLithics is an open-source Python package for the automated quantitative analysis of two-dimensional line drawings of prehistoric stone artefacts. It processes scanned illustrations from archaeological publications, identifies dorsal, ventral, platform, and lateral surfaces along with their individual flake scars, and writes the resulting morphological, spatial, and structural measurements to analysis-ready CSV and per-lithic JSON files.</p>
+<p>The processing pipeline combines image preprocessing (normalisation, grayscale conversion, configurable thresholding, morphological closing), hierarchical contour extraction, geometric surface classification, scar-centroid Voronoi tessellation, convex-hull spatial analysis, and DPI-aware arrow-direction detection from convexity defects. PyLithics does not use template matching or trained machine-learning models; every measurement is derived geometrically from the contour data, which keeps the pipeline transparent, deterministic, and reproducible.</p>
 <h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
-<h3 id="accurate-surface-identification">Accurate Surface Identification<a class="headerlink" href="#accurate-surface-identification" title="Permanent link">&para;</a></h3>
+<h3 id="surface-and-feature-identification">Surface and feature identification<a class="headerlink" href="#surface-and-feature-identification" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Automatically identifies dorsal, ventral, platform, and lateral surfaces</li>
-<li>Recognizes individual flake scars with high precision</li>
-<li>Detect cortex areas</li>
-<li>Configurable detection parameters for different drawing styles</li>
+<li>Recognises individual flake scars within each surface</li>
+<li>Detects cortex regions using stippling-density, texture-variance, and edge-density thresholds</li>
+<li>Configurable detection parameters for different drawing conventions</li>
 </ul>
-<h3 id="comprehensive-measurements">Comprehensive Measurements<a class="headerlink" href="#comprehensive-measurements" title="Permanent link">&para;</a></h3>
+<h3 id="comprehensive-measurements">Comprehensive measurements<a class="headerlink" href="#comprehensive-measurements" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Complete size and shape metrics for whole flakes and individual scars</li>
-<li>Technical dimensions (length, width, thickness)</li>
-<li>Geometric properties (area, perimeter, aspect ratios)</li>
-<li>Symmetry analysis (vertical and horizontal)</li>
+<li>Per-surface and per-scar size and shape metrics</li>
+<li>Technical length and width (Y-axis-aligned), plus max length and max width</li>
+<li>Geometric properties: area, perimeter, aspect ratio, bounding box</li>
+<li>Symmetry analysis (vertical and horizontal area-based)</li>
 <li>Scar complexity and adjacency relationships</li>
 </ul>
-<h3 id="advanced-analysis">Advanced Analysis<a class="headerlink" href="#advanced-analysis" title="Permanent link">&para;</a></h3>
+<h3 id="spatial-analysis">Spatial analysis<a class="headerlink" href="#spatial-analysis" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Flaking direction detection through arrow recognition</li>
-<li>Voronoi diagram generation for spatial analysis</li>
-<li>Convex hull calculations</li>
-<li>Lateral edge convexity analysis</li>
-<li>Configurable analysis modules that can be enabled/disabled</li>
+<li>Voronoi tessellation of dorsal scar centroids</li>
+<li>Convex-hull metrics (centroid-hull area, width, height)</li>
+<li>Lateral-edge convexity analysis</li>
+<li>Flaking-direction detection through geometric arrow recognition</li>
 </ul>
-<h3 id="configuration-and-customization">Configuration and Customization<a class="headerlink" href="#configuration-and-customization" title="Permanent link">&para;</a></h3>
-<p>PyLithics offers extensive configuration options through both YAML configuration files and command-line arguments:</p>
+<h3 id="real-world-scale-calibration">Real-world scale calibration<a class="headerlink" href="#real-world-scale-calibration" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Adjust thresholding methods (simple, Otsu, adaptive)</li>
-<li>Enable/disable specific analysis modules</li>
-<li>Fine-tune detection parameters</li>
-<li>Customize output formats</li>
+<li>Automatic scale-bar detection from accompanying scale images</li>
+<li>Areas and linear measurements converted from pixels to millimetres</li>
+<li>Falls back to pixel measurements with a clear <code>calibration_method</code> flag when a scale bar is not available</li>
 </ul>
-<h3 id="research-ready-output">Research-Ready Output<a class="headerlink" href="#research-ready-output" title="Permanent link">&para;</a></h3>
+<h3 id="interactive-results-dashboard">Interactive results dashboard<a class="headerlink" href="#interactive-results-dashboard" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Structured CSV data output with hierarchical organization</li>
-<li>Annotated visualization images for validation</li>
+<li>Streamlit-based browser dashboard for exploring batch results</li>
+<li>Tabs for Size &amp; shape, Symmetry, Scars, and Spatial analyses with shared filters</li>
+<li>Per-lithic detail page with side-by-side labeled image and Voronoi diagram, raw metric tables, and the full per-lithic JSON document</li>
+</ul>
+<h3 id="configuration-and-customisation">Configuration and customisation<a class="headerlink" href="#configuration-and-customisation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>18-section YAML configuration file with inline documentation for every option</li>
+<li>Command-line flags override YAML values; YAML values override built-in defaults</li>
+<li>Module-level toggles for arrow detection, cortex detection, scar complexity, and more</li>
+<li>Three thresholding methods: simple, Otsu, adaptive</li>
+</ul>
+<h3 id="research-ready-output">Research-ready output<a class="headerlink" href="#research-ready-output" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Consolidated <code>processed_metrics.csv</code> with one row per surface or scar</li>
+<li>Per-lithic JSON files with the full hierarchical structure</li>
+<li>Annotated visualisation images (labelled surfaces, scars, arrows, Voronoi diagram, convex hull)</li>
+<li>Run summary file recording every processed image and any failures</li>
 <li>Comprehensive logging for reproducibility</li>
-<li>Compatible with standard statistical analysis software</li>
 </ul>
 <h2 id="why-pylithics">Why PyLithics?<a class="headerlink" href="#why-pylithics" title="Permanent link">&para;</a></h2>
 <h3 id="for-researchers">For Researchers<a class="headerlink" href="#for-researchers" title="Permanent link">&para;</a></h3>
