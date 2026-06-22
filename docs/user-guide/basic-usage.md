@@ -36,12 +36,12 @@ PyLithics shows a live progress bar during batch processing plus one short summa
 
 - `awbari.png · 25.20 px/mm` — scale bar detected, real-world measurements.
 - `image.png · pixels (no scale provided)` — pixel-only mode (no scale in metadata, or `--force_pixels`).
-- `image.png · pixels (scale detection failed — see log)` — scale was provided but detection failed; the underlying reason is in `pylithics/data/processed/pylithics.log` as a `WARNING`.
+- `image.png · pixels (scale detection failed — see log)` — scale was provided but detection failed; the underlying reason is in `<data_dir>/processed/pylithics.log` as a `WARNING`.
 
-At the end you get a single summary line:
+At the end you get a single summary line — the exact log path PyLithics prints will be `<your --data_dir>/processed/pylithics.log`:
 
-- All succeeded: `100/100 images processed without errors. Please check logs at pylithics/data/processed/pylithics.log`
-- Some failed: `90/100 images processed successfully. Please check logs at pylithics/data/processed/pylithics.log for errors.`
+- All succeeded: `100/100 images processed without errors. Please check logs at <data_dir>/processed/pylithics.log`
+- Some failed: `90/100 images processed successfully. Please check logs at <data_dir>/processed/pylithics.log for errors.`
 
 The full per-step trace (every preprocessing step, every contour, every arrow assignment) **always lands in the log file** for reproducibility. If you want it on screen too, pass `--verbose` (or `-v`):
 

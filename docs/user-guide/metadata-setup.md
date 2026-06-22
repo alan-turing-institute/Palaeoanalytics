@@ -200,7 +200,17 @@ pylithics --data_dir ./artifacts --meta_file ./metadata.csv --disable_scale_cali
     Without scale calibration, all measurements will be in pixels. This limits comparative analysis between different image sources and prevents real-world metric interpretation.
 
 !!! note "Calibration Method Tracking"
-    PyLithics automatically tracks which calibration method was used for each image in the output CSV (`calibration_method` column: either "scale_bar" or "pixels"), allowing you to validate measurement accuracy and identify potential issues.
+    PyLithics automatically tracks which calibration method was used for each image in the output CSV (`calibration_method` column: either `scale_bar` or `pixels`), allowing you to validate measurement accuracy and identify potential issues.
+
+    Internally the pipeline distinguishes **three** calibration states, which it normalises to **two** for the CSV column:
+
+    | Internal state              | CSV value    | What it means                                                                                          |
+    | --------------------------- | ------------ | ------------------------------------------------------------------------------------------------------ |
+    | `scale_bar`                 | `scale_bar`  | A scale image was provided and the scale bar was detected; measurements are in millimetres.            |
+    | `pixels_no_scale`           | `pixels`     | No scale image was provided (or `--force_pixels` / `--disable_scale_calibration` was used).             |
+    | `pixels_detection_failed`   | `pixels`     | A scale image was provided but PyLithics could not detect the scale bar; falls back to pixel measurements. The underlying reason is logged as a `WARNING`. |
+
+    If you see `pixels` in the CSV for a lithic that should have been calibrated, check the log for a `WARNING` to find out which of the two pixel-fallback cases applied.
 
 ## Next Steps
 

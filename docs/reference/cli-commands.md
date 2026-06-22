@@ -75,7 +75,7 @@ surface_classification:
 
 scar_complexity:
   enabled: true
-  distance_threshold: 5.0
+  distance_threshold: 10.0
 
 cortex_detection:
   enabled: true
@@ -97,7 +97,7 @@ logging:
   level: INFO                    # file handler level (always DEBUG-capable)
   console_level: INFO            # console handler level; --verbose overrides to DEBUG
   log_to_file: true
-  log_file: pylithics/data/processed/pylithics.log
+  # log_file:                    # optional; default = <data_dir>/processed/pylithics.log
 ```
 
 ## Processing Options

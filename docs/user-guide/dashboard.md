@@ -16,10 +16,10 @@ There is one flag, `--explore`, with two flows:
 pylithics --data_dir ./assemblage --meta_file ./meta.csv --explore
 
 # Re-open the dashboard later (no re-analysis).
-# --data_dir is now the folder that actually contains processed_metrics.csv
-# — usually <project_root>/processed/, but it can be any folder.
+# Both forms of --data_dir work: either the project root,
+# or the processed/ folder itself. PyLithics figures it out.
+pylithics --data_dir ./assemblage --explore
 pylithics --data_dir ./assemblage/processed --explore
-pylithics --data_dir ./other_run_folder --explore   # different assemblage, same flag
 ```
 
 The dashboard binds to `http://localhost:8501` by default. Press `Ctrl+C` in the terminal to stop it.
@@ -45,7 +45,7 @@ Top-line headline tiles, each carrying a small status caption — `✓ All clear
 
 ### 2. Distributions
 
-Numerical exploration of the assemblage. A filter at the top of the page (surface type and calibration method) applies to every chart below it. The page is organised into five thematic tabs:
+Numerical exploration of the assemblage. A filter at the top of the page (surface type and calibration method) applies to every chart below it. The page is organised into four thematic tabs:
 
 **Size & shape.** Raincloud of `aspect_ratio` by surface, lollipop of `perimeter` per lithic, length × width scatter (colored by surface type), and a convex-hull-area vs. total-area scatter for shape regularity.
 
@@ -59,9 +59,10 @@ Numerical exploration of the assemblage. A filter at the top of the page (surfac
 - *Scar size & shape* — paired ECDFs of per-scar `total_area` (log-x) and `aspect_ratio`.
 - *Scar-size variability* — coefficient-of-variation vs. count, separating monotonous from mixed-strategy reduction.
 
-**Spatial.** Voronoi cell-count and convex-hull metrics for dorsal surfaces.
-
-**Cortex.** Distribution of `cortex_percentage` and presence/absence by surface.
+**Spatial.** Three views of how scars are arranged across each dorsal surface:
+- *Voronoi cells per dorsal surface* — histogram of cell counts.
+- *Convex hull area vs dorsal area* — scatter showing how the scar-centroid hull grows with surface size.
+- *Scar-Centroid Dispersion (Hull Area / Dorsal Area)* — sorted lollipop chart of the centroid-hull-to-dorsal-area ratio per lithic.
 
 Every chart that identifies a specific lithic starts its tooltip with `Lithic: <image_id>` on the first line, and every analytical chart carries an `About this plot` expander with a plain-English description of what the visualisation shows and how to read it. Plotly's built-in toolbar (camera icon on hover) downloads any chart as a PNG.
 
@@ -73,6 +74,8 @@ Drill-down view for a single lithic. Pick an image from the dropdown to see:
 - The Voronoi diagram (`*_voronoi.png`)
 - All CSV rows for that image as a sortable table
 - The per-lithic JSON (if you ran with `--export_json`) as a collapsible tree
+
+The labeled image and Voronoi diagram are letterboxed to a shared 700×700 square canvas so the two panels always occupy the same on-screen footprint regardless of the source image's aspect ratio. The original PNG files on disk are untouched — the resizing only affects the dashboard display.
 
 ## Cross-platform notes
 

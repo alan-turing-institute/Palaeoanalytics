@@ -70,8 +70,10 @@ pip install .
 
 ```bash
 # --verbose mirrors the full per-step pipeline trace on your screen.
-# The same trace is always in pylithics/data/processed/pylithics.log,
-# so you can also run without --verbose and grep the log file after.
+# The same trace is always in <data_dir>/processed/pylithics.log
+# (the log lives next to the processed CSV for whichever --data_dir
+# you used), so you can also run without --verbose and grep the log
+# file after.
 pylithics --data_dir ./data --meta_file ./meta.csv \
     --verbose --show_thresholded_images
 ```
@@ -244,17 +246,17 @@ Voronoi cannot currently be toggled from the CLI; use the config file.
 
 **Problem**: Expected output files not created
 
-**Check write permissions**:
+**Check write permissions** (substitute your own `--data_dir`):
 
 ```bash
-ls -la pylithics/data/processed/
+ls -la <data_dir>/processed/
 ```
 
 **Check the log**:
 
 ```bash
-tail -50 pylithics/data/processed/pylithics.log
-grep ERROR pylithics/data/processed/pylithics.log
+tail -50 <data_dir>/processed/pylithics.log
+grep ERROR <data_dir>/processed/pylithics.log
 ```
 
 ### Unrealistic Measurements
@@ -269,7 +271,7 @@ grep ERROR pylithics/data/processed/pylithics.log
 ```python
 import pandas as pd
 
-df = pd.read_csv('pylithics/data/processed/processed_metrics.csv')
+df = pd.read_csv('<data_dir>/processed/processed_metrics.csv')
 
 print("Length range:", df['technical_length'].min(), "-", df['technical_length'].max())
 print("Area range:", df['total_area'].min(), "-", df['total_area'].max())
