@@ -131,7 +131,6 @@ setup(
     entry_points={
         "console_scripts": [
             "pylithics=pylithics.app:main",
-            "pylithics-run=pylithics.app:main",  # Alternative name
         ],
     },
 

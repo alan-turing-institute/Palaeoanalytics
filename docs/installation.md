@@ -118,15 +118,21 @@ cd Palaeoanalytics
 
 ### Choosing a Branch
 
-- **Stable Version**: Use the `main` branch for the most stable release
-- **Latest Features**: Use the `staging` branch for the newest features (may be less stable)
+- **Stable Release**: Use the `main` branch for the most recent tagged release (currently v2.0.0). This is what we recommend for almost everyone.
+- **In-Progress Work**: Use the `develop` branch if you want to preview changes that are queued for the next release. May be less stable.
 
 ```bash
-# For stable version (recommended)
+# For the stable release (recommended)
 git checkout main
 
-# For latest features
-git checkout staging
+# For in-progress work
+git checkout develop
+```
+
+To pin to a specific released version for reproducibility, check out the tag instead:
+
+```bash
+git checkout v2.0.0
 ```
 
 ## Step 4: Install PyLithics
@@ -140,7 +146,7 @@ pip install .
 This command will:
 - Install PyLithics as a package
 - Install all required dependencies listed in `requirements.txt`
-- Set up command-line tools (`pylithics` and `pylithics-run`)
+- Set up the `pylithics` command-line tool
 
 ## Step 5: Verify Installation
 
@@ -150,16 +156,31 @@ Test that PyLithics is correctly installed by running it with no arguments:
 pylithics
 ```
 
-You should see the **welcome splash** — a chunky `PyLithics` logo above a Get-started panel listing the four common command patterns (quick start on the bundled sample data, analyze + visualize, open an existing run in the browser, help, and the GitHub repo URL). Copy whichever command you want to run next.
+You should see the **welcome splash** — a chunky `PyLithics` logo above a Get-started panel listing the five common command patterns:
 
-Other useful checks:
+1. **Quick start** — analyze the bundled sample dataset
+2. **Run sample data and visualize** — analyze and open the results dashboard
+3. **Open an existing run in the browser** — re-open a previous analysis in the dashboard
+4. **Help & docs** — `pylithics --help` and `pylithics --docs`
+5. **GitHub** — the project repository URL
+
+Copy whichever command you want to run next.
+
+### Optional: run the bundled sample dataset
+
+To prove the full pipeline works end-to-end immediately after installing, run the second splash command:
 
 ```bash
-# Full argparse help (every flag, every option)
-pylithics --help
+pylithics --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv --explore
+```
 
-# Or use the alternative entry point
-pylithics-run --help
+This processes the bundled sample images and opens the interactive dashboard in your browser. If this completes without errors and the dashboard loads, your install is healthy.
+
+### Full CLI help
+
+```bash
+# Every flag, every option
+pylithics --help
 ```
 
 
