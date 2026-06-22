@@ -47,10 +47,10 @@ def _cached_load(
 
 def main() -> None:
     st.set_page_config(
-        page_title="PyLithics Dashboard",
+        page_title="PyLithics Explorer",
         layout="wide",
     )
-    st.title("PyLithics Dashboard")
+    st.title("PyLithics Explorer")
 
     data_dir = _resolve_data_dir()
     if data_dir is None:
