@@ -288,6 +288,26 @@
   
   
   
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/cli-commands/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
     <li class="md-tabs__item">
       <a href="../../about/" class="md-tabs__link">
         
@@ -854,14 +874,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../voronoi-analysis/" class="md-nav__link">
+      <a href="../data-loading/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Voronoi Analysis
+    Loading Outputs (Python / R)
   
 
     
@@ -910,14 +930,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../lithic-editor/" class="md-nav__link">
+      <a href="../voronoi-analysis/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Lithic Editor
+    Voronoi Analysis
   
 
     
@@ -974,6 +994,95 @@
     
   
     Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli-commands/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Commands
   
 
     
@@ -1114,12 +1223,12 @@
 <ul>
 <li><code>awbari.png · 25.20 px/mm</code> — scale bar detected, real-world measurements.</li>
 <li><code>image.png · pixels (no scale provided)</code> — pixel-only mode (no scale in metadata, or <code>--force_pixels</code>).</li>
-<li><code>image.png · pixels (scale detection failed — see log)</code> — scale was provided but detection failed; the underlying reason is in <code>pylithics/data/processed/pylithics.log</code> as a <code>WARNING</code>.</li>
+<li><code>image.png · pixels (scale detection failed — see log)</code> — scale was provided but detection failed; the underlying reason is in <code>&lt;data_dir&gt;/processed/pylithics.log</code> as a <code>WARNING</code>.</li>
 </ul>
-<p>At the end you get a single summary line:</p>
+<p>At the end you get a single summary line — the exact log path PyLithics prints will be <code>&lt;your --data_dir&gt;/processed/pylithics.log</code>:</p>
 <ul>
-<li>All succeeded: <code>100/100 images processed without errors. Please check logs at pylithics/data/processed/pylithics.log</code></li>
-<li>Some failed: <code>90/100 images processed successfully. Please check logs at pylithics/data/processed/pylithics.log for errors.</code></li>
+<li>All succeeded: <code>100/100 images processed without errors. Please check logs at &lt;data_dir&gt;/processed/pylithics.log</code></li>
+<li>Some failed: <code>90/100 images processed successfully. Please check logs at &lt;data_dir&gt;/processed/pylithics.log for errors.</code></li>
 </ul>
 <p>The full per-step trace (every preprocessing step, every contour, every arrow assignment) <strong>always lands in the log file</strong> for reproducibility. If you want it on screen too, pass <code>--verbose</code> (or <code>-v</code>):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--verbose
@@ -1196,7 +1305,11 @@
 <a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
 <a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="c1"># Skip scar adjacency analysis</span>
 <a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv<span class="w"> </span>--disable_scar_complexity
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="c1"># Skip morphological closing during binary-image preprocessing</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv<span class="w"> </span>--closing<span class="w"> </span>False
 </code></pre></div>
+<p><code>--closing</code> defaults to <code>True</code> and applies a small morphological-closing pass to the binarised image (helps bridge 1-pixel gaps in scanned line art). Set it to <code>False</code> for crisp digital line drawings where closing would smear thin features.</p>
 <p>Voronoi, symmetry, and lateral analysis are not disable-able from the CLI in this release; toggle them in <code>config.yaml</code> instead (see below).</p>
 <h3 id="also-export-per-lithic-json">Also export per-lithic JSON<a class="headerlink" href="#also-export-per-lithic-json" title="Permanent link">&para;</a></h3>
 <p>By default PyLithics writes a single <code>processed_metrics.csv</code>. Pass <code>--export_json</code> to additionally write one JSON file per lithic to <code>processed/json/</code>:</p>

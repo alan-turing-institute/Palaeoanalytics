@@ -288,6 +288,26 @@
   
   
   
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/cli-commands/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
     <li class="md-tabs__item">
       <a href="../../about/" class="md-tabs__link">
         
@@ -915,14 +935,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../voronoi-analysis/" class="md-nav__link">
+      <a href="../data-loading/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Voronoi Analysis
+    Loading Outputs (Python / R)
   
 
     
@@ -971,14 +991,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../lithic-editor/" class="md-nav__link">
+      <a href="../voronoi-analysis/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Lithic Editor
+    Voronoi Analysis
   
 
     
@@ -1035,6 +1055,95 @@
     
   
     Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli-commands/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Commands
   
 
     
@@ -1343,7 +1452,35 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Calibration Method Tracking</p>
-<p>PyLithics automatically tracks which calibration method was used for each image in the output CSV (<code>calibration_method</code> column: either "scale_bar" or "pixels"), allowing you to validate measurement accuracy and identify potential issues.</p>
+<p>PyLithics automatically tracks which calibration method was used for each image in the output CSV (<code>calibration_method</code> column: either <code>scale_bar</code> or <code>pixels</code>), allowing you to validate measurement accuracy and identify potential issues.</p>
+<p>Internally the pipeline distinguishes <strong>three</strong> calibration states, which it normalises to <strong>two</strong> for the CSV column:</p>
+<table>
+<thead>
+<tr>
+<th>Internal state</th>
+<th>CSV value</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scale_bar</code></td>
+<td><code>scale_bar</code></td>
+<td>A scale image was provided and the scale bar was detected; measurements are in millimetres.</td>
+</tr>
+<tr>
+<td><code>pixels_no_scale</code></td>
+<td><code>pixels</code></td>
+<td>No scale image was provided (or <code>--force_pixels</code> / <code>--disable_scale_calibration</code> was used).</td>
+</tr>
+<tr>
+<td><code>pixels_detection_failed</code></td>
+<td><code>pixels</code></td>
+<td>A scale image was provided but PyLithics could not detect the scale bar; falls back to pixel measurements. The underlying reason is logged as a <code>WARNING</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>If you see <code>pixels</code> in the CSV for a lithic that should have been calibrated, check the log for a <code>WARNING</code> to find out which of the two pixel-fallback cases applied.</p>
 </div>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <p>With your metadata file prepared:</p>
