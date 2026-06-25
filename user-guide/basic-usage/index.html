@@ -726,6 +726,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#parallel-batch-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel batch processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#also-export-per-lithic-json" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1311,24 +1322,36 @@
 </code></pre></div>
 <p><code>--closing</code> defaults to <code>True</code> and applies a small morphological-closing pass to the binarised image (helps bridge 1-pixel gaps in scanned line art). Set it to <code>False</code> for crisp digital line drawings where closing would smear thin features.</p>
 <p>Voronoi, symmetry, and lateral analysis are not disable-able from the CLI in this release; toggle them in <code>config.yaml</code> instead (see below).</p>
+<h3 id="parallel-batch-processing">Parallel batch processing<a class="headerlink" href="#parallel-batch-processing" title="Permanent link">&para;</a></h3>
+<p>PyLithics processes batches in parallel by default. Each image is handed to a worker process; the main process collects per-image CSV rows and merges them into the canonical <code>processed_metrics.csv</code> after all workers finish.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Default: auto worker count (cpu_count - 1, capped at 8 and at batch size)</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Disable parallelism — useful for debugging single-image issues</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv<span class="w"> </span>--workers<span class="w"> </span><span class="m">1</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># Pin to a specific worker count</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv<span class="w"> </span>--workers<span class="w"> </span><span class="m">4</span>
+</code></pre></div>
+<p>Sequential and parallel modes produce byte-for-byte identical CSV/JSON output. The win scales with batch size: 5-image batches see little difference (worker startup absorbs the saving), 100+ images see roughly N-core speedup.</p>
 <h3 id="also-export-per-lithic-json">Also export per-lithic JSON<a class="headerlink" href="#also-export-per-lithic-json" title="Permanent link">&para;</a></h3>
 <p>By default PyLithics writes a single <code>processed_metrics.csv</code>. Pass <code>--export_json</code> to additionally write one JSON file per lithic to <code>processed/json/</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv<span class="w"> </span>--export_json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv<span class="w"> </span>--export_json
 </code></pre></div>
 <p>The CSV is unchanged. See <a href="../outputs/#per-lithic-json-output-optional">Outputs</a> for the JSON schema.</p>
 <h3 id="launch-the-interactive-dashboard">Launch the interactive dashboard<a class="headerlink" href="#launch-the-interactive-dashboard" title="Permanent link">&para;</a></h3>
 <p>Pass <code>--explore</code> to open the <a href="../dashboard/">PyLithics Dashboard</a> in your browser. With <code>--meta_file</code> it analyzes first then auto-opens against the new output; without it, <code>--data_dir</code> should point directly at the folder containing the <code>processed_metrics.csv</code> you want to explore (the folder name does not have to be <code>processed/</code> — it can be any folder, anywhere):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Analyze and immediately explore.</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="c1"># --data_dir is the project root (with images/, scales/); output is</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="c1"># written to ./data/processed/ and the dashboard opens against it.</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv<span class="w"> </span>--explore
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># Re-open the dashboard later (no re-analysis).</span>
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="c1"># --data_dir is the actual folder containing processed_metrics.csv.</span>
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data/processed<span class="w"> </span>--explore
-<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
-<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="c1"># Explore a different run kept in its own folder.</span>
-<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./tanzania_run_2025<span class="w"> </span>--explore
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Analyze and immediately explore.</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="c1"># --data_dir is the project root (with images/, scales/); output is</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># written to ./data/processed/ and the dashboard opens against it.</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv<span class="w"> </span>--explore
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="c1"># Re-open the dashboard later (no re-analysis).</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># --data_dir is the actual folder containing processed_metrics.csv.</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data/processed<span class="w"> </span>--explore
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="c1"># Explore a different run kept in its own folder.</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./tanzania_run_2025<span class="w"> </span>--explore
 </code></pre></div>
 <h2 id="understanding-the-pylithics-pipeline">Understanding the PyLithics Pipeline<a class="headerlink" href="#understanding-the-pylithics-pipeline" title="Permanent link">&para;</a></h2>
 <p>When you run PyLithics, it processes each image through a fixed sequence of stages that extract contours, classify surfaces, calculate morphological metrics, and generate visualizations.</p>
@@ -1387,19 +1410,19 @@ Save measurement data and labeled visualization images.</p>
 <li><strong>CLI overrides</strong> — command-line arguments (highest priority)</li>
 </ol>
 <p>A minimal custom config:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># my_config.yaml</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nt">thresholding</span><span class="p">:</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">  </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">otsu</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="nt">arrow_detection</span><span class="p">:</span>
-<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>
-<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="nt">voronoi_analysis</span><span class="p">:</span>
-<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">  </span><span class="nt">padding_factor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># my_config.yaml</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nt">thresholding</span><span class="p">:</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">otsu</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="nt">arrow_detection</span><span class="p">:</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="nt">voronoi_analysis</span><span class="p">:</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">  </span><span class="nt">padding_factor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05</span>
 </code></pre></div>
 <p>Run with it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv<span class="w"> </span>--config_file<span class="w"> </span>./my_config.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv<span class="w"> </span>--config_file<span class="w"> </span>./my_config.yaml
 </code></pre></div>
 <p>For the full list of CLI flags and config keys, see the <a href="../../reference/cli-commands/">CLI Commands Reference</a>.</p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>

@@ -957,6 +957,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Processing Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parallel-batch-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel batch processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1364,6 +1381,11 @@
 </thead>
 <tbody>
 <tr>
+<td><code>--workers N</code></td>
+<td>Number of parallel worker processes for batch processing. <code>auto</code> uses <code>cpu_count - 1</code>, capped by batch size and at 8 workers. <code>1</code> disables parallelism (useful for debugging).</td>
+<td><code>auto</code></td>
+</tr>
+<tr>
 <td><code>--show_thresholded_images</code></td>
 <td>Display thresholded images during analysis</td>
 <td>off</td>
@@ -1375,6 +1397,19 @@
 </tr>
 </tbody>
 </table>
+<h3 id="parallel-batch-processing">Parallel batch processing<a class="headerlink" href="#parallel-batch-processing" title="Permanent link">&para;</a></h3>
+<p>By default, batches of more than one image are processed in parallel across multiple worker processes. Each worker handles one image at a time; per-image visualizations are written directly to the processed directory and per-image CSV rows accumulate in a <code>_partial/</code> subfolder that is merged into the canonical <code>processed_metrics.csv</code> once all workers complete.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Default — auto-pick worker count (cpu_count - 1, cap 8, cap batch size)</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Force sequential mode (for debugging, profiling, or low-RAM machines)</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv<span class="w"> </span>--workers<span class="w"> </span><span class="m">1</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Pin to an explicit worker count</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./metadata.csv<span class="w"> </span>--workers<span class="w"> </span><span class="m">4</span>
+</code></pre></div>
+<p>Worker count is automatically capped by the batch size — there's no benefit to spawning more workers than there are images. On batches of ≤ 3 images the startup cost of additional workers (~2–3 s per worker for module imports) may exceed the parallel saving; <code>--workers 1</code> is often comparable in real time.</p>
+<p>The CSV output and per-image visualization PNGs are byte-for-byte identical between sequential and parallel modes (within float rounding tolerance).</p>
 <h2 id="dpi-scaling">DPI Scaling<a class="headerlink" href="#dpi-scaling" title="Permanent link">&para;</a></h2>
 <p>PyLithics auto-detects each image's DPI. By default it uses fixed kernel sizes that work across the 75–600 DPI range. Enable DPI-aware scaling for noisy photographs or degraded scans.</p>
 <table>
@@ -1414,19 +1449,19 @@
 <li><strong>standard</strong> — moderate linear scaling with caps</li>
 <li><strong>aggressive</strong> — full proportional scaling, maximum noise removal</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Default</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Enable DPI scaling</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--enable_dpi_scaling
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Aggressive scaling</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span>--enable_dpi_scaling<span class="w"> </span>--dpi_scaling_mode<span class="w"> </span>aggressive
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="c1"># Custom reference &amp; cap</span>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span>--enable_dpi_scaling<span class="w"> </span>--dpi_reference<span class="w"> </span><span class="m">150</span><span class="w"> </span>--dpi_max_scale<span class="w"> </span><span class="m">2</span>.0
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Default</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Enable DPI scaling</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--enable_dpi_scaling
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Aggressive scaling</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span>--enable_dpi_scaling<span class="w"> </span>--dpi_scaling_mode<span class="w"> </span>aggressive
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1"># Custom reference &amp; cap</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">    </span>--enable_dpi_scaling<span class="w"> </span>--dpi_reference<span class="w"> </span><span class="m">150</span><span class="w"> </span>--dpi_max_scale<span class="w"> </span><span class="m">2</span>.0
 </code></pre></div>
 <h2 id="arrow-detection">Arrow Detection<a class="headerlink" href="#arrow-detection" title="Permanent link">&para;</a></h2>
 <table>
@@ -1455,9 +1490,9 @@
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--arrow_debug
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--disable_arrow_detection
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--show-arrow-lines
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--arrow_debug
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--disable_arrow_detection
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--show-arrow-lines
 </code></pre></div>
 <h2 id="scale-calibration">Scale Calibration<a class="headerlink" href="#scale-calibration" title="Permanent link">&para;</a></h2>
 <table>
@@ -1486,9 +1521,9 @@
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--scale_debug
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--force_pixels
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--disable_scale_calibration
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--scale_debug
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--force_pixels
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--disable_scale_calibration
 </code></pre></div>
 <h2 id="cortex-detection">Cortex Detection<a class="headerlink" href="#cortex-detection" title="Permanent link">&para;</a></h2>
 <table>
@@ -1512,8 +1547,8 @@
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--cortex_sensitivity<span class="w"> </span>high
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--disable_cortex_detection
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--cortex_sensitivity<span class="w"> </span>high
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--disable_cortex_detection
 </code></pre></div>
 <h2 id="scar-complexity">Scar Complexity<a class="headerlink" href="#scar-complexity" title="Permanent link">&para;</a></h2>
 <table>
@@ -1537,8 +1572,8 @@
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span>--scar_complexity_distance_threshold<span class="w"> </span><span class="m">15</span>.0
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span>--scar_complexity_distance_threshold<span class="w"> </span><span class="m">15</span>.0
 </code></pre></div>
 <h2 id="output">Output<a class="headerlink" href="#output" title="Permanent link">&para;</a></h2>
 <table>
@@ -1567,16 +1602,16 @@
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Default — CSV only</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># CSV plus per-lithic JSON files</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--export_json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Default — CSV only</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># CSV plus per-lithic JSON files</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--export_json
 </code></pre></div>
 <p>The same behavior is available from <code>config.yaml</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">data_export</span><span class="p">:</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">csv</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">json_per_lithic</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">   </span><span class="c1"># equivalent to --export_json</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nt">data_export</span><span class="p">:</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">csv</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nt">json_per_lithic</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">   </span><span class="c1"># equivalent to --export_json</span>
 </code></pre></div>
 <h2 id="help">Help<a class="headerlink" href="#help" title="Permanent link">&para;</a></h2>
 <table>
@@ -1609,30 +1644,30 @@
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>pylithics<span class="w"> </span>--help
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>pylithics<span class="w"> </span>--help-config
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>pylithics<span class="w"> </span>--docs
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>pylithics<span class="w"> </span>--help
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>pylithics<span class="w"> </span>--help-config
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>pylithics<span class="w"> </span>--docs
 </code></pre></div>
 <h2 id="common-patterns">Common Patterns<a class="headerlink" href="#common-patterns" title="Permanent link">&para;</a></h2>
 <h3 id="quick-test-on-the-bundled-sample-data">Quick test on the bundled sample data<a class="headerlink" href="#quick-test-on-the-bundled-sample-data" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>pylithics/data<span class="w"> </span>--meta_file<span class="w"> </span>pylithics/data/meta_data.csv
 </code></pre></div>
 <h3 id="debug-a-problem-image">Debug a problem image<a class="headerlink" href="#debug-a-problem-image" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">    </span>--log_level<span class="w"> </span>DEBUG<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span>--arrow_debug<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span>--scale_debug<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span>--show_thresholded_images
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">    </span>--log_level<span class="w"> </span>DEBUG<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span>--arrow_debug<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span>--scale_debug<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">    </span>--show_thresholded_images
 </code></pre></div>
 <h3 id="faster-runs">Faster runs<a class="headerlink" href="#faster-runs" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Disable arrow detection (the most expensive optional step)</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--disable_arrow_detection
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Disable arrow detection (the most expensive optional step)</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span>--disable_arrow_detection
 </code></pre></div>
 <h3 id="override-config-from-cli">Override config from CLI<a class="headerlink" href="#override-config-from-cli" title="Permanent link">&para;</a></h3>
 <p>CLI flags always win over the YAML file:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">    </span>--config_file<span class="w"> </span>./site_config.yaml<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span>--threshold_method<span class="w"> </span>adaptive
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">    </span>--config_file<span class="w"> </span>./site_config.yaml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span>--threshold_method<span class="w"> </span>adaptive
 </code></pre></div>
 <h2 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h2>
 <table>
@@ -1649,8 +1684,8 @@
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PYLITHICS_CONFIG</span><span class="o">=</span>./default_config.yaml
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PYLITHICS_CONFIG</span><span class="o">=</span>./default_config.yaml
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>pylithics<span class="w"> </span>--data_dir<span class="w"> </span>./data<span class="w"> </span>--meta_file<span class="w"> </span>./meta.csv
 </code></pre></div>
 <h2 id="exit-codes">Exit Codes<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h2>
 <table>
