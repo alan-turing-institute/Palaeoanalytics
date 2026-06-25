@@ -13,6 +13,44 @@ if len(sys.argv) == 1:
     print_splash()
     sys.exit(0)
 
+# Print an immediate "Starting…" line so the user knows the CLI is
+# alive during the ~2s cold-import phase (Python interpreter +
+# pandas/scipy/opencv/matplotlib/rich). Without it the terminal
+# looks frozen until the first INFO log line emits — which won't
+# happen until every top-level import below has resolved. Written
+# to stderr with a carriage return so it can be overwritten by the
+# first real log line; stdout stays clean for piping.
+#
+# Guarded against firing inside multiprocessing-spawn worker
+# processes. Each Pool worker re-imports this module, which would
+# otherwise have every worker write its own "Starting PyLithics…"
+# to the user's terminal, garbling the output. The main entry
+# point has ``sys.argv[0]`` pointing at the installed CLI script
+# (e.g. ``/.../bin/pylithics``); a spawned worker has it pointing
+# at the Python interpreter executing ``-c "from multiprocessing
+# .spawn import ..."``.
+import os as _os_for_startup_guard
+_STARTUP_NOTICE_SHOWN = False
+_is_main_cli = (
+    _os_for_startup_guard.path.basename(sys.argv[0] or "")
+    .startswith("pylithics")
+)
+if _is_main_cli and sys.stderr.isatty() and not any(
+    a in sys.argv for a in ("--help", "-h", "--version", "--docs")
+):
+    sys.stderr.write("Starting PyLithics…\r")
+    sys.stderr.flush()
+    _STARTUP_NOTICE_SHOWN = True
+del _os_for_startup_guard, _is_main_cli
+
+
+def _clear_startup_notice() -> None:
+    """Erase the "Starting…" line once real output is about to print."""
+    if _STARTUP_NOTICE_SHOWN:
+        sys.stderr.write("\r" + " " * 30 + "\r")
+        sys.stderr.flush()
+
+
 _EXPLORE_MODE = "--explore" in sys.argv
 _EXPLORE_PROGRESS = None
 
@@ -184,6 +222,280 @@ def _write_run_summary(
         logging.warning("Could not write run summary: %s", e)
 
 
+# ---------------------------------------------------------------------------
+# Parallel batch processing — module-level helpers
+# ---------------------------------------------------------------------------
+#
+# When --workers > 1, the per-image pipeline runs in a multiprocessing Pool.
+# Each worker writes to a unique per-image partial CSV under
+# <processed_dir>/_partial/, then the main process concatenates them into
+# the canonical processed_metrics.csv. Visualizations and per-lithic JSONs
+# are per-image files so they don't need any contention-avoidance treatment.
+# These functions must live at module scope because multiprocessing pickles
+# them by qualified name when shipping work to child processes.
+
+
+# Set once per child process by _init_worker; reused across imap_unordered
+# work items so we don't re-load config / re-setup matplotlib per image.
+_WORKER_APP: Optional["PyLithicsApplication"] = None
+
+
+def _init_worker(
+    config_file: Optional[str],
+    data_dir: Optional[str],
+) -> None:
+    """Pool initializer — runs once per child process at spawn.
+
+    Forces matplotlib to its non-GUI Agg backend (must happen before
+    any pyplot import in the child) and creates a per-process
+    ``PyLithicsApplication`` so each worker has its own
+    ConfigurationManager.
+
+    Logging strategy in workers:
+      - File handler: kept, at DEBUG level. Worker per-image trace
+        lands in pylithics.log just like sequential mode — that's
+        where the detailed analysis info belongs. Multiple workers
+        append to the same file; lines interleave but every record
+        carries a timestamp so chronology is recoverable.
+      - Console handler: stripped. Workers must not write to the
+        terminal — the main process owns it (progress bar + per-image
+        OK/FAIL status). Worker stderr chatter would collide with
+        the live progress bar and clutter the user's view.
+      - NullHandler added as a tombstone so stdlib logging's
+        autoconfigure-on-first-log path doesn't quietly add a default
+        StreamHandler back in.
+    """
+    global _WORKER_APP
+    import matplotlib
+    matplotlib.use("Agg", force=True)
+
+    _WORKER_APP = PyLithicsApplication(config_file=config_file)
+
+    # No FileHandler attached at the worker level — that would funnel
+    # every worker's events to the same pylithics.log simultaneously
+    # and interleave lithic-A's lines with lithic-B's by timestamp.
+    # Instead, _worker_process_image opens a per-image FileHandler
+    # for the duration of one image; the main process concatenates
+    # those per-image partial logs into pylithics.log in metadata
+    # order after the pool finishes, so each lithic's debug trace
+    # stays grouped (the sequential mode's structure is preserved).
+    #
+    # data_dir is kept in the signature for forward compatibility
+    # but is not currently used here.
+    del data_dir  # silence unused-arg linters
+
+    # Strip every console-bound handler attached by PyLithicsApplication
+    # setup_logging. Workers must not write to the terminal — the
+    # main process owns it (progress bar + per-image OK/FAIL lines).
+    from rich.logging import RichHandler
+    root = logging.getLogger()
+    for handler in list(root.handlers):
+        if isinstance(handler, logging.FileHandler):
+            continue
+        if isinstance(handler, (RichHandler, logging.StreamHandler)):
+            root.removeHandler(handler)
+
+    # Tombstone — prevents stdlib's lazy basicConfig from quietly
+    # adding a default StreamHandler if any log call fires before
+    # _worker_process_image attaches its per-image FileHandler.
+    root.addHandler(logging.NullHandler())
+
+
+def _worker_process_image(args_tuple) -> tuple:
+    """Pool worker — process one image; return ``(image_id, success, suffix)``.
+
+    Attaches a per-image FileHandler at ``log_path`` for the duration
+    of the call so this lithic's debug events are buffered to their
+    own file rather than interleaved with other workers' events in
+    the shared pylithics.log. The main process concatenates these
+    per-image partials in metadata order after the pool finishes.
+
+    Returns the calibration suffix string (e.g. ``"25.20 px/mm"``) so
+    the main process can echo a per-lithic INFO line above the live
+    progress bar, matching the look of the sequential TTY flow.
+    Suffix is None when the worker fails.
+
+    Exceptions are caught and converted to a False return so a single
+    bad image can't kill the whole batch.
+    """
+    (image_id, scale_mm, images_dir, processed_dir,
+     entry, csv_path, log_path) = args_tuple
+    global _WORKER_APP
+
+    root = logging.getLogger()
+    log_handler = logging.FileHandler(log_path, mode="w")
+    log_handler.setLevel(logging.DEBUG)
+    log_handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    ))
+    root.addHandler(log_handler)
+
+    # Reach back into the worker app's last-image bookkeeping for
+    # the calibration suffix. process_single_image already builds
+    # this string for its own console log line; capturing it via an
+    # attribute set on the app instance avoids re-deriving it here
+    # and keeps the suffix format authoritative in one place.
+    _WORKER_APP._last_calibration_suffix = None
+    try:
+        success = _WORKER_APP.process_single_image(
+            image_id, scale_mm, images_dir, processed_dir, entry,
+            csv_path=csv_path,
+        )
+    except Exception:
+        logging.exception("Unhandled exception processing %s", image_id)
+        success = False
+    finally:
+        log_handler.flush()
+        root.removeHandler(log_handler)
+        log_handler.close()
+
+    suffix = (
+        getattr(_WORKER_APP, "_last_calibration_suffix", None)
+        if success else None
+    )
+    return image_id, success, suffix
+
+
+def _resolve_worker_count(workers_arg, n_images: int) -> int:
+    """Parse the ``--workers`` CLI value into a concrete worker count.
+
+    ``auto`` (or ``None``) → ``min(cpu_count - 1, n_images, 8)`` with a
+    floor of 1. A positive integer is taken at face value but still
+    capped by ``n_images`` (no point spawning more workers than there
+    is work). Invalid input falls back to 1 with a warning.
+    """
+    cap = 8  # diminishing returns past ~8 workers for IO-bound pipelines
+    if workers_arg is None or str(workers_arg).lower() == "auto":
+        cpu = os.cpu_count() or 1
+        return max(1, min(cpu - 1, n_images, cap))
+    try:
+        n = int(workers_arg)
+    except (TypeError, ValueError):
+        logging.warning(
+            "Invalid --workers value %r; falling back to 1 (sequential).",
+            workers_arg,
+        )
+        return 1
+    if n < 1:
+        return 1
+    return min(n, n_images)
+
+
+def _concatenate_partial_csvs(processed_dir: str) -> None:
+    """Merge per-image partial CSVs into ``processed_metrics.csv``.
+
+    Called by the parallel batch path after the pool has finished.
+    Reads every ``*.csv`` in ``<processed_dir>/_partial/``, concatenates
+    them into one dataframe preserving column order, writes the final
+    CSV with ``na_rep="NA"`` to keep the file format identical to the
+    sequential path, then removes the partials.
+    """
+    import glob
+    import pandas as pd
+
+    partial_dir = os.path.join(processed_dir, "_partial")
+    final_path = os.path.join(processed_dir, "processed_metrics.csv")
+    partials = sorted(glob.glob(os.path.join(partial_dir, "*.csv")))
+    if not partials:
+        return
+
+    frames = []
+    for p in partials:
+        try:
+            frames.append(pd.read_csv(p, na_values=["NA"]))
+        except Exception:
+            logging.exception("Could not read partial CSV %s", p)
+
+    if not frames:
+        return
+
+    merged = pd.concat(frames, ignore_index=True, sort=False)
+
+    # Re-coerce count-like columns to nullable Int64. pd.read_csv
+    # promotes them to float64 here because every partial has some
+    # NaN rows (non-dorsal surfaces) — without this, scar_count and
+    # voronoi_num_cells render as "10.0" instead of "10".
+    from pylithics.image_processing.modules.visualization import (
+        _coerce_integer_columns,
+    )
+    merged = _coerce_integer_columns(merged)
+
+    if os.path.exists(final_path):
+        os.remove(final_path)
+    merged.to_csv(final_path, index=False, na_rep="NA")
+
+    for p in partials:
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+    try:
+        os.rmdir(partial_dir)
+    except OSError:
+        pass
+
+
+def _concatenate_partial_logs(
+    processed_dir: str, ordered_image_ids: list,
+) -> None:
+    """Append per-image worker logs to the main pylithics.log in order.
+
+    Each worker writes its lithic's debug trace to
+    ``<processed>/_partial/<image_id>.log``. After the pool finishes,
+    this walks ``ordered_image_ids`` (metadata order — same order
+    sequential mode would produce) and appends each partial's contents
+    to ``pylithics.log``, then deletes the partial. This restores the
+    per-lithic grouping in the log file: image A's full trace, then
+    image B's full trace, instead of A and B interleaved by timestamp.
+
+    Main-process log lines written before the pool ran (config, batch
+    start) stay at the top of pylithics.log; lines written after the
+    pool ran (per-image OK/FAIL summary, totals) come naturally after
+    the per-image blocks since they're appended later by the running
+    main process's FileHandler.
+    """
+    partial_dir = os.path.join(processed_dir, "_partial")
+    if not os.path.isdir(partial_dir):
+        return
+    main_log = os.path.join(processed_dir, "pylithics.log")
+
+    # Flush the main-process FileHandler first so the boundary
+    # between pre-pool main lines and the appended per-image blocks
+    # is stable in the file before we write into it directly.
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, logging.FileHandler):
+            try:
+                handler.flush()
+            except Exception:
+                pass
+
+    with open(main_log, "a", encoding="utf-8") as out:
+        for image_id in ordered_image_ids:
+            partial = os.path.join(partial_dir, f"{image_id}.log")
+            if not os.path.exists(partial):
+                continue
+            try:
+                with open(partial, "r", encoding="utf-8") as f:
+                    out.write(f.read())
+            except OSError:
+                logging.exception(
+                    "Could not read partial log %s", partial,
+                )
+                continue
+            try:
+                os.remove(partial)
+            except OSError:
+                pass
+
+    # _partial may still hold the directory itself; _concatenate_partial_csvs
+    # tries to rmdir it too, so this is a no-op if CSV concat ran first.
+    try:
+        os.rmdir(partial_dir)
+    except OSError:
+        pass
+
+
 class PyLithicsApplication:
     """
     Main application class for PyLithics with enhanced functionality.
@@ -198,6 +510,8 @@ class PyLithicsApplication:
         config_file : str, optional
             Path to configuration file
         """
+        self.config_file = config_file
+        self.workers_arg = "auto"
         self.config_manager = get_config_manager(config_file)
         self.setup_logging()
 
@@ -375,7 +689,8 @@ class PyLithicsApplication:
                            processed_dir: str,
                            scale_data: Optional[Dict] = None,
                            progress_index: Optional[int] = None,
-                           progress_total: Optional[int] = None) -> bool:
+                           progress_total: Optional[int] = None,
+                           csv_path: Optional[str] = None) -> bool:
         """
         Process a single image through the complete pipeline.
 
@@ -440,9 +755,16 @@ class PyLithicsApplication:
                 image_dpi,
                 csv_method,
                 scale_confidence,
+                csv_path=csv_path,
             )
 
             suffix = _calibration_suffix(calibration_method, conversion_factor)
+            # Stash for parallel-mode callers (workers): the pool
+            # initializer reads this back via getattr to forward the
+            # calibration suffix to the main-process progress display.
+            # Harmless in sequential mode — the attribute is just
+            # written and never read.
+            self._last_calibration_suffix = suffix
             if progress_index is not None and progress_total is not None:
                 logging.info(
                     f"{progress_index}/{progress_total} {image_id} · {suffix}"
@@ -545,7 +867,16 @@ class PyLithicsApplication:
 
         logging.debug(f"Starting batch processing of {len(metadata)} images")
 
-        self._run_batch_loop(metadata, images_dir, processed_dir, results)
+        workers = _resolve_worker_count(self.workers_arg, len(metadata))
+        if workers > 1 and len(metadata) > 1:
+            logging.info(
+                f"Running batch in parallel: {workers} worker processes"
+            )
+            self._run_batch_loop_parallel(
+                metadata, images_dir, processed_dir, results, workers,
+            )
+        else:
+            self._run_batch_loop(metadata, images_dir, processed_dir, results)
 
         self._log_batch_summary(results)
         _write_run_summary(processed_dir, images_dir, results, metadata)
@@ -596,6 +927,137 @@ class PyLithicsApplication:
                     i, total, entry, images_dir, processed_dir, results,
                     include_index_prefix=True,
                 )
+
+    def _run_batch_loop_parallel(
+        self,
+        metadata: list,
+        images_dir: str,
+        processed_dir: str,
+        results: Dict[str, Any],
+        workers: int,
+    ) -> None:
+        """Dispatch the batch across a multiprocessing Pool of ``workers``.
+
+        Each worker writes its per-image CSV to ``<processed>/_partial/``;
+        the main process concatenates them into the canonical
+        ``processed_metrics.csv`` after the pool finishes. Progress is
+        reported in the main process as workers complete (via
+        ``imap_unordered``) so the bar advances in completion order, not
+        submission order.
+        """
+        import glob
+        from multiprocessing import Pool
+
+        partial_dir = os.path.join(processed_dir, "_partial")
+        os.makedirs(partial_dir, exist_ok=True)
+        # Clear any stale partials from a previous interrupted run.
+        for stale in glob.glob(os.path.join(partial_dir, "*.csv")):
+            try:
+                os.remove(stale)
+            except OSError:
+                pass
+
+        total = len(metadata)
+        work = []
+        ordered_image_ids = []
+        for entry in metadata:
+            image_id = entry['image_id']
+            scale_mm = _parse_scale(entry.get('scale'), image_id)
+            csv_partial = os.path.join(partial_dir, f"{image_id}.csv")
+            log_partial = os.path.join(partial_dir, f"{image_id}.log")
+            ordered_image_ids.append(image_id)
+            work.append((
+                image_id, scale_mm, images_dir, processed_dir, entry,
+                csv_partial, log_partial,
+            ))
+
+        # data_dir is what setup_logging needs to resolve the
+        # FileHandler path. processed_dir is always <data_dir>/processed,
+        # so walking one directory up recovers it.
+        worker_data_dir = os.path.dirname(processed_dir)
+
+        use_progress = sys.stdout.isatty()
+
+        try:
+            if use_progress:
+                from rich.progress import (
+                    BarColumn, MofNCompleteColumn, Progress, SpinnerColumn,
+                    TextColumn, TimeElapsedColumn, TimeRemainingColumn,
+                )
+                with Progress(
+                    SpinnerColumn(style="cyan"),
+                    TextColumn(f"[cyan]Processing ({workers} workers)[/]"),
+                    BarColumn(),
+                    MofNCompleteColumn(),
+                    TextColumn("[dim]{task.fields[image]}[/]"),
+                    TimeElapsedColumn(),
+                    TimeRemainingColumn(),
+                    console=self.rich_console,
+                ) as progress:
+                    task = progress.add_task(
+                        "processing", total=total, image="",
+                    )
+                    with Pool(
+                        processes=workers,
+                        initializer=_init_worker,
+                        initargs=(self.config_file, worker_data_dir),
+                    ) as pool:
+                        for image_id, success, suffix in pool.imap_unordered(
+                            _worker_process_image, work,
+                        ):
+                            progress.update(task, image=image_id)
+                            self._tally_worker_result(
+                                image_id, success, results,
+                            )
+                            # Per-lithic line scrolls above the live
+                            # progress bar (RichHandler + Progress
+                            # share self.rich_console). Matches the
+                            # sequential TTY look.
+                            if success and suffix:
+                                logging.info(f"{image_id} · {suffix}")
+                            elif not success:
+                                logging.error(f"{image_id} · FAILED")
+                            progress.advance(task)
+            else:
+                with Pool(
+                    processes=workers,
+                    initializer=_init_worker,
+                    initargs=(self.config_file, worker_data_dir),
+                ) as pool:
+                    for i, (image_id, success, suffix) in enumerate(
+                        pool.imap_unordered(_worker_process_image, work), 1,
+                    ):
+                        self._tally_worker_result(image_id, success, results)
+                        if success and suffix:
+                            logging.info(
+                                f"{i}/{total} {image_id} · {suffix}"
+                            )
+                        else:
+                            prefix = "OK" if success else "FAIL"
+                            logging.info(
+                                f"{i}/{total} [{prefix}] {image_id}"
+                            )
+        finally:
+            # Order matters: append per-image log blocks to pylithics.log
+            # FIRST, then merge CSV partials. The log concat tries to
+            # rmdir _partial as a courtesy; CSV concat will also try
+            # and the second OSError is swallowed. Running CSV first
+            # would delete _partial before the logs get appended.
+            _concatenate_partial_logs(processed_dir, ordered_image_ids)
+            _concatenate_partial_csvs(processed_dir)
+
+    @staticmethod
+    def _tally_worker_result(
+        image_id: str, success: bool, results: Dict[str, Any],
+    ) -> None:
+        """Bump success / failure counters for one parallel result."""
+        if success:
+            results['processed_successfully'] += 1
+        else:
+            results['failed_images'].append(image_id)
+            results['processing_errors'].append(
+                f"Failed to process {image_id}"
+            )
 
     def _process_one_in_batch(
         self,
@@ -736,6 +1198,15 @@ def _add_config_args(parser: argparse.ArgumentParser) -> None:
 def _add_processing_args(parser: argparse.ArgumentParser) -> None:
     """Add processing options argument group."""
     group = parser.add_argument_group('PROCESSING OPTIONS')
+    group.add_argument(
+        '--workers', default='auto', metavar='N',
+        help='Number of parallel worker processes for batch image '
+             'processing. "auto" (default) uses cpu_count - 1, capped '
+             'by batch size and at 8 workers. "1" disables parallelism '
+             '(useful for debugging). Any positive integer overrides '
+             'auto. Per-image visualizations and the final CSV are '
+             'identical whether parallel or sequential.'
+    )
     group.add_argument(
         '--show_thresholded_images', action='store_true',
         help='Display processed images during analysis'
@@ -1125,12 +1596,17 @@ def main() -> int:
 
     try:
         app = PyLithicsApplication(args.config_file)
+        app.workers_arg = getattr(args, 'workers', 'auto')
         _apply_config_overrides(app, args)
         # Re-configure logging now that CLI overrides (e.g. --verbose,
         # --log_level) have been merged into the config. Pass data_dir so
         # the log file is written next to the user's processed/ folder
         # rather than wherever the shell happened to be.
         app.setup_logging(data_dir=args.data_dir)
+
+        # Erase the "Starting PyLithics…" stderr line written at
+        # import time before the first real INFO line scrolls past it.
+        _clear_startup_notice()
 
         logging.info(f"Config: {args.config_file or 'default'}")
         logging.info(f"Data directory: {args.data_dir}")

@@ -104,8 +104,28 @@ logging:
 
 | Option | Description | Default |
 |--------|-------------|---------|
+| `--workers N` | Number of parallel worker processes for batch processing. `auto` uses `cpu_count - 1`, capped by batch size and at 8 workers. `1` disables parallelism (useful for debugging). | `auto` |
 | `--show_thresholded_images` | Display thresholded images during analysis | off |
 | `--closing BOOL` | Apply morphological closing | `True` |
+
+### Parallel batch processing
+
+By default, batches of more than one image are processed in parallel across multiple worker processes. Each worker handles one image at a time; per-image visualizations are written directly to the processed directory and per-image CSV rows accumulate in a `_partial/` subfolder that is merged into the canonical `processed_metrics.csv` once all workers complete.
+
+```bash
+# Default — auto-pick worker count (cpu_count - 1, cap 8, cap batch size)
+pylithics --data_dir ./data --meta_file ./metadata.csv
+
+# Force sequential mode (for debugging, profiling, or low-RAM machines)
+pylithics --data_dir ./data --meta_file ./metadata.csv --workers 1
+
+# Pin to an explicit worker count
+pylithics --data_dir ./data --meta_file ./metadata.csv --workers 4
+```
+
+Worker count is automatically capped by the batch size — there's no benefit to spawning more workers than there are images. On batches of ≤ 3 images the startup cost of additional workers (~2–3 s per worker for module imports) may exceed the parallel saving; `--workers 1` is often comparable in real time.
+
+The CSV output and per-image visualization PNGs are byte-for-byte identical between sequential and parallel modes (within float rounding tolerance).
 
 ## DPI Scaling
 

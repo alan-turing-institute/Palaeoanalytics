@@ -17,6 +17,7 @@ Usage Example:
 
 import logging
 import os
+from typing import Optional
 import cv2
 import numpy
 
@@ -76,7 +77,8 @@ def process_and_save_contours(
     image_id,
     image_dpi=None,
     calibration_method="pixels",
-    scale_confidence=None
+    scale_confidence=None,
+    csv_path: Optional[str] = None,
 ) -> None:
     """
     Main pipeline for processing contours and generating
@@ -135,7 +137,8 @@ def process_and_save_contours(
 
         _convert_and_export(
             metrics, conversion_factor, output_dir, image_id,
-            calibration_method, scale_confidence
+            calibration_method, scale_confidence,
+            csv_path=csv_path,
         )
 
         config_manager = get_config_manager()
@@ -476,7 +479,8 @@ def _run_arrow_detection(
 
 def _convert_and_export(
     metrics, conversion_factor, output_dir, image_id,
-    calibration_method, scale_confidence
+    calibration_method, scale_confidence,
+    csv_path: Optional[str] = None,
 ) -> None:
     """
     Convert metrics to real-world units and save to CSV.
@@ -517,9 +521,16 @@ def _convert_and_export(
     }
 
     try:
-        csv_path = os.path.join(output_dir, "processed_metrics.csv")
+        # csv_path override exists for the parallel batch path: each
+        # worker writes to a per-image partial CSV under
+        # processed/_partial/, and the main process concatenates them
+        # into processed_metrics.csv after all workers finish. Avoids
+        # multi-process append contention on the single CSV.
+        final_csv_path = csv_path or os.path.join(
+            output_dir, "processed_metrics.csv",
+        )
         save_measurements_to_csv(
-            metrics, csv_path, append=True,
+            metrics, final_csv_path, append=True,
             calibration_metadata=calibration_metadata
         )
     except _STAGE_ERRORS:

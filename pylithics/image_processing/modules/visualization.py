@@ -535,14 +535,49 @@ def save_measurements_to_csv(
 
     for col in all_columns:
         if col not in df.columns:
-            df[col] = "NA"
+            df[col] = np.nan
 
     existing_cols = [c for c in all_columns if c in df.columns]
     df = df[existing_cols]
-    df.fillna("NA", inplace=True)
+    # Missing values render as the literal "NA" at write time via
+    # the to_csv na_rep argument in _write_csv. We keep them as NaN
+    # in-memory so columns stay typed (avoids the pandas FutureWarning
+    # about inserting strings into float64 columns).
+    df = _coerce_integer_columns(df)
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     _write_csv(df, output_path, append)
+
+
+# Columns that are conceptually counts and should render as integers
+# in the CSV, not "N.0" floats. The cast to pandas' nullable Int64
+# preserves NaN/NA values while keeping the integer formatting.
+_INTEGER_CSV_COLUMNS = (
+    "scar_count",
+    "voronoi_num_cells",
+    "scar_complexity",
+)
+
+
+def _coerce_integer_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Cast count-like columns to nullable Int64 so they render as
+    integers in the CSV instead of decimal "N.0" floats. Pandas
+    upcasts int64 columns to float64 whenever any row is NaN, which
+    is why scar_count and voronoi_num_cells were appearing as
+    decimals — Int64 (capital I, the nullable type) lets the column
+    hold both integers and NA without that upcast.
+    """
+    for col in _INTEGER_CSV_COLUMNS:
+        if col not in df.columns:
+            continue
+        try:
+            # Round any incidental float values from upstream arithmetic
+            # before casting, so 6.0 becomes 6 cleanly.
+            df[col] = df[col].astype(float).round().astype("Int64")
+        except (TypeError, ValueError):
+            # Column might be entirely empty / all-NA; safe to skip.
+            pass
+    return df
 
 
 def _count_dorsal_scars(metrics: List[Dict]) -> int:
@@ -705,14 +740,14 @@ def _write_csv(
             )
             for col in combined:
                 if col not in df.columns:
-                    df[col] = "NA"
+                    df[col] = np.nan
                 if col not in existing_cols:
-                    existing_df[col] = "NA"
+                    existing_df[col] = np.nan
 
             df = df[existing_cols]
             df.to_csv(
                 output_path, mode="a",
-                header=False, index=False
+                header=False, index=False, na_rep="NA",
             )
         except Exception as e:
             logging.warning(
@@ -720,9 +755,9 @@ def _write_csv(
             )
             df.to_csv(
                 output_path, mode="a",
-                header=False, index=False
+                header=False, index=False, na_rep="NA",
             )
         logging.debug("Appended metrics to CSV: %s", output_path)
     else:
-        df.to_csv(output_path, index=False)
+        df.to_csv(output_path, index=False, na_rep="NA")
         logging.debug("Saved metrics to CSV: %s", output_path)

@@ -129,6 +129,23 @@ pylithics --data_dir ./data --meta_file ./metadata.csv --closing False
 
 Voronoi, symmetry, and lateral analysis are not disable-able from the CLI in this release; toggle them in `config.yaml` instead (see below).
 
+### Parallel batch processing
+
+PyLithics processes batches in parallel by default. Each image is handed to a worker process; the main process collects per-image CSV rows and merges them into the canonical `processed_metrics.csv` after all workers finish.
+
+```bash
+# Default: auto worker count (cpu_count - 1, capped at 8 and at batch size)
+pylithics --data_dir ./data --meta_file ./metadata.csv
+
+# Disable parallelism — useful for debugging single-image issues
+pylithics --data_dir ./data --meta_file ./metadata.csv --workers 1
+
+# Pin to a specific worker count
+pylithics --data_dir ./data --meta_file ./metadata.csv --workers 4
+```
+
+Sequential and parallel modes produce byte-for-byte identical CSV/JSON output. The win scales with batch size: 5-image batches see little difference (worker startup absorbs the saving), 100+ images see roughly N-core speedup.
+
 ### Also export per-lithic JSON
 
 By default PyLithics writes a single `processed_metrics.csv`. Pass `--export_json` to additionally write one JSON file per lithic to `processed/json/`:

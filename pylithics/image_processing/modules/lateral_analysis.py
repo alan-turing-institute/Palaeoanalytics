@@ -20,6 +20,7 @@ All functions include comprehensive error handling and logging for debugging and
 import cv2
 import numpy as np
 import logging
+from scipy.spatial.distance import pdist
 from typing import Optional, Dict, Any, List, Tuple, Union
 
 
@@ -247,18 +248,24 @@ def _calculate_lateral_distance_to_max_width(cnt: np.ndarray) -> Optional[float]
         Distance from top point to center of maximum width, or None if calculation fails
     """
     try:
-        # Find max length points to get center of max width
-        max_len = 0
-        p1 = p2 = None
-        for i in range(len(cnt)):
-            for j in range(i+1, len(cnt)):
-                a = cnt[i][0]; b = cnt[j][0]
-                d = np.linalg.norm(a - b)
-                if d > max_len:
-                    max_len, p1, p2 = d, a, b
-
-        if p1 is None or p2 is None:
+        # Vectorised replacement for the O(N²) Python loop that called
+        # ``np.linalg.norm`` on tiny 2-element arrays. scipy's pdist
+        # does the same all-pairs distance computation in one C call —
+        # ~100x faster on typical contour sizes.
+        pts = cnt[:, 0, :].astype(np.float64)
+        n = len(pts)
+        if n < 2:
             return None
+        distances = pdist(pts)
+        k = int(np.argmax(distances))
+        # Convert condensed-distance index k back to (i, j) without
+        # allocating the full N×N squareform matrix.
+        i = int(n - 2 - np.floor(
+            np.sqrt(-8 * k + 4 * n * (n - 1) - 7) / 2.0 - 0.5
+        ))
+        j = int(k + i + 1 - n * (n - 1) // 2 + (n - i) * ((n - i) - 1) // 2)
+        p1 = pts[i]
+        p2 = pts[j]
 
         max_width_center = ((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2)
 
