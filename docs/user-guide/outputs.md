@@ -35,7 +35,7 @@ The single CSV holds one row per detected surface or scar across all images you 
 | `image_id` | Source image filename |
 | `surface_type` | `Dorsal`, `Ventral`, `Platform`, `Lateral`, or `Unclassified` |
 | `surface_feature` | Surface name when the row is a parent (e.g. `Dorsal`); scar/edge/cortex label when the row is a child (e.g. `scar 1`, `edge 2`, `cortex 1`) |
-| `total_dorsal_scars` | Count of scars on the dorsal surface (filled only on the Dorsal parent row) |
+| `scar_count` | Count of scars on the dorsal surface (filled only on the Dorsal parent row) |
 
 ### Position and Dimensions
 
@@ -200,7 +200,7 @@ The JSON nests metrics by surface and feature, with calibration metadata at the 
       "technical_width": 683.0,
       "technical_length": 936.0,
       "total_area": 525089.0,
-      "total_dorsal_scars": 6,
+      "scar_count": 6,
       "voronoi": {
         "num_cells": 7,
         "cell_area": 48384.82,

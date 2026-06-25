@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpl_patches
 from matplotlib.patches import Polygon as MplPolygon
 from matplotlib.collections import PatchCollection
-from matplotlib.cm import get_cmap
+import matplotlib
 from matplotlib.colors import Normalize
 from matplotlib.ticker import FuncFormatter
 
@@ -316,7 +316,7 @@ def _draw_voronoi_patches(ax, voronoi_data: Dict) -> None:
             )
             patch_list.append(patch)
 
-    colormap = get_cmap('tab10')
+    colormap = matplotlib.colormaps['tab10']
     norm = Normalize(vmin=0, vmax=len(patch_list))
     colors = [colormap(norm(i)) for i in range(len(patch_list))]
 

@@ -523,9 +523,9 @@ def save_measurements_to_csv(
     calibration_metadata : dict, optional
         Calibration info to include in output.
     """
-    total_dorsal_scars = _count_dorsal_scars(metrics)
+    scar_count = _count_dorsal_scars(metrics)
     updated_data = [
-        _build_csv_row(m, metrics, total_dorsal_scars,
+        _build_csv_row(m, metrics, scar_count,
                        calibration_metadata)
         for m in metrics
     ]
@@ -599,7 +599,7 @@ _OPTIONAL_ARROW_FIELDS = (
 def _build_csv_row(
     metric: Dict,
     all_metrics: List[Dict],
-    total_dorsal_scars: int,
+    scar_count: int,
     calibration_metadata: Optional[Dict]
 ) -> Dict[str, Any]:
     """Build a single CSV row from a metric dictionary."""
@@ -608,8 +608,8 @@ def _build_csv_row(
     row = {
         "surface_type": surface_type,
         "surface_feature": surface_feature,
-        "total_dorsal_scars": (
-            total_dorsal_scars
+        "scar_count": (
+            scar_count
             if surface_type == "Dorsal" and surface_feature == "Dorsal"
             else "NA"
         ),
@@ -656,7 +656,7 @@ def _build_column_order(
     """Build the ordered list of CSV columns."""
     base = [
         "image_id", "surface_type", "surface_feature",
-        "total_dorsal_scars", "centroid_x", "centroid_y",
+        "scar_count", "centroid_x", "centroid_y",
         "technical_width", "technical_length",
         "max_width", "max_length", "total_area",
         "aspect_ratio", "perimeter", "distance_to_max_width",

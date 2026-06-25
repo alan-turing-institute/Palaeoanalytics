@@ -97,10 +97,10 @@ def _build_document(
     image_id = _resolve_image_id(metrics)
     parents = [m for m in metrics if m.get("parent") == m.get("scar")]
     children_by_parent = _group_children_by_parent(metrics)
-    total_dorsal_scars = _count_dorsal_scars(metrics)
+    scar_count = _count_dorsal_scars(metrics)
 
     surfaces = [
-        _build_surface(parent, children_by_parent, total_dorsal_scars)
+        _build_surface(parent, children_by_parent, scar_count)
         for parent in parents
     ]
 
@@ -157,7 +157,7 @@ def _count_dorsal_scars(metrics: List[Dict]) -> int:
 def _build_surface(
     parent: Dict,
     children_by_parent: Dict[str, List[Dict]],
-    total_dorsal_scars: int,
+    scar_count: int,
 ) -> Dict[str, Any]:
     """Build a single surface entry with its features array."""
     surface_type = parent.get("surface_type") or "Unclassified"
@@ -173,8 +173,8 @@ def _build_surface(
     for field in _SURFACE_FIELDS:
         surface[_csv_to_json_key(field)] = _clean(parent.get(field))
 
-    surface["total_dorsal_scars"] = (
-        total_dorsal_scars if surface_type == "Dorsal" else None
+    surface["scar_count"] = (
+        scar_count if surface_type == "Dorsal" else None
     )
     surface["voronoi"] = (
         _build_voronoi_block(parent) if surface_type == "Dorsal" else None

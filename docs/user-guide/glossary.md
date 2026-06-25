@@ -13,7 +13,7 @@ This glossary defines every column PyLithics writes to `processed_metrics.csv` p
 **surface_feature**
 : For parent rows, the surface name (e.g. `Dorsal`). For child rows, the feature label assigned during cortex-detection relabelling: `scar N`, `edge N`, or `cortex N`.
 
-**total_dorsal_scars**
+**scar_count**
 : Number of scars on the dorsal surface. Filled only on the Dorsal parent row; `NA` everywhere else.
 
 ## Position and Dimensions

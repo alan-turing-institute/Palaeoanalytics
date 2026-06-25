@@ -157,7 +157,7 @@ class TestVisualizeContoursWithHierarchy:
 
 EXPECTED_BASE_COLUMNS = [
     "image_id", "surface_type", "surface_feature",
-    "total_dorsal_scars", "centroid_x", "centroid_y",
+    "scar_count", "centroid_x", "centroid_y",
     "technical_width", "technical_length",
     "max_width", "max_length", "total_area",
     "aspect_ratio", "perimeter", "distance_to_max_width",
@@ -237,7 +237,7 @@ class TestSaveMeasurementsToCSV:
         assert df["image_id"].tolist() == ["img_a", "img_b"]
 
     def test_counts_dorsal_scars_on_parent_row(self):
-        """Parent row's `total_dorsal_scars` should equal the number of scar children."""
+        """Parent row's `scar_count` should equal the number of scar children."""
         metrics = [
             _parent_metric(),
             _scar_metric(name="scar 1"),
@@ -247,11 +247,11 @@ class TestSaveMeasurementsToCSV:
         df = self._save_and_read(metrics)
 
         parent_row = df[df["surface_feature"] == "Dorsal"].iloc[0]
-        assert int(parent_row["total_dorsal_scars"]) == 3
+        assert int(parent_row["scar_count"]) == 3
 
         # Scar rows use "NA" which pandas reads as NaN
         scar_rows = df[df["surface_feature"].str.startswith("scar")]
-        assert all(pd.isna(scar_rows["total_dorsal_scars"]))
+        assert all(pd.isna(scar_rows["scar_count"]))
 
     def test_calibration_metadata_appends_columns(self):
         df = self._save_and_read(

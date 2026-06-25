@@ -646,10 +646,10 @@ def _build_scar_summary(df):
         return pd.DataFrame()
 
     parent_view = (
-        parents_d[["image_id", "total_area", "total_dorsal_scars"]]
+        parents_d[["image_id", "total_area", "scar_count"]]
         .rename(columns={
             "total_area": "dorsal_area",
-            "total_dorsal_scars": "num_scars",
+            "scar_count": "num_scars",
         })
     )
     scar_agg = (

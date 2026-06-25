@@ -183,7 +183,7 @@ class TestSurfaceAndFeatureNesting:
         assert surfaces_by_type["Dorsal"]["lateral_convexity"] is None
         assert surfaces_by_type["Lateral"]["lateral_convexity"] == 0.84
 
-    def test_total_dorsal_scars_only_on_dorsal_surface(self):
+    def test_scar_count_only_on_dorsal_surface(self):
         dorsal = _parent_metric()
         ventral = _parent_metric(
             parent="parent 2", scar="parent 2",
@@ -194,8 +194,8 @@ class TestSurfaceAndFeatureNesting:
             _calibration(),
         )
         surfaces_by_type = {s["surface_type"]: s for s in doc["surfaces"]}
-        assert surfaces_by_type["Dorsal"]["total_dorsal_scars"] == 2
-        assert surfaces_by_type["Ventral"]["total_dorsal_scars"] is None
+        assert surfaces_by_type["Dorsal"]["scar_count"] == 2
+        assert surfaces_by_type["Ventral"]["scar_count"] is None
 
     def test_children_appear_inside_parent_features_array(self):
         metrics = [

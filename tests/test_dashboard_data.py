@@ -33,7 +33,7 @@ def _sample_rows():
         {
             "image_id": "awbari.png",
             "surface_type": "Dorsal", "surface_feature": "Dorsal",
-            "total_dorsal_scars": 2,
+            "scar_count": 2,
             "centroid_x": 100.0, "centroid_y": 100.0,
             "technical_width": 60.0, "technical_length": 80.0,
             "max_width": 65.0, "max_length": 85.0,
@@ -84,7 +84,7 @@ def _sample_rows():
         {
             "image_id": "replica.png",
             "surface_type": "Dorsal", "surface_feature": "Dorsal",
-            "total_dorsal_scars": 0,
+            "scar_count": 0,
             "centroid_x": 50.0, "centroid_y": 50.0,
             "technical_width": 40.0, "technical_length": 60.0,
             "total_area": 2400.0,

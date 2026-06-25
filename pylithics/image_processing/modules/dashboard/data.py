@@ -56,7 +56,7 @@ LABELS = {
     "calibration_method": "Calibration method",
     "pixels_per_mm": "Pixels per mm",
     "scale_confidence": "Scale confidence",
-    "total_dorsal_scars": "Total dorsal scars",
+    "scar_count": "Scar count",
     "scale_bar": "Scale bar",
     "pixels": "Pixels",
 }
@@ -419,15 +419,15 @@ def _count_unclassified_surfaces(df: pd.DataFrame) -> int:
 
 
 def _count_zero_scar_lithics(df: pd.DataFrame) -> int:
-    """Lithics whose dorsal parent reports zero ``total_dorsal_scars``."""
-    if df.empty or "total_dorsal_scars" not in df.columns:
+    """Lithics whose dorsal parent reports zero ``scar_count``."""
+    if df.empty or "scar_count" not in df.columns:
         return 0
     parents = _parent_rows(df)
     dorsal_parents = parents[parents["surface_type"] == "Dorsal"]
     if dorsal_parents.empty:
         return 0
     counts = pd.to_numeric(
-        dorsal_parents["total_dorsal_scars"], errors="coerce",
+        dorsal_parents["scar_count"], errors="coerce",
     )
     flagged = dorsal_parents[counts.fillna(-1) == 0]
     return int(flagged["image_id"].nunique())
