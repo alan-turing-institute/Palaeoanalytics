@@ -16,11 +16,13 @@ nav:
     - Metadata Setup: user-guide/metadata-setup.md
     - Basic Usage: user-guide/basic-usage.md
     - Outputs: user-guide/outputs.md
-    - Voronoi Analysis: user-guide/voronoi-analysis.md
+    - Loading Outputs (Python / R): user-guide/data-loading.md
     - Dashboard: user-guide/dashboard.md
-    - Lithic Editor: user-guide/lithic-editor.md
+    - Voronoi Analysis: user-guide/voronoi-analysis.md
     - Troubleshooting: user-guide/troubleshooting.md
     - Glossary: user-guide/glossary.md
+  - Reference:
+    - CLI Commands: reference/cli-commands.md
   - About: about.md
 
 theme:

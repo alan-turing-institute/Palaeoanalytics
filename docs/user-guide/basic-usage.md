@@ -120,7 +120,12 @@ pylithics --data_dir ./data --meta_file ./metadata.csv --cortex_sensitivity high
 
 # Skip scar adjacency analysis
 pylithics --data_dir ./data --meta_file ./metadata.csv --disable_scar_complexity
+
+# Skip morphological closing during binary-image preprocessing
+pylithics --data_dir ./data --meta_file ./metadata.csv --closing False
 ```
+
+`--closing` defaults to `True` and applies a small morphological-closing pass to the binarised image (helps bridge 1-pixel gaps in scanned line art). Set it to `False` for crisp digital line drawings where closing would smear thin features.
 
 Voronoi, symmetry, and lateral analysis are not disable-able from the CLI in this release; toggle them in `config.yaml` instead (see below).
 
