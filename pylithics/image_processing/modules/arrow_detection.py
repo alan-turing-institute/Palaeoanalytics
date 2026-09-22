@@ -72,7 +72,7 @@ class ArrowDetector:
             Dictionary of scaled parameters
         """
         if image_dpi is None or image_dpi <= 0:
-            logging.warning("Invalid DPI value. Using reference thresholds.")
+            logging.warning("The DPI value is not valid. The reference thresholds are used.")
             return self.ref_thresholds.copy()
 
         # Scale factor relative to reference DPI
@@ -127,8 +127,8 @@ class ArrowDetector:
         dict or None
             Arrow properties if valid arrow found, None otherwise
         """
-        debug_dir = entry.get('debug_dir') if self.debug_enabled else None
         contour_id = entry.get('scar', 'unknown')
+        debug_dir = _debug_prefix(entry, contour_id) if self.debug_enabled else None
         params = self.scale_parameters_for_dpi(image_dpi)
 
         debug_log = (
@@ -143,7 +143,7 @@ class ArrowDetector:
         except Exception as e:
             if debug_log:
                 debug_log.write(f"Error in arrow detection: {str(e)}\n")
-            logging.error(f"Arrow detection failed for {contour_id}: {e}")
+            logging.error(f"Arrow detection error for {contour_id}: {e}")
             return None
         finally:
             if debug_log:
@@ -189,9 +189,9 @@ class ArrowDetector:
                            contour_id: str,
                            image_dpi: Optional[float],
                            params: Dict[str, Any]):
-        """Setup debug logging for arrow detection."""
-        os.makedirs(debug_dir, exist_ok=True)
-        debug_log = open(os.path.join(debug_dir, 'arrow_detection_log.txt'), 'w')
+        """Open the debug log ``<prefix>.txt`` for one contour."""
+        os.makedirs(os.path.dirname(debug_dir), exist_ok=True)
+        debug_log = open(f"{debug_dir}.txt", 'w')
 
         debug_log.write(f"Arrow detection analysis for contour {contour_id}\n")
         if image_dpi:
@@ -510,8 +510,23 @@ class ArrowDetector:
         cv2.putText(vis, f"{compass_angle:.1f}°", text_pos,
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 1)
 
-        # Save visualization
-        cv2.imwrite(os.path.join(debug_dir, "arrow_debug.png"), vis)
+        # Save visualization as <prefix>.png, beside the <prefix>.txt log
+        os.makedirs(os.path.dirname(debug_dir), exist_ok=True)
+        cv2.imwrite(f"{debug_dir}.png", vis)
+
+
+def _debug_prefix(entry: Dict[str, Any], contour_id: str) -> Optional[str]:
+    """
+    Build ``<debug_dir>/<contour>`` for this contour's debug files.
+
+    The image's folder is ``results/arrow_debug/<image>/``. Each
+    contour gets ``<contour>.png`` and ``<contour>.txt`` in it, so a
+    page of scars does not overwrite one file.
+    """
+    debug_dir = entry.get('debug_dir')
+    if not debug_dir:
+        return None
+    return os.path.join(debug_dir, str(contour_id).replace(' ', '_'))
 
 
 def analyze_child_contour_for_arrow(

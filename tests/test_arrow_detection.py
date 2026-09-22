@@ -244,7 +244,8 @@ def test_debug_visualization_writes_file_when_successful():
             "compass_angle": 0.0,
         }
 
+        prefix = os.path.join(temp_dir, "flake", "scar_3")
         detector._create_debug_visualizations(
-            _ARROW_CONTOUR, triangle_data, arrow_data, image, temp_dir,
+            _ARROW_CONTOUR, triangle_data, arrow_data, image, prefix,
         )
-        assert os.path.exists(os.path.join(temp_dir, "arrow_debug.png"))
+        assert os.path.exists(os.path.join(temp_dir, "flake", "scar_3.png"))

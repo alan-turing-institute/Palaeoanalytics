@@ -15,7 +15,50 @@ from typing import Dict, Optional, Tuple
 from ..config import get_config_manager
 
 
-def detect_scale_bar(scale_image_path: str, config: Dict) -> Optional[Tuple[int, float]]:
+
+SCALE_DIRNAME = 'scales'
+SCALE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp']
+
+
+def _find_scale_image(image_path: str, scale_id: str):
+    """
+    Locate a scale image for an artefact, allowing for either layout.
+
+    Images normally sit in ``<project>/images/`` with their scales in
+    ``<project>/scales/``. When a folder of images is analysed where it
+    stands, ``scales/`` sits beside the images instead. Both are tried,
+    with and without a file extension.
+
+    Parameters
+    ----------
+    image_path : str
+        Path to the artefact image being calibrated.
+    scale_id : str
+        Scale image name from the metadata, extension optional.
+
+    Returns
+    -------
+    str or None
+        Path to the scale image, or None when no candidate exists.
+    """
+    image_dir = os.path.dirname(image_path)
+    roots = [os.path.dirname(image_dir), image_dir]
+
+    for root in roots:
+        base = os.path.join(root, SCALE_DIRNAME, scale_id)
+        if os.path.exists(base):
+            return base
+        for ext in SCALE_EXTENSIONS:
+            candidate = base + ext
+            if os.path.exists(candidate):
+                logging.debug(f"Found scale image: {candidate}")
+                return candidate
+    return None
+
+
+def detect_scale_bar(
+    scale_image_path: str, config: Dict, debug_dir: Optional[str] = None
+) -> Optional[Tuple[int, float]]:
     """
     Detect and measure scale bar in scale image.
 
@@ -33,7 +76,7 @@ def detect_scale_bar(scale_image_path: str, config: Dict) -> Optional[Tuple[int,
         # Load the scale image
         image = cv2.imread(scale_image_path, cv2.IMREAD_GRAYSCALE)
         if image is None:
-            logging.error(f"Failed to load scale image: {scale_image_path}")
+            logging.error(f"Cannot read the scale image: {scale_image_path}")
             return None
 
         # Threshold to binary (scale bars are typically black on white)
@@ -42,7 +85,7 @@ def detect_scale_bar(scale_image_path: str, config: Dict) -> Optional[Tuple[int,
         # Find all non-zero (black) pixels
         points = cv2.findNonZero(binary)
         if points is None:
-            logging.warning(f"No black pixels found in scale image: {scale_image_path}")
+            logging.warning(f"No black pixels in the scale image: {scale_image_path}")
             return None
 
         # Get bounding box of all black elements
@@ -59,33 +102,34 @@ def detect_scale_bar(scale_image_path: str, config: Dict) -> Optional[Tuple[int,
         logging.debug(f"Scale bar detected: {scale_length_pixels} pixels, "
                       f"confidence: {confidence:.2f}, dimensions: {w}x{h}")
 
-        if config.get('debug_output', False):
-            save_debug_image(scale_image_path, binary, x, y, w, h)
+        if config.get('debug_output', False) and debug_dir:
+            save_debug_image(scale_image_path, binary, x, y, w, h, debug_dir)
 
         return scale_length_pixels, confidence
 
     except (cv2.error, ValueError, IOError) as e:
         logging.error(
-            f"Error detecting scale bar in "
+            f"Error in the scale bar detection in "
             f"{scale_image_path}: {e}"
         )
         return None
 
 
 def save_debug_image(scale_image_path: str, binary_image: np.ndarray,
-                    x: int, y: int, w: int, h: int) -> None:
+                    x: int, y: int, w: int, h: int, debug_dir: str) -> None:
     """
     Save debug image showing detected scale bar bounding box.
+
+    Written as ``<debug_dir>/<scale image name>.png``: the folder says
+    which step, the file name says which scale image.
 
     Args:
         scale_image_path: Original scale image path
         binary_image: Binary threshold image
         x, y, w, h: Bounding box coordinates
+        debug_dir: ``results/scale_debug``
     """
     try:
-        # Create debug output directory
-        debug_dir = os.path.join(os.path.dirname(scale_image_path), '..',
-                                'processed', 'scale_debug')
         os.makedirs(debug_dir, exist_ok=True)
 
         # Draw bounding box on binary image
@@ -98,13 +142,13 @@ def save_debug_image(scale_image_path: str, binary_image: np.ndarray,
                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
         # Save debug image
-        base_name = os.path.basename(scale_image_path)
-        debug_path = os.path.join(debug_dir, f"debug_{base_name}")
+        stem = os.path.splitext(os.path.basename(scale_image_path))[0]
+        debug_path = os.path.join(debug_dir, f"{stem}.png")
         cv2.imwrite(debug_path, debug_image)
         logging.debug(f"Saved scale debug image: {debug_path}")
 
     except (cv2.error, IOError, OSError) as e:
-        logging.warning(f"Failed to save debug image: {e}")
+        logging.warning(f"Cannot write the debug image: {e}")
 
 
 def calculate_conversion_factor(scale_pixels: int, scale_mm: float) -> float:
@@ -127,8 +171,9 @@ def calculate_conversion_factor(scale_pixels: int, scale_mm: float) -> float:
     return pixels_per_mm
 
 
-def get_calibration_factor(image_path: str, scale_data: Dict,
-                          config: Dict) -> Tuple[Optional[float], str, Optional[float]]:
+def get_calibration_factor(
+    image_path: str, scale_data: Dict, config: Dict, debug_dir: Optional[str] = None
+) -> Tuple[Optional[float], str, Optional[float]]:
     """
     Get calibration factor using two-option system with a three-way status.
 
@@ -160,30 +205,23 @@ def get_calibration_factor(image_path: str, scale_data: Dict,
         return None, "pixels_no_scale", None
 
     try:
-        # Build scale image path
-        data_dir = os.path.dirname(os.path.dirname(image_path))
-        scale_id = scale_data['scale_id']
-        scale_image_path = os.path.join(data_dir, 'scales', scale_id)
-
-        # If file doesn't exist, try adding common extensions
-        if not os.path.exists(scale_image_path):
-            for ext in ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp']:
-                test_path = os.path.join(data_dir, 'scales', scale_id + ext)
-                if os.path.exists(test_path):
-                    scale_image_path = test_path
-                    logging.debug(f"Found scale image with extension: {test_path}")
-                    break
-
-        if not os.path.exists(scale_image_path):
-            logging.warning(f"Scale image not found: {scale_image_path}")
+        scale_image_path = _find_scale_image(
+            image_path, scale_data['scale_id']
+        )
+        if scale_image_path is None:
+            logging.warning(
+                f"The scale image '{scale_data['scale_id']}' is missing from the "
+                f"scales/ directory near {os.path.dirname(image_path)}"
+            )
             return None, "pixels_detection_failed", None
 
         # Detect and measure scale bar
-        result = detect_scale_bar(scale_image_path,
-                                config.get('scale_calibration', {}))
+        result = detect_scale_bar(
+            scale_image_path, config.get('scale_calibration', {}), debug_dir
+        )
         if result is None:
             logging.warning(
-                f"Scale bar detection returned no match for {scale_image_path}"
+                f"No scale bar found in {scale_image_path}"
             )
             return None, "pixels_detection_failed", None
 
@@ -196,5 +234,5 @@ def get_calibration_factor(image_path: str, scale_data: Dict,
         return pixels_per_mm, "scale_bar", confidence
 
     except (ValueError, IOError, OSError) as e:
-        logging.warning(f"Scale bar calibration failed: {e}")
+        logging.warning(f"Scale bar calibration error: {e}")
         return None, "pixels_detection_failed", None

@@ -21,7 +21,8 @@ def integrate_arrows(
     original_contours: List[np.ndarray],
     metrics: List[Dict],
     image_shape,
-    image_dpi: Optional[float] = None
+    image_dpi: Optional[float] = None,
+    debug_dir: Optional[str] = None,
 ) -> List[Dict]:
     """
     Main orchestrator for arrow integration.
@@ -48,7 +49,7 @@ def integrate_arrows(
     """
     metrics = process_nested_arrows(
         sorted_contours, hierarchy, original_contours,
-        metrics, image_shape, image_dpi
+        metrics, image_shape, image_dpi, debug_dir,
     )
 
     scars_without = [
@@ -64,7 +65,7 @@ def integrate_arrows(
         )
         image = _resolve_image(image_shape)
         metrics = detect_arrows_independently(
-            original_contours, metrics, image, image_dpi
+            original_contours, metrics, image, image_dpi, debug_dir,
         )
     else:
         logging.debug("All scars have arrows. Skipping.")
@@ -77,8 +78,8 @@ def _resolve_image(image_shape) -> np.ndarray:
     if hasattr(image_shape, 'shape'):
         return image_shape
     logging.warning(
-        "Image shape provided instead of image "
-        "for independent arrow detection"
+        "An image shape was given, not an image, "
+        "for the independent arrow detection"
     )
     return np.zeros(image_shape, dtype=np.uint8)
 
@@ -89,7 +90,8 @@ def process_nested_arrows(
     original_contours: List[np.ndarray],
     metrics: List[Dict],
     image_shape,
-    image_dpi: Optional[float] = None
+    image_dpi: Optional[float] = None,
+    debug_dir: Optional[str] = None,
 ) -> List[Dict]:
     """
     Detect arrows in nested children and update parent scars.
@@ -135,7 +137,7 @@ def process_nested_arrows(
         status = _process_single_nested(
             ni, cnt, index_map, hierarchy,
             original_contours, scar_metrics,
-            image_shape, image_dpi
+            image_shape, image_dpi, debug_dir,
         )
         if status in skip_counts:
             skip_counts[status] += 1
@@ -199,7 +201,8 @@ def _process_single_nested(
     original_contours: List[np.ndarray],
     scar_metrics: Dict[str, Dict],
     image_shape,
-    image_dpi: Optional[float]
+    image_dpi: Optional[float],
+    debug_dir: Optional[str] = None,
 ) -> Optional[str]:
     """Process a single nested contour for arrow detection.
 
@@ -210,7 +213,7 @@ def _process_single_nested(
     nested_idx = index_map.get(str(cnt.tobytes()))
     if nested_idx is None or nested_idx >= len(hierarchy):
         logging.warning(
-            f"Could not find nested contour {ni} in hierarchy"
+            f"Nested contour {ni} not found in the hierarchy"
         )
         return None
 
@@ -223,7 +226,7 @@ def _process_single_nested(
     if parent_scar.get('is_cortex', False):
         return "parent_is_cortex"
 
-    temp_entry = {"scar": f"nested_{ni}"}
+    temp_entry = {"scar": f"nested_{ni}", "debug_dir": debug_dir}
     result = analyze_child_contour_for_arrow(
         cnt, temp_entry, image_shape, image_dpi
     )
@@ -284,7 +287,8 @@ def detect_arrows_independently(
     original_contours: List[np.ndarray],
     metrics: List[Dict],
     image: np.ndarray,
-    image_dpi: Optional[float] = None
+    image_dpi: Optional[float] = None,
+    debug_dir: Optional[str] = None,
 ) -> List[Dict]:
     """
     Detect arrows independently of hierarchy and assign to scars.
@@ -329,7 +333,7 @@ def detect_arrows_independently(
 
     candidates = _find_arrow_candidates(
         original_contours, parent_indices, scar_indices,
-        image, image_dpi, cortex_map, config
+        image, image_dpi, cortex_map, config, debug_dir,
     )
 
     assigned = _assign_arrows_to_scars(
@@ -391,7 +395,8 @@ def _find_arrow_candidates(
     image: np.ndarray,
     image_dpi: Optional[float],
     cortex_map: Dict[str, np.ndarray],
-    config: Dict
+    config: Dict,
+    debug_dir: Optional[str] = None,
 ) -> List[Tuple[int, np.ndarray, Dict]]:
     """
     Find contours that could be arrows.
@@ -435,7 +440,7 @@ def _find_arrow_candidates(
             cortex_skips += 1
             continue
 
-        temp_entry = {"scar": f"candidate_{i}"}
+        temp_entry = {"scar": f"candidate_{i}", "debug_dir": debug_dir}
         result = analyze_child_contour_for_arrow(
             cnt, temp_entry, image, image_dpi
         )
