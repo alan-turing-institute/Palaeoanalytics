@@ -12,11 +12,12 @@ nav:
   - Installation: installation.md
   - User Guide:
     - Overview: user-guide/index.md
-    - Image Requirements: user-guide/image-requirements.md
+    - Working from Published Plates: user-guide/page-segmentation.md
+    - Prepare Your Images: user-guide/image-requirements.md
     - Metadata Setup: user-guide/metadata-setup.md
     - Basic Usage: user-guide/basic-usage.md
     - Outputs: user-guide/outputs.md
-    - Loading Outputs (Python / R): user-guide/data-loading.md
+    - Loading Outputs (Python / R / SPSS): user-guide/data-loading.md
     - Dashboard: user-guide/dashboard.md
     - Voronoi Analysis: user-guide/voronoi-analysis.md
     - Troubleshooting: user-guide/troubleshooting.md

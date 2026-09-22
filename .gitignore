@@ -259,7 +259,7 @@ pylithics/data/pages/*
 !pylithics/data/pages/sample_plate.png
 pylithics/data/results/
 # pylithics-pages output when the sample project is used as a project
-pylithics/data/manifest.csv
+pylithics/data/pages_manifest.csv
 pylithics/data/pages_debug/
 pylithics/data/pylithics-pages.log
 pylithics/data/images/*_figure_*.png

@@ -39,6 +39,9 @@ thresholding:
   max_value: 255  # Maximum pixel intensity after thresholding.
                   # Typically set to 255 (for binary images), but you can change this if needed.
 
+  debug_output: false  # Write the black-and-white image of each lithic to
+                       # results/threshold_debug/<image>.png. CLI flag: --threshold_debug
+
 normalization:
   enabled: true  # Enable or disable image normalization (contrast adjustment).
                  # - true: Normalization is applied.
@@ -74,11 +77,11 @@ logging:
 
   log_to_file: true  # Enable or disable logging to a file.
                      # - true: Logs will be saved alongside the run's
-                     #   processed/ folder as pylithics.log.
+                     #   results/ folder as pylithics.log.
                      # - false: Logs will only appear in the console.
 
   # log_file:  # Optional. Uncomment and set an explicit path to override
-              # the default, which is <data_dir>/processed/pylithics.log.
+              # the default, which is <data_dir>/results/pylithics.log.
               # If left commented, the log lands next to the analysis
               # output so it follows your dataset, not your shell cwd.
 
@@ -103,9 +106,9 @@ arrow_detection:
   min_defect_depth_scale_factor: 0.8  # Safety margin for convexity defect depth
   min_triangle_height_scale_factor: 0.8  # Safety margin for triangle height
 
-  debug_enabled: false  # Enable debug output and visualizations
-                        # - true: Creates debug images and logs for each arrow detection
-                        # - false: Standard operation without debug output
+  debug_enabled: false  # Write the arrow found in each scar, and the steps, to
+                        # results/arrow_debug/<image>/<scar>.png and .txt
+                        # CLI flag: --arrow_debug
 
   show_arrow_lines: false  # Draw red arrow lines on detected arrows
                            # - true: Draw both light blue contour outlines AND red arrow lines
@@ -222,7 +225,7 @@ scar_complexity:
 data_export:
   csv: true  # Always write the consolidated processed_metrics.csv
   json_per_lithic: false  # Set to true to also write one JSON file per lithic
-                          # to processed/json/{image_stem}.json. CLI flag
+                          # to results/json/{image_stem}.json. CLI flag
                           # --export_json overrides this to true.
 
 # Scale Calibration Configuration
@@ -231,6 +234,117 @@ scale_calibration:
                 # - true: Detect and measure scale bars from scale images
                 # - false: Skip scale calibration, use pixel measurements only
 
-  debug_output: false  # Save scale detection debug images
-                      # - true: Save debug images showing detected scale bars
-                      # - false: No debug output
+  debug_output: false  # Write the scale image with the bar that was found to
+                      # results/scale_debug/<scale image>.png. CLI flag: --scale_debug
+
+# Page Segmentation Configuration (pylithics-pages)
+# Cuts a scanned plate of lithic illustrations into one image per artefact.
+# This stage NEVER alters saved pixels: thresholding here is detection-only
+# scaffolding used to locate ink, then discarded. Crops are cut from the
+# source image untouched, so the main pipeline remains the single place
+# where enhancement happens.
+page_segmentation:
+  enabled: true  # Enable or disable page segmentation
+
+  grouping:
+    # All distances are fractions of page width (W) or height (H), so the
+    # same settings work across page sizes at a given resolution.
+    gap: 0.025  # Side-by-side views closer than this are ONE artefact
+                # - Raise if one artefact is being split apart
+                # - Lower if two artefacts are being merged
+                # - Typical range: 0.01 - 0.08
+
+    narrow: 0.07  # A narrow view (profile/section) joins a neighbour within
+                  # this distance. Profiles are thin outlines drawn beside
+                  # the surface they belong to.
+                  # - Typical range: 0.02 - 0.12
+
+    vertical_gap: 0.06  # A short view directly under a taller one (a
+                        # cross-section) joins it within this distance.
+                        # - Typical range: 0.03 - 0.10
+
+    bridge: 0.06  # Views linked by a dash or rule mark within this distance
+                  # are joined. Illustrators use these to tie views together.
+                  # - Typical range: 0.03 - 0.10
+
+    min_area: 0.0004  # Blobs smaller than this fraction of page area are
+                      # treated as labels/arrows and attached to the nearest
+                      # artefact rather than becoming artefacts themselves.
+                      # - Typical range: 0.0001 - 0.001
+
+  export:
+    padding: 20  # Pixels of whitespace kept around each crop
+                 # - Typical range: 0 - 60
+
+    manifest: true  # Write pages_manifest.csv recording every crop's source page,
+                    # bounding box, DPI, and colour mode. Required for
+                    # reproducible research; disable only for quick tests.
+
+  scale_bars:
+    enabled: true  # Export detected page scale bars as their own crops to
+                   # scales/{page_stem}_scale_bar.png
+
+    include_caption: true  # Union the caption text ("5 cm") into the bar's
+                           # crop so the exported image is self-describing.
+                           # Captions are still excluded from artefact crops.
+
+    min_aspect_ratio: 5.0  # Width:height below which a component is not
+                           # considered a bar
+                           # - Typical range: 3.0 - 10.0
+
+    max_height: 0.06  # A bar is never taller than this fraction of page H
+                      # - Typical range: 0.02 - 0.10
+
+  text_rejection:
+    enabled: true  # Discard captions, legend text and legend keys before
+                   # grouping, so they are never exported or attached to
+                   # an artefact. Identifier numerals are unaffected.
+
+    min_pieces: 3  # A word breaks into at least this many letter-sized
+                   # pieces of ink. Measured: text median 8, drawings 1.
+
+    max_piece_share: 0.5  # No single piece holds more of the ink than
+                          # this. A lithic outline holds ~97% of its own.
+
+    min_aligned: 0.75  # Share of letter-sized pieces sitting on one
+                       # baseline. Descenders (g, p, y) fall below it,
+                       # so a five-letter word with one scores 0.8.
+
+    max_height: 0.05  # Text is never taller than this fraction of page H.
+                      # Measured across 45 pages: text <= 0.052, hatched
+                      # surfaces and large drawings 0.06 - 0.46.
+                      # - Raise if large legend text on a small page is
+                      #   being exported as an artefact
+
+    min_density: 0.12  # Hollow-outline guard, well below any text
+                       # (measured 0.15 - 0.47)
+
+    swatch_density: 0.90  # A solid block this full is a legend key
+    swatch_max_size: 0.06  # ...when no larger than this fraction of the
+                           # smaller page dimension
+
+  identifiers:
+    enabled: true  # Read the number or letter printed beside each lithic
+                   # and name its crop {page}_figure_{label}. Needs the
+                   # optional RapidOCR extra (pip install "PyLithics[ocr]");
+                   # without it crops keep their reading-order names.
+
+    min_confidence: 0.6  # Reads below this OCR confidence are dropped
+                         # rather than trusted. A crop with no trusted
+                         # read keeps its reading-order name.
+
+    ring_density: 0.04  # Ink allowed in a ring around a glyph, as a
+                        # fraction of the ring. A printed identifier sits
+                        # in clear space (measured median 0.000); stipple
+                        # and hatching do not.
+
+    reach: 1.5  # An identifier outside every artefact box belongs to the
+                # nearest box when within this many glyph heights of it and
+                # no other. Raise for plates that set the label well clear
+                # of the drawing (Late Acheulian sets letters above-left,
+                # about 3 glyph heights away).
+
+  debug:
+    enabled: false  # Write pages_debug/{page}.png with numbered boxes. CLI flag: --debug
+                    # drawn, so splits can be checked and corrected via the
+                    # overrides CSV

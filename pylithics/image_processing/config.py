@@ -5,6 +5,7 @@ Configuration Management for PyLithics
 Validation, caching, and error handling for the configuration management system.
 """
 
+import copy
 import os
 import logging
 import yaml
@@ -42,16 +43,16 @@ class ConfigurationManager:
                 self._config = yaml.safe_load(f)
 
             self._validate_config()
-            logging.info(f"Successfully loaded configuration from {config_path}")
+            logging.info(f"Configuration read from {config_path}")
 
         except FileNotFoundError:
-            logging.error(f"Configuration file {config_path} not found")
+            logging.error(f"The configuration file {config_path} is missing")
             self._config = self._get_default_config()
         except yaml.YAMLError as e:
-            logging.error(f"Failed to parse YAML file {config_path}: {e}")
+            logging.error(f"Cannot read the YAML file {config_path}: {e}")
             self._config = self._get_default_config()
         except Exception as e:
-            logging.error(f"Unexpected error loading config: {e}")
+            logging.error(f"Unexpected error when the configuration was read: {e}")
             self._config = self._get_default_config()
 
     def _determine_config_path(self) -> str:
@@ -74,7 +75,7 @@ class ConfigurationManager:
 
         for section in required_sections:
             if section not in self._config:
-                logging.warning(f"Missing configuration section: {section}")
+                logging.warning(f"Configuration section missing: {section}")
                 self._config[section] = self._get_default_section(section)
 
     def _get_default_section(self, section: str) -> Dict[str, Any]:
@@ -101,7 +102,7 @@ class ConfigurationManager:
             'logging': {
                 'level': 'INFO',
                 'log_to_file': True,
-                'log_file': 'pylithics/data/processed/pylithics.log'
+                'log_file': 'pylithics/data/results/pylithics.log'
             },
             'contour_filtering': {
                 'min_area': 50.0,
@@ -135,12 +136,23 @@ class ConfigurationManager:
         section_config = self.get_section(section)
         return section_config.get(key, default)
 
+    def replace(self, config: Dict[str, Any]) -> None:
+        """
+        Use a configuration resolved elsewhere, overrides included.
+
+        A worker process starts from the configuration file alone. The
+        main process has already merged the command-line overrides into
+        its configuration, so it hands the result over, and every
+        module in the worker reads the same values.
+        """
+        self._config = copy.deepcopy(config)
+
     def update_value(self, section: str, key: str, value: Any) -> None:
         """Update a configuration value at runtime."""
         if section not in self._config:
             self._config[section] = {}
         self._config[section][key] = value
-        logging.info(f"Updated config: {section}.{key} = {value}")
+        logging.info(f"Configuration changed: {section}.{key} = {value}")
 
 
 # Global configuration manager instance
@@ -320,6 +332,75 @@ def get_data_export_config(
         'csv': True,
         'json_per_lithic': False,
     })
+
+
+# Fallback used when config.yaml carries no page_segmentation section.
+# Mirrors the documented defaults in that file.
+_PAGE_SEGMENTATION_DEFAULTS: Dict[str, Any] = {
+    'enabled': True,
+    'grouping': {
+        'gap': 0.025,
+        'narrow': 0.07,
+        'vertical_gap': 0.06,
+        'bridge': 0.06,
+        'min_area': 0.0004,
+    },
+    'export': {
+        'padding': 20,
+        'manifest': True,
+    },
+    'scale_bars': {
+        'enabled': True,
+        'include_caption': True,
+        'min_aspect_ratio': 5.0,
+        'max_height': 0.06,
+    },
+    'text_rejection': {
+        'enabled': True,
+        'min_pieces': 3,
+        'max_piece_share': 0.5,
+        'min_aligned': 0.75,
+        'max_height': 0.05,
+        'min_density': 0.12,
+        'swatch_density': 0.90,
+        'swatch_max_size': 0.06,
+    },
+    'identifiers': {
+        'enabled': True,
+        'min_confidence': 0.6,
+        'ring_density': 0.04,
+        'reach': 1.5,
+    },
+    'debug': {
+        'enabled': False,
+    },
+}
+
+
+def get_page_segmentation_config(
+    config: Optional[Dict] = None
+) -> Dict[str, Any]:
+    """
+    Get page segmentation configuration with fallback defaults.
+
+    Used by the ``pylithics-pages`` workflow, which cuts a scanned plate
+    into one image per artefact. Distances under ``grouping`` are
+    fractions of page width or height.
+
+    Parameters
+    ----------
+    config : dict, optional
+        Full configuration dictionary. Loaded from the global manager
+        when omitted.
+
+    Returns
+    -------
+    dict
+        Complete page segmentation configuration.
+    """
+    if config is None:
+        config = get_config_manager().config
+    return config.get('page_segmentation', _PAGE_SEGMENTATION_DEFAULTS)
 
 
 def clear_config_cache() -> None:

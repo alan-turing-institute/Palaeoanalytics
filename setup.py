@@ -101,8 +101,7 @@ setup(
         "pylithics": [
             "config/*.yaml",
             "config/*.yml",
-            "data/examples/*",
-            "templates/*",
+            "data/pages/sample_plate.png",
         ],
     },
 
@@ -112,6 +111,9 @@ setup(
 
     # Optional dependencies for development
     extras_require={
+        # Reading the identifiers printed beside each lithic on a plate
+        # (pylithics-pages --read_labels). Pure pip, no system binary.
+        "ocr": ["rapidocr_onnxruntime>=1.3,<2.0"],
         "dev": [
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
@@ -131,6 +133,7 @@ setup(
     entry_points={
         "console_scripts": [
             "pylithics=pylithics.app:main",
+            "pylithics-pages=pylithics.page_segmentation.cli:main",
         ],
     },
 
@@ -139,7 +142,8 @@ setup(
         "lithics", "archaeology", "archeology", "human evolution",
         "lithic analysis", "prehistoric technology", "computer vision",
         "arrow detection", "DPI scaling", "image processing",
-        "contour analysis", "geometric analysis", "stone tools"
+        "contour analysis", "geometric analysis", "stone tools",
+        "page segmentation", "plate splitting", "figure extraction"
     ],
 
     # Zip safety
