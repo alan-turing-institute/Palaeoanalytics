@@ -42,7 +42,7 @@ def classify_parent_contours(
     parents = [m for m in metrics if m["parent"] == m["scar"]]
 
     if not parents:
-        logging.warning("No parent contours for classification.")
+        logging.warning("No parent contours to classify.")
         return metrics
 
     for parent in parents:
@@ -88,7 +88,7 @@ def _identify_dorsal(parents: List[Dict]) -> Optional[Dict]:
         dorsal["surface_type"] = "Dorsal"
         return dorsal
     except ValueError:
-        logging.error("Unable to identify dorsal surface.")
+        logging.error("No dorsal surface found.")
         return None
 
 
@@ -291,7 +291,7 @@ def classify_child_features(
         return result
 
     except Exception as e:
-        logging.error(f"Error in child classification: {e}")
+        logging.error(f"Error in the child classification: {e}")
         return metrics
 
 
@@ -327,8 +327,8 @@ def _classify_children_by_surface(
             groups[surface].append(child)
         else:
             logging.warning(
-                f"Unknown surface '{surface}', "
-                f"defaulting to Dorsal"
+                f"Unknown surface '{surface}'; "
+                f"Dorsal used"
             )
             groups["Dorsal"].append(child)
 

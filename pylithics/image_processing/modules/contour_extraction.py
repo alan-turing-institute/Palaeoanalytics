@@ -34,7 +34,7 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     )
     hierarchy = hierarchy[0] if hierarchy is not None else None
     if not contours:
-        logging.warning("No contours found in image %s", image_id)
+        logging.warning("No contours found in the image %s", image_id)
         return [], None
     logging.debug(f"Found {len(contours)} raw contours in image {image_id}")
 
@@ -50,7 +50,7 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     )
     if not valid_contours:
         logging.warning(
-            "No valid contours remain after filtering in image %s", image_id,
+            "No valid contours after the filter in the image %s", image_id,
         )
         return [], None
 
@@ -114,7 +114,8 @@ def sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None):
 
     # Ensure exclude_nested_flags is the right length
     if len(exclude_nested_flags) != len(contours):
-        logging.warning("exclude_nested_flags length mismatch: %d vs %d contours. Using defaults.",
+        logging.warning("exclude_nested_flags length does not agree: "
+                        "%d vs %d contours. Defaults used.",
                         len(exclude_nested_flags), len(contours))
         exclude_nested_flags = [False] * len(contours)
 

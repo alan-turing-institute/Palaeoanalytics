@@ -1,71 +1,73 @@
 # User Guide
 
-## Welcome to the PyLithics User Guide
+This guide gives the procedures for PyLithics, step by step.
 
-This comprehensive guide provides step-by-step instructions and best practices to help you get the most out of PyLithics for your lithic analysis.
+## Contents
 
-## Guide Contents
+### [Prepare Your Images](image-requirements.md)
+The image specifications and drawing conventions that give the best results:
 
-### [Image Requirements](image-requirements.md)
-Learn about the image specifications and drawing conventions that work best with PyLithics:
+- File formats and resolutions
+- Drawing style
+- Orientation
+- Scale bar position
+- Preparation of images
 
-- Supported file formats and resolutions
-- Drawing style guidelines
-- Orientation requirements
-- Scale bar placement
-- Tips for optimal results
+### [Working from Published Plates](page-segmentation.md)
+`pylithics-pages` cuts a published plate into one image for each
+artefact. It writes each scale bar to its own image. It reads the
+identifier printed next to each lithic and names the crop with it. It
+discards captions and legends.
 
 ### [Metadata Setup](metadata-setup.md)
-Understand how to prepare your metadata CSV file and scale calibration:
+How to prepare the metadata CSV file and the scale calibration:
 
-- Required columns and format
-- Automatic scale bar detection system
-- Automatic fallback to pixel measurements
-- Linking images to scales
-- Directory structure organization
-- Handling missing scales and mixed calibration methods
+- The columns and their format
+- Scale bar detection
+- Pixel measurements when there is no scale bar
+- The link between an image and its scale
+- The directory structure
+- Missing scales and mixed calibration methods
 - Example templates
 
 ### [Basic Usage](basic-usage.md)
-Get started with running PyLithics analyses:
+How to do an analysis:
 
-- Command-line basics
-- Essential arguments
+- The command line
+- The necessary arguments
 - Scale calibration examples and options
-- Configuration options (config.yaml)
-- Understanding the processing pipeline
-- Customizing analysis parameters
+- The configuration file (`config.yaml`)
+- The pipeline
+- Analysis parameters
 
 ### [Outputs](outputs.md)
-Explore all the files and data PyLithics generates:
+The files that PyLithics writes:
 
-- CSV data structure and metrics
-- Scale calibration metadata columns
-- Labeled visualization images
-- Voronoi diagrams
-- Log files and debugging output
-- Arrow detection results
-
-
+- The CSV data and its metrics
+- The scale calibration columns
+- The labelled images
+- The Voronoi diagrams
+- The log files and debug output
+- The arrow detection results
 
 ### [Dashboard](dashboard.md)
-Launch an interactive browser dashboard to explore your results:
+The browser dashboard for your results:
 
-- Overview headline numbers
+- Summary numbers
 - Distribution histograms with shared filters
-- Per-lithic drill-down with the labeled and Voronoi images
+- A page for each lithic, with the labelled image and the Voronoi diagram
 
 ### [Glossary](glossary.md)
-Reference for all terms and metrics:
+The terms and metrics:
 
-- Complete list of measurements
-- Archaeological terminology
+- All measurements
+- Archaeological terms
 - Technical definitions
-- Metric units and calculations
+- Units and calculations
 
-## Next Steps
+## Sequence
 
-1. **Start here** → [Image Requirements](image-requirements.md) - Ensure your images are compatible
-2. **Next** → [Metadata Setup](metadata-setup.md) - Prepare your CSV file
-3. **Then** → [Basic Usage](basic-usage.md) - Run your first analysis
-4. **Finally** → [Outputs](outputs.md) - Understand your results
+1. **Start** → [Prepare Your Images](image-requirements.md) — make sure that your images are correct
+2. **Next** → [Metadata Setup](metadata-setup.md) — prepare your CSV file
+3. **Then** → [Basic Usage](basic-usage.md) — do your first analysis
+4. **Last** → [Outputs](outputs.md) — read your results

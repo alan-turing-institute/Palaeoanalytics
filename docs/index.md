@@ -1,97 +1,112 @@
 # Welcome to PyLithics
 
-## Archaeological Lithic Analysis with Computer Vision
+## Lithic analysis with computer vision
 
-PyLithics is an open-source Python package for the automated quantitative analysis of two-dimensional line drawings of prehistoric stone artefacts. It processes scanned illustrations from archaeological publications, identifies dorsal, ventral, platform, and lateral surfaces along with their individual flake scars, and writes the resulting morphological, spatial, and structural measurements to analysis-ready CSV and per-lithic JSON files.
+PyLithics is an open-source Python package. It measures two-dimensional
+line drawings of prehistoric stone artefacts. It reads scanned
+illustrations from archaeological publications. It finds the dorsal,
+ventral, platform and lateral surfaces, and the flake scars on each
+surface. It writes the measurements to CSV files and to one JSON file
+for each lithic.
 
-The processing pipeline combines image preprocessing (normalisation, grayscale conversion, configurable thresholding, morphological closing), hierarchical contour extraction, geometric surface classification, scar-centroid Voronoi tessellation, convex-hull spatial analysis, and DPI-aware arrow-direction detection from convexity defects. PyLithics does not use template matching or trained machine-learning models; every measurement is derived geometrically from the contour data, which keeps the pipeline transparent, deterministic, and reproducible.
+The pipeline has these steps: image preprocessing (normalisation,
+greyscale conversion, thresholding, morphological closing), contour
+extraction, surface classification, Voronoi tessellation of the scar
+centroids, convex-hull analysis, and arrow-direction detection.
+PyLithics does not use template matching or trained machine-learning
+models. It calculates each measurement from the contour geometry. The
+same input gives the same result each time.
 
-## Key Features
+## Functions
 
 ### Surface and feature identification
-- Automatically identifies dorsal, ventral, platform, and lateral surfaces
-- Recognises individual flake scars within each surface
-- Detects cortex regions using stippling-density, texture-variance, and edge-density thresholds
-- Configurable detection parameters for different drawing conventions
+- Finds the dorsal, ventral, platform and lateral surfaces
+- Finds each flake scar on each surface
+- Finds cortex areas from stipple density, texture variance and edge density
+- You can set the detection parameters for different drawing conventions
 
-### Comprehensive measurements
-- Per-surface and per-scar size and shape metrics
-- Technical length and width (Y-axis-aligned), plus max length and max width
-- Geometric properties: area, perimeter, aspect ratio, bounding box
-- Symmetry analysis (vertical and horizontal area-based)
-- Scar complexity and adjacency relationships
+### Measurements
+- Size and shape metrics for each surface and each scar
+- Technical length and width (along the Y axis), and maximum length and width
+- Area, perimeter, aspect ratio and bounding box
+- Symmetry (vertical and horizontal, from area)
+- Scar complexity and adjacency
 
 ### Spatial analysis
-- Voronoi tessellation of dorsal scar centroids
-- Convex-hull metrics (centroid-hull area, width, height)
-- Lateral-edge convexity analysis
-- Flaking-direction detection through geometric arrow recognition
+- Voronoi tessellation of the dorsal scar centroids
+- Convex-hull metrics (area, width and height of the centroid hull)
+- Convexity of the lateral edges
+- Flaking direction from the arrows in the drawing
 
-### Real-world scale calibration
-- Automatic scale-bar detection from accompanying scale images
-- Areas and linear measurements converted from pixels to millimetres
-- Falls back to pixel measurements with a clear `calibration_method` flag when a scale bar is not available
+### Scale calibration
+- Finds the scale bar in a scale image
+- Changes areas and lengths from pixels to millimetres
+- Uses pixel measurements when there is no scale bar, and writes this in the column `calibration_method`
 
-### Interactive results dashboard
-- Streamlit-based browser dashboard for exploring batch results
-- Tabs for Size & shape, Symmetry, Scars, and Spatial analyses with shared filters
-- Per-lithic detail page with side-by-side labeled image and Voronoi diagram, raw metric tables, and the full per-lithic JSON document
+### Dashboard
+- A Streamlit dashboard in the browser for the results of a batch
+- Tabs for size and shape, symmetry, scars and spatial analysis, with shared filters
+- A page for each lithic with the labelled image, the Voronoi diagram, the metric tables and the JSON file
 
-### Configuration and customisation
-- 18-section YAML configuration file with inline documentation for every option
-- Command-line flags override YAML values; YAML values override built-in defaults
-- Module-level toggles for arrow detection, cortex detection, scar complexity, and more
-- Three thresholding methods: simple, Otsu, adaptive
+### Configuration
+- A YAML configuration file with 18 sections and a comment for each option
+- Command-line flags replace the YAML values; YAML values replace the built-in defaults
+- Switches for arrow detection, cortex detection, scar complexity and other modules
+- Three threshold methods: simple, Otsu and adaptive
 
-### Research-ready output
-- Consolidated `processed_metrics.csv` with one row per surface or scar
-- Per-lithic JSON files with the full hierarchical structure
-- Annotated visualisation images (labelled surfaces, scars, arrows, Voronoi diagram, convex hull)
-- Run summary file recording every processed image and any failures
-- Comprehensive logging for reproducibility
-
+### Output
+- `processed_metrics.csv`, with one row for each surface and each scar
+- One JSON file for each lithic, with the full hierarchy
+- Annotated images: labelled surfaces, scars, arrows, Voronoi diagram, convex hull
+- A summary that lists each image and each error
+- Full logs, so that you can repeat an analysis
 
 ## Why PyLithics?
 
-### For Researchers
-- **Time-Saving**: Automate hours of manual measurement
-- **Consistency**: Eliminate inter-observer variability
-- **Scale**: Process entire assemblages efficiently
-- **Reproducibility**: Ensure consistent, replicable results
+### For researchers
+- **Time**: measurements that take hours by hand take minutes
+- **Consistency**: no differences between observers
+- **Scale**: you can analyse a full assemblage
+- **Reproducibility**: the same input gives the same result
 
-### For Archaeological Science
-- **Quantitative Analysis**: Move beyond qualitative descriptions
-- **Pattern Recognition**: Identify subtle technological variations
-- **Big Data**: Enable large-scale comparative studies
-- **Open Science**: Free, open-source tool for the community
+### For archaeological science
+- **Quantitative analysis**: numbers, not only descriptions
+- **Pattern recognition**: small technological differences become visible
+- **Large data sets**: comparative studies at scale
+- **Open science**: a free, open-source tool for the community
 
-## Getting Started
+## Start
 
-Once PyLithics is installed, type `pylithics` on its own to see a welcome splash with the most common command patterns — quick start, run sample data and visualize, open an existing run in the browser, help, and the GitHub URL. Copy whichever command suits your situation.
+After installation, type `pylithics` with no arguments. The command
+shows the most common command patterns: quick start, sample data, a
+previous analysis in the browser, help, and the GitHub URL. Copy the
+command that you want.
 
-Then dig in:
+Then read:
 
-1. **[Installation Guide](installation.md)** - Set up PyLithics on your system
-2. **[User Guide](user-guide/index.md)** - Learn how to use PyLithics effectively
-3. **[Image Requirements](user-guide/image-requirements.md)** - Prepare your lithic illustrations
-4. **[Basic Usage](user-guide/basic-usage.md)** - Run your first analysis
+1. **[Installation Guide](installation.md)** — install PyLithics
+2. **[User Guide](user-guide/index.md)** — learn to use PyLithics
+3. **[Prepare Your Images](user-guide/image-requirements.md)** — the image formats, resolution and drawing style
+4. **[Basic Usage](user-guide/basic-usage.md)** — do your first analysis
 
-See the [CLI Commands Reference](reference/cli-commands.md) for complete configuration options.
+See the [CLI Commands Reference](reference/cli-commands.md) for all
+options.
 
-## Support and Contributing
+## Support and contributions
 
-PyLithics is actively developed and maintained. We welcome contributions from the archaeological and computer science communities.
+PyLithics is in active development. Contributions from the
+archaeological and computer-science communities are welcome.
 
-- **Issues**: Report bugs or request features on [GitHub](https://github.com/alan-turing-institute/Palaeoanalytics/issues)
-- **Contributing**: See our [Contributing Guidelines](https://github.com/alan-turing-institute/Palaeoanalytics/blob/main/CONTRIBUTING.md)
-- **Contact**: Reach out to the [team](about.md)
+- **Issues**: report a bug or ask for a function on [GitHub](https://github.com/alan-turing-institute/Palaeoanalytics/issues)
+- **Contributions**: see the [Contributing Guidelines](https://github.com/alan-turing-institute/Palaeoanalytics/blob/main/CONTRIBUTING.md)
+- **Contact**: see the [team](about.md)
 
 ## Citation
 
-If you use PyLithics in your research, please cite:
+If you use PyLithics in your research, cite:
 
 [![DOI](https://zenodo.org/badge/303727518.svg)](https://zenodo.org/badge/latestdoi/303727518)
 
 ## License
 
-PyLithics is licensed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0)
+PyLithics is released under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0).

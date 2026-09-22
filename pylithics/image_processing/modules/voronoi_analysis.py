@@ -58,7 +58,7 @@ def calculate_voronoi_points(
     )
     if dorsal_contour is None:
         logging.warning(
-            "No dorsal contour data available "
+            "No contour data "
             "for the Dorsal surface."
         )
         return None
@@ -104,7 +104,7 @@ def _find_dorsal_metrics(
             break
 
     if dorsal_parent is None:
-        logging.warning("No Dorsal surface parent found.")
+        logging.warning("No Dorsal parent surface found.")
         return [], []
 
     for i, m in enumerate(metrics):
@@ -114,7 +114,7 @@ def _find_dorsal_metrics(
             dorsal_indices.append(i)
 
     if not dorsal_metrics:
-        logging.warning("No Dorsal metrics for Voronoi.")
+        logging.warning("No Dorsal metrics for the Voronoi analysis.")
         return [], []
 
     return dorsal_metrics, dorsal_indices

@@ -15,8 +15,8 @@ def read_metadata(meta_file_path):
                 metadata.append(row)
         return metadata
     except FileNotFoundError:
-        logging.error(f"Metadata file not found: {meta_file_path}")
+        logging.error(f"The metadata file is missing: {meta_file_path}")
         return []
     except Exception as e:
-        logging.error(f"Error reading metadata file {meta_file_path}: {e}")
+        logging.error(f"Error when the metadata file {meta_file_path} was read: {e}")
         return []

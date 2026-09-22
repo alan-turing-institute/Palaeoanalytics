@@ -119,7 +119,7 @@ def _find_lateral_contour(
         if abs(cv2.contourArea(contour) - target_area) < 1.0:
             return contour
 
-    logging.error("Could not find lateral contour")
+    logging.error("No lateral contour found")
     return None
 
 
@@ -157,7 +157,7 @@ def detect_lateral_convexity(contour: np.ndarray) -> Optional[float]:
     """
     try:
         if contour is None or len(contour) < 3:
-            logging.warning("Invalid contour provided for convexity calculation")
+            logging.warning("The contour for the convexity calculation is not valid")
             return None
 
         # Calculate contour area
@@ -179,16 +179,16 @@ def detect_lateral_convexity(contour: np.ndarray) -> Optional[float]:
 
         # Sanity check - convexity should be between 0 and 1
         if convexity > 1.0:
-            logging.warning(f"Convexity ratio {convexity} exceeds 1.0, clamping to 1.0")
+            logging.warning(f"The convexity ratio {convexity} is more than 1.0; set to 1.0")
             convexity = 1.0
         elif convexity < 0:
-            logging.warning(f"Convexity ratio {convexity} is negative, setting to 0")
+            logging.warning(f"The convexity ratio {convexity} is negative; set to 0")
             convexity = 0.0
 
         return convexity
 
     except Exception as e:
-        logging.error(f"Error calculating lateral convexity: {e}")
+        logging.error(f"Error in the lateral convexity calculation: {e}")
         return None
 
 
@@ -227,10 +227,10 @@ def _integrate_lateral_metrics(metrics: List[Dict[str, Any]],
                 logging.debug("Integrated lateral analysis results into metrics")
                 break
         else:
-            logging.warning("No lateral surface metric found for integration")
+            logging.warning("No lateral surface metric found")
 
     except Exception as e:
-        logging.error(f"Error integrating lateral metrics: {e}")
+        logging.error(f"Error in the lateral metrics: {e}")
 
 
 def _calculate_lateral_distance_to_max_width(cnt: np.ndarray) -> Optional[float]:
@@ -287,5 +287,5 @@ def _calculate_lateral_distance_to_max_width(cnt: np.ndarray) -> Optional[float]
         return np.sqrt(dx * dx + dy * dy)
 
     except Exception as e:
-        logging.error(f"Error calculating lateral distance: {e}")
+        logging.error(f"Error in the lateral distance calculation: {e}")
         return None

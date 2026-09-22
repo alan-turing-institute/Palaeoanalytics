@@ -117,8 +117,8 @@ def _process_parents(
         idx = index_map.get(str(cnt.tobytes()))
         if idx is None:
             logging.warning(
-                f"Could not find parent contour {pi} "
-                f"in original contours"
+                f"Parent contour {pi} not found "
+                f"in the original contours"
             )
             continue
 
@@ -186,8 +186,8 @@ def _process_children(
         idx = index_map.get(str(cnt.tobytes()))
         if idx is None:
             logging.warning(
-                f"Could not find child contour {ci} "
-                f"in original contours"
+                f"Child contour {ci} not found "
+                f"in the original contours"
             )
             continue
 
@@ -196,8 +196,8 @@ def _process_children(
             pl = parent_map.get(parent_idx, "Unknown")
         else:
             logging.warning(
-                f"Child contour index {idx} out of bounds "
-                f"for hierarchy"
+                f"Child contour index {idx} is outside "
+                f"the hierarchy"
             )
             pl = "Unknown"
 
@@ -377,8 +377,8 @@ def convert_metrics_to_real_world(
 
     if pixels_per_mm <= 0:
         logging.warning(
-            f"Invalid conversion factor: {pixels_per_mm}. "
-            f"Returning original metrics."
+            f"The conversion factor {pixels_per_mm} is not valid. "
+            f"The original metrics are kept."
         )
         return metrics
 

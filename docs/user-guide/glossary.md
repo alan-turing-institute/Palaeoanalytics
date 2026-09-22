@@ -1,226 +1,228 @@
 # Glossary
 
-This glossary defines every column PyLithics writes to `processed_metrics.csv` plus the archaeological and image-processing terms that appear in the documentation. Entries are grouped by where they appear in the CSV.
+This glossary defines each column that PyLithics writes to
+`processed_metrics.csv`, and the archaeological and image-processing
+terms in the documentation. The entries are in the order of the CSV.
 
 ## Identification
 
 **image_id**
-: Filename of the source image.
+: The filename of the source image.
 
 **surface_type**
-: Classification of a parent surface — one of `Dorsal`, `Ventral`, `Platform`, `Lateral`, or `Unclassified`.
+: The classification of a parent surface: `Dorsal`, `Ventral`, `Platform`, `Lateral` or `Unclassified`.
 
 **surface_feature**
-: For parent rows, the surface name (e.g. `Dorsal`). For child rows, the feature label assigned during cortex-detection relabelling: `scar N`, `edge N`, or `cortex N`.
+: For a parent row, the surface name (for example `Dorsal`). For a child row, the feature label from the cortex detection: `scar N`, `edge N` or `cortex N`.
 
 **scar_count**
-: Number of scars on the dorsal surface. Filled only on the Dorsal parent row; `NA` everywhere else.
+: The number of scars on the dorsal surface. In the Dorsal parent row only. `NA` in all other rows.
 
-## Position and Dimensions
+## Position and dimensions
 
-All linear measurements are in millimetres when scale calibration succeeded; otherwise they are in pixels. Check `calibration_method` to confirm.
+All lengths are in millimetres when the scale calibration is correct, and in pixels when it is not. The column `calibration_method` shows which.
 
 **centroid_x**, **centroid_y**
-: Coordinates of the contour's geometric centroid.
+: The coordinates of the geometric centroid of the contour.
 
 **technical_width**
-: Maximum width of a parent surface measured perpendicular to its `technical_length` axis.
+: The maximum width of a parent surface, perpendicular to its `technical_length` axis.
 
 **technical_length**
-: Distance from the platform to the distal end, measured along the central axis perpendicular to the striking platform.
+: The distance from the platform to the distal end, along the central axis perpendicular to the striking platform.
 
 **max_width**
-: Maximum dimension perpendicular to `max_length`.
+: The maximum dimension perpendicular to `max_length`.
 
 **max_length**
-: Longest point-to-point distance regardless of orientation.
+: The longest distance between two points of the contour, in any orientation.
 
 **total_area**
-: Area enclosed by the contour boundary, in mm² or px².
+: The area inside the contour, in mm² or px².
 
 **perimeter**
-: Length of the contour boundary.
+: The length of the contour.
 
 **aspect_ratio**
-: Ratio `technical_length / technical_width`. `None` (written as `NA`) when `technical_width` is zero.
+: `technical_length / technical_width`. `NA` when `technical_width` is zero.
 
 **distance_to_max_width**
-: Distance from the platform to the point on the contour where maximum width occurs.
+: The distance from the platform to the point of the contour where the width is maximum.
 
-## Voronoi & Convex Hull
+## Voronoi and convex hull
 
-These columns appear on the Dorsal parent row when the dorsal surface has scars.
+These columns are in the Dorsal parent row when the dorsal surface has scars.
 
 **voronoi_num_cells**
-: Number of Voronoi cells generated for the dorsal scar centroids.
+: The number of Voronoi cells for the dorsal scar centroids.
 
 **voronoi_cell_area**
-: Area of the Voronoi cell containing this row's centroid.
+: The area of the Voronoi cell that contains this row's centroid.
 
 **convex_hull_width**, **convex_hull_height**
-: Dimensions of the convex hull around all scar centroids.
+: The dimensions of the convex hull around all scar centroids.
 
 **convex_hull_area**
-: Area of the convex hull.
+: The area of the convex hull.
 
 ## Symmetry
 
-Calculated from the binary mask of the Dorsal parent contour, split at its centroid.
+Calculated from the binary mask of the Dorsal parent contour, divided at its centroid.
 
 **top_area**, **bottom_area**, **left_area**, **right_area**
-: Filled-pixel area in each quadrant relative to the centroid.
+: The filled area on each side of the centroid.
 
 **vertical_symmetry**
-: `1 − |top_area − bottom_area| / (top_area + bottom_area)`. Range 0–1, where 1.0 is perfect top/bottom balance.
+: `1 − |top_area − bottom_area| / (top_area + bottom_area)`. From 0 to 1. 1.0 is perfect top and bottom symmetry.
 
 **horizontal_symmetry**
-: `1 − |left_area − right_area| / (left_area + right_area)`. Range 0–1.
+: `1 − |left_area − right_area| / (left_area + right_area)`. From 0 to 1.
 
 ## Lateral
 
 **lateral_convexity**
-: Ratio of the lateral surface contour area to its convex hull area. Range 0–1; 1.0 means the lateral edge is fully convex.
+: The area of the lateral surface contour divided by the area of its convex hull. From 0 to 1. 1.0 means that the lateral edge is fully convex.
 
 ## Cortex
 
 **is_cortex**
-: `True` if a child contour was reclassified as cortex by the texture analysis. `False` otherwise.
+: `True` if the texture analysis classified a child contour as cortex. `False` if not.
 
 **cortex_area**
-: Area of the cortex region. Only meaningful when `is_cortex` is `True`.
+: The area of the cortex. Only meaningful when `is_cortex` is `True`.
 
 **cortex_percentage**
-: Cortex area as a percentage of the parent surface area.
+: The cortex area as a percentage of the parent surface area.
 
 ## Arrows
 
 **has_arrow**
-: `True` if a directional arrow was detected for this scar.
+: `True` if an arrow was found for this scar.
 
 **arrow_angle**
-: Compass-style angle of the arrow in PyLithics's rotated frame. A downward-pointing arrow in image coordinates maps to `0°`; a rightward-pointing arrow maps to `270°`. Treat as a relative value when comparing scars within the same image.
+: The angle of the arrow in the PyLithics frame, like a compass. An arrow that points down in the image is `0°`. An arrow that points right is `270°`. Use it to compare scars in the same image.
 
-## Scar Complexity
+## Scar complexity
 
 **scar_complexity**
-: Number of other dorsal scars whose polygons lie within the configured adjacency distance (default 10 px).
+: The number of other dorsal scars whose polygons are in the adjacency distance (default 10 px).
 
-## Scale Calibration Metadata
+## Scale calibration
 
-These columns appear when calibration metadata was passed through the pipeline.
+These columns are present when the pipeline had calibration metadata.
 
 **calibration_method**
-: `scale_bar` when a scale image was detected and measured; `pixels` when calibration was unavailable or skipped.
+: `scale_bar` when a scale image was found and measured. `pixels` when there was no calibration.
 
 **pixels_per_mm**
-: Conversion factor used to translate pixel measurements into millimetres.
+: The factor that changes pixel measurements to millimetres.
 
 **scale_confidence**
-: Confidence score (0–1) for scale-bar detection.
+: The confidence of the scale bar detection (0–1).
 
-## Optional Arrow Geometry
+## Arrow geometry (optional)
 
-These columns appear only when arrow detection produced detailed triangle geometry for at least one scar in the run.
+These columns are present only when arrow detection found the triangle geometry for at least one scar.
 
 **triangle_base_length**, **triangle_height**
-: Geometry of the arrow-tip triangle inferred during detection.
+: The geometry of the triangle of the arrow tip.
 
 **shaft_solidity**, **tip_solidity**
-: Solidity ratios for the half-spaces split by the arrow's base.
+: The solidity of the two halves of the arrow, divided at the base of the tip.
 
-## Surface Type Definitions
+## Surface types
 
 **Dorsal**
-: Upper surface of the flake, showing scars from previous removals.
+: The upper surface of the flake. It shows the scars of previous removals.
 
 **Ventral**
-: Lower surface formed during flake detachment; typically smooth and bears the bulb of percussion.
+: The lower surface, made when the flake was detached. It is usually smooth, with the bulb of percussion.
 
 **Platform**
-: Prepared striking surface on the core; appears as a small surface at the proximal end.
+: The prepared striking surface of the core. It is a small surface at the proximal end.
 
 **Lateral**
-: Side profile of the flake.
+: The side view of the flake.
 
 **Unclassified**
-: A parent surface that could not be assigned to any of the four standard types.
+: A parent surface that does not match one of the four standard types.
 
-## Feature Type Definitions
+## Feature types
 
 **scar N**
-: A flake removal scar on the dorsal surface (numbered sequentially).
+: A flake removal scar on the dorsal surface (numbered in sequence).
 
 **edge N**
-: A child contour on the lateral surface (numbered sequentially).
+: A child contour on the lateral surface (numbered in sequence).
 
 **cortex N**
-: A child contour reclassified as cortex by texture analysis (numbered sequentially).
+: A child contour that the texture analysis classified as cortex (numbered in sequence).
 
-Platform child contours are excluded from the output as they typically represent empty-space boundaries rather than morphological features.
+Platform child contours are not in the output. They are usually the boundaries of empty space, not morphological features.
 
-## Image Processing Terms
+## Image-processing terms
 
 **DPI** (dots per inch)
-: Image resolution. PyLithics uses fixed kernels by default across 75–600 DPI; `--enable_dpi_scaling` adds DPI-aware kernel sizing for noisy scans.
+: The image resolution. PyLithics uses fixed kernels by default from 75 to 600 DPI. `--enable_dpi_scaling` sets the kernel sizes from the DPI, for scans with noise.
 
 **Thresholding**
-: Conversion of grayscale images to binary (black/white). PyLithics supports `simple` (fixed cutoff), `otsu` (auto bimodal split), `adaptive` (per-region), and `default` (`simple` with the default value).
+: The change of a greyscale image to a black-and-white image. PyLithics has `simple` (a fixed value), `otsu` (an automatic division into two tones), `adaptive` (a value for each region) and `default` (`simple` with the default value).
 
 **Contour**
-: Boundary line around an object detected in the binarized image.
+: The boundary line around an object in the black-and-white image.
 
 **Hierarchy**
-: Parent–child relationships between contours. A surface is a parent contour; the scars and other features inside it are children.
+: The parent–child relations between contours. A surface is a parent contour. The scars and the other features inside it are children.
 
 **Morphological closing**
-: Image processing step that fills small gaps in contours by dilating then eroding the binary image.
+: An image-processing step that closes small gaps in contours. It dilates and then erodes the black-and-white image.
 
-## Archaeological Terms
+## Archaeological terms
 
 **Chaîne opératoire**
 : The sequence of operations in tool production.
 
 **Reduction sequence**
-: The order in which flakes were removed during knapping.
+: The order in which the flakes were removed during knapping.
 
 **Debitage**
-: Waste flakes produced during tool manufacture.
+: The waste flakes from tool manufacture.
 
 **Percussion**
-: The striking technique used to remove flakes.
+: The strike that removes a flake.
 
 **Platform preparation**
-: Shaping a striking surface on the core before flake removal.
+: The shaping of a striking surface on the core before a flake removal.
 
 **Ripple marks**
-: Concentric lines on a flake surface showing how percussion force propagated. PyLithics works best on illustrations where ripples have been replaced by directional arrows (see [Image Requirements](image-requirements.md)).
+: Curved lines, one inside the other, on a flake surface. They show how the force of the percussion moved. PyLithics gives the best results on illustrations where arrows replace the ripple marks (see [Prepare Your Images](image-requirements.md)).
 
 ## Units
 
-| Quantity | Calibrated | Uncalibrated |
-|----------|------------|--------------|
-| Linear (length, width, distance) | mm | px |
+| Quantity | Calibrated | Not calibrated |
+|----------|------------|----------------|
+| Length, width, distance | mm | px |
 | Area | mm² | px² |
 | Angle | degrees | degrees |
 
-## Typical Value Ranges for Stone Tools
+## Usual values for stone tools
 
-Use these as sanity checks on your output:
+Use these values to examine your output:
 
-| Quantity | Typical range | Most flakes |
-|----------|---------------|-------------|
+| Quantity | Usual range | Most flakes |
+|----------|-------------|-------------|
 | `technical_length` | 10–200 mm | 20–80 mm |
 | `technical_width` | 8–150 mm | 15–60 mm |
 | `total_area` | 100–15,000 mm² | 300–3,000 mm² |
 | `aspect_ratio` | 0.5–5.0 | 1.0–2.5 |
-| Scars per dorsal surface | 0–50 | 2–15 |
+| Scars on a dorsal surface | 0–50 | 2–15 |
 
-Values well outside these ranges typically indicate scale calibration problems or contour-detection errors — review the `_labeled.png` for the affected image.
+A value far outside these ranges usually shows a scale calibration problem or a contour detection error. Examine the `_labeled.png` of that image.
 
-## Common Abbreviations
+## Abbreviations
 
 - **CV** — computer vision
 - **DPI** — dots per inch
 - **CSV** — comma-separated values
-- **CLI** — command line interface
+- **CLI** — command-line interface
 - **YAML** — YAML Ain't Markup Language

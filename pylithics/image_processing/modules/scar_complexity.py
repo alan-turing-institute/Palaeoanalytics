@@ -58,7 +58,7 @@ def analyze_scar_complexity(
         return results
 
     except Exception as e:
-        logging.error(f"Error in scar complexity analysis: {e}")
+        logging.error(f"Error in the scar complexity analysis: {e}")
         return _create_fallback_complexity_results(metrics)
 
 
@@ -110,7 +110,7 @@ def _count_shared_borders(
             except ShapelyError as e:
                 other = scars[j].get('surface_feature')
                 logging.warning(
-                    f"Error checking border sharing between "
+                    f"Error in the shared-border test between "
                     f"{feature} and {other}: {e}"
                 )
         results[feature] = count
@@ -153,7 +153,7 @@ def _create_polygon_from_contour(contour: Optional[List]) -> Optional[Polygon]:
             contour_array = contour_array.squeeze()
             
         if len(contour_array.shape) != 2 or contour_array.shape[1] != 2:
-            logging.warning(f"Invalid contour shape: {contour_array.shape}")
+            logging.warning(f"The contour shape is not valid: {contour_array.shape}")
             return None
             
         # Create polygon
@@ -164,13 +164,13 @@ def _create_polygon_from_contour(contour: Optional[List]) -> Optional[Polygon]:
             # Try to fix invalid polygon
             polygon = polygon.buffer(0)
             if not polygon.is_valid:
-                logging.warning("Could not create valid polygon from contour")
+                logging.warning("Cannot make a valid polygon from the contour")
                 return None
                 
         return polygon
         
     except (ShapelyError, ValueError) as e:
-        logging.warning(f"Error creating polygon from contour: {e}")
+        logging.warning(f"Error when the polygon was made from the contour: {e}")
         return None
 
 
@@ -201,7 +201,7 @@ def _create_fallback_complexity_results(metrics: List[Dict[str, Any]]) -> Dict[s
                for scar in dorsal_scars}
                 
     except Exception:
-        logging.error("Error creating fallback complexity results")
+        logging.error("Error when the default complexity results were made")
         return {}
 
 

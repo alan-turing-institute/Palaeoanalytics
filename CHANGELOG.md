@@ -5,6 +5,108 @@ All notable changes to PyLithics are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+New `pylithics-pages` command for preparing source material: cuts scanned plates
+of lithic illustrations into one image per artefact, ready for the analysis run.
+The two commands now share one flat project folder, and the analysis output
+directory is renamed `results/`.
+
+**Note for testing**: `pylithics-pages` is a new console script, so `git pull`
+alone will not create it. Reinstall with `pip install . --upgrade`.
+
+### Added
+- **Page segmentation (`pylithics-pages`)** — new console script that cuts a
+  folder of scanned plates into one image per artefact. Adjacent surface views
+  are grouped, so a lithic drawn with four surfaces yields one crop, not four.
+  Crops are cut from the source pixels untouched, at the source DPI and colour
+  mode: no denoising, contrast adjustment, or thresholding is applied to saved
+  images, since the main pipeline already performs all of it and doing it twice
+  would make measurements non-comparable.
+- **Scale bar export** — page-level scale bars are exported to
+  `scales/{page}_scale_bar.png` with their caption included, so the crop is
+  self-describing. Segmented bars (the conventional alternating filled/open
+  form) are rejoined from the blocks that survive thresholding.
+- **Crop manifest** — `pages_manifest.csv` records every crop's source page, reading
+  -order index, bounding box, DPI, colour mode, grouped-component count, and
+  which corrections were applied.
+- **Per-page corrections CSV** — `--overrides` accepts `expect`, `join`, and
+  `split` per page, keyed by filename, so a manually corrected run is
+  reproducible rather than living in shell history.
+- **Debug overlays** — `--debug` writes numbered artefact boxes over the page;
+  those numbers are what the corrections CSV refers to.
+- **Sample plate fixture** — `pylithics/data/pages/sample_plate.png`, composited
+  from the five shipped drawings with a shared scale bar, for trying the
+  workflow and for the test suite. Regenerate with
+  `tests/fixtures/generate_sample_plate.py`.
+- **`page_segmentation` configuration section** in `config.yaml`, with
+  `get_page_segmentation_config()` following the established getter pattern.
+- **`archaeological` pytest marker** for tests validating domain correctness.
+
+- **One rule for debug output** — the folder is named after the flag, the file
+  after the source image. `pylithics` writes `results/threshold_debug/`,
+  `results/scale_debug/` and `results/arrow_debug/<image>/<scar>.png|.txt`;
+  `pylithics-pages --debug` writes `pages_debug/<page>.png`. `--scale_debug` no longer writes to a stale
+  `processed/` folder, `--arrow_debug` now writes (it never did), and
+  `--show_thresholded_images` is renamed `--threshold_debug` and now writes the
+  thresholded image (the old name still works).
+- **README splash in both GitHub themes** — `tests/fixtures/render_splash.py`
+  writes `docs/assets/images/splash-dark.svg` and `splash-light.svg` from the
+  real splash code; the README shows whichever matches the reader's theme.
+- **Crop names say how they were named** — `{page}_figure_7.png` carries the
+  identifier printed on the plate; `{page}_box_07.png` is the seventh box on
+  the debug overlay, used when no identifier was read. The two forms cannot
+  be mistaken for each other.
+- **`meta_data.csv` written by `pylithics-pages`** — one row per artefact
+  crop, paired with the scale bar from the same page. The millimetre `scale`
+  value is left blank for the user. A new `flag` column marks rows that need
+  attention (`no_scale`, `several_scales`, or an identifier flag).
+- **The pixels question** — when some metadata rows have no `scale` value and
+  a person is at the terminal, `pylithics` asks once whether to measure those
+  images in pixels; `n` analyses only the images with a scale. Scripts are not
+  asked and continue in pixels with a warning; `--force_pixels` and
+  `--disable_scale_calibration` are never asked. Images left out are listed in
+  `run_summary.json`.
+- **Flags are reported, not blocking** — rows with a `flag` run like any
+  other and are counted on screen at the end, listed in the log, and recorded
+  in `run_summary.json`.
+- **`--meta_file` defaults** to `<data_dir>/meta_data.csv`.
+- **`--explore PATH`** opens the dashboard for a results folder without
+  analysing. A bare `--explore` still analyses and then opens.
+
+### Fixed
+- **Command-line overrides now reach parallel workers.** Worker processes were
+  built from the configuration file alone, so on a multi-worker run every
+  override (`--threshold_method`, `--disable_arrow_detection`, the debug
+  flags, ...) was silently ignored. The main process now hands its merged
+  configuration to each worker.
+- **`--disable_arrow_detection` now disables arrow detection.** The pipeline
+  never checked `arrow_detection.enabled`.
+- **`--scale_debug`** wrote to a stale `processed/scale_debug/` folder;
+  **`--arrow_debug`** wrote nothing; **`--show_thresholded_images`** did
+  nothing. All three now write under `results/`.
+
+### Changed
+- **One flat project folder for both commands.** `pylithics-pages` writes
+  `images/`, `scales/`, `pages_manifest.csv` and `meta_data.csv` into the project
+  folder itself (formerly `processed_pages/`), so the whole workflow is
+  `pylithics-pages --data_dir X` then `pylithics --data_dir X`.
+- **`processed_images/` is renamed `results/`.** The analysis output, the log
+  and the optional `json/` folder now live in `<data_dir>/results/`.
+- `pylithics-pages` adds to a project that already holds images and a
+  `meta_data.csv`: crops go beside the images, rows go after the user's rows
+  (a `flag` column is added if missing), and a page whose crop name is taken
+  is refused whole. Every run cuts every plate: a plate cut before has its
+  crops and rows replaced (typed scale values are kept), a new plate is added,
+  and a crop the new run does not make is removed. There is no `--force`.
+- Sample data: `setup.py` ships only `sample_plate.png`; the research corpus and
+  all pipeline output are gitignored.
+
+### Notes
+- The sample project `pylithics/data` holds both hand-cropped images and a
+  sample plate in `pages/`, so `pylithics-pages --data_dir pylithics/data`
+  followed by `pylithics --data_dir pylithics/data` exercises the whole chain.
+
 ## [2.0.0] - 2026-06-21
 
 Major rewrite. PyLithics 2.0 introduces an interactive Streamlit dashboard, a

@@ -1,31 +1,30 @@
 # Installation Guide
 
-This guide will walk you through installing PyLithics on your system. PyLithics requires Python 3.8 or greater and works on macOS, Windows, and Linux.
+This guide gives the procedure to install PyLithics. PyLithics operates
+on macOS, Windows and Linux. Python 3.8 or later is necessary.
 
-## System Requirements
+## What is necessary
 
-- **Python**: Version 3.8 or higher
-- **Operating System**:
+- **Python**: 3.8 or later
+- **Operating system**:
   - macOS 10.14 or later
   - Windows 10 or later
-  - Linux (Ubuntu 18.04+, CentOS 7+, or equivalent)
-- **Memory**: Minimum 4GB RAM (8GB recommended for large datasets)
-- **Storage**: 500MB for installation plus space for your data
+  - Linux (Ubuntu 18.04 or later, CentOS 7 or later, or equivalent)
+- **Memory**: 4 GB RAM minimum. 8 GB is better for large data sets.
+- **Disk**: 500 MB for the installation, plus space for your data
 
-## Step 1: Verify Prerequisites
+## Step 1: Make sure that Python and Git are installed
 
-Before installing PyLithics, ensure you have Python and Git installed on your system.
-
-### Check Python Installation
+### Python
 
 === "macOS & Linux"
 
     ```bash
-    # Check Python version (should be 3.8+)
+    # Show the Python version. It must be 3.8 or later.
     python3 --version
 
-    # If not installed, install Python
-    # macOS (using Homebrew - install from https://brew.sh/)
+    # If Python is not installed:
+    # macOS (with Homebrew, from https://brew.sh/)
     brew install python@3.11
 
     # Ubuntu/Debian
@@ -39,23 +38,23 @@ Before installing PyLithics, ensure you have Python and Git installed on your sy
 === "Windows"
 
     ```powershell
-    # Check Python version (should be 3.8+)
+    # Show the Python version. It must be 3.8 or later.
     python --version
 
-    # If not installed, download from https://python.org
-    # Make sure to check "Add Python to PATH" during installation
+    # If Python is not installed, get it from https://python.org
+    # During the installation, select "Add Python to PATH".
     ```
 
-### Check Git Installation
+### Git
 
 === "macOS & Linux"
 
     ```bash
-    # Check Git version
+    # Show the Git version.
     git --version
 
-    # If not installed
-    # macOS (using Homebrew - install from https://brew.sh/)
+    # If Git is not installed:
+    # macOS (with Homebrew, from https://brew.sh/)
     brew install git
 
     # Ubuntu/Debian
@@ -68,46 +67,49 @@ Before installing PyLithics, ensure you have Python and Git installed on your sy
 === "Windows"
 
     ```powershell
-    # Check Git version
+    # Show the Git version.
     git --version
 
-    # If not installed, download from https://git-scm.com/
+    # If Git is not installed, get it from https://git-scm.com/
     ```
 
-!!! warning "Python Version"
-    PyLithics requires Python 3.8 or higher. If you have an older version, please upgrade before proceeding.
+!!! warning "Python version"
+    Python 3.8 or later is necessary. If your version is older, install
+    a new version before you continue.
 
-## Step 2: Set Up a Virtual Environment
+## Step 2: Make a virtual environment
 
-We strongly recommend using a virtual environment to avoid conflicts with other Python packages.
+A virtual environment prevents conflicts with other Python packages.
+Use one.
 
 === "macOS & Linux"
 
     ```bash
-    # Create virtual environment
+    # Make the virtual environment
     python3 -m venv palaeo
 
-    # Activate virtual environment
+    # Activate the virtual environment
     source palaeo/bin/activate
     ```
 
 === "Windows"
 
     ```powershell
-    # Create virtual environment
+    # Make the virtual environment
     python -m venv palaeo
 
-    # Allow script execution (may require administrator privileges)
+    # Let PowerShell start scripts (administrator rights can be necessary)
     Set-ExecutionPolicy Unrestricted -Scope Process
 
-    # Activate virtual environment
+    # Activate the virtual environment
     .\palaeo\Scripts\activate
     ```
 
-!!! tip "Virtual Environment Active"
-    When your virtual environment is active, you'll see `(palaeo)` at the beginning of your command prompt.
+!!! tip "Active virtual environment"
+    When the virtual environment is active, the command prompt starts
+    with `(palaeo)`.
 
-## Step 3: Clone the Repository
+## Step 3: Clone the repository
 
 Clone the PyLithics repository from GitHub:
 
@@ -116,20 +118,23 @@ git clone https://github.com/alan-turing-institute/Palaeoanalytics.git
 cd Palaeoanalytics
 ```
 
-### Choosing a Branch
+### Select a branch
 
-- **Stable Release**: Use the `main` branch for the most recent tagged release (currently v2.0.0). This is what we recommend for almost everyone.
-- **In-Progress Work**: Use the `develop` branch if you want to preview changes that are queued for the next release. May be less stable.
+- **Stable release**: the `main` branch has the most recent tagged
+  release (v2.0.0). Use it unless you have a reason to use the
+  development version.
+- **Development**: the `develop` branch has the changes for the next
+  release. It can be less stable.
 
 ```bash
-# For the stable release (recommended)
+# The stable release
 git checkout main
 
-# For in-progress work
+# The development version
 git checkout develop
 ```
 
-To pin to a specific released version for reproducibility, check out the tag instead:
+To use the same version for a repeat of an analysis, check out the tag:
 
 ```bash
 git checkout v2.0.0
@@ -137,161 +142,176 @@ git checkout v2.0.0
 
 ## Step 4: Install PyLithics
 
-Install PyLithics and all its dependencies:
+Install PyLithics and its dependencies:
 
 ```bash
 pip install .
 ```
 
-This command will:
-- Install PyLithics as a package
-- Install all required dependencies listed in `requirements.txt`
-- Set up the `pylithics` command-line tool
+This command:
 
-## Step 5: Verify Installation
+- Installs the PyLithics package
+- Installs the dependencies in `requirements.txt`
+- Makes the `pylithics` and `pylithics-pages` commands available
 
-Test that PyLithics is correctly installed by running it with no arguments:
+To read the identifiers printed on published plates, install the
+optional OCR package too:
+
+```bash
+pip install ".[ocr]"
+```
+
+## Step 5: Make sure that the installation is correct
+
+Type `pylithics` with no arguments:
 
 ```bash
 pylithics
 ```
 
-You should see the **welcome splash** — a chunky `PyLithics` logo above a Get-started panel listing the five common command patterns:
+The command shows the **welcome screen**: the PyLithics logo and a
+panel with five command patterns:
 
-1. **Quick start** — analyze the bundled sample dataset
-2. **Run sample data and visualize** — analyze and open the results dashboard
-3. **Open an existing run in the browser** — re-open a previous analysis in the dashboard
-4. **Help & docs** — `pylithics --help` and `pylithics --docs`
-5. **GitHub** — the project repository URL
+1. **Quick start** — analyse the sample data
+2. **Sample data and dashboard** — analyse the sample data and open the dashboard
+3. **Open a previous analysis** — open the dashboard for a previous analysis
+4. **Help and documentation** — `pylithics --help` and `pylithics --docs`
+5. **GitHub** — the URL of the repository
 
-Copy whichever command you want to run next.
+Copy the command that you want.
 
-### Optional: run the bundled sample dataset
+### Optional: analyse the sample data
 
-To prove the full pipeline works end-to-end immediately after installing, run the second splash command:
+To make sure that the full pipeline operates, start the second command
+from the welcome screen:
 
 ```bash
-pylithics --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv --explore
+pylithics --data_dir pylithics/data --explore
 ```
 
-This processes the bundled sample images and opens the interactive dashboard in your browser. If this completes without errors and the dashboard loads, your install is healthy.
+This command analyses the sample images and opens the dashboard in
+your browser. If there are no errors and the dashboard opens, the
+installation is correct.
 
-### Full CLI help
+### Full help
 
 ```bash
-# Every flag, every option
+# All flags and options
 pylithics --help
 ```
 
-
-## Updating PyLithics
+## Update PyLithics
 
 To update to the latest version:
 
 ```bash
-# Navigate to PyLithics directory
+# Go to the PyLithics directory
 cd Palaeoanalytics
 
-# Pull latest changes
+# Get the latest changes
 git pull origin main
 
-# Reinstall
+# Install again
 pip install . --upgrade
 ```
 
-## Building Documentation Locally
+## Build the documentation on your computer
 
-Documentation tools are installed automatically with PyLithics. To build and view the documentation locally:
+The documentation tools are installed with PyLithics. To build the
+documentation and show it in your browser:
 
 ```bash
-# Serve documentation locally at http://127.0.0.1:8000
+# The documentation is at http://127.0.0.1:8000
 pylithics --docs
 ```
 
-!!! tip "Documentation Tools Included"
-    MkDocs and related documentation dependencies are automatically installed with PyLithics, so no additional installation is needed.
+!!! tip "Documentation tools"
+    MkDocs and its dependencies are installed with PyLithics. No other
+    installation is necessary.
 
-## Troubleshooting Installation
+## Installation problems
 
-### Python Version Issues
+### Python version
 
-If you encounter Python version errors:
+If you get a Python version error:
 
 ```bash
-# Check your Python version
+# Show your Python version
 python --version
 
-# If needed, install Python 3.8+ using your system's package manager
-# macOS (using Homebrew)
+# If necessary, install Python 3.8 or later with your package manager
+# macOS (with Homebrew)
 brew install python@3.11
 
 # Ubuntu/Debian
 sudo apt-get update
 sudo apt-get install python3.11
 
-# Windows - download from python.org
+# Windows: get Python from python.org
 ```
 
-### macOS-Specific Issues
+### macOS
 
-For macOS users with OS versions below 10.14:
+On macOS versions before 10.14:
 
-- Consider upgrading your OS to 10.14 or later
-- If upgrade isn't possible, you may encounter build issues with some dependencies
+- Update macOS to 10.14 or later.
+- If an update is not possible, some dependencies possibly do not build.
 
-### Windows PowerShell Execution Policy
+### Windows PowerShell execution policy
 
-If you get execution policy errors on Windows:
+If you get an execution policy error on Windows:
+
 ```powershell
-# Run PowerShell as Administrator
+# Start PowerShell as Administrator
 Set-ExecutionPolicy RemoteSigned
 
-# Or for current session only
+# Or for the current session only
 Set-ExecutionPolicy Unrestricted -Scope Process
 ```
 
-### Missing Dependencies
+### Missing dependencies
 
-If you encounter missing dependency errors:
+If you get a missing dependency error:
+
 ```bash
-# Upgrade pip first
+# Update pip first
 pip install --upgrade pip
 
-# Then reinstall with verbose output
+# Then install again with full output
 pip install . -v
 ```
 
-### OpenCV Installation Issues
+### OpenCV
 
-If OpenCV fails to install:
+If OpenCV does not install:
+
 ```bash
-# Try installing OpenCV separately first
+# Install OpenCV first
 pip install opencv-python-headless>=4.8.0
 
 # Then install PyLithics
 pip install .
 ```
 
-
-## Uninstalling
-
-To remove PyLithics:
+## Remove PyLithics
 
 ```bash
-# Uninstall PyLithics
+# Remove the PyLithics package
 pip uninstall pylithics
 
-# Deactivate and remove virtual environment
+# Stop and remove the virtual environment
 deactivate
 rm -rf palaeo/  # On Windows: rmdir /s palaeo
 ```
 
-## Next Steps
+## Next steps
 
-Now that PyLithics is installed, you're ready to:
+PyLithics is installed. Now:
 
 1. [Prepare your images](user-guide/image-requirements.md)
-2. [Set up metadata](user-guide/metadata-setup.md)
-3. [Run your first analysis](user-guide/basic-usage.md)
+2. [Prepare the metadata](user-guide/metadata-setup.md)
+3. [Do your first analysis](user-guide/basic-usage.md)
 
-For any installation issues not covered here, please [check our troubleshooting guide](user-guide/troubleshooting.md) or [open an issue on GitHub](https://github.com/alan-turing-institute/Palaeoanalytics/issues).
+If you have an installation problem that is not in this guide, see the
+[troubleshooting guide](user-guide/troubleshooting.md) or [open an
+issue on GitHub](https://github.com/alan-turing-institute/Palaeoanalytics/issues).

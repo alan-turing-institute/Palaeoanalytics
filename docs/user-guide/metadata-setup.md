@@ -2,46 +2,81 @@
 
 ## Overview
 
-The metadata CSV file is essential for linking your lithic images to their scale references. PyLithics uses this information for its automatic scale calibration system, which detects and measures scale bars to convert pixel measurements to real-world units (millimeters).
+The metadata CSV file connects each lithic image to its scale image.
+PyLithics uses it for the scale calibration. The calibration finds and
+measures the scale bar, and changes the measurements from pixels to
+millimetres.
 
-## CSV File Structure
+!!! danger "The project folder rule"
+    `--data_dir` is a folder that contains these three items, with
+    these exact names:
 
-Your metadata CSV must contain these three columns:
+    ```
+    <your folder>/
+    ├── images/          the lithic images
+    ├── scales/          the scale bar images
+    └── meta_data.csv    which scale goes with which image
+    ```
 
-| Column | Description | Required | Example |
-|--------|-------------|----------|---------|
-| `image_id` | Filename of the lithic image | Yes | `artifact_001.png` |
-| `scale_id` | Filename of the scale image | No* | `scale_001.png` |
-| `scale` | Scale measurement in millimeters | No* | `50` |
+    The folder can have any name and can be anywhere. The three names
+    inside it cannot change. PyLithics writes the analysis to a fourth
+    item, `results/`, in the same folder.
 
-*Required for scale bar calibration. Optional if using pixel measurements only.
+## The CSV file
 
-## Scale Calibration Methods
+The metadata CSV file has these columns:
 
-PyLithics uses a simple two-option calibration system:
+| Column | Description | Necessary | Example |
+|--------|-------------|-----------|---------|
+| `image_id` | The filename of the lithic image | Yes | `artifact_001.png` |
+| `scale_id` | The filename of the scale image | No* | `scale_001.png` |
+| `scale` | The length of the scale bar, in millimetres | No* | `50` |
+| `flag` | Written by `pylithics-pages`. A note for you to examine. It does not stop the analysis. | No | `several_scales` |
 
-### 1. Scale Bar Detection (Recommended)
-- **How it works**: PyLithics automatically detects and measures scale bars in scale images
-- **Requirements**: `scale_id` and `scale` columns must be provided
-- **Supported formats**: Horizontal/vertical bars, segmented bars, bars with tick marks
-- **Accuracy**: Highest precision for real-world measurements
+*Necessary for scale bar calibration. Not necessary for pixel
+measurements. A row with no `scale` value can only be measured in
+pixels. `pylithics` asks once before it does that.
 
-### 2. Pixel Measurements (Fallback)
-- **How it works**: Raw pixel measurements when no scale calibration is available
-- **Requirements**: None - always works
-- **Accuracy**: Relative measurements only, no real-world units
+Name the file `meta_data.csv` and keep it in the project folder. Then
+`pylithics --data_dir <project>` finds it. A file with another name or
+place needs `--meta_file`.
 
-!!! info "Why No DPI Fallback?"
-    DPI metadata is unreliable because scanners often don't scan at exact DPI settings, values can be estimated rather than measured, and there's no way to verify accuracy. PyLithics focuses on either precise scale bar measurement or clear pixel-based relative measurements.
+`pylithics-pages` writes this file for you when you start from
+published plates, with the `flag` column filled in. See
+[meta_data.csv](page-segmentation.md#meta_datacsv).
 
-## Understanding Scale Relationships
+## Calibration methods
 
-!!! warning "Critical for Accuracy"
-    Scale images must be scanned at the same DPI as their corresponding lithic images. Mismatched DPI between scales and images will lead to incorrect measurements and compromise your analysis results.
+PyLithics has two calibration methods:
 
-### One Scale, Multiple Images
+### 1. Scale bar detection (recommended)
+- **Method**: PyLithics finds and measures the scale bar in the scale image
+- **Necessary**: the `scale_id` and `scale` columns
+- **Scale bar styles**: horizontal and vertical bars, segmented bars, bars with tick marks
+- **Accuracy**: the best accuracy for measurements in millimetres
 
-A single scale image can be used for multiple artifacts if they were all drawn at the same scale:
+### 2. Pixel measurements
+- **Method**: the measurements are in pixels, with no calibration
+- **Necessary**: nothing. This method always operates
+- **Accuracy**: relative measurements only, with no real-world units
+
+!!! info "Why there is no DPI calibration"
+    DPI metadata is not reliable. A scanner does not always scan at
+    the DPI it shows. The value can be an estimate. There is no way to
+    make sure that it is correct. PyLithics uses a measured scale bar,
+    or clear pixel measurements.
+
+## Scales and images
+
+!!! warning "Necessary for accuracy"
+    Scan a scale image at the same DPI as its lithic image. If the DPI
+    of the scale and the DPI of the image are different, the
+    measurements are wrong.
+
+### One scale for many images
+
+One scale image can serve many artefacts, if the artefacts were all
+drawn at the same scale:
 
 ```csv
 image_id,scale_id,scale
@@ -50,9 +85,9 @@ flake_002.png,scale_50.png,50
 flake_003.png,scale_50.png,50
 ```
 
-### Individual Scales
+### One scale for each image
 
-Each artifact can have its own scale if needed:
+Each artefact can have its own scale:
 
 ```csv
 image_id,scale_id,scale
@@ -61,9 +96,9 @@ small_flake.png,scale_5.png,5
 medium_core.png,scale_20.png,20
 ```
 
-### Mixed Calibration Methods
+### Mixed calibration methods
 
-You can mix calibration methods within a single dataset:
+You can mix the calibration methods in one data set:
 
 ```csv
 image_id,scale_id,scale
@@ -73,149 +108,160 @@ artifact_003.png,scale_10.png,10    # Scale bar detection
 artifact_004.png,,                  # Pixel measurements
 ```
 
-### Scale Bar Detection Examples
+### Scale bar styles
 
-PyLithics can detect various scale bar styles:
+PyLithics finds these scale bar styles:
 
-- **Simple horizontal/vertical lines**
-- **Segmented scale bars** (alternating black/white segments)
+- **Simple horizontal and vertical lines**
+- **Segmented scale bars** (black and white segments)
 - **Scale bars with tick marks**
-- **Scale bars with brackets or end markers**
+- **Scale bars with brackets or end marks**
 
-!!! tip "Scale Bar Tips"
-    - Ensure scale bars are clearly visible with good contrast
-    - Black scale bars on white backgrounds work best
+!!! tip "Scale bars"
+    - Make sure that the scale bar is clear, with high contrast
+    - A black scale bar on a white background is best
     - PyLithics measures the longest dimension (horizontal or vertical)
-    - Complex scale bar designs may require manual verification
+    - Examine the result for a scale bar with an unusual design
 
-## Directory Organization
+## The directory structure
 
-### Standard Structure
+### The standard structure
 
 ```
-pylithics/
-└── data/
-    ├── meta_data.csv         # Your metadata file
-    ├── images/               # Lithic illustrations for analysis
-    │   ├── artifact_001.png
-    │   ├── artifact_002.png
-    │   └── artifact_003.png
-    └── scales/               # Scale bar images
-        ├── scale_001.png
-        └── scale_002.png
+my_project/                   # --data_dir
+├── meta_data.csv             # Your metadata file
+├── images/                   # The lithic illustrations
+│   ├── artifact_001.png
+│   ├── artifact_002.png
+│   └── artifact_003.png
+├── scales/                   # The scale bar images
+│   ├── scale_001.png
+│   └── scale_002.png
+└── results/                  # pylithics writes the analysis here
 ```
 
-### File Naming Conventions
+### Filenames
 
-Proper file naming ensures compatibility across different operating systems and prevents processing errors:
+Good filenames operate on all operating systems and prevent errors:
 
-✅ **Good Naming**:
+✅ **Good**:
 
 - `lithic_001.png`
 - `artifact_A1.png`
 - `flake_site1_layer2.png`
 
-**Why these work well:**
+**Why these are good:**
 
-- Compatible with all operating systems (Windows, Mac, Linux)
-- Easy to reference in CSV files without escaping
-- Sort properly in file browsers
-- Prevent command-line issues
+- They operate on Windows, Mac and Linux
+- They go in a CSV file without quotation marks
+- They sort correctly in a file browser
+- They cause no problems on the command line
 
-❌ **Avoid**:
+❌ **Not good**:
 
-- Spaces: `artifact 001.png` → Can cause parsing errors in CSV and command-line
-- Special characters: `artifact#1.png` → May be interpreted as comments or commands
-- Very long names: `artifact_from_excavation_unit_4_level_3_find_number_127.png` → Can exceed system path limits
+- Spaces: `artifact 001.png` → can cause errors in the CSV and on the command line
+- Special characters: `artifact#1.png` → the shell can read them as comments or commands
+- Very long names: `artifact_from_excavation_unit_4_level_3_find_number_127.png` → can be longer than the system limit
 
-**Note**: While these naming issues won't stop PyLithics from running, they may cause unexpected behavior, require extra quoting in commands, or create confusion when debugging. Following good naming conventions ensures smooth, predictable processing.
+**Note**: These names do not stop PyLithics. But they can cause
+unexpected results, or make quotation marks necessary in commands, or
+cause confusion when you find a problem.
 
-!!! tip "Best Practice"
-    Use underscores instead of spaces, keep names descriptive but concise, and include sequential numbering for easy sorting.
+!!! tip "Recommended"
+    Use underscores, not spaces. Keep the names short but clear. Use
+    sequential numbers, so that the files sort correctly.
 
-### CSV File Encoding Issues
+### CSV encoding
 
-!!! warning "Excel CSV UTF-8 Problem"
-    **Avoid saving CSV files as "CSV UTF-8" from Excel** - this adds an invisible Byte Order Mark (BOM) character that prevents PyLithics from recognizing column headers.
+!!! warning "Excel CSV UTF-8"
+    **Do not keep a CSV file as "CSV UTF-8" from Excel.** This format
+    adds a Byte Order Mark (BOM), a character that you cannot see. The
+    BOM prevents PyLithics from reading the column headers.
 
-**Common Error**: `Missing required column in metadata: image_id` (even when the column exists)
+**The error**: `Column missing in the metadata: image_id` (when the column is there)
 
-**Solutions**:
+**Procedure**:
 
-1. **Excel Users**: Save as "CSV (Comma delimited) (*.csv)" instead of "CSV UTF-8"
-2. **Remove BOM**: If you already have a UTF-8 CSV with BOM, remove it:
+1. **Excel**: keep the file as "CSV (Comma delimited) (*.csv)", not "CSV UTF-8"
+2. **Remove the BOM** from a UTF-8 CSV file:
    ```bash
-   # On Mac/Linux
+   # Mac/Linux
    sed -i.bak '1s/^\xEF\xBB\xBF//' your_metadata.csv
 
-   # On Windows (PowerShell)
-   (Get-Content your_metadata.csv -Raw) -replace '\ufeff', '' | Set-Content your_metadata.csv
+   # Windows (PowerShell)
+   (Get-Content your_metadata.csv -Raw) -replace '﻿', '' | Set-Content your_metadata.csv
    ```
-3. **Use Text Editors**: Save CSV files with VS Code, Sublime Text, or similar editors
-4. **Verify Encoding**: Check that your CSV file starts directly with `image_id`, not `﻿image_id`
+3. **Text editors**: keep CSV files with VS Code, Sublime Text or a similar editor
+4. **Examine the encoding**: make sure that the CSV file starts with `image_id`, not `﻿image_id`
 
-## Scale Value Determination
+## The scale value
 
-### Understanding the Scale Column
+### The `scale` column
 
-The `scale` value represents how many millimeters the scale bar represents in the real world.
+The `scale` value is the real length of the scale bar, in millimetres.
 
 Examples:
 
-- A 1cm scale bar → `scale: 10`
-- A 5cm scale bar → `scale: 50`
-- A 2cm scale bar → `scale: 20`
+- A scale bar of 1 cm → `scale: 10`
+- A scale bar of 5 cm → `scale: 50`
+- A scale bar of 2 cm → `scale: 20`
 
-### Measuring Unknown Scales
+### A scale bar with no value
 
-If the scale value is not labeled:
+If the value of the scale bar is not printed:
 
-1. Identify any reference measurements in the publication
-2. Measure a known dimension on the artifact
-3. Use the ratio to calculate the scale value
-4. Verify with multiple measurements
+1. Find a known measurement in the publication
+2. Measure that dimension on the artefact
+3. Calculate the scale value from the ratio
+4. Make sure with more than one measurement
 
-### Missing Scale Images
+### No scale image
 
-PyLithics can handle missing scale information:
+PyLithics operates without scale information:
 
-#### Automatic Pixel Fallback
-If scale bars aren't available, PyLithics automatically uses pixel measurements:
+#### Pixel measurements
+If there is no scale bar, PyLithics uses pixel measurements:
 
 ```csv
 image_id,scale_id,scale
-artifact_001.png,,     # Empty scale columns - will use pixels
-artifact_002.png,,     # Empty scale columns - will use pixels
+artifact_001.png,,     # Empty scale columns: pixel measurements
+artifact_002.png,,     # Empty scale columns: pixel measurements
 ```
 
-#### Force Pixel Measurements
-To disable all calibration and use pixel measurements:
+#### Pixel measurements for all images
+To set all calibration off and use pixel measurements:
 
 ```bash
-# Run without any calibration
-pylithics --data_dir ./artifacts --meta_file ./metadata.csv --disable_scale_calibration
+# No calibration
+pylithics --data_dir ./artifacts --disable_scale_calibration
 ```
 
-!!! warning "Pixel-Only Measurements"
-    Without scale calibration, all measurements will be in pixels. This limits comparative analysis between different image sources and prevents real-world metric interpretation.
+!!! warning "Pixel measurements"
+    Without scale calibration, all measurements are in pixels. You
+    cannot compare images from different sources. You cannot read the
+    measurements in real-world units.
 
-!!! note "Calibration Method Tracking"
-    PyLithics automatically tracks which calibration method was used for each image in the output CSV (`calibration_method` column: either `scale_bar` or `pixels`), allowing you to validate measurement accuracy and identify potential issues.
+!!! note "The calibration method in the output"
+    PyLithics writes the calibration method of each image in the
+    output CSV (the column `calibration_method`: `scale_bar` or
+    `pixels`). Use it to make sure that the measurements are correct.
 
-    Internally the pipeline distinguishes **three** calibration states, which it normalises to **two** for the CSV column:
+    The pipeline has **three** calibration states. It writes them as
+    **two** values in the CSV column:
 
-    | Internal state              | CSV value    | What it means                                                                                          |
-    | --------------------------- | ------------ | ------------------------------------------------------------------------------------------------------ |
-    | `scale_bar`                 | `scale_bar`  | A scale image was provided and the scale bar was detected; measurements are in millimetres.            |
-    | `pixels_no_scale`           | `pixels`     | No scale image was provided (or `--force_pixels` / `--disable_scale_calibration` was used).             |
-    | `pixels_detection_failed`   | `pixels`     | A scale image was provided but PyLithics could not detect the scale bar; falls back to pixel measurements. The underlying reason is logged as a `WARNING`. |
+    | Internal state              | CSV value    | Meaning                                                                                          |
+    | --------------------------- | ------------ | ------------------------------------------------------------------------------------------------ |
+    | `scale_bar`                 | `scale_bar`  | A scale image was given and the scale bar was found. The measurements are in millimetres.        |
+    | `pixels_no_scale`           | `pixels`     | No scale image was given (or `--force_pixels` or `--disable_scale_calibration` was used).         |
+    | `pixels_detection_failed`   | `pixels`     | A scale image was given but PyLithics did not find the scale bar. The measurements are in pixels. The log gives the reason as a `WARNING`. |
 
-    If you see `pixels` in the CSV for a lithic that should have been calibrated, check the log for a `WARNING` to find out which of the two pixel-fallback cases applied.
+    If the CSV shows `pixels` for a lithic that has a scale, read the
+    `WARNING` in the log to find which of the two pixel cases applies.
 
-## Next Steps
+## Next steps
 
-With your metadata file prepared:
+When your metadata file is ready:
 
-1. [Learn basic usage](basic-usage.md) - Run your first analysis
-2. [Configure settings](basic-usage.md#configuration-options) - Customize processing
-3. [Understand outputs](outputs.md) - Interpret results
+1. [Basic usage](basic-usage.md) — start your first analysis
+2. [Configuration](basic-usage.md#configuration) — set the analysis parameters
+3. [Outputs](outputs.md) — read the results

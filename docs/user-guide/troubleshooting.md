@@ -1,58 +1,62 @@
 # Troubleshooting
 
-This guide covers the most common problems you'll hit running PyLithics. If your issue isn't here, check `pylithics.log` in the output directory for the actual error, then [open a GitHub issue](https://github.com/alan-turing-institute/Palaeoanalytics/issues) with the log excerpt.
+This page gives the most common problems with PyLithics. If your
+problem is not here, read `pylithics.log` in the output directory to
+find the error. Then [open a GitHub
+issue](https://github.com/alan-turing-institute/Palaeoanalytics/issues)
+with the lines from the log.
 
-## Installation Issues
+## Installation
 
-### Python Version Errors
+### Python version error
 
-**Problem**: "Python 3.8+ required" or compatibility errors
+**Problem**: "Python 3.8+ required", or a compatibility error
 
-**Solutions**:
+**Procedure**:
 
 ```bash
-# Check your Python version
+# Show your Python version
 python --version
 
-# Install correct Python version
-# macOS (using Homebrew)
+# Install the correct Python version
+# macOS (with Homebrew)
 brew install python@3.11
 
 # Ubuntu/Debian
 sudo apt-get install python3.11
 
-# Windows - download from python.org
+# Windows: get Python from python.org
 ```
 
-### Package Installation Failures
+### Package installation error
 
-**Problem**: `pip install .` fails with dependency errors
+**Problem**: `pip install .` stops with a dependency error
 
-**Solutions**:
+**Procedure**:
 
 ```bash
-# Upgrade pip first
+# Update pip first
 pip install --upgrade pip
 
-# Install with verbose output to see details
+# Install with full output to see the cause
 pip install . -v
 
-# Install OpenCV separately if it fails
+# If OpenCV is the cause, install it first
 pip install opencv-python-headless>=4.8.0
 pip install .
 ```
 
-### Virtual Environment Issues
+### Virtual environment
 
-**Problem**: Virtual environment not activating, or installed packages not found
+**Problem**: The virtual environment does not activate, or the installed packages are not found
 
-**Solutions**:
+**Procedure**:
 
 ```bash
-# Verify the environment is active
-which python  # Should show a path inside your venv
+# Make sure that the environment is active
+which python  # The path must be in your virtual environment
 
-# Recreate if corrupted
+# If the environment is damaged, make it again
 deactivate
 rm -rf palaeo/
 python3 -m venv palaeo
@@ -60,46 +64,46 @@ source palaeo/bin/activate
 pip install .
 ```
 
-## Image Processing Issues
+## Image analysis
 
-### No Contours Found
+### No contours found
 
-**Problem**: "No contours detected" or empty results
+**Problem**: "No contours detected", or empty results
 
-**Diagnosis**:
+**Find the cause**:
 
 ```bash
-# --verbose mirrors the full per-step pipeline trace on your screen.
-# The same trace is always in <data_dir>/processed/pylithics.log
-# (the log lives next to the processed CSV for whichever --data_dir
-# you used), so you can also run without --verbose and grep the log
+# --verbose shows the full trace for each step on the screen.
+# The same trace is always in <data_dir>/results/pylithics.log
+# (the log is next to the CSV for the --data_dir that you used).
+# You can also start the command without --verbose and search the log
 # file after.
-pylithics --data_dir ./data --meta_file ./meta.csv \
-    --verbose --show_thresholded_images
+pylithics --data_dir ./data \
+    --verbose --threshold_debug
 ```
 
-**Solutions**:
+**Procedure**:
 
 ```bash
-# Try Otsu thresholding (good for bimodal images)
-pylithics --data_dir ./data --meta_file ./meta.csv --threshold_method otsu
+# Use Otsu thresholding (good for images with two clear tones)
+pylithics --data_dir ./data --threshold_method otsu
 
-# Adaptive thresholding for poor or uneven contrast
-pylithics --data_dir ./data --meta_file ./meta.csv --threshold_method adaptive
+# Use adaptive thresholding for low or uneven contrast
+pylithics --data_dir ./data --threshold_method adaptive
 ```
 
-### Poor Contour Detection
+### Contours are not correct
 
-**Problem**: Incomplete or inaccurate contour boundaries
+**Problem**: The contours are not complete, or not accurate
 
-**Image quality checks**:
+**Make sure that the image has**:
 
-- High contrast (black lines on white background)
-- Resolution at least 300 DPI
-- No scanning artifacts or noise
-- Closed/complete contour outlines
+- High contrast (black lines on a white background)
+- A resolution of 300 DPI or more
+- No scan noise
+- Closed outlines
 
-**Configuration adjustments** (in your `config.yaml`):
+**Configuration** (in your `config.yaml`):
 
 ```yaml
 thresholding:
@@ -110,82 +114,83 @@ morphological_closing:
   kernel_size: 3
 ```
 
-### Scale Calculation Errors
+### Scale calculation error
 
-**Problem**: Unrealistic measurements (way too large or too small)
+**Problem**: The measurements are much too large or much too small
 
-**Check your metadata.csv**:
+**Examine your metadata CSV**:
 
 ```csv
 image_id,scale_id,scale
 artifact_001.png,scale_001.png,10
 ```
 
-The `scale` column is in **millimeters**. Common mistakes:
+The `scale` column is in **millimetres**. Common errors:
 
-- Scale value entered in centimetres instead of millimetres
-- Wrong scale image associated with the artifact
-- Missing or empty `scale_id`
+- The scale value is in centimetres, not millimetres
+- The wrong scale image is connected to the artefact
+- `scale_id` is missing or empty
 
-You can also force pixel measurements to bypass calibration entirely:
+You can also use pixel measurements and no calibration:
 
 ```bash
-pylithics --data_dir ./data --meta_file ./meta.csv --force_pixels
+pylithics --data_dir ./data --force_pixels
 ```
 
-## Configuration Issues
+## Configuration
 
-### Config File Not Loading
+### The configuration file has no effect
 
-**Problem**: Configuration changes not taking effect
+**Problem**: Changes in the configuration file have no effect
 
-**Solutions**:
+**Procedure**:
 
 ```bash
-# Verify the path PyLithics is using
-pylithics --data_dir ./data --meta_file ./meta.csv \
+# Show the path that PyLithics uses
+pylithics --data_dir ./data \
     --config_file ./config.yaml --log_level DEBUG
 
-# Check YAML syntax
+# Examine the YAML syntax
 python -c "import yaml; yaml.safe_load(open('config.yaml'))"
 
-# Use absolute paths if relative paths confuse the shell
-pylithics --data_dir "$(pwd)/data" --meta_file "$(pwd)/meta.csv" \
+# Use absolute paths if relative paths cause a problem in the shell
+pylithics --data_dir "$(pwd)/data" \
     --config_file "$(pwd)/config.yaml"
 ```
 
-### CLI Overrides Not Working
+### Command-line arguments have no effect
 
-**Problem**: Command-line arguments seem to be ignored
+**Problem**: The command-line arguments have no effect
 
-**Solutions**:
+**Procedure**:
 
 ```bash
-# List all real flags
+# Show all flags
 pylithics --help
 
-# Run with debug logging to confirm what was applied
-pylithics --data_dir ./data --meta_file ./meta.csv --log_level DEBUG
+# Use debug logging to see which settings were applied
+pylithics --data_dir ./data --log_level DEBUG
 ```
 
-CLI arguments override the YAML file, which overrides defaults. Always check spelling against `pylithics --help`.
+Command-line arguments replace the YAML values. YAML values replace the
+defaults. Compare the spelling of each flag with `pylithics --help`.
 
-## Feature-Specific Issues
+## Analysis modules
 
-### Arrow Detection Problems
+### Arrow detection
 
-**Problem**: Arrows not detected, or false positives
+**Problem**: Arrows are not found, or marks that are not arrows are found
 
-**Enable debug mode**:
+**Write the debug output**:
 
 ```bash
-pylithics --data_dir ./data --meta_file ./meta.csv \
+pylithics --data_dir ./data \
     --arrow_debug --log_level DEBUG
 ```
 
-**Check debug output** in `processed/arrow_debug/` for candidate detections.
+**Examine the debug output** in `results/arrow_debug/<image>/`. Each scar has a `.png` with the arrow found and a `.txt` with the steps.
 
-**Tune via config.yaml**:
+**Adjust the settings in `config.yaml`**:
 
 ```yaml
 arrow_detection:
@@ -195,100 +200,102 @@ arrow_detection:
   min_defect_depth_scale_factor: 0.7
 ```
 
-### Cortex Detection Tuning
+### Cortex detection
 
-**Problem**: Too few or too many cortex regions detected
+**Problem**: Too few or too many cortex areas are found
 
 ```bash
-# Increase sensitivity
-pylithics --data_dir ./data --meta_file ./meta.csv --cortex_sensitivity high
+# Increase the sensitivity
+pylithics --data_dir ./data --cortex_sensitivity high
 
-# Decrease sensitivity
-pylithics --data_dir ./data --meta_file ./meta.csv --cortex_sensitivity low
+# Decrease the sensitivity
+pylithics --data_dir ./data --cortex_sensitivity low
 
-# Disable entirely
-pylithics --data_dir ./data --meta_file ./meta.csv --disable_cortex_detection
+# Set cortex detection off
+pylithics --data_dir ./data --disable_cortex_detection
 ```
 
-### Performance Problems
+### The analysis is slow
 
-**Problem**: Processing is too slow
+**Problem**: The analysis takes too long
 
 ```bash
-# Disable arrow detection — the most expensive optional stage
-pylithics --data_dir ./data --meta_file ./meta.csv --disable_arrow_detection
+# Set arrow detection off. It is the slowest optional step.
+pylithics --data_dir ./data --disable_arrow_detection
 
-# Use simple thresholding instead of adaptive
-pylithics --data_dir ./data --meta_file ./meta.csv --threshold_method simple
+# Use simple thresholding, not adaptive
+pylithics --data_dir ./data --threshold_method simple
 
-# Or skip multiple optional analyses together
-pylithics --data_dir ./data --meta_file ./meta.csv \
+# Set more than one optional analysis off
+pylithics --data_dir ./data \
     --disable_arrow_detection \
     --disable_cortex_detection \
     --disable_scar_complexity
 ```
 
-### Voronoi Analysis Issues
+### Voronoi analysis
 
-**Problem**: No Voronoi diagrams generated
+**Problem**: No Voronoi diagrams
 
-Voronoi requires a Dorsal surface in the metrics. Check:
+A Voronoi diagram is only possible with a Dorsal surface. Make sure
+that:
 
-- Surface classification is producing a `Dorsal` row
+- The surface classification gives a `Dorsal` row
 - The Dorsal surface has at least one scar
-- `voronoi_analysis.enabled` is `true` in config.yaml (default)
+- `voronoi_analysis.enabled` is `true` in `config.yaml` (the default)
 
-Voronoi cannot currently be toggled from the CLI; use the config file.
+There is no command-line switch for Voronoi analysis. Use the
+configuration file.
 
-## Data Issues
+## Data
 
-### Missing Output Files
+### Output files are missing
 
-**Problem**: Expected output files not created
+**Problem**: The output files are not there
 
-**Check write permissions** (substitute your own `--data_dir`):
-
-```bash
-ls -la <data_dir>/processed/
-```
-
-**Check the log**:
+**Make sure that you can write to the directory** (use your own `--data_dir`):
 
 ```bash
-tail -50 <data_dir>/processed/pylithics.log
-grep ERROR <data_dir>/processed/pylithics.log
+ls -la <data_dir>/results/
 ```
 
-### Unrealistic Measurements
+**Read the log**:
 
-**Problem**: Measurements don't match expectations
+```bash
+tail -50 <data_dir>/results/pylithics.log
+grep ERROR <data_dir>/results/pylithics.log
+```
 
-1. Verify the `scale` column in metadata is in millimetres
-2. Check the labeled image to confirm the correct contour was detected
-3. Compare against known measurements in the source publication
-4. Inspect the CSV `calibration_method` column — `pixels` means no real-world conversion was applied
+### Measurements are not plausible
+
+**Problem**: The measurements do not agree with what you expect
+
+1. Make sure that the `scale` column in the metadata is in millimetres
+2. Examine the labelled image to make sure that the correct contour was found
+3. Compare the measurements with the known measurements in the publication
+4. Examine the CSV column `calibration_method`. `pixels` means that no change to millimetres was applied
 
 ```python
 import pandas as pd
 
-df = pd.read_csv('<data_dir>/processed/processed_metrics.csv')
+df = pd.read_csv('<data_dir>/results/processed_metrics.csv')
 
 print("Length range:", df['technical_length'].min(), "-", df['technical_length'].max())
 print("Area range:", df['total_area'].min(), "-", df['total_area'].max())
 print("Calibration methods:", df['calibration_method'].value_counts())
 ```
 
-## Platform-Specific Issues
+## Operating systems
 
 ### macOS
 
-**OpenCV install problems**:
+**OpenCV does not install**:
 
 ```bash
-# Try the headless build (no GUI requirements)
+# Use the headless build (no GUI)
 pip install opencv-python-headless
 
-# Or install via conda
+# Or install with conda
 conda install opencv
 ```
 
@@ -300,11 +307,11 @@ conda install opencv
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-**Path length limits**:
+**Path length limit**:
 
 - Use shorter directory paths
-- Move the project closer to the drive root
-- Enable Windows long-path support
+- Move the project nearer to the root of the drive
+- Set Windows long-path support on
 
 ### Linux
 
@@ -318,69 +325,87 @@ sudo apt-get install python3-dev libopencv-dev
 sudo yum install python3-devel opencv-devel
 ```
 
-## Error Message Guide
+## Error messages
+
+### "images have no scale value. Measure them in pixels?"
+
+**Cause**: Some rows in `meta_data.csv` have no `scale` value. Those images can only be measured in pixels
+**Procedure**: Answer `y` to analyse all images, in pixels where there is no scale. Answer `n` to analyse only the images with a scale. Then fill in the `scale` column and start the command again. See [Basic Usage](basic-usage.md#rows-with-no-scale-and-rows-with-a-flag)
+
+### "images with no scale value not analysed"
+
+**Cause**: You answered `n` to the question above
+**Procedure**: Fill in the `scale` column of `meta_data.csv` for those images. `run_summary.json` lists them. Start the command again
+
+### "row(s) in the metadata have a flag"
+
+**Cause**: `pylithics-pages` put a flag on those rows in `meta_data.csv`. The images were analysed
+**Procedure**: Examine each flagged row (the log names them). Fill in the scale, correct the row, remove the flag. See [meta_data.csv](page-segmentation.md#meta_datacsv)
 
 ### "FileNotFoundError"
 
-**Cause**: Missing image or scale files referenced in metadata
-**Solution**: Verify every `image_id` and `scale_id` in the CSV resolves to an actual file
+**Cause**: An image or a scale file in the metadata is missing
+**Procedure**: Make sure that each `image_id` and each `scale_id` in the CSV is the name of a file that is there
 
 ### "ValueError: could not convert string to float"
 
-**Cause**: Invalid scale value in metadata
-**Solution**: Make sure the `scale` column contains only numbers (PyLithics will skip rows it can't parse)
+**Cause**: A scale value in the metadata is not a number
+**Procedure**: Make sure that the `scale` column contains only numbers. PyLithics ignores a row that it cannot read
 
 ### "MemoryError"
 
-**Cause**: Insufficient RAM for very large images
-**Solution**: Reduce image size or process fewer images at a time
+**Cause**: Not enough RAM for very large images
+**Procedure**: Make the images smaller, or analyse fewer images at one time
 
 ### "ImportError: No module named 'cv2'"
 
-**Cause**: OpenCV not installed
-**Solution**: `pip install opencv-python-headless`
+**Cause**: OpenCV is not installed
+**Procedure**: `pip install opencv-python-headless`
 
 ### "yaml.scanner.ScannerError"
 
-**Cause**: Invalid YAML syntax in config file
-**Solution**: Check indentation (spaces, not tabs) and quoting
+**Cause**: The YAML syntax in the configuration file is not correct
+**Procedure**: Examine the indentation (spaces, not tabs) and the quotation marks
 
-## Diagnostic Commands
+## Diagnostic commands
 
-### System check
+### System
 
 ```bash
 python --version
 pip --version
 pylithics --help
 
-# Verify dependencies
+# Make sure that the dependencies are installed
 python -c "import cv2, numpy, pandas; print('Dependencies OK')"
 
-# Test with the bundled sample data
-pylithics --data_dir pylithics/data --meta_file pylithics/data/meta_data.csv
+# Analyse the sample data
+pylithics --data_dir pylithics/data
 ```
 
 ### Maximum debug output
 
 ```bash
-pylithics --data_dir ./data --meta_file ./meta.csv \
+pylithics --data_dir ./data \
     --log_level DEBUG \
-    --show_thresholded_images \
+    --threshold_debug \
     --arrow_debug \
     --scale_debug
 ```
 
-## Getting Help
+Each flag writes to its own folder in `results/`, and the run names
+the folders at the end. See [Debug output](outputs.md#debug-output).
 
-When reporting an issue, include:
+## Get help
 
-1. **PyLithics version** (note the release tag in your install)
-2. **Python version** (`python --version`)
-3. **Operating system** and version
-4. **The exact command you ran**
+When you report a problem, include:
+
+1. **The PyLithics version** (the release tag of your installation)
+2. **The Python version** (`python --version`)
+3. **The operating system** and its version
+4. **The exact command that you used**
 5. **The full error message**
 6. **The contents of `pylithics.log`**
-7. **A small sample dataset** that reproduces the problem, if possible
+7. **A small data set** that shows the problem, if possible
 
-Open issues at <https://github.com/alan-turing-institute/Palaeoanalytics/issues>.
+Open an issue at <https://github.com/alan-turing-institute/Palaeoanalytics/issues>.

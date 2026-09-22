@@ -68,7 +68,7 @@ def detect_cortex_in_child_contours(
         return parents + cortex_children + renumbered
 
     except Exception as e:
-        logging.error(f"Error in cortex detection: {e}")
+        logging.error(f"Error in the cortex detection: {e}")
         return metrics
 
 
@@ -83,7 +83,7 @@ def _classify_cortex_children(
         if not child.get("contour"):
             logging.warning(
                 f"Child contour {child.get('scar', 'unknown')} "
-                f"missing contour data"
+                f"has no contour data"
             )
             non_cortex.append(child)
             continue
@@ -190,7 +190,7 @@ def _detect_cortex_texture(
         return cortex_detected
 
     except Exception as e:
-        logging.error(f"Error in cortex texture detection: {e}")
+        logging.error(f"Error in the cortex texture detection: {e}")
         return False
 
 

@@ -2,189 +2,196 @@
 
 ## Overview
 
-Voronoi analysis in PyLithics provides spatial pattern analysis of scar distributions on lithic surfaces. This advanced feature generates tessellation diagrams that reveal technological patterns and reduction strategies.
+The Voronoi analysis in PyLithics shows the spatial pattern of the
+scars on a lithic surface. It makes a tessellation diagram that shows
+the technological pattern and the reduction strategy.
 
-## What is Voronoi Analysis?
+## What is a Voronoi diagram?
 
-### Mathematical Foundation
+### The mathematics
 
-A Voronoi diagram divides a plane into regions based on distance to specific points (in our case, scar centroids). Each region contains all points closer to one scar than to any other scar.
+A Voronoi diagram divides a plane into regions. Each region belongs to
+one point (here, one scar centroid). Each region contains all the
+points of the plane that are nearer to that scar than to any other
+scar.
 
-### Archaeological Application
+### The archaeological use
 
-- **Flaking Intensity**: Dense patterns indicate intensive reduction
-- **Spatial Organization**: Regular patterns suggest systematic flaking
-- **Reduction Strategy**: Clustering reveals preferred flaking zones
-- **Skill Assessment**: Regularity may indicate knapper expertise
+- **Flaking intensity**: dense patterns show intensive reduction
+- **Spatial organisation**: regular patterns show systematic flaking
+- **Reduction strategy**: clusters show the preferred flaking zones
+- **Skill**: regularity can show the experience of the knapper
 
-## Enabling Voronoi Analysis
+## Set Voronoi analysis on or off
 
 ### Configuration
 
 ```yaml
 # In config.yaml
 voronoi_analysis:
-  enabled: true              # default; set to false to skip
-  padding_factor: 0.02       # padding around dorsal contour bounds (fraction)
-  min_distance_threshold: 5.0  # minimum spacing between Voronoi points
+  enabled: true              # default; set false to skip the analysis
+  padding_factor: 0.02       # the margin around the dorsal contour (a fraction)
+  min_distance_threshold: 5.0  # the minimum distance between Voronoi points
 ```
 
-Voronoi analysis is enabled by default and is not currently toggleable from the CLI; edit `config.yaml` to disable it.
+Voronoi analysis is on by default. There is no command-line switch.
+Set `enabled: false` in `config.yaml` to set it off.
 
-### Command Line
+### Command line
 
 ```bash
-# Default run (Voronoi enabled)
-pylithics --data_dir ./data --meta_file ./meta.csv
+# Default (Voronoi analysis on)
+pylithics --data_dir ./data
 
-# Use a custom config to disable Voronoi
-pylithics --data_dir ./data --meta_file ./meta.csv --config_file ./no_voronoi.yaml
+# A configuration file that sets Voronoi analysis off
+pylithics --data_dir ./data --config_file ./no_voronoi.yaml
 ```
 
-## Generated Outputs
+## Output
 
-### Voronoi Diagram Images
+### The Voronoi diagram
 
-**Location**: `processed/`
+**Location**: `results/`
 **Filename**: `{image_stem}_voronoi.png`
 
-**Visual elements**:
+**The diagram shows**:
 
-- Voronoi cell boundaries clipped to the dorsal contour
-- Convex hull around all scar centroids
-- Centroid points
-- Axes in millimetres when scale calibration succeeded, pixels otherwise
+- The Voronoi cell boundaries, cut at the dorsal contour
+- The convex hull around all scar centroids
+- The centroid points
+- The axes in millimetres when the scale calibration is correct, and in pixels when it is not
 
-### CSV Data Columns
+### CSV columns
 
-When Voronoi analysis succeeds for an image, these columns are populated on the Dorsal parent row of `processed_metrics.csv`:
+When the Voronoi analysis is possible for an image, these columns are
+in the Dorsal surface row of `processed_metrics.csv`:
 
 | Column | Units | Description |
 |--------|-------|-------------|
-| `voronoi_num_cells` | count | Number of Voronoi cells |
-| `voronoi_cell_area` | mm² or px² | Area of the Voronoi cell containing this row's centroid |
-| `convex_hull_width` | mm or px | Width of the convex hull around centroids |
-| `convex_hull_height` | mm or px | Height of the convex hull |
-| `convex_hull_area` | mm² or px² | Area of the convex hull |
+| `voronoi_num_cells` | count | The number of Voronoi cells |
+| `voronoi_cell_area` | mm² or px² | The area of the Voronoi cell that contains this row's centroid |
+| `convex_hull_width` | mm or px | The width of the convex hull around the centroids |
+| `convex_hull_height` | mm or px | The height of the convex hull |
+| `convex_hull_area` | mm² or px² | The area of the convex hull |
 
-## Interpretation Guide
+## How to read the diagram
 
-### Cell Size Patterns
+### Cell size
 
-**Large, uniform cells**:
+**Large cells of the same size**:
 - Systematic, controlled flaking
-- Experienced knapper
-- Planned reduction sequence
+- An experienced knapper
+- A planned reduction sequence
 
-**Small, irregular cells**:
+**Small cells of different sizes**:
 - Intensive flaking
 - Opportunistic removal
-- Possible reworking or resharpening
+- Possibly rework or resharpening
 
 **Mixed cell sizes**:
-- Multi-stage reduction
+- Reduction in more than one stage
 - Different flaking episodes
-- Changing reduction strategies
+- A change of reduction strategy
 
-### Spatial Organization
+### Spatial organisation
 
 **Regular distribution**:
-- Deliberate scar placement
-- Efficient core utilization
-- Systematic reduction strategy
+- Deliberate scar positions
+- Efficient use of the core
+- A systematic reduction strategy
 
-**Clustered distribution**:
-- Localized intensive flaking
+**Clusters**:
+- Intensive flaking in one area
 - Platform preparation areas
-- Reworking zones
+- Rework zones
 
 **Random distribution**:
 - Opportunistic flaking
 - Less controlled reduction
-- Possible expedient technology
+- Possibly expedient technology
 
-## Convex Hull Analysis
+## The convex hull
 
-### What is Convex Hull?
+### What is the convex hull?
 
-The convex hull is the smallest convex shape that contains all scar points. It provides:
+The convex hull is the smallest convex shape that contains all the
+scar points. It gives:
 
-- **Total flaking area**: Maximum extent of scar distribution
-- **Utilization efficiency**: How much of available surface was used
-- **Shape regularity**: Geometric properties of flaking zone
+- **The total flaking area**: the maximum extent of the scars
+- **The use of the surface**: how much of the surface has scars
+- **The shape of the flaking zone**: its geometric properties
 
-### Convex Hull Metrics
+### Convex hull metrics
 
-| Metric | Description | Interpretation |
-|--------|-------------|----------------|
-| `convex_hull_area` | Area of convex hull | Total flaking zone |
-| `hull_perimeter` | Perimeter of hull | Edge utilization |
-| `hull_solidity` | Scar area / hull area | Flaking efficiency |
-| `hull_aspect_ratio` | Length/width of hull | Shape preference |
+| Metric | Description | Meaning |
+|--------|-------------|---------|
+| `convex_hull_area` | The area of the convex hull | The total flaking zone |
+| `hull_perimeter` | The perimeter of the hull | The use of the edge |
+| `hull_solidity` | The scar area divided by the hull area | The flaking efficiency |
+| `hull_aspect_ratio` | The length of the hull divided by its width | The shape preference |
 
-## Configuration Options
-
-### Analysis Parameters
+## Configuration
 
 ```yaml
 voronoi_analysis:
-  enabled: true              # Set false to skip Voronoi analysis
-  padding_factor: 0.02       # Bounding-box padding as fraction of contour size
-  min_distance_threshold: 5.0  # Minimum spacing between Voronoi points
+  enabled: true              # Set false to skip the analysis
+  padding_factor: 0.02       # The margin of the bounding box, as a fraction of the contour size
+  min_distance_threshold: 5.0  # The minimum distance between Voronoi points
 ```
 
-These are the only Voronoi keys PyLithics reads. Visual elements (line colors, transparency) are not currently configurable.
+PyLithics reads only these Voronoi keys. You cannot set the colours or
+the transparency of the diagram.
 
-## Analysis Examples
+## Examples
 
-### High-Skill Reduction
+### Skilled reduction
 
-**Characteristics**:
-- Regular cell sizes
+**Properties**:
+- Cells of the same size
 - Uniform distribution
 - High hull solidity
-- Low area standard deviation
+- Low standard deviation of the cell area
 
-**Interpretation**:
-- Systematic flaking approach
-- Efficient surface utilization
-- Controlled reduction sequence
-- Experienced knapper
+**Meaning**:
+- Systematic flaking
+- Efficient use of the surface
+- A controlled reduction sequence
+- An experienced knapper
 
-### Opportunistic Flaking
+### Opportunistic flaking
 
-**Characteristics**:
-- Irregular cell sizes
-- Clustered distribution
+**Properties**:
+- Cells of different sizes
+- Clusters
 - Low hull solidity
-- High area standard deviation
+- High standard deviation of the cell area
 
-**Interpretation**:
-- Expedient flaking strategy
-- Focus on immediate needs
-- Less systematic approach
-- Possibly less experienced
+**Meaning**:
+- An expedient flaking strategy
+- Immediate use
+- A less systematic method
+- Possibly a less experienced knapper
 
-### Multi-Stage Reduction
+### Reduction in more than one stage
 
-**Characteristics**:
+**Properties**:
 - Mixed cell patterns
-- Multiple clustering zones
+- More than one cluster
 - Moderate hull solidity
-- Bimodal area distribution
+- A bimodal distribution of the cell area
 
-**Interpretation**:
+**Meaning**:
 - Different reduction episodes
-- Changing strategies
-- Tool reuse or resharpening
-- Complex reduction history
+- A change of strategy
+- Reuse or resharpening of the tool
+- A complex reduction history
 
-## Working with Voronoi Data
+## Use the Voronoi data
 
 ### R
 
 ```r
-data <- read.csv("pylithics/data/processed/processed_metrics.csv")
+data <- read.csv("pylithics/data/results/processed_metrics.csv")
 
 # Dorsal parents only — Voronoi columns live there
 dorsal <- subset(data,
@@ -206,7 +213,7 @@ hist(dorsal$density,
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("pylithics/data/processed/processed_metrics.csv")
+df = pd.read_csv("pylithics/data/results/processed_metrics.csv")
 
 dorsal = df[(df["surface_type"] == "Dorsal") &
             (df["surface_feature"] == "Dorsal")]
@@ -219,78 +226,80 @@ plt.title("Scar count vs. dorsal coverage")
 plt.show()
 ```
 
-## Troubleshooting Voronoi Analysis
+## Problems
 
-### Common Issues
+### Common problems
 
-**No Voronoi diagrams generated**:
-- Check that surfaces have ≥3 scars
-- Verify `voronoi_analysis.enabled: true` in config
-- Ensure output directory has write permissions
+**No Voronoi diagrams**:
+- Make sure that the surfaces have 3 scars or more
+- Make sure that `voronoi_analysis.enabled` is `true` in the configuration
+- Make sure that you can write to the output directory
 
-**Unrealistic cell areas**:
-- Verify scale information in metadata
-- Check for duplicate scar centroids
-- Review contour detection accuracy
+**Cell areas that are not plausible**:
+- Make sure that the scale in the metadata is correct
+- Look for scar centroids that are the same
+- Examine the contours in the labelled image
 
-**Missing data columns**:
-- Confirm Voronoi analysis is enabled
-- Check for processing errors in log file
-- Verify minimum requirements are met
+**Columns are missing**:
+- Make sure that the Voronoi analysis is on
+- Read the log for errors
+- Make sure that the surfaces have enough scars
 
-### Performance Considerations
+### Speed
 
-Voronoi cannot be disabled from the CLI. To skip it, set `voronoi_analysis.enabled: false` in your `config.yaml` and pass it via `--config_file`:
+There is no command-line switch for the Voronoi analysis. To set it
+off, set `voronoi_analysis.enabled: false` in your `config.yaml` and
+give the file with `--config_file`:
 
 ```bash
-pylithics --data_dir ./large_dataset --meta_file ./meta.csv \
+pylithics --data_dir ./large_dataset \
     --config_file ./no_voronoi.yaml
 ```
 
-## Archaeological Case Studies
+## Archaeological examples
 
-### Levallois Technology
+### Levallois technology
 
 **Expected patterns**:
-- Regular cell distribution
-- High spatial organization
+- A regular cell distribution
+- High spatial organisation
 - Systematic centripetal flaking
-- Efficient surface utilization
+- Efficient use of the surface
 
-### Expedient Technology
+### Expedient technology
 
 **Expected patterns**:
-- Irregular cell sizes
+- Cells of different sizes
 - Opportunistic distribution
-- Lower spatial organization
-- Variable surface utilization
+- Lower spatial organisation
+- Variable use of the surface
 
-### Blade Production
+### Blade production
 
 **Expected patterns**:
-- Linear cell arrangements
+- Cells in lines
 - Parallel flaking zones
-- Regular width patterns
-- High aspect ratio hulls
+- Regular widths
+- Hulls with a high aspect ratio
 
-## Research Applications
+## Research uses
 
-### Comparative Studies
+### Comparative studies
 
-- **Inter-site variation**: Compare flaking strategies
-- **Temporal change**: Track technological evolution
-- **Skill assessment**: Quantify knapping expertise
-- **Cultural attribution**: Identify technological traditions
+- **Between sites**: compare flaking strategies
+- **Over time**: follow the change of a technology
+- **Skill**: measure the experience of the knapper
+- **Cultural attribution**: identify technological traditions
 
-### Statistical Methods
+### Statistical methods
 
-- **Cluster analysis**: Group similar patterns
-- **ANOVA**: Test between-group differences
-- **Regression**: Model relationships
-- **Multivariate analysis**: Integrate multiple metrics
+- **Cluster analysis**: group similar patterns
+- **ANOVA**: test the differences between groups
+- **Regression**: model the relationships
+- **Multivariate analysis**: combine many metrics
 
-## Next Steps
+## Next steps
 
-- [Troubleshooting](troubleshooting.md) - Resolve analysis issues
-- [Glossary](glossary.md) - Reference for spatial metrics
-- [CLI Commands](../reference/cli-commands.md) - Configuration options
+- [Troubleshooting](troubleshooting.md) — common problems
+- [Glossary](glossary.md) — the spatial metrics
+- [CLI Commands](../reference/cli-commands.md) — configuration options

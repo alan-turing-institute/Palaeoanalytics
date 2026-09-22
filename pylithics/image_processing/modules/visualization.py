@@ -751,7 +751,7 @@ def _write_csv(
             )
         except Exception as e:
             logging.warning(
-                f"Error aligning columns with existing CSV: {e}"
+                f"Error when the columns were aligned with the CSV: {e}"
             )
             df.to_csv(
                 output_path, mode="a",

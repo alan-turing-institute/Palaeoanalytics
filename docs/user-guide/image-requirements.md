@@ -1,176 +1,192 @@
-# Image Requirements
+# Prepare Your Images
 
 ## Overview
 
-PyLithics works with scanned illustrations of 2D lithic artifacts commonly found in archaeological publications. Understanding the image requirements and drawing conventions will help you achieve the best results.
+PyLithics reads scanned illustrations of 2D lithic artefacts, of the
+type in archaeological publications. This page gives the image
+specifications and the drawing conventions that give the best results.
 
-## Supported File Formats
+## File formats
 
-### Accepted Formats
-- **PNG** (recommended): Lossless compression, best for line drawings
-- **JPG/JPEG**: Widely supported, though compression may affect quality
-- **TIFF**: High quality, larger file sizes
+### Formats
+- **PNG** (recommended): no loss of data. The best format for line drawings.
+- **JPG/JPEG**: many programs write it. The compression can decrease the quality.
+- **TIFF**: high quality. The files are large.
 
-### Resolution Requirements
-- **Optimal**: 300 DPI (dots per inch) for best balance of quality and processing speed
-- **Supported Range**: PyLithics has been tested between 75 DPI (minimum) to 600 DPI (maximum)
-- **High Resolution**: 600+ DPI works well for archaeological line drawings with default settings
-- **Recommended**: 300-600 DPI for archaeological illustrations
+### Resolution
+- **Best**: 300 DPI. This is the best balance of quality and speed.
+- **Tested**: PyLithics is tested from 75 DPI to 600 DPI.
+- **High resolution**: 600 DPI or more operates well for line drawings with the default settings.
+- **Recommended**: 300–600 DPI for archaeological illustrations.
 
-!!! tip "DPI Processing Intelligence"
-    PyLithics automatically reads DPI information from your image files. For archaeological line drawings, the default fixed preprocessing kernels work optimally across all DPI ranges (75-600 DPI). DPI-aware scaling is available but typically not needed for clean line art - it's designed for noisy photographs or heavily degraded scans.
+!!! tip "DPI"
+    PyLithics reads the DPI from your image files. For line drawings,
+    the default fixed kernels operate well from 75 to 600 DPI.
+    DPI-aware scaling is available. It is usually not necessary for
+    clean line art. It is for photographs with noise and for scans of
+    low quality.
 
-### DPI Processing Modes
+### DPI modes
 
-**Default Mode (Recommended for Archaeological Drawings)**
+**Default mode (recommended for line drawings)**
 
-- Uses fixed kernel sizes optimized for line drawings
-- Works consistently across 75-600 DPI range
-- Preserves fine scar details at high resolution
-- No DPI scaling applied
+- Fixed kernel sizes, set for line drawings
+- The same result from 75 to 600 DPI
+- Keeps small scar details at high resolution
+- No DPI scaling
 
-**DPI-Aware Mode (For Noisy Images)**
+**DPI-aware mode (for images with noise)**
 
-- Enable with `--enable_dpi_scaling` flag
-- Scales preprocessing kernels based on image DPI
-- Useful for degraded scans, or noisy images
-- Three scaling strategies: conservative, standard, aggressive
+- Set it on with `--enable_dpi_scaling`
+- The kernel sizes change with the DPI of the image
+- For scans of low quality, and for images with noise
+- Three modes: conservative, standard, aggressive
 
-## Drawing Style Guidelines
+## Drawing style
 
-### Optimal Drawing Characteristics
+### The best drawings
 
-PyLithics performs best with:
+PyLithics gives the best results with:
 
-- **Clean line drawings**: Black lines on white background
-- **Clear contrast**: Strong black/white separation
-- **Minimal artifacts**: No scanning artifacts or shadows
-- **Complete outlines**: Closed contours for surfaces
+- **Clean line drawings**: black lines on a white background
+- **High contrast**: clear black and white
+- **No noise**: no scan marks and no shadows
+- **Closed outlines**: each surface has a closed contour
 
-### Supported Illustration Conventions
-Currently, PyLithics is optimized to work with flakes.
+### Illustration conventions
 
-#### Surface Representations
-- **Dorsal surface**: Primary view with scar patterns
-- **Ventral surface**: Smooth surface view (if present)
-- **Platform**: Striking platform view (if present)
-- **Lateral edges**: Side profile views (if present)
+PyLithics is set for flakes.
 
-#### Internal Details
-- **Flake scars**: Clear outline definition
-- **Cortex areas**: Stippling or distinct shading patterns
-- **Arrows**: Direction indicators for flaking
-- **Ripple marks**: Concentric lines showing force propagation
+#### Surfaces
+- **Dorsal surface**: the main view, with the scars
+- **Ventral surface**: the smooth surface (if present)
+- **Platform**: the striking platform (if present)
+- **Lateral edges**: the side views (if present)
 
-## Orientation Requirements
+#### Details
+- **Flake scars**: clear outlines
+- **Cortex**: stipple, or a different fill pattern
+- **Arrows**: the direction of the flaking
+- **Ripple marks**: curved lines that show the direction of the force
 
-### Standard Archaeological Convention
+## Orientation
 
-PyLithics is designed to work with lithic illustrations that follow established archaeological drawing conventions. Lithic illustrators have standardized systems of artifact orientation and proportions that are essential for accurate analysis.
+### The archaeological convention
 
-**Key orientation principles:**
+PyLithics reads lithic illustrations that follow the archaeological
+drawing conventions. Illustrators use standard systems of orientation
+and proportion. These are necessary for an accurate analysis.
 
-1. **Vertical Axis**: Perpendicular (orthogonal) to the striking platform
-2. **Scale**: Lithics are normally drawn at 1:1 scale
-3. **Primary View**: Usually the dorsal surface is the principal view
-4. **Multiple Views**: Adjacent surfaces illustrated at 90-degree rotations from the principal view
-5. **Consistent Orientation**: All views maintain the same relative positioning
+**The orientation rules:**
 
-!!! important "Critical for Accuracy"
-    The vertical axis must be orthogonal to the striking platform. This standardization is crucial for accurate measurements, surface classification, and comparative analysis.
+1. **Vertical axis**: perpendicular to the striking platform
+2. **Scale**: lithics are usually drawn at 1:1
+3. **Main view**: usually the dorsal surface
+4. **Other views**: the adjacent surfaces, turned 90 degrees from the main view
+5. **Same orientation**: all views keep the same relative position
 
-### Visual Example
+!!! important "Necessary for accuracy"
+    The vertical axis must be perpendicular to the striking platform.
+    This is necessary for accurate measurements, surface classification
+    and comparison.
 
-For best performance and accurate measurement, images loaded into PyLithics should:
+### Example
+
+For the best results, the images must be like this:
 
 ![Drawing Style Example](../assets/images/drawing_style.png)
 
-*Example of optimal drawing style and orientation for PyLithics analysis*
+*An example of the best drawing style and orientation for PyLithics*
 
-### Common Issues to Avoid
+### Problems to prevent
 
-❌ **Poor Quality**:
+❌ **Low quality**:
 
-- Blurry or low-resolution scans
-- Gray or faded lines
-- Incomplete contours
-- Mixed drawing styles
+- Scans that are not sharp, or have a low resolution
+- Grey or faint lines
+- Contours that are not complete
+- Different drawing styles in one image
 
-✅ **Good Quality**:
+✅ **Good quality**:
 
 - Sharp, clear lines
 - High contrast
 - Complete outlines
-- Consistent style
+- One style
 
-## Example Images
+## Example images
 
-PyLithics comes with five sample images for you to experiment with. These images have the following characteristics that work best for PyLithics:
+PyLithics has five sample images. They have these properties, which
+give the best results:
 
-- Clean black lines on white background
+- Clean black lines on a white background
 - Closed contours for all surfaces
-- Clear scar definitions
-- Consistent line thickness
-- Arrows for flaking direction (optional)
+- Clear scars
+- The same line thickness
+- Arrows for the flaking direction (optional)
 
 ![Awbari](../assets/images/awbari.png){ width="18%" } ![KL3_5313_1](../assets/images/KL3_5313_1.png){ width="18%" } ![Qesem Cave](../assets/images/qesem_cave.png){ width="18%" } ![Replica 1](../assets/images/replica_1.png){ width="18%" } ![Rub al Khali](../assets/images/rub_al_khali.png){ width="18%" }
 
-## What about ripples?
+## Ripple marks
 
-### The Challenge with Ripple Marks
+### The problem with ripple marks
 
-While ripple marks (concentric curved lines) are a traditional way to indicate flaking direction in archaeological illustrations, they present challenges for PyLithics' computer vision algorithms:
+Ripple marks (curved lines, one inside the other) are the usual way to
+show the flaking direction in archaeological illustrations. They are a
+problem for the PyLithics computer vision:
 
-**Issues with ripples:**
+- **Detection**: PyLithics can read a ripple mark as a scar boundary or a surface feature
+- **Style**: illustrators draw ripple marks in different styles and densities
+- **Direction**: many curved lines do not give one clear direction of force
+- **Contours**: ripple marks can prevent correct contour detection and surface classification
 
-- **Detection difficulty**: Ripple marks can be mistaken for scar boundaries or surface features
-- **Inconsistent representation**: Different illustrators draw ripples with varying styles and densities
-- **Ambiguous direction**: Multiple concentric lines can create uncertainty about the exact force direction
-- **Processing interference**: Ripples can interfere with accurate contour detection and surface classification
+**Why arrows are better:**
 
-**Why arrows work better:**
+- **Direction**: an arrow gives one clear direction of force
+- **Detection**: PyLithics is set for arrows
+- **Contours**: arrows do not prevent the detection of surface and scar boundaries
+- **Measurement**: arrows let PyLithics measure the flaking angle
 
-- **Clear directionality**: Arrows provide unambiguous force direction indication
-- **Consistent detection**: PyLithics is specifically optimized for arrow recognition
-- **Clean contours**: Arrows don't interfere with surface and scar boundary detection
-- **Precise analysis**: Enable accurate flaking angle measurements and technological analysis
+### The Lithic Editor and Annotator
 
-### Solution: Lithic Editor and Annotator
+For illustrations with ripple marks, use the [**Lithic Editor and
+Annotator**](https://github.com/JasonGellis/lithic-editor) to:
 
-For illustrations with ripple marks, we recommend using the [**Lithic Editor and Annotator**](https://github.com/JasonGellis/lithic-editor) tool to:
+1. **Remove the ripple marks** without a change to the scar boundaries
+2. **Add arrows** that give the same direction
+3. **Prepare the illustration for PyLithics**
 
-1. **Remove ripple marks** cleanly without affecting scar boundaries
-2. **Replace with arrows** that indicate the same directional information
-3. **Optimize for PyLithics** analysis with clean, arrow-based illustrations
+### Before and after
 
-### Before and After Examples
-
-The following examples show how Lithic Editor and Annotator can transform ripple-based illustrations into PyLithics-optimized versions:
+These examples show an illustration with ripple marks, the same
+illustration without them, and the same illustration with arrows:
 
 ![Original with ripples](../assets/images/lithic_300dpi.png){ width="30%" } ![Ripples removed](../assets/images/lithic_300dpi_processed.png){ width="30%" } ![Arrows added](../assets/images/lithic_300dpi_annotation.png){ width="30%" }
 
-*Example workflow: Original illustration with ripples → Ripples removed → Arrows added for optimal PyLithics analysis*
+*The illustration with ripple marks → without ripple marks → with arrows*
 
-!!! tip "Lithic Editor Integration"
-    The Lithic Editor and Annotator tool is designed specifically to prepare archaeological illustrations for PyLithics analysis. It preserves all morphological information while optimizing directional indicators for computer vision processing.
+!!! tip "Lithic Editor"
+    The Lithic Editor and Annotator prepares archaeological
+    illustrations for PyLithics. It keeps all the morphological
+    information. It changes only the direction marks.
 
-## Preparing Your Dataset
+## Prepare your data set
 
-### Step-by-Step Checklist
+### Checklist
 
-1. ☐ Scan at 300 DPI minimum
-2. ☐ Save as PNG or high-quality JPG
-3. ☐ Ensure consistent orientation
-4. ☐ Include scale reference
-5. ☐ Clean up scan artifacts
-6. ☐ Verify contrast levels
-7. ☐ Organize in proper directory structure
-8. ☐ Create metadata CSV
+1. ☐ Scan at 300 DPI or more
+2. ☐ Keep the images as PNG, or as JPG of high quality
+3. ☐ Make sure that the orientation is the same in all images
+4. ☐ Include a scale
+5. ☐ Remove scan marks
+6. ☐ Make sure that the contrast is high
+7. ☐ Put the files in the correct directory structure
+8. ☐ Write the metadata CSV file
 
-## Next Steps
+## Next steps
 
-Once your images meet these requirements:
+When your images are correct:
 
-1. [Set up your metadata file](metadata-setup.md)
-2. [Configure PyLithics settings](basic-usage.md)
-3. [Run your analysis](basic-usage.md#command-line-basics)
+1. [Prepare the metadata file](metadata-setup.md)
+2. [Set the PyLithics configuration](basic-usage.md)
+3. [Start the analysis](basic-usage.md#the-command-line)

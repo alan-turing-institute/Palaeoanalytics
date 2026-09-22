@@ -21,6 +21,30 @@ from .utils import read_metadata
 
 ### DPI-AWARE PROCESSING FUNCTIONS ###
 
+def normalise_dpi(value: float) -> float:
+    """
+    Round a DPI reading to the resolution the image was actually made at.
+
+    PNG stores resolution as whole pixels per metre, so a 300 dpi scan is
+    written as 11811 ppm and reads back as 299.9994. The fractional part
+    is an artefact of that unit conversion, not a real measurement, and
+    left alone it propagates into exported metadata and pixel-per-mm
+    conversions. Scanning and printing resolutions are whole numbers in
+    practice, so the nearest integer recovers the intended value.
+
+    Parameters
+    ----------
+    value : float
+        DPI as read from image metadata.
+
+    Returns
+    -------
+    float
+        The value rounded to the nearest whole DPI.
+    """
+    return float(round(value))
+
+
 def get_image_dpi(image_path: str) -> float:
     """
     Extract DPI from image metadata, default to 300 if missing.
@@ -40,20 +64,19 @@ def get_image_dpi(image_path: str) -> float:
             dpi = img.info.get('dpi')
             if dpi is None:
                 logging.warning(
-                    f"DPI missing for {image_path}, "
-                    f"defaulting to 300"
+                    f"DPI missing for {image_path}; "
+                    f"300 used"
                 )
                 return 300.0
-            image_dpi = (
-                float(dpi[0]) if isinstance(dpi, tuple)
-                else float(dpi)
+            image_dpi = normalise_dpi(
+                dpi[0] if isinstance(dpi, tuple) else dpi
             )
             logging.debug(f"Image DPI detected: {image_dpi}")
             return image_dpi
     except Exception as e:
         logging.error(
-            f"Error reading DPI from {image_path}: {e}, "
-            f"defaulting to 300"
+            f"Error when the DPI was read from {image_path}: {e}; "
+            f"300 used"
         )
         return 300.0
 
@@ -103,8 +126,8 @@ def calculate_dpi_scale_factor(
 
     if raw_scale > max_scale and mode != 'aggressive':
         logging.warning(
-            f"DPI scale {raw_scale:.2f} "
-            f"limited to {max_scale:.2f}"
+            f"The DPI scale {raw_scale:.2f} "
+            f"is limited to {max_scale:.2f}"
         )
 
     logging.debug(
@@ -136,11 +159,11 @@ def read_image_from_path(
         logging.debug("Loaded image: %s", image_path)
         return image
     except ValueError as e:
-        logging.error("Image loading error: %s", e)
+        logging.error("Error when the image was read: %s", e)
         return None
     except OSError as e:
         logging.error(
-            "Failed to load image %s: %s", image_path, e
+            "Cannot read the image %s: %s", image_path, e
         )
         return None
 
@@ -170,7 +193,7 @@ def apply_grayscale_conversion(
                 f"Unsupported grayscale method: {method}"
             )
     except ValueError as e:
-        logging.error("Grayscale conversion error: %s", e)
+        logging.error("Error in the greyscale conversion: %s", e)
         return None
 
     return gray
@@ -205,7 +228,7 @@ def apply_contrast_normalization(
                 f"Unsupported normalization method: {method}"
             )
     except ValueError as e:
-        logging.error("Normalization error: %s", e)
+        logging.error("Error in the normalisation: %s", e)
         return None
 
     return normalized
@@ -237,10 +260,10 @@ def perform_thresholding(
         return result
 
     except ValueError as e:
-        logging.error("Thresholding error: %s", e)
+        logging.error("Error in the thresholding: %s", e)
         return None
     except OSError as e:
-        logging.error("OS error during thresholding: %s", e)
+        logging.error("OS error in the thresholding: %s", e)
         return None
 
 
@@ -370,19 +393,19 @@ def verify_image_dpi_and_scale(
                 )
                 return None
 
-            pixels_per_mm = dpi[0] / 25.4
+            pixels_per_mm = normalise_dpi(dpi[0]) / 25.4
             scale_px = real_world_scale_mm * pixels_per_mm
             logging.debug(
                 "DPI: %.2f, Scale (mm): %.2f, "
                 "Scale (px): %.2f",
-                round(dpi[0], 2),
+                normalise_dpi(dpi[0]),
                 round(real_world_scale_mm, 2),
                 round(scale_px, 2)
             )
             return pixels_per_mm
     except OSError as e:
         logging.error(
-            "OS error loading image %s: %s",
+            "OS error when the image %s was read: %s",
             image_path, e
         )
         return None
@@ -458,7 +481,7 @@ def preprocess_images(
     images_dir = os.path.join(data_dir, 'images')
     config = load_preprocessing_config("config.yaml")
     if config is None:
-        logging.error("Configuration could not be loaded.")
+        logging.error("Cannot read the configuration.")
         return {}
 
     metadata = read_metadata(meta_file)
@@ -477,7 +500,7 @@ def preprocess_images(
         )
         if processed is None:
             logging.error(
-                "Skipping %s: preprocessing failed.",
+                "%s not analysed: preprocessing error.",
                 image_id
             )
             continue
@@ -487,7 +510,7 @@ def preprocess_images(
         )
         if conversion is None:
             logging.error(
-                "Skipping %s: DPI mismatch.", image_id
+                "%s not analysed: the DPI does not agree.", image_id
             )
             continue
 
