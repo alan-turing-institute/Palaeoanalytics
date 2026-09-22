@@ -4,7 +4,11 @@
 
 
 <p align="center">
-  <img src="docs/assets/images/pylithics_start.png" alt="PyLithics welcome splash shown when you type 'pylithics' with no arguments" width="800">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/images/splash-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/images/splash-light.svg">
+    <img src="docs/assets/images/splash-dark.svg" alt="The PyLithics welcome screen, shown when you type 'pylithics' with no arguments" width="800">
+  </picture>
 </p>
 
 <h3 align="center">Version 2 out now</h3>
