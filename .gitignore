@@ -253,3 +253,17 @@ CLAUDE.local.md
 
 # Work-in-progress paper directory (kept local until ready to share)
 paperV2/
+# Sample project data: only the generated sample plate is in the repo.
+# The research corpus and all pipeline output stay local.
+pylithics/data/pages/*
+!pylithics/data/pages/sample_plate.png
+pylithics/data/results/
+# pylithics-pages output when the sample project is used as a project
+pylithics/data/manifest.csv
+pylithics/data/pages_debug/
+pylithics/data/pylithics-pages.log
+pylithics/data/images/*_figure_*.png
+pylithics/data/images/*_box_[0-9][0-9].png
+pylithics/data/scales/*_scale_bar*.png
+pylithics/data/processed_pages/
+pylithics/data/processed_images/
