@@ -132,7 +132,8 @@ def process_and_save_contours(
         _run_lateral_analysis(metrics, sorted_contours, inverted_image)
         _run_arrow_detection(
             metrics, sorted_contours, hierarchy,
-            contours, inverted_image, image_dpi
+            contours, inverted_image, image_dpi,
+            debug_dir_for(output_dir, 'arrow', image_id),
         )
 
         _convert_and_export(
@@ -180,7 +181,7 @@ def _extract_and_sort_contours(inverted_image, image_id, output_dir):
     )
 
     if not contours:
-        logging.warning(f"No valid contours for image: {image_id}")
+        logging.warning(f"No valid contours in the image: {image_id}")
         return None, None, None
 
     logging.debug(
@@ -367,7 +368,7 @@ def _run_symmetry_analysis(
                     metric.update(scores)
             logging.debug("Symmetry analysis completed")
         else:
-            logging.warning("No valid symmetry scores returned")
+            logging.warning("No valid symmetry scores")
     except _STAGE_ERRORS:
         logging.exception("Error in symmetry analysis")
 
@@ -433,9 +434,25 @@ def _run_lateral_analysis(
         logging.exception("Error in lateral surface analysis")
 
 
+def debug_dir_for(output_dir: str, step: str, image_id: str = '') -> str:
+    """
+    Return the debug folder for one step of the analysis.
+
+    The convention for both commands: the folder is named after the
+    flag that made it (``threshold_debug``, ``scale_debug``,
+    ``arrow_debug``, ``pages_debug``), and the file inside is named
+    after the source image. Arrow detection writes one file for each
+    contour, so its folder has one subfolder for each image.
+    """
+    path = os.path.join(output_dir, f"{step}_debug")
+    if image_id:
+        path = os.path.join(path, os.path.splitext(image_id)[0])
+    return path
+
+
 def _run_arrow_detection(
     metrics, sorted_contours, hierarchy,
-    contours, inverted_image, image_dpi
+    contours, inverted_image, image_dpi, debug_dir=None,
 ) -> None:
     """
     Detect and integrate arrows with scars.
@@ -455,6 +472,10 @@ def _run_arrow_detection(
     image_dpi : float or None
         Image DPI for scaling detection parameters.
     """
+    arrow_config = get_config_manager().get_section('arrow_detection')
+    if not arrow_config.get('enabled', True):
+        logging.debug("Arrow detection is off")
+        return
     try:
         scars_without_arrows = [
             m for m in metrics
@@ -469,7 +490,7 @@ def _run_arrow_detection(
             )
             integrate_arrows(
                 sorted_contours, hierarchy, contours,
-                metrics, inverted_image, image_dpi
+                metrics, inverted_image, image_dpi, debug_dir,
             )
         else:
             logging.debug("No scars need arrow detection")
@@ -523,7 +544,7 @@ def _convert_and_export(
     try:
         # csv_path override exists for the parallel batch path: each
         # worker writes to a per-image partial CSV under
-        # processed/_partial/, and the main process concatenates them
+        # results/_partial/, and the main process concatenates them
         # into processed_metrics.csv after all workers finish. Avoids
         # multi-process append contention on the single CSV.
         final_csv_path = csv_path or os.path.join(

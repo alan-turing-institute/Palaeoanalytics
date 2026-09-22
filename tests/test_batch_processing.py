@@ -184,6 +184,130 @@ class TestBatchMetadataHandling:
         # Processing should not crash on either row
         assert result["processed_successfully"] >= 1
 
+    def test_flagged_rows_run_and_are_reported(self, sample_config):
+        """A flag from pylithics-pages never stops an analysis."""
+        rows = [
+            ("ok.png", "scale_1", "15.0"),
+            ("unfilled.png", "", ""),
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir, meta = _make_batch(
+                temp_dir, rows, make_valid=lambda _id: True,
+            )
+            with open(meta) as handle:
+                lines = handle.read().splitlines()
+            lines[0] += ",flag"
+            lines[1] += ","
+            lines[2] += ",no_scale"
+            with open(meta, "w") as handle:
+                handle.write("\n".join(lines) + "\n")
+            config_path = _write_config(temp_dir, sample_config)
+
+            app = PyLithicsApplication(config_file=config_path)
+            result = app.run_batch_analysis(data_dir, meta)
+
+        assert result["total_images"] == 2
+        assert result["flagged"] == [
+            {"image_id": "unfilled.png", "flag": "no_scale"}
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Overrides reach the worker processes
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_parallel_workers_honour_command_line_overrides(sample_config):
+    """
+    A worker analyses with the merged configuration, not the file alone.
+
+    ``--disable_arrow_detection`` on a parallel run must give the same
+    CSV as on a sequential run. Before the fix, workers reloaded the
+    configuration file and silently ran arrow detection anyway.
+    """
+    import shutil
+    from pathlib import Path
+    import pandas as pd
+
+    sample = Path(__file__).resolve().parents[1] / "pylithics" / "data"
+    counts = {}
+    for workers in ("1", "2"):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            (project / "images").mkdir(parents=True)
+            (project / "scales").mkdir()
+            for name in ("awbari.png", "rub_al_khali.png"):
+                shutil.copy(sample / "images" / name, project / "images")
+            shutil.copy(sample / "scales" / "sc_001.png", project / "scales")
+            (project / "meta_data.csv").write_text(
+                "image_id,scale_id,scale\nawbari.png,sc_001,50\n"
+                "rub_al_khali.png,sc_001,50\n"
+            )
+            config_path = _write_config(temp_dir, sample_config)
+            app = PyLithicsApplication(config_file=config_path)
+            app.workers_arg = workers
+            app.update_configuration(**{"arrow_detection.enabled": False})
+            result = app.run_batch_analysis(str(project), str(project / "meta_data.csv"))
+            assert result["processed_successfully"] == 2
+            df = pd.read_csv(project / "results" / "processed_metrics.csv")
+            counts[workers] = int((df["has_arrow"] == True).sum())  # noqa: E712
+
+    assert counts["1"] == 0
+    assert counts["2"] == 0
+
+
+# ---------------------------------------------------------------------------
+# The pixels question
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+class TestPixelsQuestion:
+    """Images with no scale value run in pixels only when that is wanted."""
+
+    ROWS = [("scaled.png", "scale_1", "15.0"), ("unscaled.png", "", "")]
+
+    def _run(self, sample_config, tty, answer=None, overrides=None):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp_dir:
+            data_dir, meta = _make_batch(
+                temp_dir, self.ROWS, make_valid=lambda _id: True,
+            )
+            config_path = _write_config(temp_dir, sample_config)
+            app = PyLithicsApplication(config_file=config_path)
+            for key, value in (overrides or {}).items():
+                app.update_configuration(**{key: value})
+            with patch("sys.stdin.isatty", return_value=tty), \
+                 patch("builtins.input", return_value=answer) as asked:
+                result = app.run_batch_analysis(data_dir, meta)
+        return result, asked
+
+    def test_yes_runs_everything_in_pixels_where_needed(self, sample_config):
+        result, asked = self._run(sample_config, tty=True, answer="y")
+        asked.assert_called_once()
+        assert result["total_images"] == 2
+        assert result["not_analysed"] == []
+
+    def test_no_runs_only_the_images_with_a_scale(self, sample_config):
+        result, asked = self._run(sample_config, tty=True, answer="")
+        asked.assert_called_once()
+        assert result["total_images"] == 1
+        assert result["not_analysed"] == ["unscaled.png"]
+
+    def test_a_script_is_not_asked_and_continues(self, sample_config):
+        result, asked = self._run(sample_config, tty=False)
+        asked.assert_not_called()
+        assert result["total_images"] == 2
+
+    def test_pixels_on_purpose_is_not_asked(self, sample_config):
+        result, asked = self._run(
+            sample_config, tty=True,
+            overrides={"scale_calibration.enabled": False},
+        )
+        asked.assert_not_called()
+        assert result["total_images"] == 2
+
 
 # ---------------------------------------------------------------------------
 # Output consolidation
@@ -205,7 +329,7 @@ class TestBatchOutputs:
             app = PyLithicsApplication(config_file=config_path)
             result = app.run_batch_analysis(data_dir, meta)
 
-            csv_path = Path(data_dir) / "processed" / "processed_metrics.csv"
+            csv_path = Path(data_dir) / "results" / "processed_metrics.csv"
             df = pd.read_csv(csv_path)
 
             assert result["processed_successfully"] == 4
@@ -229,7 +353,7 @@ class TestBatchOutputs:
             app = PyLithicsApplication(config_file=config_path)
             result = app.run_batch_analysis(data_dir, meta)
 
-            processed = Path(data_dir) / "processed"
+            processed = Path(data_dir) / "results"
             labeled = list(processed.glob("*_labeled.png"))
 
             assert result["processed_successfully"] == 3
@@ -273,7 +397,7 @@ def test_batch_writes_expected_lines_to_log_file(sample_config):
         log_content = log_path.read_text()
 
     assert "Starting batch processing" in log_content
-    assert "images processed" in log_content
+    assert "images analysed" in log_content
 
 
 # ---------------------------------------------------------------------------

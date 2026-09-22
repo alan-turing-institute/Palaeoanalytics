@@ -141,15 +141,16 @@ def load_processed(processed_dir: str) -> Dict[str, Any]:
     Parameters
     ----------
     processed_dir : str
-        Path to a PyLithics ``processed/`` output directory.
+        Path to a PyLithics ``results/`` output directory.
 
     Returns
     -------
     dict
         Keys:
         - ``metrics``: pandas DataFrame loaded from processed_metrics.csv.
-        - ``processed_dir``: absolute path to ``processed/``.
-        - ``json_dir``: absolute path to ``processed/json/`` if present, else None.
+        - ``processed_dir``: absolute path to ``results/``.
+        - ``json_dir``: absolute path to ``results/json/`` if present,
+          else None.
         - ``run_summary``: dict from ``run_summary.json`` if present, else None.
 
     Raises

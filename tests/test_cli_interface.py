@@ -12,6 +12,8 @@ from pylithics.app import (
     PyLithicsApplication,
     _resolve_explore_dir,
     create_argument_parser,
+    default_meta_file,
+    flagged_rows,
     main,
 )
 from pylithics.image_processing.config import clear_config_cache
@@ -49,6 +51,19 @@ class TestCreateArgumentParser:
         assert args.log_level == "DEBUG"
         assert args.disable_arrow_detection is True
         assert args.arrow_debug is True
+
+    def test_explore_alone_is_a_switch(self):
+        args = create_argument_parser().parse_args(["--data_dir", "/d", "--explore"])
+        assert args.explore is True
+
+    def test_explore_takes_a_results_folder(self):
+        args = create_argument_parser().parse_args(["--explore", "/p/results"])
+        assert args.explore == "/p/results"
+
+    def test_explore_before_another_flag_is_still_a_switch(self):
+        args = create_argument_parser().parse_args(["--explore", "--data_dir", "/d"])
+        assert args.explore is True
+        assert args.data_dir == "/d"
 
     def test_invalid_threshold_method_exits(self):
         """Our parser must reject threshold methods we don't support."""
@@ -123,6 +138,115 @@ class TestMainExitCodes:
              patch.object(PyLithicsApplication, "validate_inputs",
                           side_effect=ValueError("bad input")):
             assert main() == 1
+
+
+    def test_missing_meta_file_and_no_default_exits_one(self, tmp_path, capsys):
+        with patch("sys.argv", ["pylithics", "--data_dir", str(tmp_path)]):
+            assert main() == 1
+        assert "meta_data.csv" in capsys.readouterr().out
+
+    def test_meta_data_csv_in_the_project_is_the_default(self, tmp_path):
+        (tmp_path / "meta_data.csv").write_text("image_id,scale_id,scale\n")
+        argv = ["pylithics", "--data_dir", str(tmp_path)]
+        with patch("sys.argv", argv), \
+             patch.object(PyLithicsApplication, "validate_inputs",
+                          return_value=True), \
+             patch.object(PyLithicsApplication, "run_batch_analysis",
+                          return_value={
+                              "success": True, "processed_successfully": 0,
+                              "total_images": 0, "failed_images": [],
+                          }) as mock_run:
+            assert main() == 0
+        assert mock_run.call_args[0][1] == str(tmp_path / "meta_data.csv")
+
+    def test_explore_with_a_path_opens_that_folder_and_nothing_else(self):
+        argv = ["pylithics", "--explore", "/p/results"]
+        with patch("sys.argv", argv), \
+             patch("pylithics.app._launch_explore", return_value=0) as launch, \
+             patch.object(PyLithicsApplication, "run_batch_analysis") as run:
+            assert main() == 0
+        launch.assert_called_once_with("/p/results")
+        run.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Debug flags map to the configuration keys the modules read
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestDebugFlagOverrides:
+    """Each debug flag sets the key that its module checks."""
+
+    @staticmethod
+    def _overrides_for(*flags):
+        from pylithics.app import _apply_config_overrides
+        args = create_argument_parser().parse_args(["--data_dir", "/d", *flags])
+        recorded = {}
+
+        class FakeApp:
+            def update_configuration(self, **kwargs):
+                recorded.update(kwargs)
+
+        _apply_config_overrides(FakeApp(), args)
+        return recorded
+
+    def test_threshold_debug(self):
+        assert self._overrides_for("--threshold_debug") == {
+            "thresholding.debug_output": True
+        }
+
+    def test_old_show_thresholded_images_name_still_works(self):
+        assert self._overrides_for("--show_thresholded_images") == {
+            "thresholding.debug_output": True
+        }
+
+    def test_scale_debug(self):
+        assert self._overrides_for("--scale_debug") == {
+            "scale_calibration.debug_output": True
+        }
+
+    def test_arrow_debug(self):
+        assert self._overrides_for("--arrow_debug") == {
+            "arrow_detection.debug_enabled": True
+        }
+
+    def test_no_flags_no_overrides(self):
+        assert self._overrides_for() == {}
+
+
+# ---------------------------------------------------------------------------
+# Metadata: the default file and the flag column
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestMetadataDefaults:
+    """meta_data.csv is found by convention, and flagged rows are held."""
+
+    def test_default_meta_file_is_found(self, tmp_path):
+        (tmp_path / "meta_data.csv").write_text("image_id,scale_id,scale\n")
+        assert default_meta_file(str(tmp_path)) == str(tmp_path / "meta_data.csv")
+
+    def test_default_meta_file_is_none_when_absent(self, tmp_path):
+        assert default_meta_file(str(tmp_path)) is None
+
+    def test_rows_without_a_flag_are_not_listed(self):
+        rows = [
+            {"image_id": "a.png", "scale_id": "s.png", "scale": "50", "flag": ""},
+            {"image_id": "b.png", "scale_id": "", "scale": ""},
+        ]
+        assert flagged_rows(rows) == []
+
+    def test_flagged_rows_are_listed_with_their_flag(self):
+        rows = [
+            {"image_id": "a.png", "scale_id": "", "scale": "",
+             "flag": "several_scales"},
+            {"image_id": "b.png", "scale_id": "", "scale": "", "flag": "  "},
+        ]
+        assert flagged_rows(rows) == [
+            {"image_id": "a.png", "flag": "several_scales"}
+        ]
 
 
 # ---------------------------------------------------------------------------
@@ -254,7 +378,7 @@ class TestResolveExploreDir:
     def test_resolves_parent_to_processed_subfolder_when_csv_present(
         self, tmp_path
     ):
-        processed = tmp_path / "processed"
+        processed = tmp_path / "results"
         processed.mkdir()
         (processed / "processed_metrics.csv").write_text("image_id\n")
 
@@ -312,7 +436,9 @@ class TestSetupLoggingLogFile:
         app = PyLithicsApplication(config_file=config_path)
         app.setup_logging(data_dir=str(data_dir))
 
-        expected = str(data_dir / "processed" / "pylithics.log")
+        expected = str(
+            data_dir / "results" / "pylithics.log"
+        )
         assert app.log_file_path == expected
         assert os.path.isdir(os.path.dirname(expected))
 

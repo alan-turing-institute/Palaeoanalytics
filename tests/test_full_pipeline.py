@@ -81,7 +81,7 @@ class TestEndToEndBatchAnalysis:
             app = PyLithicsApplication(config_file=config_path)
             result = app.run_batch_analysis(data_dir, meta_path)
 
-            processed_dir = Path(data_dir) / "processed"
+            processed_dir = Path(data_dir) / "results"
             csv_files = list(processed_dir.glob("processed_metrics.csv"))
             viz_files = list(processed_dir.glob("*_labeled.png"))
 
@@ -108,7 +108,8 @@ class TestEndToEndBatchAnalysis:
             app = PyLithicsApplication(config_file=config_path)
             app.run_batch_analysis(data_dir, meta_path)
 
-            summary_path = Path(data_dir) / "processed" / "run_summary.json"
+            summary_path = (Path(data_dir) / "results"
+                            / "run_summary.json")
             assert summary_path.exists()
             summary = json.loads(summary_path.read_text())
 
@@ -148,7 +149,8 @@ class TestEndToEndBatchAnalysis:
             app = PyLithicsApplication(config_file=config_path)
             app.run_batch_analysis(data_dir, metadata_path)
 
-            summary_path = Path(data_dir) / "processed" / "run_summary.json"
+            summary_path = (Path(data_dir) / "results"
+                            / "run_summary.json")
             summary = json.loads(summary_path.read_text())
 
             assert summary["successful"] == [
@@ -171,7 +173,8 @@ class TestEndToEndBatchAnalysis:
             app = PyLithicsApplication(config_file=config_path)
             result = app.run_batch_analysis(data_dir, meta_path)
 
-            df = pd.read_csv(Path(data_dir) / "processed" / "processed_metrics.csv")
+            df = pd.read_csv(Path(data_dir) / "results"
+                             / "processed_metrics.csv")
 
             assert result["total_images"] == 3
             assert result["processed_successfully"] + len(result["failed_images"]) == 3
@@ -202,9 +205,53 @@ def test_cli_main_runs_successfully(sample_config):
         with patch("sys.argv", argv):
             exit_code = main()
 
-        processed_dir = Path(data_dir) / "processed"
+        processed_dir = Path(data_dir) / "results"
         assert exit_code == 0
         assert (processed_dir / "processed_metrics.csv").exists()
+
+
+@pytest.mark.functional
+def test_debug_flags_write_under_results_debug(sample_config, capsys):
+    """
+    Every debug image lands in results/<flag>_debug/<source image>.
+
+    Uses the shipped sample project, which has real scars and a real
+    scale bar, so all three steps have something to write.
+    """
+    import shutil
+    sample = Path(__file__).resolve().parents[1] / "pylithics" / "data"
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project = Path(temp_dir) / "project"
+        project.mkdir()
+        for name in ("images", "scales"):
+            (project / name).mkdir()
+        for name in ("awbari.png",):
+            shutil.copy(sample / "images" / name, project / "images" / name)
+        shutil.copy(sample / "scales" / "sc_001.png", project / "scales")
+        (project / "meta_data.csv").write_text(
+            "image_id,scale_id,scale\nawbari.png,sc_001,50\n"
+        )
+        config_path = _write_config(temp_dir, sample_config)
+
+        argv = [
+            "pylithics", "--data_dir", str(project),
+            "--config_file", config_path, "--workers", "1",
+            "--threshold_debug", "--scale_debug", "--arrow_debug",
+        ]
+        with patch("sys.argv", argv):
+            assert main() == 0
+
+        debug = project / "results"
+        assert (debug / "threshold_debug" / "awbari.png").is_file()
+        assert (debug / "scale_debug" / "sc_001.png").is_file()
+        arrows = debug / "arrow_debug" / "awbari"
+        assert arrows.is_dir()
+        assert any(p.suffix == ".txt" for p in arrows.iterdir())
+        assert not (project / "processed").exists()
+        screen = capsys.readouterr().out
+        for label in ("Threshold debug images", "Scale bar debug images",
+                      "Arrow debug images"):
+            assert label in screen
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +275,8 @@ class TestOutputValidation:
     def test_csv_has_expected_schema_and_numeric_types(self, sample_config):
         with tempfile.TemporaryDirectory() as temp_dir:
             data_dir, _ = self._run(temp_dir, sample_config)
-            df = pd.read_csv(data_dir / "processed" / "processed_metrics.csv")
+            df = pd.read_csv(data_dir / "results"
+                             / "processed_metrics.csv")
 
         required = {
             "image_id", "surface_type", "surface_feature",
@@ -244,7 +292,7 @@ class TestOutputValidation:
     def test_labeled_image_is_readable_png(self, sample_config):
         with tempfile.TemporaryDirectory() as temp_dir:
             data_dir, _ = self._run(temp_dir, sample_config)
-            labeled = list((data_dir / "processed").glob("*_labeled.png"))
+            labeled = list((data_dir / "results").glob("*_labeled.png"))
 
             assert labeled, "pipeline did not produce a labeled image"
             image = cv2.imread(str(labeled[0]))

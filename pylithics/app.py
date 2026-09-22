@@ -66,8 +66,8 @@ def _start_explore_progress() -> None:
     console = Console()
     if not console.is_terminal:
         print(
-            "Starting PyLithics data explorer... "
-            "(loading modules and PyLithics data).",
+            "Starting the PyLithics dashboard... "
+            "(reading the modules and the data).",
             flush=True,
         )
         return
@@ -75,8 +75,8 @@ def _start_explore_progress() -> None:
     _EXPLORE_PROGRESS = Progress(
         SpinnerColumn(style="cyan"),
         TextColumn(
-            "[cyan]Starting PyLithics data explorer...[/] "
-            "loading modules and PyLithics data"
+            "[cyan]Starting the PyLithics dashboard...[/] "
+            "reading the modules and the data"
         ),
         TimeElapsedColumn(),
         console=console,
@@ -102,7 +102,7 @@ import os
 from datetime import datetime
 import subprocess
 from PIL import Image
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 
 from pylithics.image_processing.config import (
     get_config_manager,
@@ -112,12 +112,132 @@ from pylithics.image_processing.importer import (
     execute_preprocessing_pipeline,
     verify_image_dpi_and_scale,
 )
-from pylithics.image_processing.image_analysis import process_and_save_contours
+from pylithics.image_processing.image_analysis import (
+    debug_dir_for,
+    process_and_save_contours,
+)
 from pylithics.image_processing.utils import read_metadata
 from pylithics.image_processing.modules.scale_calibration import get_calibration_factor
 
 
 _IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp')
+
+
+# The analysis writes into results/ inside the project folder, beside
+# the images/, scales/ and meta_data.csv it reads.
+ANALYSIS_OUTPUT_DIRNAME = 'results'
+METADATA_FILENAME = 'meta_data.csv'
+# A metadata row whose flag column is not empty is analysed like any
+# other, and reported at the end, so the user knows which crops
+# pylithics-pages could not link to a scale bar or could not name.
+_FLAG_COLUMN = 'flag'
+
+
+def resolve_output_dir(data_dir: str) -> str:
+    """
+    Return the directory the analysis writes its results into.
+
+    Parameters
+    ----------
+    data_dir : str
+        Directory given on the command line.
+
+    Returns
+    -------
+    str
+        ``<data_dir>/results``.
+    """
+    return os.path.join(data_dir, ANALYSIS_OUTPUT_DIRNAME)
+
+
+def default_meta_file(data_dir: str) -> Optional[str]:
+    """
+    Return ``<data_dir>/meta_data.csv`` when that file is there.
+
+    ``pylithics-pages`` writes the metadata under this name, and a
+    project prepared by hand usually follows the same convention, so
+    ``--meta_file`` need not be typed.
+    """
+    candidate = os.path.join(data_dir, METADATA_FILENAME)
+    return candidate if os.path.isfile(candidate) else None
+
+
+def _new_batch_results(
+    metadata: list, flagged: list, output_dir: str = ''
+) -> Dict[str, Any]:
+    """Return the empty results record for a batch."""
+    return {
+        'success': True,
+        'total_images': len(metadata),
+        'processed_successfully': 0,
+        'failed_images': [],
+        'processing_errors': [],
+        'flagged': flagged,
+        'output_dir': output_dir,
+    }
+
+
+# Debug flags: the configuration key that turns each on, and the folder
+# it writes under results/. Named on the screen at the end of a run.
+_DEBUG_FOLDERS = (
+    ('thresholding', 'debug_output', 'threshold_debug', 'Threshold'),
+    ('scale_calibration', 'debug_output', 'scale_debug', 'Scale bar'),
+    ('arrow_detection', 'debug_enabled', 'arrow_debug', 'Arrow'),
+)
+
+
+def _ask_yes_no(question: str) -> bool:
+    """Put a yes/no question to the person at the terminal. No is the default."""
+    try:
+        answer = input(question)
+    except EOFError:
+        return False
+    return answer.strip().lower() in ('y', 'yes')
+
+
+def flagged_rows(metadata: list) -> list:
+    """
+    List the metadata rows that carry a flag.
+
+    A flag does not stop the analysis: the row runs like any other,
+    in pixels when it has no scale value. The flags are reported at
+    the end so the user knows which crops to examine in
+    ``meta_data.csv``.
+
+    Returns
+    -------
+    list of dict
+        ``{'image_id', 'flag'}`` for each row whose flag is not empty.
+    """
+    return [
+        {'image_id': entry.get('image_id', ''), 'flag': flag}
+        for entry in metadata
+        for flag in [(entry.get(_FLAG_COLUMN) or '').strip()]
+        if flag
+    ]
+
+
+def resolve_images_dir(data_dir: str) -> str:
+    """
+    Locate the images to analyse within a data directory.
+
+    ``--data_dir`` normally names a project holding ``images/`` and
+    ``scales/``. Pointing it straight at a folder of images works too,
+    so an existing collection can be analysed where it sits rather than
+    being copied or symlinked into the expected layout.
+
+    Parameters
+    ----------
+    data_dir : str
+        Directory given on the command line.
+
+    Returns
+    -------
+    str
+        ``<data_dir>/images`` when that exists, otherwise ``data_dir``.
+    """
+    nested = os.path.join(data_dir, 'images')
+    return nested if os.path.isdir(nested) else data_dir
 
 
 def _resolve_image_path(images_dir: str, image_id: str) -> Optional[str]:
@@ -138,7 +258,7 @@ def _parse_scale(scale_value, image_id: str) -> Optional[float]:
         return float(scale_value) if scale_value else None
     except (ValueError, TypeError):
         logging.warning(
-            f"Invalid scale for {image_id}, using pixel measurements"
+            f"The scale for {image_id} is not valid. Pixel measurements are used."
         )
         return None
 
@@ -171,8 +291,8 @@ def _calibration_suffix(
     if method == "scale_bar" and conversion_factor:
         return f"{conversion_factor:.2f} px/mm"
     if method == "pixels_detection_failed":
-        return "pixels (scale detection failed — see log)"
-    return "pixels (no scale provided)"
+        return "pixels (scale bar not found — see the log)"
+    return "pixels (no scale given)"
 
 
 def _write_run_summary(
@@ -182,7 +302,7 @@ def _write_run_summary(
     metadata: list,
 ) -> None:
     """
-    Write ``processed/run_summary.json`` with a structured record of the run.
+    Write ``results/run_summary.json`` recording the run.
 
     The dashboard reads this file to populate its data-quality tiles. Each
     successful entry carries the image_id and the source DPI (or ``null`` if
@@ -211,6 +331,8 @@ def _write_run_summary(
         "processed_successfully": results.get('processed_successfully', 0),
         "successful": successful,
         "failed": failed,
+        "flagged": results.get('flagged', []),
+        "not_analysed": results.get('not_analysed', []),
     }
 
     summary_path = os.path.join(processed_dir, "run_summary.json")
@@ -219,7 +341,7 @@ def _write_run_summary(
             json.dump(summary, f, indent=2)
         logging.debug("Wrote run summary to %s", summary_path)
     except OSError as e:
-        logging.warning("Could not write run summary: %s", e)
+        logging.warning("Cannot write the run summary: %s", e)
 
 
 # ---------------------------------------------------------------------------
@@ -243,6 +365,7 @@ _WORKER_APP: Optional["PyLithicsApplication"] = None
 def _init_worker(
     config_file: Optional[str],
     data_dir: Optional[str],
+    config: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Pool initializer — runs once per child process at spawn.
 
@@ -270,6 +393,9 @@ def _init_worker(
     matplotlib.use("Agg", force=True)
 
     _WORKER_APP = PyLithicsApplication(config_file=config_file)
+    if config is not None:
+        # The main process merged the CLI overrides; use them, not the file.
+        _WORKER_APP.config_manager.replace(config)
 
     # No FileHandler attached at the worker level — that would funnel
     # every worker's events to the same pylithics.log simultaneously
@@ -373,7 +499,7 @@ def _resolve_worker_count(workers_arg, n_images: int) -> int:
         n = int(workers_arg)
     except (TypeError, ValueError):
         logging.warning(
-            "Invalid --workers value %r; falling back to 1 (sequential).",
+            "The --workers value %r is not valid. One worker is used.",
             workers_arg,
         )
         return 1
@@ -533,8 +659,8 @@ class PyLithicsApplication:
         data_dir : str, optional
             When provided and the config has no explicit ``logging.log_file``
             entry, the log file is written to
-            ``<data_dir>/processed/pylithics.log``. This avoids creating
-            stray ``pylithics/data/processed/`` folder trees wherever the
+            ``<data_dir>/results/pylithics.log``. This avoids
+            creating stray ``results/`` folder trees wherever the
             user happens to launch the command.
 
         The console ``rich.console.Console`` is stored on ``self.rich_console``
@@ -595,14 +721,14 @@ class PyLithicsApplication:
             # Resolve log file path. Priority:
             #   1. Explicit ``logging.log_file`` in config (honour as-is).
             #   2. Derived from ``data_dir`` when provided
-            #      (``<data_dir>/processed/pylithics.log``).
+            #      (``<data_dir>/results/pylithics.log``).
             #   3. Otherwise skip the file handler entirely (avoids
-            #      creating stray ``pylithics/data/processed/`` trees in
+            #      creating stray ``results/`` trees in
             #      whatever directory the user happens to launch from).
             log_file = logging_config.get('log_file')
             if not log_file and data_dir:
                 log_file = os.path.join(
-                    data_dir, 'processed', 'pylithics.log',
+                    data_dir, ANALYSIS_OUTPUT_DIRNAME, 'pylithics.log',
                 )
 
             if log_file:
@@ -650,9 +776,12 @@ class PyLithicsApplication:
             logging.error(f"Data directory does not exist: {data_dir}")
             return False
 
-        images_dir = os.path.join(data_dir, 'images')
+        images_dir = resolve_images_dir(data_dir)
         if not os.path.exists(images_dir):
-            logging.error(f"Images directory does not exist: {images_dir}")
+            logging.error(
+                f"There is no images/ directory in {data_dir}, and the "
+                f"directory contains no images"
+            )
             return False
 
         # Check metadata file
@@ -664,7 +793,7 @@ class PyLithicsApplication:
         try:
             metadata = read_metadata(meta_file)
             if not metadata:
-                logging.error("Metadata file is empty or invalid")
+                logging.error("The metadata file is empty or not valid")
                 return False
 
             # Check required columns
@@ -672,14 +801,14 @@ class PyLithicsApplication:
             first_entry = metadata[0]
             for col in required_columns:
                 if col not in first_entry:
-                    logging.error(f"Missing required column in metadata: {col}")
+                    logging.error(f"Column missing in the metadata: {col}")
                     return False
 
         except (FileNotFoundError, KeyError, ValueError) as e:
             logging.error(f"Error reading metadata file: {e}")
             return False
 
-        logging.info("Input validation passed")
+        logging.info("The input is correct")
         return True
 
     def process_single_image(self,
@@ -730,12 +859,15 @@ class PyLithicsApplication:
                 image_path, self.config_manager.config,
             )
             if processed_image is None:
-                logging.error(f"Preprocessing failed for {image_id}")
+                logging.error(f"Preprocessing error for {image_id}")
                 return False
 
+            self._write_threshold_debug(processed_image, image_id, processed_dir)
             image_dpi = self._extract_image_dpi(image_path)
             conversion_factor, calibration_method, scale_confidence = (
-                self._resolve_calibration(image_path, scale_data or {})
+                self._resolve_calibration(
+                    image_path, scale_data or {}, processed_dir
+                )
             )
 
             # Keep the CSV's calibration_method column on the legacy
@@ -780,13 +912,26 @@ class PyLithicsApplication:
             logging.exception(f"Unexpected error processing {image_id}")
             return False
 
+    def _write_threshold_debug(
+        self, processed_image, image_id: str, processed_dir: str
+    ) -> None:
+        """Write the black-and-white image to ``results/threshold_debug/``."""
+        if not self.config_manager.get_section('thresholding').get('debug_output'):
+            return
+        import cv2
+        folder = debug_dir_for(processed_dir, 'threshold')
+        os.makedirs(folder, exist_ok=True)
+        stem = os.path.splitext(image_id)[0]
+        cv2.imwrite(os.path.join(folder, f"{stem}.png"), processed_image)
+
     def _resolve_calibration(
-        self, image_path: str, scale_data: Dict,
+        self, image_path: str, scale_data: Dict, processed_dir: str,
     ) -> "tuple[float, str, Optional[float]]":
         """Get conversion factor with fallback to pixel measurements."""
         conversion_factor, calibration_method, scale_confidence = (
             get_calibration_factor(
                 image_path, scale_data, self.config_manager.config,
+                debug_dir_for(processed_dir, 'scale'),
             )
         )
         if conversion_factor:
@@ -821,16 +966,15 @@ class PyLithicsApplication:
                     logging.debug(f"Image DPI detected: {image_dpi}")
                     return image_dpi
                 else:
-                    logging.warning(f"No DPI information found in {image_path}")
+                    logging.warning(f"No DPI in {image_path}")
                     return None
         except Exception as e:
-            logging.warning(f"Could not extract DPI from {image_path}: {e}")
+            logging.warning(f"Cannot read the DPI from {image_path}: {e}")
             return None
 
-    def run_batch_analysis(self,
-                          data_dir: str,
-                          meta_file: str,
-                          show_thresholded_images: bool = False) -> Dict[str, Any]:
+    def run_batch_analysis(
+        self, data_dir: str, meta_file: str, show_thresholded_images: bool = False
+    ) -> Dict[str, Any]:
         """
         Run batch analysis on all images in the dataset.
 
@@ -841,36 +985,31 @@ class PyLithicsApplication:
         meta_file : str
             Path to the metadata CSV file
         show_thresholded_images : bool
-            Whether to display thresholded images
+            Write each thresholded image to ``results/threshold_debug/``.
 
         Returns
         -------
-        dict
-            Processing results summary
+        dict : processing results summary.
         """
         if not self.validate_inputs(data_dir, meta_file):
             return {'success': False, 'error': 'Input validation failed'}
+        if show_thresholded_images:
+            self.update_configuration(**{'thresholding.debug_output': True})
 
-        images_dir = os.path.join(data_dir, 'images')
-        processed_dir = os.path.join(data_dir, 'processed')
-        os.makedirs(processed_dir, exist_ok=True)
-        logging.info(f"Output directory: {processed_dir}")
-
-        metadata = read_metadata(meta_file)
-        results = {
-            'success': True,
-            'total_images': len(metadata),
-            'processed_successfully': 0,
-            'failed_images': [],
-            'processing_errors': [],
-        }
-
+        images_dir, processed_dir = self._prepare_dirs(data_dir)
+        metadata, not_analysed = self._rows_to_analyse(
+            read_metadata(meta_file), meta_file
+        )
+        results = _new_batch_results(metadata, flagged_rows(metadata), processed_dir)
+        results['not_analysed'] = not_analysed
         logging.debug(f"Starting batch processing of {len(metadata)} images")
 
         workers = _resolve_worker_count(self.workers_arg, len(metadata))
-        if workers > 1 and len(metadata) > 1:
+        if not metadata:
+            logging.warning("No rows to analyse in %s", meta_file)
+        elif workers > 1 and len(metadata) > 1:
             logging.info(
-                f"Running batch in parallel: {workers} worker processes"
+                f"Parallel batch: {workers} worker processes"
             )
             self._run_batch_loop_parallel(
                 metadata, images_dir, processed_dir, results, workers,
@@ -882,6 +1021,52 @@ class PyLithicsApplication:
         _write_run_summary(processed_dir, images_dir, results, metadata)
 
         return results
+
+    @staticmethod
+    def _prepare_dirs(data_dir: str) -> Tuple[str, str]:
+        """Resolve the images folder and make the results folder."""
+        images_dir = resolve_images_dir(data_dir)
+        processed_dir = resolve_output_dir(data_dir)
+        logging.info(f"Reading images from {images_dir}")
+        os.makedirs(processed_dir, exist_ok=True)
+        logging.info(f"Output directory: {processed_dir}")
+        return images_dir, processed_dir
+
+    def _rows_to_analyse(self, metadata: list, meta_file: str) -> Tuple[list, list]:
+        """
+        Ask, when a person is there, before measuring in pixels.
+
+        Rows with no scale value are measured in pixels. That is the
+        right result when the user wants it and a silent surprise when
+        they forgot to fill in the scale, so on a terminal the command
+        asks once. A script cannot answer, so it gets a warning and
+        continues. ``--force_pixels`` and ``--disable_scale_calibration``
+        mean pixels on purpose, so they are not asked.
+
+        Returns
+        -------
+        tuple of (list, list)
+            The rows to analyse, and the image_ids of the rows left out.
+        """
+        without = [e for e in metadata if not (e.get('scale') or '').strip()]
+        calibration = self.config_manager.get_section('scale_calibration')
+        if not without or not calibration.get('enabled', True):
+            return metadata, []
+
+        notice = f"{len(without)} of {len(metadata)} images have no scale value."
+        if not sys.stdin.isatty():
+            logging.warning(f"{notice} They are measured in pixels.")
+            return metadata, []
+        if _ask_yes_no(f"{notice} Measure them in pixels? [y/N] "):
+            return metadata, []
+
+        logging.warning(
+            f"{len(without)} images with no scale value are not analysed. "
+            f"Fill in the scale column of {meta_file}."
+        )
+        left_out = {id(e) for e in without}
+        kept = [e for e in metadata if id(e) not in left_out]
+        return kept, [e.get('image_id', '') for e in without]
 
     def _run_batch_loop(
         self,
@@ -971,9 +1156,9 @@ class PyLithicsApplication:
                 csv_partial, log_partial,
             ))
 
-        # data_dir is what setup_logging needs to resolve the
-        # FileHandler path. processed_dir is always <data_dir>/processed,
-        # so walking one directory up recovers it.
+        # setup_logging needs data_dir to resolve the FileHandler path.
+        # processed_dir is always <data_dir>/results, so walking
+        # one directory up recovers it.
         worker_data_dir = os.path.dirname(processed_dir)
 
         use_progress = sys.stdout.isatty()
@@ -1000,7 +1185,10 @@ class PyLithicsApplication:
                     with Pool(
                         processes=workers,
                         initializer=_init_worker,
-                        initargs=(self.config_file, worker_data_dir),
+                        initargs=(
+                        self.config_file, worker_data_dir,
+                        self.config_manager.config,
+                    ),
                     ) as pool:
                         for image_id, success, suffix in pool.imap_unordered(
                             _worker_process_image, work,
@@ -1016,13 +1204,16 @@ class PyLithicsApplication:
                             if success and suffix:
                                 logging.info(f"{image_id} · {suffix}")
                             elif not success:
-                                logging.error(f"{image_id} · FAILED")
+                                logging.error(f"{image_id} · ERROR")
                             progress.advance(task)
             else:
                 with Pool(
                     processes=workers,
                     initializer=_init_worker,
-                    initargs=(self.config_file, worker_data_dir),
+                    initargs=(
+                        self.config_file, worker_data_dir,
+                        self.config_manager.config,
+                    ),
                 ) as pool:
                     for i, (image_id, success, suffix) in enumerate(
                         pool.imap_unordered(_worker_process_image, work), 1,
@@ -1033,7 +1224,7 @@ class PyLithicsApplication:
                                 f"{i}/{total} {image_id} · {suffix}"
                             )
                         else:
-                            prefix = "OK" if success else "FAIL"
+                            prefix = "OK" if success else "ERROR"
                             logging.info(
                                 f"{i}/{total} [{prefix}] {image_id}"
                             )
@@ -1092,22 +1283,57 @@ class PyLithicsApplication:
         log_path = self.log_file_path or "the log file"
         console_only = {"console_only": True}
         if total > 0 and done == total:
-            logging.info(f"{done}/{total} images processed without errors.")
+            logging.info(f"{done}/{total} images analysed with no errors.")
             logging.info(
-                f"Please check logs at {log_path}", extra=console_only,
+                f"See the log at {log_path}", extra=console_only,
             )
         else:
-            logging.info(f"{done}/{total} images processed successfully.")
+            logging.info(f"{done}/{total} images analysed with no errors.")
             logging.info(
-                f"Please check logs at {log_path} for errors.",
+                f"See the log at {log_path} for the errors.",
                 extra=console_only,
             )
             if results['failed_images']:
                 logging.warning(
-                    f"Failed images: {', '.join(results['failed_images'])}"
+                    f"Images with errors: {', '.join(results['failed_images'])}"
                 )
+        if results.get('not_analysed'):
+            logging.warning(
+                f"{len(results['not_analysed'])} images with no scale value "
+                f"not analysed."
+            )
+        self._log_flagged_rows(results.get('flagged', []))
+        self._log_debug_folders(results.get('output_dir', ''))
         if hasattr(self, 'rich_console'):
             self.rich_console.print()
+
+    def _log_debug_folders(self, output_dir: str) -> None:
+        """Name the folder of each debug flag that was on."""
+        for section, key, folder, label in _DEBUG_FOLDERS:
+            if not self.config_manager.get_section(section).get(key, False):
+                continue
+            path = os.path.join(output_dir, folder)
+            if os.path.isdir(path):
+                logging.info(f"{label} debug images: {path}")
+            else:
+                logging.info(f"No {label.lower()} debug images were written.")
+
+    @staticmethod
+    def _log_flagged_rows(flagged: list) -> None:
+        """Give one count for each flag on the screen, the rows in the log."""
+        if not flagged:
+            return
+        counts: Dict[str, int] = {}
+        for entry in flagged:
+            for flag in entry['flag'].split(';'):
+                counts[flag] = counts.get(flag, 0) + 1
+        summary = ', '.join(f"{flag} {n}" for flag, n in sorted(counts.items()))
+        logging.warning(
+            f"{len(flagged)} row(s) in the metadata have a flag: {summary}. "
+            f"The images were analysed. Examine each row in meta_data.csv."
+        )
+        for entry in flagged:
+            logging.debug(f"  flagged: {entry['image_id']}: {entry['flag']}")
 
     def update_configuration(self, **kwargs) -> None:
         """
@@ -1123,7 +1349,10 @@ class PyLithicsApplication:
                 section, config_key = key.split('.', 1)
                 self.config_manager.update_value(section, config_key, value)
             else:
-                logging.warning(f"Invalid config key format: {key}. Use 'section.key' format.")
+                logging.warning(
+                    f"The configuration key {key} is not valid. "
+                    "Use the format 'section.key'."
+                )
 
         # Do NOT call clear_config_cache() here. The update_value() calls
         # above mutate the cached singleton in place; clearing the cache would
@@ -1135,9 +1364,15 @@ def create_argument_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(
         prog='PyLithics',
-        description='PyLithics v2.0.0: Stone Tool Image Analysis',
+        description='PyLithics v2.0.0: analysis of stone tool images',
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='Use --docs to launch full documentation.'
+        epilog=(
+            'Related command:\n'
+            '  pylithics-pages   Cut the scanned plates in <data_dir>/pages/ into\n'
+            '                    one image for each artefact, ready for this command.\n'
+            '                    See: pylithics-pages --help\n\n'
+            'Use --docs to open the full documentation.'
+        )
     )
 
     _add_required_args(parser)
@@ -1156,14 +1391,18 @@ def create_argument_parser() -> argparse.ArgumentParser:
 
 def _add_required_args(parser: argparse.ArgumentParser) -> None:
     """Add required argument group."""
-    group = parser.add_argument_group('REQUIRED ARGUMENTS')
+    group = parser.add_argument_group('NECESSARY ARGUMENTS')
     group.add_argument(
         '--data_dir', required=False, metavar='PATH',
-        help='Directory containing images/ and scale files'
+        help='The project folder that contains images/, scales/ and '
+             'meta_data.csv. The results go to <data_dir>/results/.'
     )
     group.add_argument(
         '--meta_file', required=False, metavar='FILE',
-        help='CSV metadata file (columns: image_id, scale_id, scale)'
+        help='The metadata CSV file (columns: image_id, scale_id, scale, '
+             'flag). Default: <data_dir>/meta_data.csv. If some rows have '
+             'no scale value, the command asks once whether to measure '
+             'those images in pixels. Flags are reported.'
     )
 
 
@@ -1172,26 +1411,26 @@ def _add_config_args(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group('CONFIGURATION OPTIONS')
     group.add_argument(
         '--config_file', metavar='FILE',
-        help='Custom YAML configuration file'
+        help='A YAML configuration file to use in place of the default.'
     )
     group.add_argument(
         '--threshold_method',
         choices=["adaptive", "simple", "otsu", "default"],
         metavar='METHOD',
-        help='Thresholding method: simple, otsu, adaptive, default'
+        help='The threshold method: simple, otsu, adaptive or default.'
     )
     group.add_argument(
         '--log_level',
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         metavar='LEVEL',
-        help='Logging level for both console and file handlers '
-             '(default: INFO on console, DEBUG always in file)'
+        help='The logging level for the screen and the log file '
+             '(default: INFO on the screen; the log file always has DEBUG).'
     )
     group.add_argument(
         '--verbose', '-v', action='store_true',
-        help='Show the full per-step pipeline trace on screen. '
-             'Equivalent to --log_level DEBUG for the console only; the '
-             'log file always captures the full trace.'
+        help='Show the full trace for each step on the screen. This is '
+             'the same as --log_level DEBUG for the screen only. The log '
+             'file always has the full trace.'
     )
 
 
@@ -1200,38 +1439,40 @@ def _add_processing_args(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group('PROCESSING OPTIONS')
     group.add_argument(
         '--workers', default='auto', metavar='N',
-        help='Number of parallel worker processes for batch image '
-             'processing. "auto" (default) uses cpu_count - 1, capped '
-             'by batch size and at 8 workers. "1" disables parallelism '
-             '(useful for debugging). Any positive integer overrides '
-             'auto. Per-image visualizations and the final CSV are '
-             'identical whether parallel or sequential.'
+        help='The number of parallel worker processes for a batch. '
+             '"auto" (default) uses cpu_count - 1, with a maximum of 8 '
+             'and a maximum of the batch size. "1" uses one process; use '
+             'it to find a problem with one image. A positive integer '
+             'sets the count. The images and the CSV are identical in '
+             'parallel and in sequential mode.'
     )
     group.add_argument(
-        '--show_thresholded_images', action='store_true',
-        help='Display processed images during analysis'
+        '--threshold_debug', '--show_thresholded_images', action='store_true',
+        dest='show_thresholded_images',
+        help='Write the black-and-white image of each lithic to '
+             'results/threshold_debug/.'
     )
     group.add_argument(
         '--closing', type=bool, default=True, metavar='BOOL',
-        help='Apply morphological closing (default: True)'
+        help='Apply morphological closing (default: True).'
     )
     group.add_argument(
         '--enable_dpi_scaling', action='store_true',
-        help='Enable DPI-aware kernel scaling for preprocessing'
+        help='Set DPI-aware kernel scaling on for the preprocessing.'
     )
     group.add_argument(
         '--dpi_reference', type=float, metavar='DPI',
-        help='Reference DPI for kernel scaling (default: 300.0)'
+        help='The reference DPI for kernel scaling (default: 300.0).'
     )
     group.add_argument(
         '--dpi_max_scale', type=float, metavar='FACTOR',
-        help='Maximum DPI scaling factor (default: 1.5)'
+        help='The maximum DPI scaling factor (default: 1.5).'
     )
     group.add_argument(
         '--dpi_scaling_mode',
         choices=['conservative', 'standard', 'aggressive'],
         metavar='MODE',
-        help='DPI scaling strategy (default: standard)'
+        help='The DPI scaling mode (default: standard).'
     )
 
 
@@ -1240,15 +1481,16 @@ def _add_arrow_args(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group('ARROW DETECTION OPTIONS')
     group.add_argument(
         '--disable_arrow_detection', action='store_true',
-        help='Disable arrow detection analysis'
+        help='Set arrow detection off.'
     )
     group.add_argument(
         '--arrow_debug', action='store_true',
-        help='Enable arrow detection debug output'
+        help='Write the arrow found in each scar, and the steps, to '
+             'results/arrow_debug/<image>/.'
     )
     group.add_argument(
         '--show-arrow-lines', action='store_true',
-        help='Draw red arrow lines on detected arrows'
+        help='Draw a red line on each arrow found.'
     )
 
 
@@ -1257,15 +1499,17 @@ def _add_scale_args(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group('SCALE CALIBRATION OPTIONS')
     group.add_argument(
         '--disable_scale_calibration', action='store_true',
-        help='Disable scale bar calibration'
+        help='Set scale bar calibration off.'
     )
     group.add_argument(
         '--scale_debug', action='store_true',
-        help='Enable scale bar detection debug output'
+        help='Write the scale image with the bar that was found to '
+             'results/scale_debug/.'
     )
     group.add_argument(
         '--force_pixels', action='store_true',
-        help='Force pixel measurements only'
+        help='Use pixel measurements only. The command does not ask about '
+             'images with no scale value.'
     )
 
 
@@ -1274,12 +1518,12 @@ def _add_cortex_args(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group('CORTEX DETECTION OPTIONS')
     group.add_argument(
         '--disable_cortex_detection', action='store_true',
-        help='Disable cortex detection analysis'
+        help='Set cortex detection off.'
     )
     group.add_argument(
         '--cortex_sensitivity', type=str,
         choices=['low', 'medium', 'high'],
-        help='Cortex detection sensitivity (default: medium)'
+        help='The cortex detection sensitivity (default: medium).'
     )
 
 
@@ -1288,12 +1532,12 @@ def _add_scar_args(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group('SCAR COMPLEXITY OPTIONS')
     group.add_argument(
         '--disable_scar_complexity', action='store_true',
-        help='Disable scar complexity analysis'
+        help='Set scar complexity analysis off.'
     )
     group.add_argument(
         '--scar_complexity_distance_threshold',
         type=float, metavar='PIXELS',
-        help='Adjacency distance threshold in pixels (default: 10.0)'
+        help='The adjacency distance in pixels (default: 10.0).'
     )
 
 
@@ -1303,14 +1547,14 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         '--export_json', action='store_true',
         help=(
-            'Also write a per-lithic JSON file to processed/json/'
-            '{image_stem}.json (in addition to the CSV).'
+            'Also write one JSON file for each lithic to '
+            'results/json/{image_stem}.json.'
         )
     )
     group.add_argument(
         '--save_visualizations', action='store_true',
         default=True,
-        help='Generate visualization images (default: True)'
+        help='Write the labelled images (default: True).'
     )
 
 
@@ -1318,12 +1562,11 @@ def _add_explore_args(parser: argparse.ArgumentParser) -> None:
     """Add interactive dashboard argument group."""
     group = parser.add_argument_group('EXPLORE OPTIONS')
     group.add_argument(
-        '--explore', action='store_true',
+        '--explore', nargs='?', const=True, default=False, metavar='PATH',
         help=(
-            'Run analysis (if --meta_file is provided) and then launch the '
-            'PyLithics Explorer. Without --meta_file, point --data_dir at '
-            'the folder containing processed_metrics.csv (commonly '
-            '<project_root>/processed/).'
+            'Open the dashboard. With no PATH: do the analysis, then open '
+            'the dashboard for <data_dir>/results/. With PATH: open the '
+            'dashboard for that results folder. No analysis.'
         )
     )
 
@@ -1333,19 +1576,19 @@ def _add_help_args(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group('EXTENDED HELP OPTIONS')
     group.add_argument(
         '--help-config', action='store_true',
-        help='Show configuration file documentation'
+        help='Show the documentation of the configuration file.'
     )
     group.add_argument(
         '--help-examples', action='store_true',
-        help='Show usage examples'
+        help='Show examples of use.'
     )
     group.add_argument(
         '--help-troubleshooting', action='store_true',
-        help='Show common problems and solutions'
+        help='Show common problems and their procedures.'
     )
     group.add_argument(
         '--docs', action='store_true',
-        help='Launch documentation server (http://127.0.0.1:8000)'
+        help='Start the documentation server (http://127.0.0.1:8000).'
     )
 
 
@@ -1355,15 +1598,15 @@ def show_config_help() -> None:
     PYLITHICS CONFIGURATION HELP
     ============================
 
-    PyLithics uses YAML configuration files. To customise:
+    PyLithics reads a YAML configuration file. To change the settings:
       1. Copy pylithics/config/config.yaml
-      2. Edit values as needed
-      3. Use --config_file path/to/your/config.yaml
+      2. Change the values that you want
+      3. Give the file with --config_file path/to/your/config.yaml
 
-    Key sections: thresholding, arrow_detection, cortex_detection,
+    The main sections: thresholding, arrow_detection, cortex_detection,
     scar_complexity, logging, contour_filtering, data_export
 
-    For full documentation: pylithics --docs
+    Full documentation: pylithics --docs
     """)
 
 
@@ -1373,35 +1616,37 @@ def show_examples_help() -> None:
     PYLITHICS USAGE EXAMPLES
     ========================
 
-    Basic analysis:
-      pylithics --data_dir ./artifacts --meta_file ./metadata.csv
+    Basic analysis. The project folder holds images/, scales/ and
+    meta_data.csv. The results go to ./project/results/:
+      pylithics --data_dir ./project
+
+    A metadata file with a different name or place:
+      pylithics --data_dir ./project --meta_file ./metadata.csv
 
     With Otsu thresholding:
-      pylithics --data_dir ./artifacts --meta_file ./metadata.csv \\
+      pylithics --data_dir ./project \\
           --threshold_method otsu
 
-    Debug arrow detection:
-      pylithics --data_dir ./artifacts --meta_file ./metadata.csv \\
+    Arrow detection debug output:
+      pylithics --data_dir ./project \\
           --arrow_debug --log_level DEBUG
 
-    Fast batch (no arrows):
-      pylithics --data_dir ./artifacts --meta_file ./metadata.csv \\
+    A fast batch (no arrow detection):
+      pylithics --data_dir ./project \\
           --disable_arrow_detection
 
-    Also export per-lithic JSON files (in addition to CSV):
-      pylithics --data_dir ./artifacts --meta_file ./metadata.csv \\
+    Also write one JSON file for each lithic:
+      pylithics --data_dir ./project \\
           --export_json
 
-    Analyze and immediately launch the interactive dashboard:
-      pylithics --data_dir ./artifacts --meta_file ./metadata.csv --explore
+    Analyse, then open the dashboard:
+      pylithics --data_dir ./project --explore
 
-    Re-open the dashboard later (no re-analysis). --data_dir is the
-    folder that actually contains processed_metrics.csv (the folder name
-    doesn't have to be 'processed/' — it can be any folder you've moved
-    or renamed):
-      pylithics --data_dir ./artifacts/processed --explore
+    Open the dashboard for a previous analysis (no new analysis). Give
+    the folder that contains processed_metrics.csv:
+      pylithics --explore ./project/results
 
-    For full documentation: pylithics --docs
+    Full documentation: pylithics --docs
     """)
 
 
@@ -1411,27 +1656,40 @@ def show_troubleshooting_help() -> None:
     PYLITHICS TROUBLESHOOTING
     =========================
 
-    Common fixes:
-    - "Directory does not exist": Check --data_dir path
-    - "Missing required column": CSV needs image_id, scale_id, scale
-    - Poor contour detection: Try --threshold_method otsu
-    - Slow processing: Use --disable_arrow_detection
-    - Arrow issues: Use --arrow_debug --log_level DEBUG
+    Common problems:
+    - "Directory does not exist": examine the --data_dir path
+    - "Column missing": the CSV must have image_id, scale_id, scale
+    - "images have no scale value. Measure them in pixels?": y analyses
+      all images, in pixels where there is no scale. n analyses only the
+      images with a scale value. Fill in the scale column of
+      meta_data.csv, then start the command again.
+    - "row(s) in the metadata have a flag": examine those rows in
+      meta_data.csv. Their images were analysed.
+    - Contours not correct: use --threshold_method otsu
+    - Slow analysis: use --disable_arrow_detection
+    - Arrow problems: use --arrow_debug --log_level DEBUG
 
-    Debug mode:
-      pylithics --data_dir ./data --meta_file ./meta.csv \\
-          --log_level DEBUG --arrow_debug
+    Debug output:
+      pylithics --data_dir ./data \\
+          --log_level DEBUG --threshold_debug --scale_debug --arrow_debug
 
-    Check logs: data_dir/processed/pylithics.log
+    Each flag writes to its own folder in results/, and the run names
+    the folders at the end:
+      results/threshold_debug/<image>.png       the black-and-white image
+      results/scale_debug/<scale image>.png     the bar that was found
+      results/arrow_debug/<image>/<scar>.png    the arrow found, and .txt
+    pylithics-pages --debug writes pages_debug/<page>.png in the project.
 
-    For full documentation: pylithics --docs
+    The log: <data_dir>/results/pylithics.log
+
+    Full documentation: pylithics --docs
     """)
 
 
 def launch_docs_server() -> None:
     """Launch the MkDocs development server."""
     try:
-        print("\nStarting documentation server...")
+        print("\nStarting the documentation server...")
         print("URL: http://127.0.0.1:8000/Palaeoanalytics/")
         print("Press Ctrl+C to stop\n")
 
@@ -1442,15 +1700,15 @@ def launch_docs_server() -> None:
             )
         except (subprocess.CalledProcessError, FileNotFoundError):
             print("Error: MkDocs is not installed.")
-            print("Install with: pip install mkdocs mkdocs-material")
+            print("Install it with: pip install mkdocs mkdocs-material")
             sys.exit(1)
 
         subprocess.run(['mkdocs', 'serve'])
 
     except KeyboardInterrupt:
-        print("\nDocumentation server stopped.")
+        print("\nThe documentation server stopped.")
     except OSError as e:
-        print(f"Error launching documentation server: {e}")
+        print(f"Error when the documentation server started: {e}")
         sys.exit(1)
 
 def _apply_config_overrides(
@@ -1480,6 +1738,8 @@ def _apply_config_overrides(
         overrides['arrow_detection.enabled'] = False
     if args.arrow_debug:
         overrides['arrow_detection.debug_enabled'] = True
+    if getattr(args, 'show_thresholded_images', False):
+        overrides['thresholding.debug_output'] = True
     if args.show_arrow_lines:
         overrides['arrow_detection.show_arrow_lines'] = True
 
@@ -1491,7 +1751,7 @@ def _apply_config_overrides(
 
     if overrides:
         app.update_configuration(**overrides)
-        logging.info(f"Applied config overrides: {overrides}")
+        logging.info(f"Configuration changes applied: {overrides}")
 
 
 def _apply_scale_overrides(
@@ -1582,28 +1842,20 @@ def main() -> int:
     if _handle_help_flags(args):
         return 0
 
-    if not args.data_dir:
-        print("Error: --data_dir is required.")
-        print("Use 'pylithics --help' or 'pylithics --docs'.")
-        return 1
-
     explore = getattr(args, 'explore', False)
-    if not args.meta_file and not explore:
-        print("Error: --meta_file is required (or pass --explore to open the "
-              "dashboard against an existing run).")
-        print("Use 'pylithics --help' or 'pylithics --docs'.")
+    if isinstance(explore, str):
+        return _launch_explore(explore)
+    if not _resolve_inputs(args, explore):
         return 1
 
     try:
         app = PyLithicsApplication(args.config_file)
         app.workers_arg = getattr(args, 'workers', 'auto')
         _apply_config_overrides(app, args)
-        # Re-configure logging now that CLI overrides (e.g. --verbose,
-        # --log_level) have been merged into the config. Pass data_dir so
-        # the log file is written next to the user's processed/ folder
-        # rather than wherever the shell happened to be.
+        # Re-configure logging now that CLI overrides (--verbose,
+        # --log_level) are merged into the config. data_dir puts the log
+        # file in the user's results/ folder, not the shell's cwd.
         app.setup_logging(data_dir=args.data_dir)
-
         # Erase the "Starting PyLithics…" stderr line written at
         # import time before the first real INFO line scrolls past it.
         _clear_startup_notice()
@@ -1617,7 +1869,7 @@ def main() -> int:
                 args.data_dir, args.meta_file, args.show_thresholded_images,
             )
             if not results['success']:
-                logging.error("Batch processing failed")
+                logging.error("The batch stopped with an error")
                 return 1
 
         if explore:
@@ -1625,25 +1877,42 @@ def main() -> int:
         return 0
 
     except KeyboardInterrupt:
-        logging.info("Processing interrupted by user")
+        logging.info("Stopped by the user")
         return 1
     except (FileNotFoundError, ValueError) as e:
         logging.error(f"Input error: {e}")
         return 1
 
 
-def _resolve_explore_dir(data_dir: str) -> str:
-    """Resolve ``--data_dir`` to the processed-results folder for ``--explore``.
-
-    ``--data_dir`` historically meant two different things: the parent
-    folder (when running analysis, which expects ``data_dir/images/`` and
-    writes to ``data_dir/processed/``) versus the processed folder itself
-    (when re-opening the dashboard with no ``--meta_file``). That was a
-    footgun. Accept either form here: probe for the standard
-    ``processed/processed_metrics.csv`` layout first, and only fall back
-    to treating ``data_dir`` as the processed folder if that probe fails.
+def _resolve_inputs(args: argparse.Namespace, explore: bool) -> bool:
     """
-    candidate = os.path.join(data_dir, 'processed')
+    Fill the metadata default and report a missing argument.
+
+    Prints the error, since logging is not yet set up at this point.
+    """
+    if not args.data_dir:
+        print("Error: --data_dir is necessary.")
+        print("Use 'pylithics --help' or 'pylithics --docs'.")
+        return False
+    if not args.meta_file:
+        args.meta_file = default_meta_file(args.data_dir)
+    if not args.meta_file and not explore:
+        print(f"Error: there is no {METADATA_FILENAME} in {args.data_dir}. "
+              f"Give --meta_file.")
+        print("Use 'pylithics --help' or 'pylithics --docs'.")
+        return False
+    return True
+
+
+def _resolve_explore_dir(data_dir: str) -> str:
+    """Resolve ``--data_dir`` to the results folder for a bare ``--explore``.
+
+    After an analysis the results are in ``data_dir/results/``. A
+    project folder with no metadata, given with a bare ``--explore``,
+    is accepted as the results folder itself, so an older command line
+    still opens the dashboard.
+    """
+    candidate = os.path.join(data_dir, ANALYSIS_OUTPUT_DIRNAME)
     if os.path.isfile(os.path.join(candidate, 'processed_metrics.csv')):
         return candidate
     return data_dir
@@ -1660,9 +1929,9 @@ def _launch_explore(processed_dir: str) -> int:
     csv_path = os.path.join(processed_dir, "processed_metrics.csv")
     if not os.path.exists(csv_path):
         logging.error(
-            "No processed_metrics.csv found in %s. "
-            "Point --data_dir at the folder that contains it, or pass "
-            "--meta_file to run analysis first.",
+            "There is no processed_metrics.csv in %s. "
+            "Give --explore the folder that contains it, or give "
+            "--data_dir to do the analysis first.",
             processed_dir,
         )
         return 1

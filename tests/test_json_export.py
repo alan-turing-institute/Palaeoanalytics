@@ -367,7 +367,7 @@ def test_export_json_flag_writes_per_lithic_files_alongside_csv():
         app = PyLithicsApplication(config_file=config_path)
         result = app.run_batch_analysis(data_dir, meta_path)
 
-        processed_dir = os.path.join(data_dir, "processed")
+        processed_dir = os.path.join(data_dir, "results")
         json_path = os.path.join(processed_dir, "json", "artifact.json")
         csv_path = os.path.join(processed_dir, "processed_metrics.csv")
 
@@ -417,7 +417,7 @@ def test_no_json_directory_when_flag_not_set():
         app = PyLithicsApplication()
         app.run_batch_analysis(data_dir, meta_path)
 
-        processed_dir = os.path.join(data_dir, "processed")
+        processed_dir = os.path.join(data_dir, "results")
         assert os.path.exists(
             os.path.join(processed_dir, "processed_metrics.csv")
         )
