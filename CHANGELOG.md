@@ -50,6 +50,11 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
   `processed/` folder, `--arrow_debug` now writes (it never did), and
   `--show_thresholded_images` is renamed `--threshold_debug` and now writes the
   thresholded image (the old name still works).
+- **Update check** — once a day, `pylithics` and `pylithics-pages` ask GitHub
+  for the latest release. On a clone on `main` with an older version installed,
+  the command offers to pull and reinstall, then points at the release notes.
+  Silent offline, never asks in a script, off with `update_check.enabled: false`
+  or `PYLITHICS_NO_UPDATE_CHECK`.
 - **README splash in both GitHub themes** — `tests/fixtures/render_splash.py`
   writes `docs/assets/images/splash-dark.svg` and `splash-light.svg` from the
   real splash code; the README shows whichever matches the reader's theme.

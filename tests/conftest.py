@@ -11,6 +11,9 @@ import pytest
 import yaml
 from PIL import Image
 
+# The suite must never ask GitHub for a release.
+os.environ.setdefault('PYLITHICS_NO_UPDATE_CHECK', '1')
+
 
 TEST_IMAGE_SIZE = (200, 300)  # (height, width)
 TEST_DPI = 300

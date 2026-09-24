@@ -66,7 +66,7 @@ def print_splash(console=None) -> None:
         ("▶ Cut published plates into one image for each artefact\n", "bold cyan"),
         ("  pylithics-pages --data_dir <project>\n\n", "white"),
         ("▶ Help and documentation\n", "bold cyan"),
-        ("  pylithics --help    pylithics --docs\n\n", "white"),
+        ("  pylithics --help\n    pylithics --docs\n\n", "white"),
         ("▶ GitHub\n", "bold cyan"),
         ("  github.com/alan-turing-institute/Palaeoanalytics", "white"),
     )

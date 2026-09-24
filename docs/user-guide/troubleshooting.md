@@ -337,6 +337,11 @@ sudo yum install python3-devel opencv-devel
 **Cause**: You answered `n` to the question above
 **Procedure**: Fill in the `scale` column of `meta_data.csv` for those images. `run_summary.json` lists them. Start the command again
 
+### "PyLithics vN.N.N is available"
+
+**Cause**: A newer release is on GitHub, and your clone is on the `main` branch
+**Procedure**: Answer `y` to update, or `n` to continue. To stop the check, set `update_check.enabled: false` in `config.yaml` or set `PYLITHICS_NO_UPDATE_CHECK`. See [Update PyLithics](../installation.md#update-pylithics)
+
 ### "row(s) in the metadata have a flag"
 
 **Cause**: `pylithics-pages` put a flag on those rows in `meta_data.csv`. The images were analysed

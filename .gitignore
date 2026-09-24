@@ -258,6 +258,8 @@ paperV2/
 pylithics/data/pages/*
 !pylithics/data/pages/sample_plate.png
 pylithics/data/results/
+# Written by setup.py at install time: the path of this clone
+pylithics/_source_path.txt
 # pylithics-pages output when the sample project is used as a project
 pylithics/data/pages_manifest.csv
 pylithics/data/pages_debug/

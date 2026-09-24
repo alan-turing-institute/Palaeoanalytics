@@ -202,7 +202,35 @@ pylithics --help
 
 ## Update PyLithics
 
-To update to the latest version:
+PyLithics tells you when a new release is available. Once a day, when
+you start `pylithics` or `pylithics-pages`, it asks GitHub for the
+latest release. If the release is newer than your installation, and
+your clone is on the `main` branch, you see:
+
+```
+PyLithics v2.1.0 is available. You have v2.0.0.
+Update PyLithics? [y/N]
+```
+
+Answer `y`. PyLithics pulls the `main` branch and installs it again.
+Then it gives the address of the release notes:
+
+```
+PyLithics is updated to v2.1.0. Release notes: https://github.com/alan-turing-institute/Palaeoanalytics/releases/tag/v2.1.0
+```
+
+Answer `n`, or press Enter, to continue without the update. You are
+asked again the next day.
+
+The check is silent when there is no network. It does not ask in a
+script, where nobody can answer. There it gives the command to update
+by hand. A clone on another branch is not told.
+
+To switch the check off, set `update_check.enabled: false` in
+`config.yaml`, or set the environment variable
+`PYLITHICS_NO_UPDATE_CHECK`.
+
+To update by hand:
 
 ```bash
 # Go to the PyLithics directory
@@ -212,7 +240,7 @@ cd Palaeoanalytics
 git pull origin main
 
 # Install again
-pip install . --upgrade
+pip install .
 ```
 
 ## Build the documentation on your computer

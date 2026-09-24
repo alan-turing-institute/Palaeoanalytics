@@ -68,6 +68,12 @@ morphological_closing:
   enabled: true  # Enable or disable morphological closing.
   kernel_size: 3  # Size of the kernel for morphological closing (default is 3x3).
 
+update_check:
+  enabled: true  # Once a day, ask GitHub for the latest release. If it is newer
+                 # than the installed version, and this clone is on the main
+                 # branch, offer to update. Set false to switch off, or set the
+                 # environment variable PYLITHICS_NO_UPDATE_CHECK.
+
 logging:
   level: INFO  # Set the logging level:
                # - "DEBUG" provides detailed logs for troubleshooting.

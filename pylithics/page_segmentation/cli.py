@@ -145,6 +145,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         Process exit code; 0 on success.
     """
     args = build_parser().parse_args(argv)
+    _offer_update()
     pages_dir = _resolve_pages_dir(args.data_dir)
     if not args.output_dir:
         args.output_dir = args.data_dir
@@ -174,6 +175,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     debug = args.debug or config.get('debug', {}).get('enabled', False)
     _log_summary(run.rows, len(pages), args.output_dir, debug)
     return 0
+
+
+def _offer_update() -> None:
+    """Once a day, tell the user about a newer release and offer it."""
+    from pylithics.update_check import check_for_update
+    enabled = get_config_manager().get_section('update_check').get('enabled', True)
+    check_for_update(enabled)
 
 
 @dataclass

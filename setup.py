@@ -57,6 +57,11 @@ def read_long_description():
         - Comprehensive metric calculation and CSV export
         """
 
+# Record where this clone is, so the update check can read the branch
+# and run the update in the right place. Ignored by git.
+with open(os.path.join('pylithics', '_source_path.txt'), 'w') as _source:
+    _source.write(os.path.dirname(os.path.abspath(__file__)))
+
 setup(
     name="PyLithics",
     version="2.0.0",
@@ -102,6 +107,7 @@ setup(
             "config/*.yaml",
             "config/*.yml",
             "data/pages/sample_plate.png",
+            "_source_path.txt",
         ],
     },
 

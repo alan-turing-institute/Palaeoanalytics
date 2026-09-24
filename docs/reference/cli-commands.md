@@ -426,6 +426,7 @@ pylithics-pages --data_dir pylithics/data --no_read_labels
 | Variable | Description |
 |----------|-------------|
 | `PYLITHICS_CONFIG` | Default config file path used when `--config_file` is omitted |
+| `PYLITHICS_NO_UPDATE_CHECK` | Set to any value to switch off the daily check for a new release. The same as `update_check.enabled: false` in `config.yaml`. See [Update PyLithics](../installation.md#update-pylithics) |
 
 ```bash
 export PYLITHICS_CONFIG=./default_config.yaml

@@ -10,7 +10,9 @@ import sys
 
 if len(sys.argv) == 1:
     from pylithics.cli_splash import print_splash
+    from pylithics.update_check import check_for_update
     print_splash()
+    check_for_update()
     sys.exit(0)
 
 # Print an immediate "Starting…" line so the user knows the CLI is
@@ -1841,6 +1843,7 @@ def main() -> int:
 
     if _handle_help_flags(args):
         return 0
+    _offer_update()
 
     explore = getattr(args, 'explore', False)
     if isinstance(explore, str):
@@ -1882,6 +1885,13 @@ def main() -> int:
     except (FileNotFoundError, ValueError) as e:
         logging.error(f"Input error: {e}")
         return 1
+
+
+def _offer_update() -> None:
+    """Once a day, tell the user about a newer release and offer it."""
+    from pylithics.update_check import check_for_update
+    enabled = get_config_manager().get_section('update_check').get('enabled', True)
+    check_for_update(enabled)
 
 
 def _resolve_inputs(args: argparse.Namespace, explore: bool) -> bool:
