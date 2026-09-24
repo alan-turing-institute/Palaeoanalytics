@@ -11,7 +11,7 @@
   </picture>
 </p>
 
-<h3 align="center">Version 2.0 out now</h3>
+<p align="center"><a href="https://github.com/alan-turing-institute/Palaeoanalytics/releases/latest"><img src="https://img.shields.io/github/v/release/alan-turing-institute/Palaeoanalytics?label=latest%20release&color=0f6e7a" alt="Latest release"></a></p>
 
 # Quick start
 
