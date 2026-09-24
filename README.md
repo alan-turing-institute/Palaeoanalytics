@@ -11,7 +11,7 @@
   </picture>
 </p>
 
-<h3 align="center">Version 2 out now</h3>
+<h3 align="center">Version 2.0 out now</h3>
 
 # Quick start
 
