@@ -269,3 +269,4 @@ pylithics/data/images/*_box_[0-9][0-9].png
 pylithics/data/scales/*_scale_bar*.png
 pylithics/data/processed_pages/
 pylithics/data/processed_images/
+pylithics/data/corrections.csv
