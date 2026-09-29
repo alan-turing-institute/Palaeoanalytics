@@ -16,6 +16,25 @@ directory is renamed `results/`.
 alone will not create it. Reinstall with `pip install . --upgrade`.
 
 ### Added
+- **Identifier-guided grouping (`pylithics-pages`)** — the identifiers read
+  from a plate now correct the grouping. A crop holding several identifiers is
+  cut into one crop each where empty space between the drawings permits; a crop
+  holding none joins the labelled crop beside it. A change is kept only when
+  each crop then holds exactly one identifier. The manifest records
+  `identifier_split` / `identifier_join` in `correction_applied`; the debug
+  overlay marks the crops. Off switch: `identifiers.regroup.enabled`. On a
+  dense plate with no empty run across the crop, each drawing goes to its
+  identifier on the side the plate sets them.
+- **A bad plate no longer stops the batch** — a plate that fails for any reason
+  is reported with its cause, the other plates are cut, the manifest is written,
+  and the exit code is 1. The manifest is also rewritten after every plate, so
+  a stopped run leaves one that names every crop written, and the next run
+  replaces those crops instead of refusing them as the user's own files.
+- **Connector rules are not scale bars** — two short rules on one line, each
+  between two views of one lithic, no longer export as a segmented scale bar.
+- **Larger and bolder labels are read** — the glyph ceiling is never below
+  64 px, so a figure cut small from a PDF keeps its letters as candidates, and
+  a bold letter set close to its lithic passes the clear-space test.
 - **Page segmentation (`pylithics-pages`)** — new console script that cuts a
   folder of scanned plates into one image per artefact. Adjacent surface views
   are grouped, so a lithic drawn with four surfaces yields one crop, not four.

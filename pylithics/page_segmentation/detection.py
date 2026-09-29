@@ -174,6 +174,12 @@ def build_detection_mask(
     pixels, then closed with a DPI-scaled kernel so a stippled or
     broken outline reads as one region.
 
+    No filter runs before the threshold. A 3 px median was measured
+    on 2026-09-28 over the 92-page folder: line drawings are set in
+    strokes about two pixels wide on a page under 900 px, and the
+    filter erased a quarter of the ink on such pages. Crops named from
+    the plate fell from 580 to 541 and flagged crops rose by a half.
+
     Parameters
     ----------
     page : PageImage

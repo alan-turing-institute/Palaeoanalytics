@@ -38,7 +38,8 @@ from .export import (
 )
 from .geometry import BBox
 from .grouping import classify_components, group_components, reading_order
-from .identifiers import read_identifiers
+from .identifiers import PageReads, assign_reads, read_page, report_identifiers
+from .regroup import JOIN, SPLIT, refine_boxes
 from .logging_setup import setup_logging
 
 PAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp')
@@ -141,8 +142,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     Returns
     -------
-    int
-        Process exit code; 0 on success.
+    int : exit code. 0 on success, 1 when a page was not cut, 130 when stopped.
     """
     args = build_parser().parse_args(argv)
     _offer_update()
@@ -155,18 +155,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     logging.info("Writing output to %s", args.output_dir)
 
     try:
-        config = _resolve_config(args)
-        pages = _list_pages(pages_dir)
-        corrections = overrides_module.load_overrides(args.overrides)
-        overrides_module.warn_unmatched(
-            corrections, [os.path.basename(p) for p in pages]
-        )
-        previous = prepare_output_dir(args.output_dir)
+        config, pages, corrections, previous = _prepare(args, pages_dir)
     except (FileNotFoundError, NotADirectoryError) as exc:
         logging.error("%s", exc)
         return 1
 
-    run = _process_pages(pages, corrections, config, args, previous, console)
+    try:
+        run = _process_pages(pages, corrections, config, args, previous, console)
+    except KeyboardInterrupt:
+        logging.error(
+            "Stopped. The manifest names every crop written so far; "
+            "start the command again to cut the remaining pages."
+        )
+        return 130
     if config.get('export', {}).get('manifest', True):
         kept = [r for r in previous if r['input_page_id'] not in run.recut]
         write_manifest(kept + run.rows, args.output_dir)
@@ -174,7 +175,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     debug = args.debug or config.get('debug', {}).get('enabled', False)
     _log_summary(run.rows, len(pages), args.output_dir, debug)
-    return 0
+    if run.failed:
+        logging.error("%d page(s) not cut: %s. See %s for the reason.", len(run.failed),
+                      ', '.join(run.failed), os.path.join(args.output_dir, 'pylithics-pages.log'))
+    return 1 if run.failed else 0
+
+
+def _prepare(args: argparse.Namespace, pages_dir: str) -> Tuple:
+    """Resolve the configuration, list the pages, read corrections and the old manifest."""
+    config = _resolve_config(args)
+    pages = _list_pages(pages_dir)
+    corrections = overrides_module.load_overrides(args.overrides)
+    overrides_module.warn_unmatched(
+        corrections, [os.path.basename(p) for p in pages]
+    )
+    previous = prepare_output_dir(args.output_dir)
+    return config, pages, corrections, previous
 
 
 def _offer_update() -> None:
@@ -186,11 +202,12 @@ def _offer_update() -> None:
 
 @dataclass
 class RunResult:
-    """What one run cut, and what it replaced."""
+    """What one run cut, what it replaced, and what it could not cut."""
 
     rows: List[ManifestRow] = field(default_factory=list)
     recut: set = field(default_factory=set)
     removed: set = field(default_factory=set)
+    failed: List[str] = field(default_factory=list)
 
 
 def _process_pages(
@@ -203,6 +220,11 @@ def _process_pages(
 ) -> RunResult:
     """
     Segment every page, replacing what a previous run cut from it.
+
+    A page that fails, for any reason, is reported and the batch goes
+    on: one bad plate must not cost the run its manifest. The manifest
+    is rewritten after every page, so a run that is stopped part way
+    still names every crop it wrote, and the next run replaces them.
 
     Shows a live progress bar on a terminal. Segmenting a large plate
     takes a noticeable moment, and without it a long batch looks frozen.
@@ -217,7 +239,6 @@ def _process_pages(
         for path in pages:
             name = os.path.basename(path)
             advance(name)
-            override = corrections.get(name)
             try:
                 page = load_page(path)
                 if page is None:
@@ -227,13 +248,28 @@ def _process_pages(
                 )
                 run.recut.add(name)
                 run.rows.extend(
-                    _process_page(page, override, config, args, padding)
+                    _process_page(page, corrections.get(name), config, args, padding)
                 )
             except FileExistsError as exc:
                 logging.error("%s: %s", name, exc)
             except (OSError, ValueError) as exc:
                 logging.error("Page not read, %s: %s", name, exc)
+            except Exception as exc:  # noqa: BLE001 - one page must not stop the batch
+                run.failed.append(name)
+                logging.error("%s: not cut. %s: %s", name, type(exc).__name__, exc)
+                logging.debug("Trace for %s", name, exc_info=True)
+            _checkpoint(run, previous, config, args.output_dir)
     return run
+
+
+def _checkpoint(
+    run: RunResult, previous: Sequence[Dict[str, str]], config: Dict, output_dir: str
+) -> None:
+    """Write the manifest as it stands: rows of this run, plus pages not yet recut."""
+    if not config.get('export', {}).get('manifest', True):
+        return
+    kept = [r for r in previous if r['input_page_id'] not in run.recut]
+    write_manifest(kept + run.rows, output_dir, quiet=True)
 
 
 @contextmanager
@@ -300,37 +336,60 @@ def _process_page(
     boxes, bars = group_components(
         components, (page.width, page.height), config
     )
+    reads = _read_page(page, components, boxes, bars, raw, closed, config)
+    boxes, tags = refine_boxes(
+        boxes, reads, components, (page.width, page.height), config
+    )
     boxes, applied = _apply_overrides(
-        boxes, override, components, page, config
+        boxes, override, components, page, config, reads
     )
-    identifiers = _read_identifiers(
-        page, components, boxes, bars, raw, closed, config
-    )
+    identifiers = assign_reads(reads, boxes)
+    report_identifiers(page, identifiers)
+    corrections = _box_corrections(boxes, tags, applied)
 
     if args.debug or config.get('debug', {}).get('enabled', False):
         read = config.get('identifiers', {}).get('enabled', True)
         write_debug_overlay(
-            page, boxes, bars, args.output_dir, identifiers if read else None
+            page, boxes, bars, args.output_dir,
+            identifiers if read else None, corrections,
         )
 
     return export_page(
-        page, boxes, bars, args.output_dir, padding, applied,
-        _count_components(boxes, components), identifiers,
+        page, boxes, bars, args.output_dir, padding, '',
+        _count_components(boxes, components), identifiers, corrections,
     )
 
 
-def _read_identifiers(page, components, boxes, bars, raw, closed, config):
-    """Read the plate's identifiers for the final boxes."""
+def _read_page(page, components, boxes, bars, raw, closed, config) -> PageReads:
+    """Read the plate's identifiers, with their positions."""
     grouping = config.get('grouping', {})
     classified = classify_components(
         components, page.width, page.height,
         grouping.get('min_area', 0.0004), config.get('scale_bars', {}),
         config.get('text_rejection', {}),
     )
-    return read_identifiers(
+    return read_page(
         page, components, classified, boxes, bars, raw, closed,
         config.get('identifiers', {}),
     )
+
+
+def _box_corrections(
+    boxes: Sequence[BBox], tags: Sequence[str], applied: str
+) -> List[str]:
+    """
+    The corrections recorded for each final box, for the manifest.
+
+    A box the identifier rules made keeps its tag while the user's
+    corrections leave it as it was; a box the user changed carries the
+    user's corrections instead. Both are named when both apply.
+    """
+    made = {tuple(box): tag for box, tag in zip(boxes, tags)}
+    result = []
+    for box in boxes:
+        kinds = [k for k in (made.get(tuple(box), ''), applied) if k]
+        result.append('+'.join(kinds))
+    return result
 
 
 def _count_components(
@@ -365,6 +424,7 @@ def _apply_overrides(
     components: Sequence,
     page: PageImage,
     config: Dict,
+    reads: Optional[PageReads] = None,
 ) -> Tuple[List[BBox], str]:
     """Apply this page's corrections and report which ones ran."""
     if override is None or override.is_empty:
@@ -377,7 +437,7 @@ def _apply_overrides(
         result = overrides_module.apply_expect(
             result, override.expect,
             lambda gap, narrow: _regroup(
-                components, page, config, gap, narrow
+                components, page, config, gap, narrow, reads
             ),
             grouping,
         )
@@ -400,15 +460,22 @@ def _regroup(
     config: Dict,
     gap: float,
     narrow: float,
+    reads: Optional[PageReads] = None,
 ) -> List[BBox]:
-    """Re-run grouping with swept distances, for the expect sweep."""
+    """
+    Re-run grouping with swept distances, for the expect sweep.
+
+    The identifier rules run on each candidate too, so the count the
+    sweep reaches is the count a default run would give.
+    """
     trial = dict(config)
     trial['grouping'] = {
         **config.get('grouping', {}), 'gap': gap, 'narrow': narrow
     }
-    boxes, _ = group_components(
-        components, (page.width, page.height), trial
-    )
+    size = (page.width, page.height)
+    boxes, _ = group_components(components, size, trial)
+    if reads is not None:
+        boxes, _ = refine_boxes(boxes, reads, components, size, trial)
     return boxes
 
 
@@ -560,6 +627,13 @@ def _log_summary(
         "Done: %d page(s) -> %d artefact(s), %d scale bar(s) in %s",
         page_count, artefacts, bars, output_dir,
     )
+    split = sum(SPLIT in r.correction_applied for r in rows)
+    joined = sum(JOIN in r.correction_applied for r in rows)
+    if split or joined:
+        logging.info(
+            "Identifiers split %d box(es) and joined %d. "
+            "See correction_applied in pages_manifest.csv.", split, joined,
+        )
     if debug:
         logging.info(
             "Debug overlays: %s", os.path.join(output_dir, DEBUG_DIRNAME)

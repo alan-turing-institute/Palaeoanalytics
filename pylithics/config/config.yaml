@@ -339,16 +339,34 @@ page_segmentation:
                          # rather than trusted. A crop with no trusted
                          # read keeps its reading-order name.
 
-    ring_density: 0.04  # Ink allowed in a ring around a glyph, as a
+    ring_density: 0.05  # Ink allowed in a ring around a glyph, as a
                         # fraction of the ring. A printed identifier sits
-                        # in clear space (measured median 0.000); stipple
-                        # and hatching do not.
+                        # in clear space (measured median 0.000, a bold
+                        # letter beside its lithic 0.041); stipple and
+                        # hatching do not.
 
     reach: 1.5  # An identifier outside every artefact box belongs to the
                 # nearest box when within this many glyph heights of it and
                 # no other. Raise for plates that set the label well clear
                 # of the drawing (Late Acheulian sets letters above-left,
                 # about 3 glyph heights away).
+
+    regroup:
+      enabled: true  # Let the identifiers correct the grouping. A box that
+                     # holds several identifiers is cut into one box each,
+                     # where empty space between the drawings permits. A box
+                     # that holds none joins the labelled box next to it.
+                     # A change is kept only when each box then holds
+                     # exactly one identifier; otherwise the box is left
+                     # as it was, with its flag.
+
+      join_gap: 0.12  # An unlabelled box joins a labelled neighbour within
+                      # this fraction of page width, when they are aligned
+                      # and nothing lies between them.
+                      # - Typical range: 0.05 - 0.20
+
+      max_cuts: 4  # Empty runs tried, widest first, before a split is
+                   # refused.
 
   debug:
     enabled: false  # Write pages_debug/{page}.png with numbered boxes. CLI flag: --debug

@@ -43,6 +43,10 @@ from .grouping import Classified
 # Pieces of raw ink taller than this fraction of the page are drawing,
 # not glyphs; the same ceiling the label classifier uses.
 _MAX_GLYPH_PAGE_FRAC = 0.05
+# The ceiling is never lower than this many pixels. A figure cut from
+# a PDF can be a few hundred pixels tall with letters set at forty:
+# a page fraction alone would call every label there a drawing.
+_MIN_GLYPH_CEILING = 64
 # A glyph is at least this tall in pixels, or OCR has nothing to read.
 _MIN_GLYPH_PIXELS = 6
 # Glyphs on one baseline closer than this many glyph heights are one
@@ -120,6 +124,40 @@ class Identifier:
         return ';'.join(sorted({c[0] for c in self.candidates}))
 
 
+# One validated reading: the text, the engine's confidence, the glyph box.
+Read = Tuple[str, float, BBox]
+
+
+@dataclass
+class PageReads:
+    """
+    Everything the reader found on one page, before assignment.
+
+    Reads are positions on the page, so they can be assigned to any set
+    of boxes: the grouping may change after reading, and the reads need
+    not be made again.
+
+    Attributes
+    ----------
+    reads : list of Read
+        The validated readings.
+    seen : list of BBox
+        Every glyph string the engine read anything from, including
+        those later dropped. A box holding one of these but no read
+        probably holds an identifier the engine could not read.
+    reach : float
+        How far outside a box an identifier may sit, in glyph heights.
+    attempted : bool
+        Whether reading ran at all. False when disabled or without an
+        engine; every crop then carries the ``not_read`` flag.
+    """
+
+    reads: List[Read] = field(default_factory=list)
+    seen: List[BBox] = field(default_factory=list)
+    reach: float = _NEAR_BOX
+    attempted: bool = False
+
+
 def read_identifiers(
     page: PageImage,
     components: Sequence[Component],
@@ -133,12 +171,40 @@ def read_identifiers(
     """
     Read the identifier printed beside each artefact.
 
+    ``read_page`` then ``assign_reads``, for a caller whose boxes are
+    final. See both for the parameters.
+
+    Returns
+    -------
+    list of Identifier
+        One per box, in order; an unnamed entry carries its reason in ``flag``.
+    """
+    reads = read_page(page, components, classified, boxes, bars, raw, closed, config)
+    identifiers = assign_reads(reads, boxes)
+    report_identifiers(page, identifiers)
+    return identifiers
+
+
+def read_page(
+    page: PageImage,
+    components: Sequence[Component],
+    classified: Classified,
+    boxes: Sequence[BBox],
+    bars: Sequence[BBox],
+    raw: np.ndarray,
+    closed: np.ndarray,
+    config: Dict,
+) -> PageReads:
+    """
+    Read every identifier on the page, without assigning them.
+
     Parameters
     ----------
     page, components, classified
         The loaded page, its ink blobs, and the blobs sorted by role.
     boxes, bars : sequence of BBox
-        Artefact boxes in reading order; scale bars with their captions.
+        Artefact boxes, which say where to look; scale bars with their
+        captions, which are never identifiers.
     raw, closed : np.ndarray
         The detection mask before and after morphological closing.
     config : dict
@@ -146,31 +212,67 @@ def read_identifiers(
 
     Returns
     -------
-    list of Identifier
-        One per box, in order; an unnamed entry carries its reason in ``flag``.
+    PageReads
+        The validated reads with their positions.
     """
-    identifiers = [Identifier(flag='not_read') for _ in boxes]
+    result = PageReads(reach=config.get('reach', _NEAR_BOX))
     if not config.get('enabled', True) or not boxes:
-        return identifiers
+        return result
     engine = _load_engine()
     if engine is None:
-        return identifiers
-    for identifier in identifiers:
-        identifier.flag = ''
+        return result
+    result.attempted = True
 
-    reach = config.get('reach', _NEAR_BOX)
-    glyphs = _candidates(page, components, classified, boxes, reach)
+    glyphs = _candidates(page, components, classified, boxes, result.reach)
     glyphs = _filter_glyphs(glyphs, page, bars, raw, closed, config)
     strings = _join_strings(_dedupe(glyphs))
     strings = _filter_strings(strings, raw, config)
-    reads = _read(strings, page, engine, config)
-    reads = _validate(_consistent_size(reads))
-    _assign(reads, boxes, identifiers, reach)
-    _report(page, identifiers)
+    dropped: List[Read] = []
+    reads = _read(strings, page, engine, config, dropped)
+    result.reads = _validate(_consistent_size(reads))
+    result.seen = _seen_glyphs(reads, dropped)
+    return result
+
+
+def _seen_glyphs(reads: Sequence[Read], dropped: Sequence[Read]) -> List[BBox]:
+    """
+    Every glyph that could be an identifier, read or not.
+
+    A read dropped for low confidence still counts when it is set in
+    the plate's type size and reads in the plate's alphabet: that is
+    probably a printed identifier the engine could not make out. A
+    stroke of the drawing that read as "V" at 0.27 on a numbered plate
+    is not, and does not count.
+    """
+    numeric = sum(r[0].isdigit() for r in reads) >= len(reads) / 2
+    sized = _consistent_size(list(reads) + list(dropped))
+    return [box for text, _, box in sized if _to_alphabet(text, numeric) is not None]
+
+
+def assign_reads(reads: PageReads, boxes: Sequence[BBox]) -> List[Identifier]:
+    """
+    Give each box its identifier from the page's reads.
+
+    Parameters
+    ----------
+    reads : PageReads
+        What ``read_page`` found.
+    boxes : sequence of BBox
+        Artefact boxes, in the order the result should follow.
+
+    Returns
+    -------
+    list of Identifier
+        One per box, in order; an unnamed entry carries its reason in ``flag``.
+    """
+    if not reads.attempted:
+        return [Identifier(flag='not_read') for _ in boxes]
+    identifiers = [Identifier() for _ in boxes]
+    _assign(reads.reads, boxes, identifiers, reads.reach)
     return identifiers
 
 
-def _report(page: PageImage, identifiers: Sequence[Identifier]) -> None:
+def report_identifiers(page: PageImage, identifiers: Sequence[Identifier]) -> None:
     """Say, per page, what identifier reading found."""
     named = sum(i.named for i in identifiers)
     name = page.stem
@@ -220,7 +322,7 @@ def _candidates(
     stippled drawings yields over a thousand specks of raw ink, and the
     joining step compares every pair.
     """
-    max_h = _MAX_GLYPH_PAGE_FRAC * page.height
+    max_h = _glyph_ceiling(page)
     marks = list(classified.labels) + [box for _, box in classified.dashes]
     glyphs = [list(b) for b in marks if _glyph_sized(b, max_h)]
     for component in components:
@@ -228,6 +330,11 @@ def _candidates(
             continue
         glyphs.extend(_raw_pieces(component, max_h))
     return [g for g in glyphs if _home_box(g, boxes, reach=reach) is not None]
+
+
+def _glyph_ceiling(page: PageImage) -> float:
+    """The tallest a glyph can be on this page, in pixels."""
+    return max(_MAX_GLYPH_PAGE_FRAC * page.height, _MIN_GLYPH_CEILING)
 
 
 def _glyph_sized(box: BBox, max_h: float) -> bool:
@@ -411,7 +518,7 @@ def _lithic_outlines(raw: np.ndarray, page: PageImage) -> np.ndarray:
     ink = (raw > 0).astype(np.uint8)
     count, labels, stats, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
     filled = np.zeros_like(ink)
-    min_h = _MAX_GLYPH_PAGE_FRAC * page.height
+    min_h = _glyph_ceiling(page)
     frame_w, frame_h = _MAX_FRAME_FRAC * page.width, _MAX_FRAME_FRAC * page.height
     for index in range(1, count):
         left, top, w, h, _ = stats[index]
@@ -441,7 +548,7 @@ def _silhouette_depth(closed: np.ndarray, page: PageImage) -> np.ndarray:
     ink = (closed > 0).astype(np.uint8)
     count, labels, stats, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
     filled = np.zeros_like(ink)
-    min_h = _MAX_GLYPH_PAGE_FRAC * page.height
+    min_h = _glyph_ceiling(page)
     frame_w, frame_h = _MAX_FRAME_FRAC * page.width, _MAX_FRAME_FRAC * page.height
     for index in range(1, count):
         left, top, w, h, _ = stats[index]
@@ -502,9 +609,17 @@ def _overlaps(a: BBox, b: BBox) -> bool:
 ### READING ###
 
 def _read(
-    candidates: Sequence[BBox], page: PageImage, engine, config: Dict
-) -> List[Tuple[str, float, BBox]]:
-    """Read each candidate, keeping alphanumerics above the confidence floor."""
+    candidates: Sequence[BBox],
+    page: PageImage,
+    engine,
+    config: Dict,
+    dropped: Optional[List[Read]] = None,
+) -> List[Read]:
+    """
+    Read each candidate, keeping alphanumerics above the confidence floor.
+
+    A read below the floor is appended to ``dropped``, when given.
+    """
     floor = config.get('min_confidence', 0.6)
     reads = []
     for box in candidates:
@@ -515,6 +630,8 @@ def _read(
         elif text:
             logging.debug("Discarded low-confidence read %r (%.2f) at %s",
                           text, confidence, box)
+            if dropped is not None:
+                dropped.append((text, confidence, box))
     return reads
 
 

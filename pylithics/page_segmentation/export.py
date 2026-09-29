@@ -187,6 +187,7 @@ def export_page(
     correction_applied: str = '',
     component_counts: Optional[Dict[int, int]] = None,
     identifiers: Optional[Sequence[Identifier]] = None,
+    box_corrections: Optional[Sequence[str]] = None,
 ) -> List[ManifestRow]:
     """
     Write every crop for one page and return its manifest rows.
@@ -202,29 +203,28 @@ def export_page(
     padding : int
         Pixels of whitespace kept around each crop.
     correction_applied : str
-        Which corrections were applied to this page, for the manifest.
+        Corrections applied to the page, for every row of the manifest.
     component_counts : dict, optional
         Map of box index to the number of ink blobs it groups.
     identifiers : sequence of Identifier, optional
-        The identifier read for each box. A read one names its crop
-        ``{page}_figure_{label}``; otherwise the index name stays.
+        The identifier read for each box; a read one names its crop.
+    box_corrections : sequence of str, optional
+        Per-box corrections, replacing ``correction_applied``.
 
     Returns
     -------
     list of ManifestRow : one row per crop written.
     """
     identifiers = identifiers or [Identifier() for _ in boxes]
+    corrections = list(box_corrections or [correction_applied] * len(boxes))
     _refuse_collisions(page, bars, output_dir, identifiers)
     rows = _export_artefacts(
         page, boxes, output_dir, padding,
-        component_counts or {}, correction_applied, identifiers,
+        component_counts or {}, corrections, identifiers,
     )
     rows.extend(_export_scale_bars(page, bars, output_dir, padding))
-
-    logging.info(
-        "%s: %d artefact(s), %d scale bar(s)",
-        os.path.basename(page.path), len(boxes), len(bars),
-    )
+    logging.info("%s: %d artefact(s), %d scale bar(s)",
+                 os.path.basename(page.path), len(boxes), len(bars))
     return rows
 
 
@@ -268,7 +268,7 @@ def _export_artefacts(
     output_dir: str,
     padding: int,
     counts: Dict[int, int],
-    correction_applied: str,
+    corrections: Sequence[str],
     identifiers: Sequence[Identifier],
 ) -> List[ManifestRow]:
     """Write the artefact crops, named from the plate where read."""
@@ -278,7 +278,7 @@ def _export_artefacts(
             page, box, output_dir, IMAGES_DIRNAME,
             _artefact_name(page.stem, index, identifier),
             'artefact', str(index), padding,
-            counts.get(index - 1, 1), correction_applied,
+            counts.get(index - 1, 1), corrections[index - 1],
         )
         row.label = identifier.label
         row.label_source = identifier.source
@@ -376,7 +376,7 @@ def _dpi_kwargs(page: PageImage) -> Dict:
     return {'dpi': page.dpi} if page.dpi else {}
 
 
-def write_manifest(rows: Sequence, output_dir: str) -> str:
+def write_manifest(rows: Sequence, output_dir: str, quiet: bool = False) -> str:
     """
     Write the manifest recording every crop cut from the plates.
 
@@ -387,6 +387,8 @@ def write_manifest(rows: Sequence, output_dir: str) -> str:
         read back as dicts, come first.
     output_dir : str
         Destination root.
+    quiet : bool
+        Skip the log line; for the checkpoint after each page.
 
     Returns
     -------
@@ -402,7 +404,8 @@ def write_manifest(rows: Sequence, output_dir: str) -> str:
         for row in rows:
             writer.writerow(row if isinstance(row, dict) else asdict(row))
 
-    logging.info("Wrote manifest with %d row(s) to %s", len(rows), path)
+    if not quiet:
+        logging.info("Wrote manifest with %d row(s) to %s", len(rows), path)
     return path
 
 
@@ -518,16 +521,16 @@ def write_debug_overlay(
     bars: Sequence[BBox],
     output_dir: str,
     identifiers: Optional[Sequence[Identifier]] = None,
+    corrections: Optional[Sequence[str]] = None,
 ) -> str:
     """
     Draw the page with its artefact boxes, scale bars and readings.
 
     Red numbered boxes are the crops (the numbers are what the
-    corrections CSV refers to), purple boxes are scale bars. When
-    identifiers were read, each is drawn in green beside its glyph with
-    the crop's name under its number; a crop that could not be named
-    shows its flag and every reading inside it in red. A header gives
-    the page's totals, and says so when nothing was found.
+    corrections CSV refers to), purple boxes are scale bars. Each
+    reading is drawn in green beside its glyph with the crop's name
+    under its number; an unnamed crop shows its flag and every reading
+    inside it in red. A header gives the page's totals.
 
     Parameters
     ----------
@@ -539,11 +542,12 @@ def write_debug_overlay(
         Destination root.
     identifiers : sequence of Identifier, optional
         The identifier read for each box.
+    corrections : sequence of str, optional
+        Per-box corrections; a box the rules made says so after its verdict.
 
     Returns
     -------
-    str
-        Path to the written overlay.
+    str : path to the written overlay.
     """
     debug_dir = os.path.join(output_dir, DEBUG_DIRNAME)
     os.makedirs(debug_dir, exist_ok=True)
@@ -555,8 +559,7 @@ def write_debug_overlay(
         lift = _HEADER_HEIGHT * scale
     _draw_debug_boxes(canvas, boxes, bars, scale, lift)
     if identifiers:
-        _draw_readings(canvas, boxes, identifiers, scale, lift)
-
+        _draw_readings(canvas, boxes, identifiers, scale, lift, corrections)
     path = os.path.join(debug_dir, f"{page.stem}.png")
     Image.fromarray(canvas).save(path, **_dpi_kwargs(page))
     logging.debug("Wrote debug overlay %s", path)
@@ -594,16 +597,28 @@ def _draw_readings(
     identifiers: Sequence[Identifier],
     scale: int,
     lift: int,
+    corrections: Optional[Sequence[str]] = None,
 ) -> None:
     """Draw each reading beside its glyph and each crop's verdict."""
-    for box, identifier in zip(boxes, identifiers):
+    corrections = corrections or [''] * len(boxes)
+    for box, identifier, made in zip(boxes, identifiers, corrections):
         colour = _LABEL_COLOUR if identifier.named else _BOX_COLOUR
         for text, _, glyph in identifier.candidates:
             _draw_reading(canvas, glyph, text, colour, scale, lift)
         verdict = (f"figure_{identifier.label}" if identifier.named
                    else identifier.flag)
+        verdict += _rule_note(made)
         cv2.putText(canvas, verdict, (box[0] + 5, box[3] + lift - 8),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6 * scale, colour, 2 * scale)
+
+
+def _rule_note(correction: str) -> str:
+    """The word the overlay adds for a box an identifier rule made."""
+    if 'identifier_split' in correction:
+        return ' split'
+    if 'identifier_join' in correction:
+        return ' joined'
+    return ''
 
 
 def _draw_reading(canvas, glyph, text, colour, scale, lift) -> None:

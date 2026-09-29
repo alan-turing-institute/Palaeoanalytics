@@ -361,7 +361,7 @@ The two commands share one project folder:
 | The command did not read one identifier | `<page>_box_07.png` (the box number on the debug overlay, in reading order) |
 | Scale bar | `<page>_scale_bar.png`, or `<page>_scale_bar_01.png` if the page has more than one |
 
-The manifest columns `label`, `label_source`, `label_flag` and `label_candidates` record the identifier, the method, the reason for a missing name, and all identifiers read in the crop. The column `correction_applied` records the corrections used on the page. See [pages_manifest.csv](../user-guide/page-segmentation.md#pages_manifestcsv) for all columns.
+The manifest columns `label`, `label_source`, `label_flag` and `label_candidates` record the identifier, the method, the reason for a missing name, and all identifiers read in the crop. The column `correction_applied` records the corrections that made each crop, from the identifier rules or the corrections CSV. See [pages_manifest.csv](../user-guide/page-segmentation.md#pages_manifestcsv) for all columns.
 
 ### Grouping Options
 
@@ -397,9 +397,13 @@ All distances are fractions of the page width or the page height. The same value
 
 The `identifiers` section of `config.yaml` sets `reach`, the distance in glyph heights at which an identifier outside a box belongs to the nearest box (default `1.5`). Increase it for plates that print the identifier far from the lithic.
 
+The `identifiers.regroup` section lets the identifiers correct the grouping: a box that holds several identifiers is cut into one box for each, and a box that holds none joins the labelled box next to it. `enabled` turns the rules off (default `true`). `join_gap` is the distance a box looks for its neighbour, as a fraction of page width (default `0.12`). See [How identifiers correct the grouping](../user-guide/page-segmentation.md#how-identifiers-correct-the-grouping).
+
 ### Re-runs
 
 Every run cuts every plate. A plate cut before is cut again and its crops and rows are replaced; the scale values that you typed stay. A new plate is added. A crop that the new run does not make is removed. Your own images and rows are never changed, and a crop with the same filename as one of your images is not written. See [Re-runs](../user-guide/page-segmentation.md#re-runs).
+
+If a plate cannot be cut, the command reports it, cuts the other plates, writes the manifest, and exits with code `1`. The reason is in `pylithics-pages.log`. The manifest is written again after each plate, so a run that you stop leaves a manifest that names each crop it wrote. The next run replaces them.
 
 ### Common Patterns
 

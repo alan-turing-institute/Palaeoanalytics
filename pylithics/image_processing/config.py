@@ -368,8 +368,13 @@ _PAGE_SEGMENTATION_DEFAULTS: Dict[str, Any] = {
     'identifiers': {
         'enabled': True,
         'min_confidence': 0.6,
-        'ring_density': 0.04,
+        'ring_density': 0.05,
         'reach': 1.5,
+        'regroup': {
+            'enabled': True,
+            'join_gap': 0.12,
+            'max_cuts': 4,
+        },
     },
     'debug': {
         'enabled': False,

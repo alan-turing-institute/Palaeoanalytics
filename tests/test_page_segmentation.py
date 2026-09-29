@@ -652,13 +652,13 @@ class TestIdentifierStages:
     def test_glyph_inside_an_outline_is_not_a_candidate(self):
         """Text never overlaps the illustration."""
         raw = np.zeros((300, 300), dtype=np.uint8)
-        raw[50:250, 50:250] = 255          # a filled shape
-        raw[100:200, 100:200] = 0          # hollowed out
-        raw[50:52, :] = raw[248:250, :] = 0
-        raw[140:160, 145:155] = 255        # an arrow-like mark inside it
+        raw[50:200, 50:200] = 255          # a filled shape, under the frame size
+        raw[90:160, 90:160] = 0            # hollowed out
+        raw[50:52, :] = raw[198:200, :] = 0
+        raw[120:140, 120:130] = 255        # an arrow-like mark inside it
         page = type('P', (), {'height': 300, 'width': 300})()
         outlines = identifiers_module._lithic_outlines(raw, page)
-        assert identifiers_module._on_outline([145, 140, 155, 160], outlines)
+        assert identifiers_module._on_outline([120, 120, 130, 140], outlines)
         assert not identifiers_module._on_outline([260, 260, 270, 275], outlines)
 
     def test_candidate_inside_a_scale_bar_is_dropped(self):
@@ -749,6 +749,51 @@ class TestIdentifierReading:
         assert sorted(os.listdir(out / 'images')) == ['plate_box_01.png', 'plate_box_02.png']
         rows = [r for r in read_manifest(out) if r['image_type'] == 'artefact']
         assert {r['label_source'] for r in rows} == {'index'}
+
+
+@pytest.mark.unit
+class TestConnectorIsNotScale:
+    """Two rules tying three views together are not a segmented scale bar."""
+
+    PAGE = (3000, 3500)
+
+    @staticmethod
+    def _solid(box):
+        w, h = box[2] - box[0], box[3] - box[1]
+        return grouping_module.Component(
+            box=list(box), width=w, height=h, ink=w * h,
+            mask=np.ones((h, w), dtype=bool),
+        )
+
+    @staticmethod
+    def _view(box):
+        w, h = box[2] - box[0], box[3] - box[1]
+        mask = np.zeros((h, w), dtype=bool)
+        mask[:4, :] = mask[-4:, :] = mask[:, :4] = mask[:, -4:] = True
+        return grouping_module.Component(
+            box=list(box), width=w, height=h, ink=int(mask.sum()), mask=mask,
+        )
+
+    def _classify(self, components):
+        return grouping_module.classify_components(
+            components, *self.PAGE, 0.0004, {'enabled': True}
+        )
+
+    def test_rules_between_views_become_connectors(self):
+        views = [self._view([1000, 600, 1500, 1100]), self._view([1600, 600, 1700, 1100]),
+                 self._view([1800, 600, 2300, 1100])]
+        rules = [self._solid([1525, 850, 1575, 854]), self._solid([1725, 850, 1775, 854])]
+        result = self._classify(views + rules)
+        assert result.bars == []
+        assert sorted(box for _, box in result.dashes) == [r.box for r in rules]
+
+    def test_a_bar_between_views_with_blocks_beside_it_stays_a_bar(self):
+        """A segmented scale set between two lithics: its blocks shield each other."""
+        views = [self._view([1000, 600, 1500, 1100]), self._view([2100, 600, 2600, 1100])]
+        blocks = [[1550 + i * 130, 840, 1620 + i * 130, 870] for i in range(4)]
+        result = grouping_module.Classified(drawings=views, bars=[list(b) for b in blocks])
+        grouping_module._demote_connector_bars(result, self.PAGE[0])
+        assert result.bars == blocks and result.dashes == []
 
 
 @pytest.mark.unit
@@ -1583,10 +1628,73 @@ class TestPipeline:
             ).read_bytes()
 
     def test_cli_override_changes_grouping(self, tmp_path, pages_dir):
-        """A CLI value takes precedence over the YAML default."""
+        """
+        A CLI value takes precedence over the YAML default.
+
+        Identifier reading is off: with it on, the identifiers would
+        cut the over-grouped boxes apart again, which is their job.
+        """
         out = tmp_path / "out"
-        run_prep(pages_dir, out, "--gap", "0.4", "--narrow", "0.4")
+        run_prep(pages_dir, out, "--gap", "0.4", "--narrow", "0.4", "--no_read_labels")
         assert len(os.listdir(out / "images")) < EXPECTED_ARTEFACTS
+
+
+### A RUN THAT GOES WRONG ###
+
+@pytest.mark.error_scenarios
+class TestFailuresDoNotStopTheBatch:
+    """One bad plate costs the run one plate, never its manifest."""
+
+    @staticmethod
+    def _two_pages(tmp_path, plate_path):
+        pages = tmp_path / "pages"
+        pages.mkdir()
+        for name in ("a_plate.png", "b_plate.png"):
+            Image.open(plate_path).save(pages / name, dpi=(EXPECTED_DPI, EXPECTED_DPI))
+        return pages
+
+    def test_a_page_that_raises_is_reported_and_the_rest_are_cut(
+        self, tmp_path, plate_path, monkeypatch, caplog
+    ):
+        from pylithics.page_segmentation import cli as cli_module
+        real = cli_module._process_page
+
+        def broken(page, *args, **kwargs):
+            if page.stem == "a_plate":
+                raise NameError("name 'boxes_intersect' is not defined")
+            return real(page, *args, **kwargs)
+
+        monkeypatch.setattr(cli_module, "_process_page", broken)
+        pages = self._two_pages(tmp_path, plate_path)
+        out = tmp_path / "out"
+        assert run_prep(pages, out) == 1
+        rows = read_manifest(out)
+        assert {r["input_page_id"] for r in rows} == {"b_plate.png"}
+        assert "a_plate.png: not cut. NameError" in caplog.text
+        assert "1 page(s) not cut: a_plate.png" in caplog.text
+
+    def test_a_stopped_run_leaves_a_manifest_the_next_run_replaces(
+        self, tmp_path, plate_path, monkeypatch
+    ):
+        from pylithics.page_segmentation import cli as cli_module
+        real = cli_module._process_page
+
+        def interrupted(page, *args, **kwargs):
+            if page.stem == "b_plate":
+                raise KeyboardInterrupt
+            return real(page, *args, **kwargs)
+
+        monkeypatch.setattr(cli_module, "_process_page", interrupted)
+        pages = self._two_pages(tmp_path, plate_path)
+        out = tmp_path / "out"
+        assert run_prep(pages, out) == 130
+        first = {r["output_crop_id"] for r in read_manifest(out)}
+        assert first and all(name.startswith("a_plate") for name in first)
+
+        monkeypatch.setattr(cli_module, "_process_page", real)
+        assert run_prep(pages, out) == 0
+        rows = read_manifest(out)
+        assert {r["input_page_id"] for r in rows} == {"a_plate.png", "b_plate.png"}
 
 
 ### EDGE CASES ###

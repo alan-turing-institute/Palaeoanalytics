@@ -157,6 +157,40 @@ Some plates print the identifier far from the lithic. Then the command
 does not find it. Increase `identifiers.reach` in `config.yaml`. The
 value is a number of glyph heights. The default is 1.5.
 
+### How identifiers correct the grouping
+
+One lithic has one identifier. The command uses this rule to correct
+two grouping errors:
+
+- **A crop holds several identifiers.** The crop holds several lithics.
+  The command cuts the crop at the widest empty space between the
+  drawings. It repeats the cut until each piece holds one identifier.
+  Each piece must hold one identifier and one drawing. On a dense
+  plate no empty space crosses the whole crop. Then the command gives
+  each drawing to its identifier. It uses the side of the lithic where
+  the plate sets its identifiers, for example below or to the right.
+  If a cut does not give one identifier and one drawing for each
+  piece, the crop stays whole and keeps the flag `several_identifiers`.
+- **A rule between two views is not a scale bar.** Two short rules on
+  one line, each between two views of one lithic, are connectors. The
+  command does not export them as a scale bar.
+- **A crop holds no identifier.** The crop is possibly one view of the
+  lithic next to it. The command joins the crop to its nearest
+  neighbour that holds one identifier, if the two are aligned, if no
+  other crop is between them, and if the joined crop holds one
+  identifier. If the crop holds a glyph that the reader saw but could
+  not read, the command does not join it. That glyph is possibly its
+  own identifier.
+
+The manifest column `correction_applied` shows `identifier_split` or
+`identifier_join` for each crop the rules made. On the debug overlay
+the crop shows `split` or `joined` after its name. Examine these crops
+when a page looks wrong.
+
+Set `identifiers.regroup.enabled: false` in `config.yaml` to turn the
+rules off. `identifiers.regroup.join_gap` sets how far a crop looks
+for its neighbour, as a fraction of page width (default 0.12).
+
 ## The pixels do not change
 
 The command cuts each crop from the source image. The crop has the DPI
@@ -200,7 +234,7 @@ source page.
 | `dpi` | The DPI of the source page. Empty if the page has no DPI. |
 | `colour_mode` | `greyscale`, `RGB` or `RGBA`. |
 | `n_components` | The number of ink blobs in the crop. |
-| `correction_applied` | The corrections used on this page: `expect`, `join`, `split`, or a combination such as `join+split`. Empty if no correction was used. |
+| `correction_applied` | The corrections that made this crop: `identifier_split` or `identifier_join` from the [identifier rules](#how-identifiers-correct-the-grouping); `expect`, `join`, `split` from the corrections CSV. A combination is joined with `+`. Empty if no correction was used. |
 | `label` | The identifier read from the plate. |
 | `label_source` | `read` or `index`. See [Identifiers](#identifiers). |
 | `label_confidence` | The confidence of the reader in `label`, from 0 to 1. |
@@ -305,6 +339,8 @@ Every run cuts every plate in `pages/`. The rules:
 | A crop that the new run does not make | Removed, with its row. |
 | Your own images, scale images and rows | Never changed. |
 | A crop with the same filename as one of your images | Not written. The page is skipped, and the file is named. |
+| A plate that the command cannot cut | Reported, with the reason in `pylithics-pages.log`. The other plates are cut. The exit code is 1. |
+| A run that you stop | The manifest names each crop written before the stop. Start the command again. The next run replaces these crops. |
 
 So you can add plates, change a setting, or write a correction, and
 start the command again. Nothing stops you, and nothing that you typed

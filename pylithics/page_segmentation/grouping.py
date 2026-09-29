@@ -33,6 +33,7 @@ from .geometry import (
     box_distance,
     box_height,
     box_width,
+    boxes_intersect,
     horizontal_gap,
     horizontal_overlap,
     union,
@@ -360,8 +361,7 @@ def classify_components(
 
     Returns
     -------
-    Classified
-        Components sorted by role.
+    Classified : components sorted by role.
     """
     result = Classified()
     bar_indices = _scale_bar_indices(components, width, height, bar_config)
@@ -378,10 +378,42 @@ def classify_components(
 
     _drop_text_line_remnants(result)
     _drop_legend_keys(result)
+    _demote_connector_bars(result, width)
     result.bar_captions, result.labels = _split_bar_captions(
         result.labels, result.bars
     )
     return result
+
+
+def _demote_connector_bars(result: Classified, width: int) -> None:
+    """
+    Reclassify a bar drawn between two views as the connector it is.
+
+    Two short rules on one line, each tying a surface view to the next,
+    read as the blocks of a segmented scale bar. A bar with a drawing
+    close on either side, and no other bar block between it and them,
+    is such a rule: it links the views and is not exported as a scale.
+    """
+    kept = []
+    for bar in result.bars:
+        pair = _dash_neighbours_horizontal(
+            result.drawings, bar, width, _ANNOTATION_REACH
+        )
+        if pair is None or _bar_between(bar, pair, result):
+            kept.append(bar)
+            continue
+        logging.debug("Bar %s lies between two views; treated as a connector", bar)
+        result.dashes.append(('h', bar))
+    result.bars = kept
+
+
+def _bar_between(bar: BBox, pair: Tuple[int, int], result: Classified) -> bool:
+    """Whether another bar block sits between this one and its neighbours."""
+    left, right = result.drawings[pair[0]].box, result.drawings[pair[1]].box
+    span = [left[2], bar[1], right[0], bar[3]]
+    return any(
+        other is not bar and boxes_intersect(span, other) for other in result.bars
+    )
 
 
 def _scale_bar_indices(
