@@ -145,6 +145,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     int : exit code. 0 on success, 1 when a page was not cut, 130 when stopped.
     """
     args = build_parser().parse_args(argv)
+    logging.getLogger().addHandler(logging.NullHandler())   # no stdlib fallback handler
+    get_config_manager(args.config_file)     # first use creates the process-wide manager
     _offer_update()
     pages_dir = _resolve_pages_dir(args.data_dir)
     if not args.output_dir:
@@ -229,7 +231,7 @@ def _process_pages(
     Shows a live progress bar on a terminal. Segmenting a large plate
     takes a noticeable moment, and without it a long batch looks frozen.
     """
-    padding = config.get('export', {}).get('padding', 20)
+    padding = config.get('export', {}).get('padding', 10)
     by_page: Dict[str, List[Dict[str, str]]] = {}
     for row in previous:
         by_page.setdefault(row['input_page_id'], []).append(row)
@@ -325,7 +327,8 @@ def _process_page(
 ) -> List[ManifestRow]:
     """Segment one loaded page and write its crops."""
     path = page.path
-    closed, raw = build_detection_mask(page, get_config_manager().config)
+    masks = build_detection_mask(page, get_config_manager().config)
+    closed, raw = masks.closed, masks.raw
     components = find_components(closed, raw)
     if not components:
         logging.warning(
@@ -336,7 +339,7 @@ def _process_page(
     boxes, bars = group_components(
         components, (page.width, page.height), config
     )
-    reads = _read_page(page, components, boxes, bars, raw, closed, config)
+    reads = _read_page(page, components, boxes, bars, raw, closed, config, masks.working)
     boxes, tags = refine_boxes(
         boxes, reads, components, (page.width, page.height), config
     )
@@ -351,16 +354,17 @@ def _process_page(
         read = config.get('identifiers', {}).get('enabled', True)
         write_debug_overlay(
             page, boxes, bars, args.output_dir,
-            identifiers if read else None, corrections,
+            identifiers if read else None, corrections, masks.working.factor,
         )
 
     return export_page(
         page, boxes, bars, args.output_dir, padding, '',
         _count_components(boxes, components), identifiers, corrections,
+        masks.working,
     )
 
 
-def _read_page(page, components, boxes, bars, raw, closed, config) -> PageReads:
+def _read_page(page, components, boxes, bars, raw, closed, config, working) -> PageReads:
     """Read the plate's identifiers, with their positions."""
     grouping = config.get('grouping', {})
     classified = classify_components(
@@ -370,7 +374,7 @@ def _read_page(page, components, boxes, bars, raw, closed, config) -> PageReads:
     )
     return read_page(
         page, components, classified, boxes, bars, raw, closed,
-        config.get('identifiers', {}),
+        config.get('identifiers', {}), working,
     )
 
 
@@ -378,7 +382,7 @@ def _box_corrections(
     boxes: Sequence[BBox], tags: Sequence[str], applied: str
 ) -> List[str]:
     """
-    The corrections recorded for each final box, for the manifest.
+    Record the corrections for each final box, for the manifest.
 
     A box the identifier rules made keeps its tag while the user's
     corrections leave it as it was; a box the user changed carries the
@@ -627,6 +631,12 @@ def _log_summary(
         "Done: %d page(s) -> %d artefact(s), %d scale bar(s) in %s",
         page_count, artefacts, bars, output_dir,
     )
+    upscaled = {r.input_page_id for r in rows if int(r.upscale_factor or 1) > 1}
+    if upscaled:
+        logging.info(
+            "%d page(s) upscaled for detection. The crops are at the source "
+            "size; see upscale_factor in pages_manifest.csv.", len(upscaled),
+        )
     split = sum(SPLIT in r.correction_applied for r in rows)
     joined = sum(JOIN in r.correction_applied for r in rows)
     if split or joined:
@@ -717,7 +727,7 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group('OUTPUT OPTIONS')
     group.add_argument(
         '--padding', type=int, metavar='PX',
-        help='The white margin around each crop, in pixels (default: 20).'
+        help='The white margin around each crop, in pixels (default: 10).'
     )
     group.add_argument(
         '--debug', action='store_true',
@@ -733,7 +743,7 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
         default=None,
         help='Read the identifier printed next to each lithic and name '
              'the crop {page}_figure_{label}.png. This is the default. '
-             'RapidOCR is necessary: pip install "PyLithics[ocr]".'
+             'RapidOCR is necessary; see the installation page.'
     )
     group.add_argument(
         '--no_read_labels', dest='read_labels', action='store_false',

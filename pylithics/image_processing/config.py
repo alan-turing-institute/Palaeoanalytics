@@ -1,8 +1,8 @@
 """
-Configuration Management for PyLithics
-======================================
+Configuration management for PyLithics.
 
-Validation, caching, and error handling for the configuration management system.
+Loads the YAML configuration, validates it, caches it and exposes accessors
+for each pipeline section.
 """
 
 import copy
@@ -17,9 +17,7 @@ except ImportError:
 
 
 class ConfigurationManager:
-    """
-    Centralized configuration manager with validation and caching.
-    """
+    """Centralized configuration manager with validation and caching."""
 
     def __init__(self, config_file: Optional[str] = None):
         """
@@ -81,6 +79,7 @@ class ConfigurationManager:
     def _get_default_section(self, section: str) -> Dict[str, Any]:
         """Get default configuration for a section."""
         defaults = {
+            'working_resolution': _WORKING_RESOLUTION_DEFAULTS,
             'thresholding': {
                 'method': 'simple',
                 'threshold_value': 127,
@@ -336,6 +335,25 @@ def get_data_export_config(
 
 # Fallback used when config.yaml carries no page_segmentation section.
 # Mirrors the documented defaults in that file.
+# Mirrors the working_resolution section of config.yaml.
+_WORKING_RESOLUTION_DEFAULTS: Dict[str, Any] = {
+    'enabled': True,
+    'model': 'espcn',
+    'max_factor': 4,
+    'restore_ink_coverage': 0.35,
+    'dot_extent_in_stroke_widths': 4.0,
+    'analysis': {
+        'min_stroke_width_px': 4.0,
+        'min_hatch_gap_px': 12.0,
+        'max_working_pixels': 40_000_000,
+    },
+    'pages': {
+        'min_stroke_width_px': 4.0,
+        'min_hatch_gap_px': 0,
+        'max_working_pixels': 40_000_000,
+    },
+}
+
 _PAGE_SEGMENTATION_DEFAULTS: Dict[str, Any] = {
     'enabled': True,
     'grouping': {
@@ -346,7 +364,7 @@ _PAGE_SEGMENTATION_DEFAULTS: Dict[str, Any] = {
         'min_area': 0.0004,
     },
     'export': {
-        'padding': 20,
+        'padding': 10,
         'manifest': True,
     },
     'scale_bars': {

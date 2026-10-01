@@ -15,6 +15,7 @@ from pylithics.image_processing.modules.dashboard.data import (
 
 
 def render(bundle: dict) -> None:
+    """Render the Distributions page."""
     df = bundle["metrics"]
 
     st.header("Distributions")
@@ -113,7 +114,7 @@ def _render_size_tab(parents) -> None:
 
 
 def _aspect_ratio_raincloud(parents):
-    """Horizontal raincloud (violin + box + jittered points) per surface type."""
+    """Draw a horizontal raincloud (violin + box + jittered points) per surface type."""
     if "aspect_ratio" not in parents.columns:
         st.info("`aspect_ratio` column missing from filtered data.")
         return
@@ -227,7 +228,7 @@ def _hue_variants(rgb_str: str):
 
     Returns ``(cloud, dots, box_fill, box_line)`` where each is a CSS colour
     string. Cloud is light/transparent, dots medium, box fill darker, box
-    line near-black — matches the tonal hierarchy in the colour spec.
+    line near-black, following the tonal hierarchy of the palette.
     """
     r, g, b = _parse_rgb(rgb_str)
 
@@ -244,7 +245,7 @@ def _hue_variants(rgb_str: str):
 
 
 def _perimeter_lollipop(parents):
-    """Sorted lollipop: one stem + dot per parent surface, sorted by perimeter."""
+    """Draw a lollipop chart: one stem + dot per parent surface, sorted by perimeter."""
     if "perimeter" not in parents.columns:
         st.info("`perimeter` column missing from filtered data.")
         return
@@ -358,7 +359,7 @@ def _render_symmetry_tab(parents) -> None:
 
 
 def _asymmetry_direction_scatter(dorsal):
-    """Signed asymmetry scatter: which way each artefact leans."""
+    """Draw a signed asymmetry scatter that shows which way each artefact leans."""
     needed = {"top_area", "bottom_area", "left_area", "right_area", "image_id"}
     if not needed.issubset(dorsal.columns):
         st.info("Quadrant area columns missing from filtered data.")
@@ -470,7 +471,7 @@ def _asymmetry_direction_scatter(dorsal):
 
 
 def _symmetry_ecdf(dorsal):
-    """Paired ECDFs of vertical and horizontal symmetry on a single axis."""
+    """Draw paired ECDFs of vertical and horizontal symmetry on a single axis."""
     needed = {"vertical_symmetry", "horizontal_symmetry"}
     if not needed.issubset(dorsal.columns):
         st.info("Symmetry columns missing from filtered data.")
@@ -635,7 +636,7 @@ def _render_scars_tab(df) -> None:
 
 
 def _build_scar_summary(df):
-    """Per-lithic aggregate: dorsal area, count, coverage, mean / sd scar size."""
+    """Build a per-lithic aggregate: dorsal area, count, coverage, mean / sd scar size."""
     import pandas as pd
     parents_d = df[
         (df["surface_type"] == "Dorsal")
@@ -681,7 +682,7 @@ def _linear_fit_xy(x, y):
 
 
 def _flag_outliers(x, y, n_sd: float = 2.0):
-    """Boolean mask of points whose residual exceeds ``n_sd`` standard deviations."""
+    """Return a mask of points whose residual exceeds ``n_sd`` standard deviations."""
     import numpy as np
     if len(x) < 3:
         return np.zeros(len(x), dtype=bool)
@@ -694,7 +695,7 @@ def _flag_outliers(x, y, n_sd: float = 2.0):
 
 
 def _scars_count_vs_area(lithics):
-    """Scatter: # scars vs. dorsal area, with linear fit and outlier halos."""
+    """Draw a scatter of # scars vs. dorsal area, with linear fit and outlier halos."""
     if lithics.empty:
         st.info("No scar counts in the filtered selection.")
         return
@@ -765,7 +766,7 @@ def _scars_count_vs_area(lithics):
 
 
 def _scars_coverage_vs_area(lithics):
-    """Scatter: scar-coverage % vs. dorsal surface area."""
+    """Draw a scatter of scar-coverage % vs. dorsal surface area."""
     if lithics.empty:
         st.info("No coverage data in the filtered selection.")
         return
@@ -823,7 +824,7 @@ def _scars_coverage_vs_area(lithics):
 
 
 def _scar_complexity_histogram(scars):
-    """Population-level histogram of scar complexity (existing chart, refactored)."""
+    """Draw the population-level histogram of scar complexity."""
     if scars.empty or "scar_complexity" not in scars.columns:
         st.info("No scar complexity data in the filtered selection.")
         return
@@ -864,8 +865,11 @@ def _scar_complexity_histogram(scars):
 
 
 def _per_lithic_complexity_strip(scars):
-    """Per-lithic sized-circle dot plot: circle size = count of scars at
-    that (lithic, complexity) cell. Lithics ordered by median complexity.
+    """
+    Draw a per-lithic sized-circle dot plot of scar complexity.
+
+    Circle size is the count of scars at that (lithic, complexity) cell.
+    Lithics are ordered by median complexity.
     """
     if scars.empty or "scar_complexity" not in scars.columns:
         st.info("No scar complexity data in the filtered selection.")
@@ -956,7 +960,7 @@ def _per_lithic_complexity_strip(scars):
 
 
 def _scar_size_ecdf(scars):
-    """ECDF of per-scar total_area on a log x-axis."""
+    """Draw the ECDF of per-scar total_area on a log x-axis."""
     if scars.empty or "total_area" not in scars.columns:
         st.info("No scar-size data in the filtered selection.")
         return
@@ -1007,7 +1011,7 @@ def _scar_size_ecdf(scars):
 
 
 def _scar_aspect_ecdf(scars):
-    """ECDF of per-scar aspect_ratio."""
+    """Draw the ECDF of per-scar aspect_ratio."""
     if scars.empty or "aspect_ratio" not in scars.columns:
         st.info("No scar aspect-ratio data in the filtered selection.")
         return
@@ -1057,7 +1061,7 @@ def _scar_aspect_ecdf(scars):
 
 
 def _scar_cv_vs_count(lithics):
-    """Scatter: within-lithic scar-size variability (CV) vs. # scars."""
+    """Draw a scatter of within-lithic scar-size variability (CV) vs. # scars."""
     if lithics.empty:
         st.info("No scar-size variability data in the filtered selection.")
         return
@@ -1198,7 +1202,7 @@ def _hull_vs_dorsal_scatter(dorsal):
 
 
 def _hull_utilization_distribution(dorsal):
-    """Sorted lollipop: one stick per lithic, height = hull/dorsal ratio."""
+    """Draw a lollipop chart: one stick per lithic, height = hull/dorsal ratio."""
     needed = {"convex_hull_area", "total_area", "image_id"}
     if not needed.issubset(dorsal.columns):
         st.info("Convex-hull columns missing from filtered data.")
@@ -1387,8 +1391,9 @@ def _suppress_si_suffix(update_axis) -> None:
 
 def _align_integer_bins(fig, values) -> None:
     """
-    Force histogram bins of width 1 centered on integer values, so
-    integer-spaced tick labels sit directly under bar centers.
+    Force histogram bins of width 1 centered on integer values.
+
+    Integer-spaced tick labels then sit directly under bar centers.
 
     Applies to the histogram trace only (not the marginal rug strip).
     """
@@ -1404,7 +1409,7 @@ def _align_integer_bins(fig, values) -> None:
 
 
 def _summary_caption(values) -> str:
-    """One-line median / IQR / N summary printed underneath a histogram."""
+    """Return a one-line median / IQR / N summary to print underneath a histogram."""
     n = len(values)
     if n == 0:
         return ""

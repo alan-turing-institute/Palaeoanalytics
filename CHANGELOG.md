@@ -16,6 +16,15 @@ directory is renamed `results/`.
 alone will not create it. Reinstall with `pip install . --upgrade`.
 
 ### Added
+- **Working resolution** — both commands measure the line width of each
+  image and, when the lines are too thin for detection, find the ink on a
+  working copy upscaled 2, 3 or 4 times with ESPCN or FSRCNN (bundled). The
+  result is returned to the input pixel grid: crops, DPI tags and every
+  measurement stay at the input size, and the factor is recorded
+  (`upscale_factor` in `pages_manifest.csv`, `processed_metrics.csv` and the
+  JSON; flag `low_resolution` in `meta_data.csv`). Never downscales. Section
+  `working_resolution` in `config.yaml`. **Dependency change**: OpenCV is now
+  `opencv-contrib-python-headless`; remove the plain build before reinstalling.
 - **Identifier-guided grouping (`pylithics-pages`)** — the identifiers read
   from a plate now correct the grouping. A crop holding several identifiers is
   cut into one crop each where empty space between the drawings permits; a crop
@@ -99,6 +108,26 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
   analysing. A bare `--explore` still analyses and then opens.
 
 ### Fixed
+- **`pylithics --config_file` was ignored.** The update check created the
+  process-wide configuration before the file named on the command line was
+  read, so every run used the default configuration. The file is now read
+  first. The same fault in `pylithics-pages` is fixed below.
+- **A labelled crop could absorb a whole page.** The join rule let one
+  labelled box take every unlabelled neighbour in turn, growing as it went;
+  a page with one read label collapsed to one crop. A box now joins only a
+  neighbour at least a third of its size.
+- **`pylithics-pages` printed every log line twice**, including DEBUG lines
+  whatever `--log_level` said: the first line logged at start-up made the
+  standard library attach its own console handler. A placeholder handler
+  now prevents it.
+- **The OCR extra no longer reinstalls the plain OpenCV build.** RapidOCR
+  declares `opencv-python` by name, so `pip install ".[ocr]"` put a second
+  OpenCV beside the contrib build and left a mixed `cv2` that lost modules at
+  random. The extra now carries RapidOCR's other dependencies, and RapidOCR is
+  installed with `--no-deps`. See the installation page.
+- **`pylithics-pages --config_file` was ignored** — the update check created the
+  process-wide configuration before the file was read, so every run used the
+  built-in defaults. The manager is now created from the file first.
 - **Command-line overrides now reach parallel workers.** Worker processes were
   built from the configuration file alone, so on a multi-worker run every
   override (`--threshold_method`, `--disable_arrow_detection`, the debug
@@ -111,6 +140,8 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
   nothing. All three now write under `results/`.
 
 ### Changed
+- **Crop padding is 10 px** (was 20). A scale crop still holds its caption,
+  which is joined to the bar before the crop is cut.
 - **One flat project folder for both commands.** `pylithics-pages` writes
   `images/`, `scales/`, `pages_manifest.csv` and `meta_data.csv` into the project
   folder itself (formerly `processed_pages/`), so the whole workflow is

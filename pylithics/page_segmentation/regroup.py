@@ -55,6 +55,13 @@ _MIN_RUN = 4
 # Two boxes are aligned when they overlap by at least this share of
 # the shorter one across the axis that separates them.
 _MIN_ALIGNMENT = 0.5
+# A labelled box absorbs at most this many unlabelled neighbours. A
+# lithic has one or two stray views at most; a box that keeps growing
+# and absorbing is chaining across the page.
+# An unlabelled box may be at most this many times the area of the box
+# it joins. A stray view is of the same order as its lithic; a box many
+# times larger is a row of other lithics.
+_MAX_JOIN_AREA_RATIO = 3.0
 # Two lithics made by a seeded split may overlap by at most this share
 # of the smaller one's drawings: more means the views were not sorted.
 _MAX_HULL_OVERLAP = 0.5
@@ -135,7 +142,7 @@ def refine_boxes(
 
 def _evidence(reads: PageReads, boxes: Sequence[BBox]) -> PageReads:
     """
-    The reads that count: those clearly inside one box and no other.
+    Return the reads that count: those clearly inside one box and no other.
 
     Judged against the boxes grouping produced, before either rule
     moves them: that layout is what says where a label could belong.
@@ -199,7 +206,7 @@ def _ink_pieces(
     components: Sequence[Component], page_size: Tuple[int, int]
 ) -> List[BBox]:
     """
-    The raw ink inside a box, as the boxes of its connected pieces.
+    Return the raw ink inside a box, as the boxes of its connected pieces.
 
     Grouping works on closed components, and on a dense plate closing
     fuses neighbouring lithics into one. The raw ink still holds each
@@ -277,7 +284,8 @@ def _seeded_split(
     drawing joins the lithic of the nearest label-placed drawing, since
     the views of one lithic sit beside each other, and small marks
     join the nearest drawing. Refused when there are fewer drawings than
-    labels, or when two pieces' drawings overlap by more than half.
+    labels. Two lithics whose drawings overlap by more than half stay
+    in one piece, flagged; the rest of the box is still split.
     """
     glyphs: Dict[str, List[BBox]] = {}
     for text, _, glyph in reads:
@@ -291,13 +299,18 @@ def _seeded_split(
     _grow_pieces(owner, drawings)
     hulls = {text: _union_all([drawings[i] for i, t in owner.items() if t == text])
              for text in glyphs}
-    if _hulls_overlap(list(hulls.values())):
+    groups = _merge_overlapping_hulls(hulls)
+    if len(groups) < 2:
         return None
-    pieces = {text: [hull] + [list(g) for g in glyphs[text]] for text, hull in hulls.items()}
+    pieces = []
+    for labels in groups:
+        marks = [hulls[t] for t in labels] + [list(g) for t in labels for g in glyphs[t]]
+        pieces.append(marks)
     for mark in small:
         nearest = min(range(len(drawings)), key=lambda i: _adjacency(mark, drawings[i]))
-        pieces[owner[nearest]].append(mark)
-    return [_union_all(marks) for marks in pieces.values()]
+        text = owner[nearest]
+        pieces[next(k for k, labels in enumerate(groups) if text in labels)].append(mark)
+    return [_union_all(marks) for marks in pieces]
 
 
 def _adjacency(a: BBox, b: BBox) -> float:
@@ -403,19 +416,38 @@ def _grow_pieces(owner: Dict[int, str], drawings: Sequence[BBox]) -> None:
         owner[index] = owner[nearest]
 
 
-def _hulls_overlap(hulls: Sequence[BBox]) -> bool:
-    """Whether two lithics' drawings overlap by more than half the smaller."""
-    for i, a in enumerate(hulls):
-        for b in hulls[i + 1:]:
-            shared = (max(0, min(a[2], b[2]) - max(a[0], b[0]))
-                      * max(0, min(a[3], b[3]) - max(a[1], b[1])))
-            if shared > _MAX_HULL_OVERLAP * min(_area(a), _area(b)):
-                return True
-    return False
+def _merge_overlapping_hulls(hulls: Dict[str, BBox]) -> List[List[str]]:
+    """
+    Group labels whose lithics' drawings overlap by more than half the smaller.
+
+    Two lithics whose views arrived as one piece of ink cannot be
+    separated by their labels, so they stay together in one piece,
+    which then carries ``several_identifiers`` as it would have anyway.
+    The rest of the box is still split. Returns the label groups.
+    """
+    labels = list(hulls)
+    parent = {t: t for t in labels}
+
+    def find(t):
+        while parent[t] != t:
+            t = parent[t]
+        return t
+
+    for i, a in enumerate(labels):
+        for b in labels[i + 1:]:
+            ha, hb = hulls[a], hulls[b]
+            shared = (max(0, min(ha[2], hb[2]) - max(ha[0], hb[0]))
+                      * max(0, min(ha[3], hb[3]) - max(ha[1], hb[1])))
+            if shared > _MAX_HULL_OVERLAP * min(_area(ha), _area(hb)):
+                parent[find(a)] = find(b)
+    groups: Dict[str, List[str]] = {}
+    for t in labels:
+        groups.setdefault(find(t), []).append(t)
+    return list(groups.values())
 
 
 def _union_all(marks: Sequence[BBox]) -> BBox:
-    """The box enclosing every mark."""
+    """Return the box enclosing every mark."""
     box = list(marks[0])
     for mark in marks[1:]:
         box = union(box, mark)
@@ -506,13 +538,26 @@ def _join_one(
     reads: PageReads,
     limit: float,
 ) -> Optional[List[Tuple[BBox, str]]]:
-    """Make the first join the rule allows, or return None."""
+    """
+    Make the first join the rule allows, or return None.
+
+    A stray view is of the same order of size as its lithic, so a box
+    joins only a host at least a third of its own area: without that,
+    one labelled box grows and absorbs its way across a page of
+    unlabelled lithics. A host may take any number of views; a lithic
+    is often drawn in three or four.
+    """
     boxes = [box for box, _ in tagged]
     for index, identifier in enumerate(identifiers):
         if identifier.flag != 'no_identifier' or _has_own_label(boxes[index], reads):
             continue
         host = _nearest_host(index, boxes, identifiers, limit)
         if host is None:
+            continue
+        ratio = _area(boxes[index]) / max(1, _area(boxes[host]))
+        if ratio > _MAX_JOIN_AREA_RATIO:
+            logging.debug("Box %s not joined into %s: %.1f times its area",
+                          boxes[index], boxes[host], ratio)
             continue
         merged = union(boxes[index], boxes[host])
         trial = [box for i, box in enumerate(boxes) if i not in (index, host)]
@@ -542,7 +587,7 @@ def _nearest_host(
     index: int, boxes: Sequence[BBox], identifiers: Sequence, limit: float
 ) -> Optional[int]:
     """
-    The one aligned, labelled neighbour nearest a box, or None.
+    Return the one aligned, labelled neighbour nearest a box, or None.
 
     Two neighbours at the same distance mean the position gives no
     answer, and nothing is joined.
@@ -582,7 +627,7 @@ def _blocked(
 
 
 def _span_between(lo_a: int, hi_a: int, lo_b: int, hi_b: int) -> Tuple[int, int]:
-    """The gap between two spans on one axis, or their overlap if none."""
+    """Return the gap between two spans on one axis, or their overlap if none."""
     if max(lo_a, lo_b) > min(hi_a, hi_b):
         return min(hi_a, hi_b), max(lo_a, lo_b)
     return max(lo_a, lo_b), min(hi_a, hi_b)

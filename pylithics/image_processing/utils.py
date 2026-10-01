@@ -1,10 +1,13 @@
+"""Helpers for reading the metadata CSV file."""
+
 import csv
 import logging
 
 
 def read_metadata(meta_file_path):
     """
-    Reads metadata from a CSV file.
+    Read metadata from a CSV file.
+
     Returns a list of dictionaries with keys: image_id, scale_id, scale.
     """
     metadata = []

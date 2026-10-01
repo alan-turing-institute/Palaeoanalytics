@@ -1,24 +1,17 @@
 """
-PyLithics: Cortex Detection Module
-=================================
+Cortex detection for PyLithics.
 
-This module detects cortex on lithic artifact surfaces. Cortex is distinguished from scars
-by its characteristic stippled/dotted texture pattern representing the original weathered
-surface of the stone material.
+Detects cortex on lithic artifact surfaces. Cortex is distinguished from scars by its
+stippled texture, which represents the original weathered surface of the stone.
 
-Key Features:
-- Detects cortex at child contour level (not parent or nested contours)
-- Labels cortex as cortex_1, cortex_2, etc. (distinct from scars)
-- Calculates cortex area and percentage of parent surface area
-- Maintains archaeological accuracy: cortex ≠ scar
-
-Author: PyLithics Development Team
+Cortex is detected at the child contour level, labelled ``cortex 1``, ``cortex 2`` and
+so on, and measured as an area and as a percentage of the parent surface area.
 """
 
 import cv2
 import numpy as np
 import logging
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Any
 from ..config import get_cortex_detection_config
 
 
@@ -225,7 +218,7 @@ def _stippling_density(roi_cropped: np.ndarray, roi_area: int) -> float:
 def _texture_variance(
     roi_cropped: np.ndarray, mask_cropped: np.ndarray,
 ) -> float:
-    """Local variance of Gaussian-blurred ROI within the masked region."""
+    """Return the local variance of the Gaussian-blurred ROI within the mask."""
     if roi_cropped.shape[0] <= 5 or roi_cropped.shape[1] <= 5:
         return 0.0
     blurred = cv2.GaussianBlur(roi_cropped, (5, 5), 0)
@@ -233,7 +226,7 @@ def _texture_variance(
 
 
 def _edge_density(roi_cropped: np.ndarray, roi_area: int) -> float:
-    """Proportion of Canny-detected edge pixels relative to ROI area."""
+    """Return the proportion of Canny edge pixels relative to the ROI area."""
     edges = cv2.Canny(roi_cropped, 50, 150)
     return float(np.sum(edges > 0)) / roi_area if roi_area > 0 else 0.0
 

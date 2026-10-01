@@ -151,15 +151,31 @@ pip install .
 This command:
 
 - Installs the PyLithics package
-- Installs the dependencies in `requirements.txt`
+- Installs the dependencies in `requirements.txt`, including the
+  contrib build of OpenCV (`opencv-contrib-python-headless`)
 - Makes the `pylithics` and `pylithics-pages` commands available
 
+!!! note "An environment with the plain OpenCV build"
+    If `opencv-python-headless` or `opencv-python` is already installed,
+    remove it first. Two builds of OpenCV cannot be installed together.
+
+    ```bash
+    pip uninstall opencv-python-headless opencv-python
+    pip install .
+    ```
+
 To read the identifiers printed on published plates, install the
-optional OCR package too:
+optional OCR package too. Two commands:
 
 ```bash
 pip install ".[ocr]"
+pip install --no-deps "rapidocr_onnxruntime>=1.3,<2"
 ```
+
+The second command has `--no-deps` on purpose. RapidOCR asks for the
+plain OpenCV package by name. That package and the contrib package that
+PyLithics uses cannot be installed together. The first command installs
+the other packages that RapidOCR needs.
 
 ## Step 5: Make sure that the installation is correct
 
@@ -314,8 +330,8 @@ pip install . -v
 If OpenCV does not install:
 
 ```bash
-# Install OpenCV first
-pip install opencv-python-headless>=4.8.0
+# Install OpenCV first (the contrib build)
+pip install opencv-contrib-python-headless>=4.8.0
 
 # Then install PyLithics
 pip install .

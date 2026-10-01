@@ -23,6 +23,7 @@ holds images and a ``meta_data.csv`` is added to, never replaced::
 
 import csv
 import logging
+import math
 import os
 from dataclasses import asdict, dataclass
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -31,8 +32,10 @@ import cv2
 import numpy as np
 from PIL import Image
 
+from pylithics.image_processing.resolution import WorkingCopy
+
 from .detection import PageImage
-from .geometry import BBox, box_height, box_width, clamp_box
+from .geometry import BBox, clamp_box
 from .identifiers import Identifier
 
 IMAGES_DIRNAME = 'images'
@@ -49,6 +52,8 @@ METADATA_COLUMNS = ['image_id', 'scale_id', 'scale', 'flag']
 # and runs it like any other, so the user knows which crops to examine.
 NO_SCALE_FLAG = 'no_scale'
 SEVERAL_SCALES_FLAG = 'several_scales'
+# The page was upscaled for detection: its strokes are thin at source size.
+LOW_RESOLUTION_FLAG = 'low_resolution'
 _FLAG_SEPARATOR = ';'
 
 MANIFEST_COLUMNS = [
@@ -56,7 +61,7 @@ MANIFEST_COLUMNS = [
     'x0', 'y0', 'x1', 'y1', 'width_px', 'height_px',
     'dpi', 'colour_mode', 'n_components', 'correction_applied',
     'label', 'label_source', 'label_confidence', 'label_flag',
-    'label_candidates',
+    'label_candidates', 'stroke_width_px', 'upscale_factor',
 ]
 
 # Manifest names for the source colour mode. Pillow's own names are
@@ -95,6 +100,8 @@ class ManifestRow:
     label_confidence: str = ''
     label_flag: str = ''
     label_candidates: str = ''
+    stroke_width_px: str = ''
+    upscale_factor: int = 1
 
 
 def prepare_output_dir(output_dir: str) -> List[Dict[str, str]]:
@@ -188,6 +195,7 @@ def export_page(
     component_counts: Optional[Dict[int, int]] = None,
     identifiers: Optional[Sequence[Identifier]] = None,
     box_corrections: Optional[Sequence[str]] = None,
+    working: Optional[WorkingCopy] = None,
 ) -> List[ManifestRow]:
     """
     Write every crop for one page and return its manifest rows.
@@ -210,6 +218,8 @@ def export_page(
         The identifier read for each box; a read one names its crop.
     box_corrections : sequence of str, optional
         Per-box corrections, replacing ``correction_applied``.
+    working : WorkingCopy, optional
+        The page's measurement and factor, recorded on every row.
 
     Returns
     -------
@@ -218,14 +228,24 @@ def export_page(
     identifiers = identifiers or [Identifier() for _ in boxes]
     corrections = list(box_corrections or [correction_applied] * len(boxes))
     _refuse_collisions(page, bars, output_dir, identifiers)
-    rows = _export_artefacts(
-        page, boxes, output_dir, padding,
-        component_counts or {}, corrections, identifiers,
-    )
+    rows = _export_artefacts(page, boxes, output_dir, padding,
+                             component_counts or {}, corrections, identifiers)
     rows.extend(_export_scale_bars(page, bars, output_dir, padding))
+    _record_resolution(rows, working)
     logging.info("%s: %d artefact(s), %d scale bar(s)",
                  os.path.basename(page.path), len(boxes), len(bars))
     return rows
+
+
+def _record_resolution(rows: Sequence[ManifestRow], working: Optional[WorkingCopy]) -> None:
+    """Write the measured stroke width and the factor on every row of a page."""
+    if working is None:
+        return
+    width = working.geometry.stroke_width
+    text = '' if math.isnan(width) else f'{width:.1f}'
+    for row in rows:
+        row.stroke_width_px = text
+        row.upscale_factor = working.factor
 
 
 def _refuse_collisions(
@@ -507,6 +527,8 @@ def _metadata_row(row: ManifestRow, scales: Sequence[str]) -> Dict[str, str]:
         flags.append(SEVERAL_SCALES_FLAG)
     if row.label_flag:
         flags.append(row.label_flag)
+    if int(row.upscale_factor or 1) > 1:
+        flags.append(LOW_RESOLUTION_FLAG)
     return {
         'image_id': row.output_crop_id,
         'scale_id': scale_id,
@@ -522,15 +544,15 @@ def write_debug_overlay(
     output_dir: str,
     identifiers: Optional[Sequence[Identifier]] = None,
     corrections: Optional[Sequence[str]] = None,
+    working_factor: int = 1,
 ) -> str:
     """
     Draw the page with its artefact boxes, scale bars and readings.
 
-    Red numbered boxes are the crops (the numbers are what the
-    corrections CSV refers to), purple boxes are scale bars. Each
-    reading is drawn in green beside its glyph with the crop's name
-    under its number; an unnamed crop shows its flag and every reading
-    inside it in red. A header gives the page's totals.
+    Red numbered boxes are the crops (the numbers the corrections CSV
+    refers to), purple boxes are scale bars. Readings are green beside
+    their glyphs; an unnamed crop shows its flag in red. A header gives
+    the page's totals.
 
     Parameters
     ----------
@@ -544,6 +566,8 @@ def write_debug_overlay(
         The identifier read for each box.
     corrections : sequence of str, optional
         Per-box corrections; a box the rules made says so after its verdict.
+    working_factor : int
+        The factor the page was detected at; named in the header when above 1.
 
     Returns
     -------
@@ -551,11 +575,10 @@ def write_debug_overlay(
     """
     debug_dir = os.path.join(output_dir, DEBUG_DIRNAME)
     os.makedirs(debug_dir, exist_ok=True)
-    scale = max(1, page.width // 700)
-    canvas = _debug_canvas(page)
-    lift = 0
+    scale, canvas, lift = max(1, page.width // 700), _debug_canvas(page), 0
     if identifiers:
-        canvas = _with_header(canvas, _labels_summary(identifiers), scale)
+        note = f"; detected at x{working_factor}" if working_factor > 1 else ''
+        canvas = _with_header(canvas, _labels_summary(identifiers) + note, scale)
         lift = _HEADER_HEIGHT * scale
     _draw_debug_boxes(canvas, boxes, bars, scale, lift)
     if identifiers:
@@ -613,7 +636,7 @@ def _draw_readings(
 
 
 def _rule_note(correction: str) -> str:
-    """The word the overlay adds for a box an identifier rule made."""
+    """Return the word the overlay adds for a box an identifier rule made."""
     if 'identifier_split' in correction:
         return ' split'
     if 'identifier_join' in correction:

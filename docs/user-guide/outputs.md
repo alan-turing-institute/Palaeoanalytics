@@ -156,6 +156,7 @@ These columns are present when scale bar calibration was tried:
 | `calibration_method` | `scale_bar` (millimetres) or `pixels` (no calibration) |
 | `pixels_per_mm` | The factor used (empty when the calibration was not possible) |
 | `scale_confidence` | The confidence of the scale bar measurement (0–1) |
+| `upscale_factor` | The factor of the working copy the ink was found on: 1, 2, 3 or 4. Measurements are in input pixels for every value. See [Working Resolution](working-resolution.md). |
 
 ### Arrow geometry (optional)
 
@@ -235,7 +236,8 @@ is at the top level:
   "calibration": {
     "method": "scale_bar",
     "pixels_per_mm": 25.2,
-    "scale_confidence": 1.0
+    "scale_confidence": 1.0,
+    "upscale_factor": 1
   },
   "surfaces": [
     {

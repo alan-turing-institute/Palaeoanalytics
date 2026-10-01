@@ -8,10 +8,7 @@ stippling detection, and cortex/scar differentiation.
 
 import pytest
 import numpy as np
-import cv2
-import tempfile
-import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from pylithics.image_processing.modules.cortex_detection import (
     detect_cortex_in_child_contours,
@@ -19,6 +16,9 @@ from pylithics.image_processing.modules.cortex_detection import (
     calculate_total_cortex_metrics
 )
 from pylithics.image_processing.config import get_cortex_detection_config
+
+CONFIG_PATH = 'pylithics.image_processing.modules.cortex_detection.get_cortex_detection_config'
+SQUARE = [[10, 10], [20, 10], [20, 20], [10, 20]]
 
 
 @pytest.mark.unit
@@ -28,13 +28,13 @@ class TestCortexDetection:
     def test_cortex_detection_disabled(self):
         """Test that cortex detection is skipped when disabled in config."""
         # Mock configuration with cortex detection disabled
-        with patch('pylithics.image_processing.modules.cortex_detection.get_cortex_detection_config') as mock_config:
+        with patch(CONFIG_PATH) as mock_config:
             mock_config.return_value = {'enabled': False}
             
             # Sample metrics
             metrics = [
                 {'parent': 'parent 1', 'scar': 'parent 1', 'area': 1000},
-                {'parent': 'parent 1', 'scar': 'scar 1', 'area': 100, 'contour': [[10, 10], [20, 10], [20, 20], [10, 20]]}
+                {'parent': 'parent 1', 'scar': 'scar 1', 'area': 100, 'contour': SQUARE}
             ]
             
             # Mock inverted image
@@ -50,7 +50,7 @@ class TestCortexDetection:
     def test_cortex_detection_enabled_no_cortex(self):
         """Test cortex detection when enabled but no cortex is found."""
         # Mock configuration with cortex detection enabled
-        with patch('pylithics.image_processing.modules.cortex_detection.get_cortex_detection_config') as mock_config:
+        with patch(CONFIG_PATH) as mock_config:
             mock_config.return_value = {
                 'enabled': True,
                 'stippling_density_threshold': 0.2,
@@ -61,7 +61,7 @@ class TestCortexDetection:
             # Sample metrics with child contour - need surface type for parent
             metrics = [
                 {'parent': 'parent 1', 'scar': 'parent 1', 'area': 1000, 'surface_type': 'Dorsal'},
-                {'parent': 'parent 1', 'scar': 'scar 1', 'area': 100, 'contour': [[10, 10], [20, 10], [20, 20], [10, 20]]}
+                {'parent': 'parent 1', 'scar': 'scar 1', 'area': 100, 'contour': SQUARE}
             ]
             
             # Create simple inverted image (no complex texture)
@@ -164,8 +164,11 @@ class TestCortexDetectionIntegration:
         # This would be an integration test with actual image processing
         # For now, we'll test the basic pipeline integration
         
-        with patch('pylithics.image_processing.modules.cortex_detection.get_cortex_detection_config') as mock_config:
-            mock_config.return_value = {'enabled': True, 'stippling_density_threshold': 0.2, 'texture_variance_threshold': 100, 'edge_density_threshold': 0.05}
+        with patch(CONFIG_PATH) as mock_config:
+            mock_config.return_value = {
+                'enabled': True, 'stippling_density_threshold': 0.2,
+                'texture_variance_threshold': 100, 'edge_density_threshold': 0.05,
+            }
             
             # Create sample data that simulates the pipeline
             metrics = [

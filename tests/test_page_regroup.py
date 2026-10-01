@@ -141,6 +141,31 @@ class TestJoin:
         boxes, tags = _refine([[100, 100, 300, 430], [340, 100, 380, 400]], reads, ink)
         assert len(boxes) == 2 and tags == ['', '']
 
+    def test_a_box_many_times_larger_does_not_join(self):
+        """Homo erectus figure 29: a whole row of lithics joined into one small labelled box."""
+        ink = [_ink([100, 100, 300, 300]), _ink([100, 340, 900, 600])]   # 5.5 times the host
+        reads = _reads(('a', [280, 310, 296, 330]))
+        boxes, tags = _refine([[100, 100, 300, 330], [100, 340, 900, 600]], reads, ink)
+        assert len(boxes) == 2 and tags == ['', '']
+
+    def test_a_somewhat_larger_view_still_joins(self):
+        """Fauresmith figure 16, G: the labelled box is the smaller view of the lithic."""
+        ink = [_ink([100, 100, 250, 400]), _ink([280, 100, 600, 400])]   # 2.1 times the host
+        reads = _reads(('G', [230, 410, 246, 430]))
+        boxes, tags = _refine([[100, 100, 250, 430], [280, 100, 600, 400]], reads, ink)
+        assert boxes == [[100, 100, 600, 430]] and tags == [regroup.JOIN]
+
+    def test_a_host_takes_every_view_of_its_lithic(self):
+        """Vallonnet figure 8: three unlabelled views beside one label all join."""
+        ink = [_ink([100, 100, 400, 400]), _ink([430, 100, 470, 400]),
+               _ink([500, 100, 540, 400]), _ink([570, 100, 610, 400])]
+        reads = _reads(('5', [380, 410, 396, 430]))
+        boxes, tags = _refine(
+            [[100, 100, 400, 430], [430, 100, 470, 400], [500, 100, 540, 400],
+             [570, 100, 610, 400]], reads, ink
+        )
+        assert boxes == [[100, 100, 610, 430]] and tags == [regroup.JOIN]
+
     def test_beyond_the_join_gap_nothing_happens(self):
         ink = [_ink([100, 100, 300, 400]), _ink([500, 100, 540, 400])]
         reads = _reads(('5', [280, 410, 296, 430]))
@@ -168,6 +193,16 @@ class TestSeededSplit:
         ink = [_ink(b) for b in self.INK[:3]]           # lithic 4 is not drawn
         boxes, tags = _refine([[100, 100, 571, 580]], _reads(*self.LABELS), ink)
         assert boxes == [[100, 100, 571, 580]] and tags == ['']
+
+    def test_two_lithics_that_arrived_as_one_piece_stay_together(self):
+        """Overlapping hulls are one flagged piece; the rest of the box still splits."""
+        ink = [_ink([100, 100, 300, 300]), _ink([350, 150, 550, 350]),
+               _ink([100, 330, 400, 580]), _ink([230, 380, 550, 580])]   # 3 and 4 overlap
+        labels = [('1', [305, 280, 321, 300]), ('2', [555, 330, 571, 350]),
+                  ('3', [80, 510, 96, 530]), ('4', [555, 560, 571, 580])]
+        boxes, tags = _refine([[80, 100, 571, 580]], _reads(*labels), ink)
+        assert len(boxes) == 3 and set(tags) == {regroup.SPLIT}
+        assert [80, 330, 571, 580] in boxes
 
     def test_a_label_off_the_plates_side_refuses_the_split(self):
         """Two labels right of the lithics and one left: the left one gets nothing."""

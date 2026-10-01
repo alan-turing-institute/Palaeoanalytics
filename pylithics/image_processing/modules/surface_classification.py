@@ -1,6 +1,5 @@
 """
-PyLithics: Surface Classification
-==================================
+Surface classification for PyLithics.
 
 Classifies parent contours into archaeological surface types
 (Dorsal, Ventral, Platform, Lateral) and applies surface-specific

@@ -1,9 +1,7 @@
 """
-Arrow Detection Module for PyLithics
-====================================
+Arrow detection for PyLithics.
 
-This integrates arrow detection with the pipeline,
-provides error handling, and configurable parameters.
+Detects arrows drawn inside scar contours and measures their direction.
 """
 
 import os
@@ -12,7 +10,7 @@ import numpy as np
 import math
 import logging
 from collections import defaultdict
-from typing import Optional, Dict, Any, List, Tuple, Union
+from typing import Optional, Dict, Any, List, Tuple
 
 
 from ..config import get_arrow_detection_config
@@ -30,9 +28,7 @@ class _DebugWriter:
 
 
 class ArrowDetector:
-    """
-    Enhanced arrow detection class with configurable parameters and better error handling.
-    """
+    """Arrow detector with configurable parameters."""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
@@ -217,7 +213,7 @@ class ArrowDetector:
 
         if area < min_area:
             if debug_log:
-                debug_log.write(f"Failed: Area too small\n")
+                debug_log.write("Failed: Area too small\n")
             return False
 
         # Solidity test
@@ -232,7 +228,7 @@ class ArrowDetector:
 
         if solidity < solidity_bounds[0] or solidity > solidity_bounds[1]:
             if debug_log:
-                debug_log.write(f"Failed: Solidity outside acceptable range\n")
+                debug_log.write("Failed: Solidity outside acceptable range\n")
             return False
 
         if debug_log:

@@ -327,12 +327,12 @@ sudo yum install python3-devel opencv-devel
 
 ## Error messages
 
-### "images have no scale value. Measure them in pixels?"
+### "rows in meta_data.csv have an empty scale column. Measure them in pixels?"
 
-**Cause**: Some rows in `meta_data.csv` have no `scale` value. Those images can only be measured in pixels
+**Cause**: Some rows in `meta_data.csv` have no value in the `scale` column. That column holds the length of the scale bar in millimetres, which you type. The `scale_id` column names the scale image; it is not enough on its own. Those images can only be measured in pixels
 **Procedure**: Answer `y` to analyse all images, in pixels where there is no scale. Answer `n` to analyse only the images with a scale. Then fill in the `scale` column and start the command again. See [Basic Usage](basic-usage.md#rows-with-no-scale-and-rows-with-a-flag)
 
-### "images with no scale value not analysed"
+### "rows with an empty scale column are not analysed"
 
 **Cause**: You answered `n` to the question above
 **Procedure**: Fill in the `scale` column of `meta_data.csv` for those images. `run_summary.json` lists them. Start the command again

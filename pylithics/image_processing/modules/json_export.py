@@ -1,13 +1,10 @@
 """
-PyLithics: Per-Lithic JSON Export
-=================================
+Per-lithic JSON export for PyLithics.
 
 Writes one JSON file per lithic image with metrics nested under the
 lithic → surfaces → features hierarchy. Mirrors the data in the
 combined ``processed_metrics.csv`` but reorganized for downstream
 consumers (per-artifact viewers, R / Python notebooks, GIS tools).
-
-See ``.claude/specs/JsonOutput.md`` for the schema.
 """
 
 import json
@@ -123,12 +120,13 @@ def _resolve_image_id(metrics: List[Dict]) -> Optional[str]:
 def _build_calibration_block(
     calibration_metadata: Optional[Dict],
 ) -> Dict[str, Any]:
-    """Always emit the same calibration shape; values default to None."""
+    """Build the calibration block with a fixed shape; values default to None."""
     metadata = calibration_metadata or {}
     return {
         "method": metadata.get("calibration_method"),
         "pixels_per_mm": _clean(metadata.get("pixels_per_mm")),
         "scale_confidence": _clean(metadata.get("scale_confidence")),
+        "upscale_factor": metadata.get("upscale_factor", 1),
     }
 
 
@@ -191,7 +189,7 @@ def _build_surface(
 
 
 def _build_voronoi_block(parent: Dict) -> Dict[str, Any]:
-    """Voronoi values nested under the dorsal surface."""
+    """Build the Voronoi block nested under the dorsal surface."""
     return {
         json_key: _clean(parent.get(metric_key))
         for metric_key, json_key in _VORONOI_FIELDS
@@ -199,7 +197,7 @@ def _build_voronoi_block(parent: Dict) -> Dict[str, Any]:
 
 
 def _build_symmetry_block(parent: Dict) -> Dict[str, Any]:
-    """Symmetry values nested under the dorsal surface."""
+    """Build the symmetry block nested under the dorsal surface."""
     return {field: _clean(parent.get(field)) for field in _SYMMETRY_FIELDS}
 
 
@@ -258,7 +256,7 @@ def _clean(value: Any) -> Any:
 
 
 def _json_default(value: Any) -> Any:
-    """Last-resort serializer for json.dump (tuples, sets, etc.)."""
+    """Serialize values that json.dump cannot handle (tuples, sets, etc.)."""
     if isinstance(value, (set, tuple)):
         return list(value)
     return str(value)

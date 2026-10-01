@@ -8,7 +8,7 @@ and morphological operations.
 
 import logging
 import os
-import yaml
+from dataclasses import dataclass
 from typing import Optional, Dict, Tuple
 
 import cv2
@@ -16,6 +16,7 @@ import numpy as np
 from PIL import Image
 
 from .config import load_preprocessing_config
+from .resolution import LineGeometry, restore_to_grid, settings_for, working_copy
 from .utils import read_metadata
 
 
@@ -413,11 +414,33 @@ def verify_image_dpi_and_scale(
 
 ### IMAGE PREPROCESSING PIPELINE ###
 
+@dataclass
+class Preprocessed:
+    """
+    The binary image the analysis works on, and how it was made.
+
+    ``image`` is on the source pixel grid whatever the working
+    resolution was, so every contour and measurement taken from it is
+    in source pixels. ``upscale_factor`` is provenance: 1 when the
+    image was thresholded as it came.
+    """
+
+    image: np.ndarray
+    upscale_factor: int = 1
+    geometry: Optional[LineGeometry] = None
+
+
 def execute_preprocessing_pipeline(
     image_path: str, config: Dict
-) -> Optional[np.ndarray]:
+) -> Optional[Preprocessed]:
     """
     Preprocess an image through the complete pipeline.
+
+    Read, grayscale, contrast normalisation; then the working
+    resolution: the normalised image is measured and, when its strokes
+    are too thin, a working copy is upscaled. Threshold, inversion and
+    closing run on that copy with kernels scaled by the factor, and the
+    binary result is returned to the source pixel grid.
 
     Parameters
     ----------
@@ -428,32 +451,34 @@ def execute_preprocessing_pipeline(
 
     Returns
     -------
-    np.ndarray or None
-        Preprocessed image, or None on failure.
+    Preprocessed or None : the binary image with its factor, or None on failure.
     """
-    image_dpi = get_image_dpi(image_path)
-    dpi_scale = calculate_dpi_scale_factor(image_dpi, config)
-
+    dpi_scale = calculate_dpi_scale_factor(get_image_dpi(image_path), config)
     image = read_image_from_path(image_path)
     if image is None:
         return None
-
     gray = apply_grayscale_conversion(image, config)
     if gray is None:
         return None
-
     normalized = apply_contrast_normalization(gray, config)
     if normalized is None:
         return None
 
+    settings = settings_for(config, 'analysis')
+    working = working_copy(normalized, settings, os.path.basename(image_path))
     thresholded = perform_thresholding(
-        normalized, config, dpi_scale
+        working.gray, config, dpi_scale * working.factor
     )
     if thresholded is None:
         return None
-
-    inverted = invert_image(thresholded)
-    return morphological_closing(inverted, config, dpi_scale)
+    closed = morphological_closing(
+        invert_image(thresholded), config, dpi_scale * working.factor
+    )
+    if closed is None:
+        return None
+    coverage = settings.get('restore_ink_coverage', 0.35)
+    restored = restore_to_grid(closed, working.source_shape, coverage)
+    return Preprocessed(restored, working.factor, working.geometry)
 
 
 def preprocess_images(
@@ -504,6 +529,7 @@ def preprocess_images(
                 image_id
             )
             continue
+        processed = processed.image
 
         conversion = verify_image_dpi_and_scale(
             image_path, scale_mm

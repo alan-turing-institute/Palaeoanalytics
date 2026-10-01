@@ -1,0 +1,25 @@
+Super-resolution models bundled with PyLithics
+
+These files are the trained ESPCN and FSRCNN models that OpenCV's
+dnn_superres module reads. PyLithics uses them to upscale a working copy
+of a drawing whose strokes are too thin for detection. The saved crops,
+the DPI tags and every measurement stay at the source resolution.
+
+ESPCN_x2.pb, ESPCN_x3.pb, ESPCN_x4.pb
+    Source: https://github.com/fannymonori/TF-ESPCN (export/)
+    Licence of the repository: Apache License 2.0
+    Paper: Shi et al. 2016, "Real-Time Single Image and Video
+    Super-Resolution Using an Efficient Sub-Pixel Convolutional Neural
+    Network", CVPR.
+
+FSRCNN_x2.pb, FSRCNN_x3.pb, FSRCNN_x4.pb
+    Source: https://github.com/Saafke/FSRCNN_Tensorflow (models/)
+    Licence of the repository: Apache License 2.0
+    Paper: Dong, Loy and Tang 2016, "Accelerating the Super-Resolution
+    Convolutional Neural Network", ECCV.
+
+Both repositories are the ones the opencv_contrib dnn_superres README
+names as the origin of these models. The files are unchanged. The
+FSRCNN files were fetched on 2026-09-29 from the raw URLs of the
+Saafke repository (38–42 KB each; a file of about 290 KB in that
+place is a saved GitHub web page, not a model).

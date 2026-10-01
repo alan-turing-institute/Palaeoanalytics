@@ -83,7 +83,7 @@ def _save_and_load(metrics, calibration_metadata=None):
 
 @pytest.mark.unit
 class TestSaveMeasurementsToJson:
-    """Schema-level checks against the spec at .claude/specs/JsonOutput.md."""
+    """Schema-level checks on the JSON structure."""
 
     def test_writes_file_at_requested_path(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -121,6 +121,7 @@ class TestSaveMeasurementsToJson:
             "method": "scale_bar",
             "pixels_per_mm": 25.2,
             "scale_confidence": 1.0,
+            "upscale_factor": 1,
         }
 
     def test_calibration_block_present_when_metadata_missing(self):
@@ -129,6 +130,7 @@ class TestSaveMeasurementsToJson:
             "method": None,
             "pixels_per_mm": None,
             "scale_confidence": None,
+            "upscale_factor": 1,
         }
 
 
@@ -385,8 +387,6 @@ def test_export_json_flag_writes_per_lithic_files_alongside_csv():
 @pytest.mark.integration
 def test_no_json_directory_when_flag_not_set():
     """Default runs produce CSV only — no `json/` subdirectory."""
-    import yaml
-
     import cv2
     import numpy as np
     from PIL import Image

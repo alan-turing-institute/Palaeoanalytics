@@ -68,6 +68,34 @@ morphological_closing:
   enabled: true  # Enable or disable morphological closing.
   kernel_size: 3  # Size of the kernel for morphological closing (default is 3x3).
 
+working_resolution:
+  # Upscale a working copy of a drawing whose strokes are too thin for
+  # detection, by the smallest factor of 2, 3 or 4 that makes them
+  # usable. Detection runs on the copy; the result is returned to the
+  # source pixel grid. Saved crops, DPI tags and every measurement stay
+  # at the source size. The factor is recorded (pages_manifest.csv
+  # upscale_factor, meta_data.csv flag low_resolution, the analysis CSV
+  # and JSON). Never downscales. Needs opencv-contrib-python-headless.
+  enabled: true
+  model: espcn               # espcn (fast) or fsrcnn
+  max_factor: 4
+  restore_ink_coverage: 0.35  # Ink share a source pixel needs after the
+                              # return to the source grid; a little under
+                              # half keeps a thin line continuous.
+  dot_extent_in_stroke_widths: 4.0  # Components shorter than this many
+                                    # stroke widths are dots, not strokes.
+  analysis:                  # the pylithics command, on single-artefact images
+    min_stroke_width_px: 4.0  # A pen line scanned at 300 DPI is 4.5-6.6 px
+                              # and stays as it is; a 150 DPI scan or a PDF
+                              # export (about 2 px) is upscaled.
+    min_hatch_gap_px: 12.0
+    max_working_pixels: 40000000
+  pages:                     # the pylithics-pages command, on whole plates
+    min_stroke_width_px: 4.0
+    min_hatch_gap_px: 0      # 0 turns the test off; plate hatching is fine
+                             # at every scan size and would force x4
+    max_working_pixels: 40000000
+
 update_check:
   enabled: true  # Once a day, ask GitHub for the latest release. If it is newer
                  # than the installed version, and this clone is on the main
@@ -279,7 +307,7 @@ page_segmentation:
                       # - Typical range: 0.0001 - 0.001
 
   export:
-    padding: 20  # Pixels of whitespace kept around each crop
+    padding: 10  # Pixels of whitespace kept around each crop
                  # - Typical range: 0 - 60
 
     manifest: true  # Write pages_manifest.csv recording every crop's source page,
@@ -332,7 +360,7 @@ page_segmentation:
   identifiers:
     enabled: true  # Read the number or letter printed beside each lithic
                    # and name its crop {page}_figure_{label}. Needs the
-                   # optional RapidOCR extra (pip install "PyLithics[ocr]");
+                   # optional RapidOCR package (see the installation page);
                    # without it crops keep their reading-order names.
 
     min_confidence: 0.6  # Reads below this OCR confidence are dropped

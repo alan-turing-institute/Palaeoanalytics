@@ -1,6 +1,5 @@
 """
-PyLithics: Arrow Integration
-=============================
+Arrow integration for PyLithics.
 
 Detects arrows in contours and associates them with scar metrics.
 Arrow detection is excluded from cortex regions.
@@ -25,7 +24,7 @@ def integrate_arrows(
     debug_dir: Optional[str] = None,
 ) -> List[Dict]:
     """
-    Main orchestrator for arrow integration.
+    Detect arrows in child contours and attach them to the scar metrics.
 
     Parameters
     ----------

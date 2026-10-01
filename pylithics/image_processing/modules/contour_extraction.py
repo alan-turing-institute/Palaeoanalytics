@@ -1,7 +1,8 @@
+"""Contour extraction and hierarchy sorting for PyLithics."""
+
 import cv2
 import numpy as np
 import logging
-import os
 # For the config loading in extract_contours_with_hierarchy
 from ..config import get_contour_filtering_config
 
@@ -65,8 +66,9 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
 
 def _drop_border_touching(contours, hierarchy, shape):
     """
-    Remove contours whose bounding box touches the image border and remap
-    the hierarchy's parent indices to the new, compacted positions.
+    Remove contours whose bounding box touches the image border.
+
+    Remap the hierarchy's parent indices to the new, compacted positions.
     """
     height, width = shape
     valid_contours, valid_hierarchy = [], []
@@ -89,7 +91,6 @@ def _drop_border_touching(contours, hierarchy, shape):
 def sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None):
     """
     Sort contours into parents, children, and nested children based on hierarchy.
-    This version includes robust bounds checking.
 
     Args:
         contours (list): List of detected contours.
@@ -158,8 +159,8 @@ def sort_contours_by_hierarchy(contours, hierarchy, exclude_nested_flags=None):
 def hide_nested_child_contours(contours, hierarchy):
     """
     Flag only first-level child contours whose parent has exactly one child.
+
     Do not flag nested (depth ≥2) contours so they can be processed for arrow detection.
-    This version includes extensive bounds checking to prevent index errors.
     """
     flags = [False] * len(contours)
 

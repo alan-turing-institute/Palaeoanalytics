@@ -698,6 +698,11 @@ class TestIdentifierStages:
         boxes = [[100, 100, 400, 400], [430, 100, 700, 400]]
         assert identifiers_module._home_box([405, 200, 425, 230], boxes) is None
 
+    def test_glyph_inside_two_overlapping_boxes_goes_to_the_smaller(self):
+        """Fauresmith figure 16, box 6: the E sits where a neighbour's box reaches over."""
+        boxes = [[600, 700, 1700, 1500], [1450, 560, 2180, 950]]
+        assert identifiers_module._home_box([1460, 880, 1490, 930], boxes) == 1
+
     def test_read_name_and_index_name_differ(self):
         read = identifiers_module.Identifier(label='7', source='read', confidence=0.9)
         assert export_module._artefact_name('plate', 3, read) == 'plate_figure_7.png'
@@ -1637,6 +1642,62 @@ class TestPipeline:
         out = tmp_path / "out"
         run_prep(pages_dir, out, "--gap", "0.4", "--narrow", "0.4", "--no_read_labels")
         assert len(os.listdir(out / "images")) < EXPECTED_ARTEFACTS
+
+
+### WORKING RESOLUTION ###
+
+@pytest.mark.integration
+class TestWorkingResolution:
+    """A thin page is detected on an upscaled copy; the crops stay source pixels."""
+
+    @staticmethod
+    def _small_pages(tmp_path, plate_path):
+        """The sample plate at a quarter of its size: strokes about one pixel."""
+        pytest.importorskip('cv2.dnn_superres')
+        pages = tmp_path / "pages"
+        pages.mkdir()
+        image = Image.open(plate_path)
+        small = image.resize((image.width // 4, image.height // 4), Image.LANCZOS)
+        small.save(pages / "small_plate.png", dpi=(75, 75))
+        return pages
+
+    def test_a_thin_page_is_upscaled_and_its_crops_are_source_pixels(
+        self, tmp_path, plate_path
+    ):
+        pages = self._small_pages(tmp_path, plate_path)
+        out = tmp_path / "out"
+        assert run_prep(pages, out, "--no_read_labels") == 0
+        rows = [r for r in read_manifest(out) if r["image_type"] == "artefact"]
+        assert rows and {r["upscale_factor"] for r in rows} <= {"2", "3", "4"}
+        assert all(float(r["stroke_width_px"]) < 4 for r in rows)
+        page = np.array(Image.open(pages / "small_plate.png"))
+        for row in rows:
+            crop = np.array(Image.open(out / "images" / row["output_crop_id"]))
+            box = page[int(row["y0"]):int(row["y1"]), int(row["x0"]):int(row["x1"])]
+            assert np.array_equal(crop, box)
+        with open(out / "meta_data.csv", newline="", encoding="utf-8") as handle:
+            flags = [r["flag"] for r in csv.DictReader(handle)]
+        assert all("low_resolution" in f for f in flags)
+
+    def test_switched_off_means_factor_one(self, tmp_path, plate_path, monkeypatch):
+        """The configuration manager is a process-wide cache; clear it so the file is read."""
+        from pylithics.image_processing.config import clear_config_cache
+        clear_config_cache()
+        monkeypatch.setattr("pylithics.image_processing.config._config_manager", None)
+        pages = self._small_pages(tmp_path, plate_path)
+        config = tmp_path / "config.yaml"
+        with open(os.path.join(os.path.dirname(__file__), "..", "pylithics", "config",
+                               "config.yaml")) as handle:
+            text = handle.read().replace("  enabled: true\n  model: espcn",
+                                         "  enabled: false\n  model: espcn")
+        config.write_text(text)
+        out = tmp_path / "out"
+        assert run_prep(pages, out, "--no_read_labels", "--config_file", str(config)) == 0
+        rows = [r for r in read_manifest(out) if r["image_type"] == "artefact"]
+        assert rows and {r["upscale_factor"] for r in rows} == {"1"}
+        with open(out / "meta_data.csv", newline="", encoding="utf-8") as handle:
+            assert not any("low_resolution" in r["flag"] for r in csv.DictReader(handle))
+        clear_config_cache()
 
 
 ### A RUN THAT GOES WRONG ###

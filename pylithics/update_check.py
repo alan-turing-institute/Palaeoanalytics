@@ -184,7 +184,7 @@ def latest_release() -> Optional[Tuple[str, str]]:
 
 
 def _cache_path() -> str:
-    """The cache file, under ``$XDG_CACHE_HOME`` or ``~/.cache``."""
+    """Return the cache file path, under ``$XDG_CACHE_HOME`` or ``~/.cache``."""
     base = os.environ.get('XDG_CACHE_HOME') or os.path.expanduser('~/.cache')
     return os.path.join(base, 'pylithics', 'update_check.json')
 

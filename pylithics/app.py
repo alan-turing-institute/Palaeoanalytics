@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-PyLithics Application Entry Point
-=================================
+Command-line entry point for PyLithics.
 
-Configuration management, error handling, and flexible command-line options.
+Parses the command-line options, manages configuration and logging, and runs
+the analysis pipeline over each image listed in the metadata file.
 """
 
 import sys
@@ -106,14 +106,8 @@ import subprocess
 from PIL import Image
 from typing import Optional, Dict, Any, Tuple
 
-from pylithics.image_processing.config import (
-    get_config_manager,
-    ConfigurationManager,
-)
-from pylithics.image_processing.importer import (
-    execute_preprocessing_pipeline,
-    verify_image_dpi_and_scale,
-)
+from pylithics.image_processing.config import get_config_manager
+from pylithics.image_processing.importer import execute_preprocessing_pipeline
 from pylithics.image_processing.image_analysis import (
     debug_dir_for,
     process_and_save_contours,
@@ -360,7 +354,7 @@ def _write_run_summary(
 
 
 # Set once per child process by _init_worker; reused across imap_unordered
-# work items so we don't re-load config / re-setup matplotlib per image.
+# work items so config and matplotlib are not set up again per image.
 _WORKER_APP: Optional["PyLithicsApplication"] = None
 
 
@@ -369,7 +363,7 @@ def _init_worker(
     data_dir: Optional[str],
     config: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """Pool initializer — runs once per child process at spawn.
+    """Initialize a pool worker; runs once per child process at spawn.
 
     Forces matplotlib to its non-GUI Agg backend (must happen before
     any pyplot import in the child) and creates a per-process
@@ -386,9 +380,8 @@ def _init_worker(
         terminal — the main process owns it (progress bar + per-image
         OK/FAIL status). Worker stderr chatter would collide with
         the live progress bar and clutter the user's view.
-      - NullHandler added as a tombstone so stdlib logging's
-        autoconfigure-on-first-log path doesn't quietly add a default
-        StreamHandler back in.
+      - NullHandler added so stdlib logging's autoconfigure-on-first-log
+        path does not quietly add a default StreamHandler back in.
     """
     global _WORKER_APP
     import matplotlib
@@ -423,14 +416,14 @@ def _init_worker(
         if isinstance(handler, (RichHandler, logging.StreamHandler)):
             root.removeHandler(handler)
 
-    # Tombstone — prevents stdlib's lazy basicConfig from quietly
-    # adding a default StreamHandler if any log call fires before
-    # _worker_process_image attaches its per-image FileHandler.
+    # Prevents stdlib's lazy basicConfig from quietly adding a default
+    # StreamHandler if any log call fires before _worker_process_image
+    # attaches its per-image FileHandler.
     root.addHandler(logging.NullHandler())
 
 
 def _worker_process_image(args_tuple) -> tuple:
-    """Pool worker — process one image; return ``(image_id, success, suffix)``.
+    """Process one image in a pool worker; return ``(image_id, success, suffix)``.
 
     Attaches a per-image FileHandler at ``log_path`` for the duration
     of the call so this lithic's debug events are buffered to their
@@ -590,7 +583,7 @@ def _concatenate_partial_logs(
 
     # Flush the main-process FileHandler first so the boundary
     # between pre-pool main lines and the appended per-image blocks
-    # is stable in the file before we write into it directly.
+    # is stable in the file before the partial logs are written into it.
     for handler in logging.getLogger().handlers:
         if isinstance(handler, logging.FileHandler):
             try:
@@ -625,9 +618,7 @@ def _concatenate_partial_logs(
 
 
 class PyLithicsApplication:
-    """
-    Main application class for PyLithics with enhanced functionality.
-    """
+    """Main application class for PyLithics."""
 
     def __init__(self, config_file: Optional[str] = None):
         """
@@ -857,12 +848,13 @@ class PyLithicsApplication:
         logging.debug(f"Processing image: {image_id}")
 
         try:
-            processed_image = execute_preprocessing_pipeline(
+            processed = execute_preprocessing_pipeline(
                 image_path, self.config_manager.config,
             )
-            if processed_image is None:
+            if processed is None:
                 logging.error(f"Preprocessing error for {image_id}")
                 return False
+            processed_image = processed.image
 
             self._write_threshold_debug(processed_image, image_id, processed_dir)
             image_dpi = self._extract_image_dpi(image_path)
@@ -872,7 +864,7 @@ class PyLithicsApplication:
                 )
             )
 
-            # Keep the CSV's calibration_method column on the legacy
+            # Keep the CSV's calibration_method column on the
             # two-value convention ("scale_bar" / "pixels") so downstream
             # analysis scripts and the dashboard's unit_suffix() filter
             # still work. The three-way status survives only as the
@@ -890,6 +882,7 @@ class PyLithicsApplication:
                 csv_method,
                 scale_confidence,
                 csv_path=csv_path,
+                upscale_factor=processed.upscale_factor,
             )
 
             suffix = _calibration_suffix(calibration_method, conversion_factor)
@@ -1055,7 +1048,10 @@ class PyLithicsApplication:
         if not without or not calibration.get('enabled', True):
             return metadata, []
 
-        notice = f"{len(without)} of {len(metadata)} images have no scale value."
+        notice = (
+            f"{len(without)} of {len(metadata)} rows in {os.path.basename(meta_file)} "
+            f"have an empty scale column (the length of the scale bar in mm)."
+        )
         if not sys.stdin.isatty():
             logging.warning(f"{notice} They are measured in pixels.")
             return metadata, []
@@ -1063,8 +1059,8 @@ class PyLithicsApplication:
             return metadata, []
 
         logging.warning(
-            f"{len(without)} images with no scale value are not analysed. "
-            f"Fill in the scale column of {meta_file}."
+            f"{len(without)} rows with an empty scale column are not analysed. "
+            f"Type the length of each scale bar in mm in the scale column of {meta_file}."
         )
         left_out = {id(e) for e in without}
         kept = [e for e in metadata if id(e) not in left_out]
@@ -1605,8 +1601,9 @@ def show_config_help() -> None:
       2. Change the values that you want
       3. Give the file with --config_file path/to/your/config.yaml
 
-    The main sections: thresholding, arrow_detection, cortex_detection,
-    scar_complexity, logging, contour_filtering, data_export
+    The main sections: thresholding, working_resolution, arrow_detection,
+    cortex_detection, scar_complexity, logging, contour_filtering,
+    data_export, page_segmentation
 
     Full documentation: pylithics --docs
     """)
@@ -1837,12 +1834,13 @@ def _handle_help_flags(args) -> bool:
 
 
 def main() -> int:
-    """Main entry point for PyLithics CLI."""
+    """Run the PyLithics command-line interface."""
     _stop_explore_progress()
     args = create_argument_parser().parse_args()
 
     if _handle_help_flags(args):
         return 0
+    get_config_manager(args.config_file)     # first use creates the process-wide manager
     _offer_update()
 
     explore = getattr(args, 'explore', False)
@@ -1888,7 +1886,7 @@ def main() -> int:
 
 
 def _offer_update() -> None:
-    """Once a day, tell the user about a newer release and offer it."""
+    """Tell the user once a day about a newer release and offer it."""
     from pylithics.update_check import check_for_update
     enabled = get_config_manager().get_section('update_check').get('enabled', True)
     check_for_update(enabled)
@@ -1929,8 +1927,10 @@ def _resolve_explore_dir(data_dir: str) -> str:
 
 
 def _launch_explore(processed_dir: str) -> int:
-    """Open the dashboard against ``processed_dir`` (the folder containing
-    ``processed_metrics.csv``).
+    """
+    Open the dashboard against ``processed_dir``.
+
+    ``processed_dir`` is the folder that contains ``processed_metrics.csv``.
     """
     from pylithics.image_processing.modules.dashboard.runner import (
         launch_dashboard,

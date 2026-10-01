@@ -1,27 +1,15 @@
 """
-Lateral Surface Analysis Module for PyLithics
-============================================
+Lateral surface analysis for PyLithics.
 
-This module provides convexity analysis for lateral surface properties of lithic artifacts.
-It detects the convexity of lateral surfaces using area-based methods.
-
-The module is designed to work specifically with lateral surface classifications and integrates
-with the existing PyLithics pipeline for surface type analysis.
-
-Main Functions:
-    * analyze_lateral_surface(metrics, parent_contours, inverted_image)
-          - Main orchestrator for lateral surface convexity analysis
-    * detect_lateral_convexity(contour)
-          - Calculate convexity measure using area-based method
-
-All functions include comprehensive error handling and logging for debugging and traceability.
+Measures the convexity of the lateral surface of a lithic artifact with an
+area-based method.
 """
 
 import cv2
 import numpy as np
 import logging
 from scipy.spatial.distance import pdist
-from typing import Optional, Dict, Any, List, Tuple, Union
+from typing import Optional, Dict, Any, List
 
 
 def analyze_lateral_surface(
@@ -198,8 +186,7 @@ def _integrate_lateral_metrics(metrics: List[Dict[str, Any]],
     Integrate lateral surface analysis results into the main metrics list.
 
     This helper function updates the lateral surface metric dictionary with
-    the calculated lateral analysis results. It follows the same pattern as
-    other metric integration functions in the PyLithics pipeline.
+    the calculated lateral analysis results.
 
     Parameters
     ----------

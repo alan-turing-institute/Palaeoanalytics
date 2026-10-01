@@ -21,7 +21,9 @@ specifications and the drawing conventions that give the best results.
 
 !!! tip "DPI"
     PyLithics reads the DPI from your image files. For line drawings,
-    the default fixed kernels operate well from 75 to 600 DPI.
+    the default fixed kernels operate well from 75 to 600 DPI. If the
+    lines of an image are thin, PyLithics finds the ink on a larger
+    working copy. See [Working Resolution](working-resolution.md).
     DPI-aware scaling is available. It is usually not necessary for
     clean line art. It is for photographs with noise and for scans of
     low quality.

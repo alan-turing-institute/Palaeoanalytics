@@ -144,11 +144,18 @@ column `label_flag` gives the reason:
 | `no_identifier` | The command found no identifier in or near the crop. |
 | `not_read` | Identifier reading was off, or RapidOCR is not installed. |
 
-The optional RapidOCR package is necessary to read identifiers:
+The optional RapidOCR package is necessary to read identifiers. Two
+commands, from the PyLithics folder:
 
 ```bash
-pip install "PyLithics[ocr]"
+pip install ".[ocr]"
+pip install --no-deps "rapidocr_onnxruntime>=1.3,<2"
 ```
+
+The second command has `--no-deps` on purpose. RapidOCR asks for the
+plain OpenCV package by name. That package and the contrib package that
+PyLithics uses cannot be installed together. The first command installs
+the other packages that RapidOCR needs.
 
 Without it, the command names all crops by box number and writes one
 message. Use `--no_read_labels` to name crops by box number on purpose.
@@ -169,15 +176,18 @@ two grouping errors:
   plate no empty space crosses the whole crop. Then the command gives
   each drawing to its identifier. It uses the side of the lithic where
   the plate sets its identifiers, for example below or to the right.
-  If a cut does not give one identifier and one drawing for each
-  piece, the crop stays whole and keeps the flag `several_identifiers`.
+  Two lithics whose drawings overlap stay together in one crop with
+  the flag `several_identifiers`; the other lithics are still cut
+  apart. If no cut gives one identifier and one drawing for each
+  piece, the crop stays whole and keeps the flag.
 - **A rule between two views is not a scale bar.** Two short rules on
   one line, each between two views of one lithic, are connectors. The
   command does not export them as a scale bar.
 - **A crop holds no identifier.** The crop is possibly one view of the
   lithic next to it. The command joins the crop to its nearest
   neighbour that holds one identifier, if the two are aligned, if no
-  other crop is between them, and if the joined crop holds one
+  other crop is between them, if the crop is not more than three times
+  the size of the neighbour, and if the joined crop holds one
   identifier. If the crop holds a glyph that the reader saw but could
   not read, the command does not join it. That glyph is possibly its
   own identifier.
@@ -201,6 +211,10 @@ This is necessary. The `pylithics` analysis does those steps. If
 PyLithics does the steps two times, a measurement from a crop is not
 comparable with a measurement from a single-artefact scan. The command uses a threshold
 to find the ink. It does not keep the result.
+
+If the lines of a page are thin, the command finds the ink on a
+larger working copy of the page. The crops are still cut from the
+input page at its own size. See [Working Resolution](working-resolution.md).
 
 ## Output
 
@@ -240,6 +254,8 @@ source page.
 | `label_confidence` | The confidence of the reader in `label`, from 0 to 1. |
 | `label_flag` | The reason a crop has no `label`. See [Identifiers](#identifiers). |
 | `label_candidates` | All identifiers read in the crop, separated by `;`. |
+| `stroke_width_px` | The measured line width of the page, in pixels. |
+| `upscale_factor` | The factor of the working copy the page was detected on: 1, 2, 3 or 4. See [Working Resolution](working-resolution.md). |
 
 Keep the manifest with the crops. It connects a measurement to its
 page.
@@ -264,6 +280,7 @@ The flags:
 | `no_scale` | The page has no scale bar. | Give a `scale_id` and a `scale` from another page, or remove the flag to measure in pixels. |
 | `several_scales` | The page has more than one scale bar. `scale_id` is empty. | Examine the page. Write the correct `scale_id`. |
 | `no_identifier`, `several_identifiers`, `duplicate`, `not_read` | An identifier problem. See [Identifiers](#identifiers). | Examine the crop. Correct the filename, or accept it. |
+| `low_resolution` | The lines of the page are thin. The command upscaled a working copy to find the crops. See [Working Resolution](working-resolution.md). | Nothing is necessary. Use a larger scan if you have one. |
 
 More than one flag is separated by `;`. A flag does not stop the
 analysis. `pylithics` runs the row like any other, in pixels when

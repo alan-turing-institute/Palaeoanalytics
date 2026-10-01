@@ -677,7 +677,7 @@ def _bar_candidates(
     height: int,
     bar_config: Dict,
 ) -> List[int]:
-    """Indices of isolated blobs shaped like one block of a bar."""
+    """Return the indices of isolated blobs shaped like one block of a bar."""
     return [
         index for index, component in enumerate(components)
         if _is_bar_segment(component, height, bar_config)

@@ -72,6 +72,8 @@ pylithics --data_dir pylithics/data
 pylithics --data_dir ./data --config_file ./my_config.yaml
 ```
 
+The `working_resolution` section of the configuration sets when an image is upscaled for detection. See [Working Resolution](../user-guide/working-resolution.md).
+
 ### Three levels
 
 1. **Defaults** — in the code
@@ -381,10 +383,10 @@ All distances are fractions of the page width or the page height. The same value
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--output_dir PATH` | The folder for `images/`, `scales/`, `pages_manifest.csv` and `meta_data.csv` | the `--data_dir` project folder |
-| `--padding PX` | The white margin around each crop, in pixels | `20` |
+| `--padding PX` | The white margin around each crop, in pixels | `10` |
 | `--debug` | Write one overlay for each page to `pages_debug/<page>.png`. The overlay shows each box, each scale bar and each identifier read | off |
 | `--disable_scale_bars` | Do not write scale bar crops | off |
-| `--read_labels` | Read the identifier next to each lithic and name the crop with it. `pip install "PyLithics[ocr]"` is necessary | on |
+| `--read_labels` | Read the identifier next to each lithic and name the crop with it. RapidOCR is necessary; see [Installation](../installation.md#step-4-install-pylithics) | on |
 | `--no_read_labels` | Do not read identifiers. Name the crops by box number only | off |
 
 ### Configuration Options
@@ -396,6 +398,8 @@ All distances are fractions of the page width or the page height. The same value
 | `--verbose`, `-v` | Show the full trace for each page | off |
 
 The `identifiers` section of `config.yaml` sets `reach`, the distance in glyph heights at which an identifier outside a box belongs to the nearest box (default `1.5`). Increase it for plates that print the identifier far from the lithic.
+
+The `working_resolution` section sets when a page is upscaled for detection. See [Working Resolution](../user-guide/working-resolution.md).
 
 The `identifiers.regroup` section lets the identifiers correct the grouping: a box that holds several identifiers is cut into one box for each, and a box that holds none joins the labelled box next to it. `enabled` turns the rules off (default `true`). `join_gap` is the distance a box looks for its neighbour, as a fraction of page width (default `0.12`). See [How identifiers correct the grouping](../user-guide/page-segmentation.md#how-identifiers-correct-the-grouping).
 

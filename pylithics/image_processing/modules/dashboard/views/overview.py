@@ -9,6 +9,7 @@ from pylithics.image_processing.modules.dashboard.data import (
 
 
 def render(bundle: dict) -> None:
+    """Render the Overview page."""
     df = bundle["metrics"]
 
     st.header("Overview")
@@ -34,7 +35,7 @@ def render(bundle: dict) -> None:
 
 
 def _render_pipeline_row(counts: dict) -> None:
-    """Four tiles surfacing pipeline-level problems."""
+    """Render four tiles that surface pipeline-level problems."""
     cols = st.columns(4)
 
     with cols[0]:
@@ -85,7 +86,7 @@ def _render_pipeline_row(counts: dict) -> None:
 
 
 def _render_calibration_row(counts: dict) -> None:
-    """Four tiles surfacing scale/DPI issues across the batch."""
+    """Render four tiles that surface scale/DPI issues across the batch."""
     cols = st.columns(4)
 
     with cols[0]:
@@ -139,7 +140,7 @@ def _render_calibration_row(counts: dict) -> None:
 
 
 def _render_counts_row(counts: dict) -> None:
-    """Five tiles describing the volume of features in the assemblage."""
+    """Render five tiles that describe the volume of features in the assemblage."""
     cols = st.columns(5)
 
     cols[0].metric("Lithics", counts["lithics"])
