@@ -355,7 +355,8 @@ Every run cuts every plate in `pages/`. The rules:
 | A new plate | Cut. Its crops and rows are added. |
 | A crop that the new run does not make | Removed, with its row. |
 | Your own images, scale images and rows | Never changed. |
-| A crop with the same filename as one of your images | Not written. The page is skipped, and the file is named. |
+| A crop file that an earlier run left without a manifest row | Replaced. The run reports the number at the end. |
+| Two pages with the same name and different extensions | They give the same crop names. The second page is not written, and the message names the first. Rename one. The exit code is 1. |
 | A plate that the command cannot cut | Reported, with the reason in `pylithics-pages.log`. The other plates are cut. The exit code is 1. |
 | A run that you stop | The manifest names each crop written before the stop. Start the command again. The next run replaces these crops. |
 

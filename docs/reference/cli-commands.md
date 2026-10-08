@@ -405,7 +405,7 @@ The `identifiers.regroup` section lets the identifiers correct the grouping: a b
 
 ### Re-runs
 
-Every run cuts every plate. A plate cut before is cut again and its crops and rows are replaced; the scale values that you typed stay. A new plate is added. A crop that the new run does not make is removed. Your own images and rows are never changed, and a crop with the same filename as one of your images is not written. See [Re-runs](../user-guide/page-segmentation.md#re-runs).
+Every run cuts every plate. A plate cut before is cut again and its crops and rows are replaced; the scale values that you typed stay. A new plate is added. A crop that the new run does not make is removed. A crop file that an earlier run left without a manifest row is replaced, and the run reports the number. Your own images and rows are never changed. Two pages with the same name and different extensions give the same crop names: the second is not written. See [Re-runs](../user-guide/page-segmentation.md#re-runs).
 
 If a plate cannot be cut, the command reports it, cuts the other plates, writes the manifest, and exits with code `1`. The reason is in `pylithics-pages.log`. The manifest is written again after each plate, so a run that you stop leaves a manifest that names each crop it wrote. The next run replaces them.
 

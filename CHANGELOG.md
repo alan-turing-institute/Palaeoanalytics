@@ -64,9 +64,9 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
 - **Debug overlays** — `--debug` writes numbered artefact boxes over the page;
   those numbers are what the corrections CSV refers to.
 - **Sample plate fixture** — `pylithics/data/pages/sample_plate.png`, composited
-  from the five shipped drawings with a shared scale bar, for trying the
-  workflow and for the test suite. Regenerate with
-  `tests/fixtures/generate_sample_plate.py`.
+  from the five shipped drawings, numbered 1 to 5 just under their ink, with a
+  shared scale bar, for trying the workflow and for the test suite. Regenerate
+  with `tests/fixtures/generate_sample_plate.py [OUTPUT.png]`.
 - **`page_segmentation` configuration section** in `config.yaml`, with
   `get_page_segmentation_config()` following the established getter pattern.
 - **`archaeological` pytest marker** for tests validating domain correctness.
@@ -108,6 +108,13 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
   analysing. A bare `--explore` still analyses and then opens.
 
 ### Fixed
+- **An orphaned crop locked its page out of every run.** A crop written by a
+  run that stopped before the manifest was saved had no manifest row, so the
+  next run took it for the user's own file and refused the page, every time.
+  A file that carries a crop name of a page in `pages/` is now replaced, and
+  the run reports how many such files it replaced. Two pages that differ only
+  by extension are still refused, with a message that names the other page,
+  and the run reports how many pages it cut again.
 - **`pylithics --config_file` was ignored.** The update check created the
   process-wide configuration before the file named on the command line was
   read, so every run used the default configuration. The file is now read

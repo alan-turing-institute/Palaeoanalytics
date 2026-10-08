@@ -196,38 +196,32 @@ def export_page(
     identifiers: Optional[Sequence[Identifier]] = None,
     box_corrections: Optional[Sequence[str]] = None,
     working: Optional[WorkingCopy] = None,
+    taken: Optional[Dict[str, str]] = None,
+    orphans: Optional[List[str]] = None,
 ) -> List[ManifestRow]:
     """
     Write every crop for one page and return its manifest rows.
 
-    Parameters
-    ----------
-    page : PageImage
-        The loaded source page.
-    boxes, bars : sequence of BBox
-        Artefact boxes in reading order, and scale bar boxes.
-    output_dir : str
-        Destination root.
-    padding : int
-        Pixels of whitespace kept around each crop.
-    correction_applied : str
-        Corrections applied to the page, for every row of the manifest.
-    component_counts : dict, optional
-        Map of box index to the number of ink blobs it groups.
-    identifiers : sequence of Identifier, optional
-        The identifier read for each box; a read one names its crop.
-    box_corrections : sequence of str, optional
-        Per-box corrections, replacing ``correction_applied``.
-    working : WorkingCopy, optional
-        The page's measurement and factor, recorded on every row.
+    ``boxes`` are the artefact boxes in reading order and ``bars`` the
+    scale bars. ``padding`` is the whitespace kept around each crop.
+    ``correction_applied`` goes on every row unless ``box_corrections``
+    gives one entry per box. ``component_counts`` maps a box index to
+    the ink blobs it groups, ``identifiers`` holds the read for each box
+    (a read one names its crop), and ``working`` is recorded on every
+    row. ``taken`` maps each crop name written earlier in this run to
+    its page; ``orphans`` is extended with each crop file of an earlier
+    run that this page replaced because it had no manifest row.
 
-    Returns
-    -------
-    list of ManifestRow : one row per crop written.
+    Raises
+    ------
+    FileExistsError
+        When another page in this run wrote one of this page's crop names.
     """
     identifiers = identifiers or [Identifier() for _ in boxes]
     corrections = list(box_corrections or [correction_applied] * len(boxes))
-    _refuse_collisions(page, bars, output_dir, identifiers)
+    found = _claim_crop_names(page, bars, output_dir, identifiers, taken or {})
+    if orphans is not None:
+        orphans.extend(found)
     rows = _export_artefacts(page, boxes, output_dir, padding,
                              component_counts or {}, corrections, identifiers)
     rows.extend(_export_scale_bars(page, bars, output_dir, padding))
@@ -248,23 +242,30 @@ def _record_resolution(rows: Sequence[ManifestRow], working: Optional[WorkingCop
         row.upscale_factor = working.factor
 
 
-def _refuse_collisions(
+def _claim_crop_names(
     page: PageImage,
     bars: Sequence[BBox],
     output_dir: str,
     identifiers: Sequence[Identifier],
-) -> None:
+    taken: Dict[str, str],
+) -> List[str]:
     """
-    Stop before writing a page whose crop would replace a user's image.
+    Make sure every crop name of a page is free to write, and return the orphans removed.
 
-    Checked for the whole page first, so a refused page leaves no crop
-    behind. The crops of a previous run never collide: they were
-    removed before the page was cut again.
+    A file that already carries a crop name of this page was written by
+    the command: the crops of a previous run were removed before the
+    page was cut again, so what is left is an orphan of a run that
+    stopped before its manifest was saved. It is removed here. The one
+    exception is a name that another page wrote earlier in this run,
+    which means two pages in ``pages/`` differ only by extension.
+
+    The twin check runs over the whole page first, so a refused page
+    leaves no crop behind.
 
     Raises
     ------
     FileExistsError
-        Naming the first crop that already exists.
+        When a crop name was written by another page in this run.
     """
     names = [
         (IMAGES_DIRNAME, _artefact_name(page.stem, index, identifier))
@@ -274,12 +275,20 @@ def _refuse_collisions(
         (SCALES_DIRNAME, _scale_bar_name(page.stem, index, len(bars)))
         for index in range(1, len(bars) + 1)
     ]
-    for folder, name in names:
-        if os.path.exists(os.path.join(output_dir, folder, name)):
+    for _, name in names:
+        if name in taken:
             raise FileExistsError(
-                f"{folder}/{name} is already in the project. The page is "
-                f"not written. Rename the file, or the page."
+                f"{os.path.basename(page.path)} gives the same crop names as "
+                f"{taken[name]}, cut earlier in this run. Rename one."
             )
+    orphans = []
+    for folder, name in names:
+        path = os.path.join(output_dir, folder, name)
+        if os.path.isfile(path):
+            os.remove(path)
+            orphans.append(f"{folder}/{name}")
+            logging.debug("%s had no manifest row; replaced", name)
+    return orphans
 
 
 def _export_artefacts(

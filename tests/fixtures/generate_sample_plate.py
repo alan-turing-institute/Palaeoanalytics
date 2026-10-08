@@ -4,8 +4,9 @@ Generate the sample plate fixture used by page segmentation tests.
 
 Composites the five single-artefact drawings shipped in
 ``pylithics/data/images/`` onto one page, laid out the way an
-archaeological plate is: artefacts in rows, each captioned with an
-identifier letter, and a shared scale bar at the foot of the page.
+archaeological plate is: artefacts in rows, each with its identifier
+number set just under its ink, and a shared scale bar at the foot of
+the page.
 
 Each source drawing already shows two to four surface views, so the
 composited page carries far more ink blobs than artefacts. Correct
@@ -15,13 +16,16 @@ fails the fixture loudly.
 
 Run from the repository root::
 
-    python tests/fixtures/generate_sample_plate.py
+    python tests/fixtures/generate_sample_plate.py [OUTPUT.png]
+
+Without an argument the plate is written to
+``pylithics/data/pages/sample_plate.png``, the committed fixture.
 """
 
 import os
 import sys
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 # Page geometry, in pixels at 300 dpi (approximately A4).
 PAGE_WIDTH = 2480
@@ -38,7 +42,12 @@ SCALE_BAR_SCALE = 0.42
 COLUMN_SPACING = 260
 ROW_SPACING = 340
 TOP_MARGIN = 220
-LABEL_OFFSET = 55
+# Each label sits this far below the ink of its own drawing, so that
+# the reader finds it inside the identifier reach of the lithic it names.
+LABEL_GAP = 10
+# Source drawings are cut to their ink before placement, so the gap is
+# measured from the lithic and not from the white margin of the file.
+INK_THRESHOLD = 200
 LABEL_FONT_SIZE = 76
 CAPTION_FONT_SIZE = 64
 SCALE_BAR_TOP_MARGIN = 430
@@ -47,7 +56,7 @@ ROWS = [
     ["awbari.png", "qesem_cave.png", "replica_1.png"],
     ["KL3_5313_1.png", "rub_al_khali.png"],
 ]
-LABELS = ["a", "b", "c", "d", "e"]
+LABELS = ["1", "2", "3", "4", "5"]
 SCALE_CAPTION = "5 cm"
 
 FONT_CANDIDATES = [
@@ -71,13 +80,20 @@ def load_font(size: int) -> ImageFont.ImageFont:
 
 
 def load_drawing(images_dir: str, name: str) -> Image.Image:
-    """Load a source drawing, flattened onto white and scaled down."""
+    """Load a source drawing, flattened onto white, cut to its ink, scaled down."""
     source = Image.open(os.path.join(images_dir, name))
     flattened = Image.new("RGB", source.size, "white")
     if source.mode in ("RGBA", "LA"):
         flattened.paste(source, mask=source.split()[-1])
     else:
         flattened.paste(source.convert("RGB"))
+
+    ink = ImageOps.invert(flattened.convert("L")).point(
+        lambda value: 255 if value > 255 - INK_THRESHOLD else 0
+    )
+    bbox = ink.getbbox()
+    if bbox:
+        flattened = flattened.crop(bbox)
 
     size = (
         int(flattened.width * SOURCE_SCALE),
@@ -95,12 +111,12 @@ def paste_row(
     font: ImageFont.ImageFont,
 ) -> int:
     """
-    Place one row of artefacts, centred, with identifier letters below.
+    Place one row of artefacts, centred, each with its letter just below it.
 
     Returns
     -------
     int
-        The y coordinate just below the row's labels.
+        The y coordinate just below the row's tallest drawing and its label.
     """
     total_width = sum(d.width for d in drawings)
     total_width += COLUMN_SPACING * (len(drawings) - 1)
@@ -111,12 +127,12 @@ def paste_row(
         page.paste(drawing, (x, top))
         centre = x + drawing.width // 2
         draw.text(
-            (centre, top + row_height + LABEL_OFFSET),
+            (centre, top + drawing.height + LABEL_GAP),
             label, fill="black", font=font, anchor="ma",
         )
         x += drawing.width + COLUMN_SPACING
 
-    return top + row_height + LABEL_OFFSET + LABEL_FONT_SIZE
+    return top + row_height + LABEL_GAP + LABEL_FONT_SIZE
 
 
 def paste_scale_bar(
@@ -174,15 +190,18 @@ def build_plate(data_dir: str) -> Image.Image:
     return page
 
 
-def main() -> int:
-    """Build the fixture and write it into the package data directory."""
+def main(argv=None) -> int:
+    """Build the fixture and write it to the path given, or into the package."""
     here = os.path.dirname(os.path.abspath(__file__))
     root = os.path.dirname(os.path.dirname(here))
     data_dir = os.path.join(root, "pylithics", "data")
 
-    output_dir = os.path.join(data_dir, "pages")
-    os.makedirs(output_dir, exist_ok=True)
-    destination = os.path.join(output_dir, "sample_plate.png")
+    args = sys.argv[1:] if argv is None else argv
+    if args:
+        destination = args[0]
+    else:
+        destination = os.path.join(data_dir, "pages", "sample_plate.png")
+    os.makedirs(os.path.dirname(os.path.abspath(destination)), exist_ok=True)
 
     plate = build_plate(data_dir)
     plate.save(destination, dpi=PAGE_DPI)

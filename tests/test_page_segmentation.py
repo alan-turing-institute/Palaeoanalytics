@@ -57,7 +57,7 @@ from pylithics.page_segmentation.grouping import (
     reading_order,
 )
 
-# The sample plate shows five lithics and one shared scale bar.
+# The sample plate shows five lithics numbered 1 to 5 and one shared scale bar.
 EXPECTED_ARTEFACTS = 5
 EXPECTED_SCALE_BARS = 1
 EXPECTED_DPI = 300.0
@@ -1327,19 +1327,21 @@ class TestOutputSafety:
         assert (out / "images" / "my_flake.png").exists()
 
     def test_a_second_run_replaces_its_crops_and_keeps_typed_scales(
-        self, tmp_path, pages_dir
+        self, tmp_path, pages_dir, caplog
     ):
         out = tmp_path / "out"
         assert run_prep(pages_dir, out) == 0
         before = sorted(os.listdir(out / "images"))
         manifest_before = read_manifest(out)
         meta = _fill_scales(out)
+        assert "were cut before" not in caplog.text
 
         assert run_prep(pages_dir, out) == 0
 
         assert sorted(os.listdir(out / "images")) == before
         assert read_manifest(out) == manifest_before
         assert (out / "meta_data.csv").read_text() == meta
+        assert "1 page(s) were cut before; their crops were replaced." in caplog.text
 
     def test_added_pages_are_cut_and_appended(self, tmp_path, pages_dir, plate_path):
         """Adding a plate adds its crops. The rest is cut again, unchanged."""
@@ -1391,16 +1393,30 @@ class TestOutputSafety:
         assert (out / "images" / "my_flake.png").read_bytes() == b"mine"
         assert _read_metadata(out)["my_flake.png"]["scale"] == "50"
 
-    def test_a_crop_never_replaces_an_existing_image(self, tmp_path, pages_dir):
-        """A page whose crop name is taken is refused whole, before any write."""
+    def test_a_crop_left_without_a_manifest_row_is_replaced(
+        self, tmp_path, pages_dir, caplog
+    ):
+        """A file carrying a crop name of a page was written by the command."""
         out = tmp_path / "out"
         prepare_output_dir(str(out))
-        taken = out / "images" / "sample_plate_box_01.png"
-        taken.write_bytes(b"mine")
+        orphan = out / "images" / "sample_plate_figure_1.png"
+        orphan.write_bytes(b"left by a stopped run")
         assert run_prep(pages_dir, out) == 0
-        assert taken.read_bytes() == b"mine"
-        assert os.listdir(out / "images") == ["sample_plate_box_01.png"]
-        assert _read_metadata(out) == {}
+        assert orphan.read_bytes() != b"left by a stopped run"
+        assert len(os.listdir(out / "images")) == EXPECTED_ARTEFACTS
+        assert "1 crop file(s) left by an earlier run had no manifest row" in caplog.text
+
+    def test_a_twin_page_is_refused_and_named(self, tmp_path, plate_path, caplog):
+        """Two pages that differ only by extension give the same crop names."""
+        pages = tmp_path / "pages"
+        pages.mkdir()
+        for name in ("plate.png", "plate.tif"):
+            Image.open(plate_path).save(pages / name, dpi=(EXPECTED_DPI, EXPECTED_DPI))
+        out = tmp_path / "out"
+        assert run_prep(pages, out) == 1
+        assert len(os.listdir(out / "images")) == EXPECTED_ARTEFACTS
+        assert "plate.tif gives the same crop names as plate.png" in caplog.text
+        assert "1 page(s) not cut: plate.tif" in caplog.text
 
 
 ### METADATA FOR THE ANALYSIS ###
@@ -1537,11 +1553,11 @@ class TestPipeline:
         scales = sorted(os.listdir(out / "scales"))
         assert len(images) == EXPECTED_ARTEFACTS
         assert scales == ["sample_plate_scale_bar.png"]
-        assert images[0] == "sample_plate_box_01.png"
+        assert images == [f"sample_plate_figure_{n}.png" for n in range(1, 6)]
 
         meta = _read_metadata(out)
         assert set(meta) == set(images)
-        assert meta["sample_plate_box_01.png"]["scale_id"] == "sample_plate_scale_bar.png"
+        assert meta["sample_plate_figure_1.png"]["scale_id"] == "sample_plate_scale_bar.png"
 
     def test_default_output_is_the_project_folder(self, tmp_path, pages_dir):
         """pages/ in, images/ and scales/ out, in the same folder."""

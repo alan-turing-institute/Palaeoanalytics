@@ -92,7 +92,10 @@ the end. Remove the flag when the row is correct.
 Every run cuts every plate in pages/. A plate cut before is cut again,
 and its crops and rows are replaced. The scale values that you typed
 stay. A new plate is added. Images and rows that you put in the project
-yourself do not change.
+yourself do not change. A crop file that an earlier run left without a
+manifest row is replaced, and the run reports the number. Two pages
+with the same name and different extensions give the same crop names:
+the second is not written. Rename one.
 """
 
 EPILOG = """
@@ -176,7 +179,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         write_metadata(run.rows, args.output_dir, run.removed)
 
     debug = args.debug or config.get('debug', {}).get('enabled', False)
-    _log_summary(run.rows, len(pages), args.output_dir, debug)
+    _log_summary(run, previous, len(pages), args.output_dir, debug)
     if run.failed:
         logging.error("%d page(s) not cut: %s. See %s for the reason.", len(run.failed),
                       ', '.join(run.failed), os.path.join(args.output_dir, 'pylithics-pages.log'))
@@ -209,6 +212,7 @@ class RunResult:
     rows: List[ManifestRow] = field(default_factory=list)
     recut: set = field(default_factory=set)
     removed: set = field(default_factory=set)
+    orphans: List[str] = field(default_factory=list)
     failed: List[str] = field(default_factory=list)
 
 
@@ -224,12 +228,8 @@ def _process_pages(
     Segment every page, replacing what a previous run cut from it.
 
     A page that fails, for any reason, is reported and the batch goes
-    on: one bad plate must not cost the run its manifest. The manifest
-    is rewritten after every page, so a run that is stopped part way
-    still names every crop it wrote, and the next run replaces them.
-
-    Shows a live progress bar on a terminal. Segmenting a large plate
-    takes a noticeable moment, and without it a long batch looks frozen.
+    on. The manifest is rewritten after every page, so a stopped run
+    still names every crop it wrote. A progress bar shows on a terminal.
     """
     padding = config.get('export', {}).get('padding', 10)
     by_page: Dict[str, List[Dict[str, str]]] = {}
@@ -249,11 +249,13 @@ def _process_pages(
                     args.output_dir, by_page.get(name, [])
                 )
                 run.recut.add(name)
-                run.rows.extend(
-                    _process_page(page, corrections.get(name), config, args, padding)
-                )
+                taken = {r.output_crop_id: r.input_page_id for r in run.rows}
+                run.rows.extend(_process_page(
+                    page, corrections.get(name), config, args, padding, taken, run.orphans
+                ))
             except FileExistsError as exc:
-                logging.error("%s: %s", name, exc)
+                run.failed.append(name)
+                logging.error("%s: not cut. %s", name, exc)
             except (OSError, ValueError) as exc:
                 logging.error("Page not read, %s: %s", name, exc)
             except Exception as exc:  # noqa: BLE001 - one page must not stop the batch
@@ -324,6 +326,8 @@ def _process_page(
     config: Dict,
     args: argparse.Namespace,
     padding: int,
+    taken: Optional[Dict[str, str]] = None,
+    orphans: Optional[List[str]] = None,
 ) -> List[ManifestRow]:
     """Segment one loaded page and write its crops."""
     path = page.path
@@ -360,7 +364,7 @@ def _process_page(
     return export_page(
         page, boxes, bars, args.output_dir, padding, '',
         _count_components(boxes, components), identifiers, corrections,
-        masks.working,
+        masks.working, taken, orphans,
     )
 
 
@@ -621,16 +625,27 @@ def _console_level(args: argparse.Namespace) -> int:
 
 
 def _log_summary(
-    rows: Sequence[ManifestRow], page_count: int, output_dir: str,
-    debug: bool = False,
+    run: RunResult, previous: Sequence[Dict[str, str]], page_count: int,
+    output_dir: str, debug: bool = False,
 ) -> None:
-    """Report what the run produced, and where the overlays are."""
+    """Report what the run produced, what it replaced, and where the overlays are."""
+    rows = run.rows
     artefacts = sum(1 for r in rows if r.image_type == 'artefact')
     bars = sum(1 for r in rows if r.image_type == 'scale_bar')
     logging.info(
         "Done: %d page(s) -> %d artefact(s), %d scale bar(s) in %s",
         page_count, artefacts, bars, output_dir,
     )
+    cut_before = {r['input_page_id'] for r in previous} & run.recut
+    if cut_before:
+        logging.info(
+            "%d page(s) were cut before; their crops were replaced.", len(cut_before)
+        )
+    if run.orphans:
+        logging.warning(
+            "%d crop file(s) left by an earlier run had no manifest row "
+            "and were replaced.", len(run.orphans),
+        )
     upscaled = {r.input_page_id for r in rows if int(r.upscale_factor or 1) > 1}
     if upscaled:
         logging.info(
