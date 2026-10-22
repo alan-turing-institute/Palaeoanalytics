@@ -372,6 +372,16 @@ _PAGE_SEGMENTATION_DEFAULTS: Dict[str, Any] = {
         'include_caption': True,
         'min_aspect_ratio': 5.0,
         'max_height': 0.06,
+        'classifier': {
+            'enabled': True,
+            'model': 'scale_bar_classifier.json',
+            'threshold': 0.4,
+            'uncertain_band': 0.15,
+            'min_aspect_ratio': 2.5,
+            'max_short_side': 0.08,
+            'min_long_side': 0.03,
+            'max_long_side': 0.9,
+        },
     },
     'text_rejection': {
         'enabled': True,

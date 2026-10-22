@@ -166,6 +166,18 @@ class TestJoin:
         )
         assert boxes == [[100, 100, 610, 430]] and tags == [regroup.JOIN]
 
+    def test_a_host_stops_growing_before_it_takes_the_page(self):
+        """Spain figure 5: a row of small unlabelled lithics beside one label is not one crop."""
+        host = [100, 100, 200, 200]
+        row = [[220 + 120 * k, 100, 320 + 120 * k, 200] for k in range(6)]
+        ink = [_ink(host)] + [_ink(b) for b in row]
+        reads = _reads(('1', [180, 210, 196, 230]))
+        boxes, tags = _refine([[100, 100, 200, 230]] + row, reads, ink)
+        grown = next(b for b, t in zip(boxes, tags) if t == regroup.JOIN)
+        area = (grown[2] - grown[0]) * (grown[3] - grown[1])
+        assert area <= regroup._MAX_HOST_GROWTH * (100 * 130)
+        assert len(boxes) >= 2
+
     def test_beyond_the_join_gap_nothing_happens(self):
         ink = [_ink([100, 100, 300, 400]), _ink([500, 100, 540, 400])]
         reads = _reads(('5', [280, 410, 296, 430]))

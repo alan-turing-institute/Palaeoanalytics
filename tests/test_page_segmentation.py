@@ -26,6 +26,7 @@ from pylithics.image_processing.config import (
     get_config_manager,
     get_page_segmentation_config,
 )
+from pylithics.page_segmentation.detection import Component
 from pylithics.page_segmentation import export as export_module
 from pylithics.page_segmentation import grouping as grouping_module
 from pylithics.page_segmentation import identifiers as identifiers_module
@@ -1086,6 +1087,35 @@ class TestCrossSectionAttachment:
 
 
 @pytest.mark.unit
+class TestSideBySideViews:
+    """Two views whose boxes overlap by a sliver are still side by side."""
+
+    PAGE_WIDTH = 2000
+
+    @staticmethod
+    def _component(box):
+        x0, y0, x1, y1 = box
+        return grouping_module.Component(
+            box=list(box), width=x1 - x0, height=y1 - y0, ink=(x1 - x0) * (y1 - y0),
+        )
+
+    def _linked(self, a, b):
+        sets = grouping_module._UnionFind(2)
+        grouping_module.link_adjacent_views(
+            [self._component(a), self._component(b)], sets, self.PAGE_WIDTH, 0.025
+        )
+        return sets.find(0) == sets.find(1)
+
+    def test_a_slight_overlap_still_links(self):
+        """Archaic Oldowan figure 4: two views overlapping by 15 px of 194."""
+        assert self._linked((1391, 15, 1667, 363), (1652, 56, 1846, 390))
+
+    def test_a_corner_clip_does_not_link(self):
+        """Diagonal neighbours on a dense plate clip at a corner only."""
+        assert not self._linked((100, 100, 400, 400), (385, 385, 700, 700))
+
+
+@pytest.mark.unit
 class TestPageFurniture:
     """A page-wide header rule is neither a scale nor a drawing."""
 
@@ -1911,3 +1941,55 @@ class TestConfiguration:
             {'page_segmentation': {'grouping': {'gap': 0.99}}}
         )
         assert config['grouping']['gap'] == 0.99
+
+
+@pytest.mark.unit
+class TestCaptionCornersAndChains:
+    """A caption sits on the bar's line or follows another caption; a sparse mark never joins."""
+
+    BAR = [400, 1000, 800, 1020]
+
+    def test_a_mark_at_the_corner_is_not_a_caption(self):
+        """Spain 5's "18" sat above and past the end of its scale; Gadeb's arrows likewise."""
+        assert not grouping_module._is_bar_caption([810, 970, 830, 990], self.BAR)
+
+    def test_a_unit_hanging_off_the_end_is_not_level_with_it(self):
+        """p47's arrow overlapped the bar's line by a sliver of its own height."""
+        assert not grouping_module._is_bar_caption([810, 1016, 890, 1100], self.BAR)
+
+    def test_text_beside_an_upright_bar_is_its_caption(self):
+        """Wimereux's "5 cm" stands beside the top of its upright ruler, set upright too."""
+        upright = [56, 683, 60, 760]
+        assert grouping_module._is_bar_caption([35, 658, 48, 693], upright)
+        assert not grouping_module._is_bar_caption([35, 600, 48, 640], upright)
+
+    def test_a_unit_follows_the_numeral_before_it(self):
+        numeral, unit = [760, 970, 775, 990], [805, 972, 845, 990]
+        assert not grouping_module._is_bar_caption(unit, self.BAR)
+        assert grouping_module._follows_caption(unit, numeral)
+
+    def test_the_split_chains_and_drops_sparse_marks(self):
+        numeral, unit = [760, 970, 775, 990], [805, 972, 845, 990]
+        arrow = [810, 1016, 840, 1050]
+        components = [
+            Component(box=numeral, width=15, height=20, ink=180),     # dense glyph
+            Component(box=unit, width=40, height=18, ink=400),
+            Component(box=arrow, width=30, height=34, ink=100),       # a thin diagonal stroke
+        ]
+        captions, labels = grouping_module._split_bar_captions(
+            [numeral, unit, arrow], [self.BAR], components
+        )
+        assert captions == [numeral, unit] and labels == [arrow]
+
+
+@pytest.mark.unit
+class TestLabelSizeOnAStrip:
+    """Label size limits follow the page's long side, so a strip's digits stay labels."""
+
+    def test_a_digit_on_a_strip_is_not_drawing_sized(self):
+        digit = Component(box=[100, 10, 115, 30], width=15, height=20, ink=200)
+        assert not grouping_module._is_drawing_sized(digit, 800, 200)
+
+    def test_a_drawing_on_a_strip_still_is(self):
+        drawing = Component(box=[100, 10, 300, 150], width=200, height=140, ink=5000)
+        assert grouping_module._is_drawing_sized(drawing, 800, 200)

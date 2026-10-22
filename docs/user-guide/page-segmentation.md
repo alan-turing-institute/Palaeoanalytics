@@ -59,10 +59,11 @@ pylithics-pages --data_dir my_project --debug
 
 **3. Examine the overlays** in `my_project/pages_debug/`. Each page has
 one overlay. Each numbered box must contain one lithic and all of its
-surfaces. Each scale bar must have its own purple box. Each green
-identifier must match the number on the plate. Read the header of the
-overlay: it gives the number of crops named and the number of crops
-flagged.
+surfaces. Each scale bar must have its own purple box, with its score
+beside it. A grey box is a mark that the command rejected. Each
+green identifier must match the number on the plate. Read the header
+of the overlay: it gives the number of crops named and the number of
+crops flagged.
 
 **4. Correct each page that is wrong.** See [Correct a
 page](#correct-a-page). Then start the command again:
@@ -256,6 +257,8 @@ source page.
 | `label_candidates` | All identifiers read in the crop, separated by `;`. |
 | `stroke_width_px` | The measured line width of the page, in pixels. |
 | `upscale_factor` | The factor of the working copy the page was detected on: 1, 2, 3 or 4. See [Working Resolution](working-resolution.md). |
+| `scale_score` | For a scale bar: the score of the classifier, from 0 to 1. See [Scale bars](#scale-bars). Empty for an artefact. |
+| `scale_method` | For a scale bar: `classifier`, or `rules` when the classifier is off. |
 
 Keep the manifest with the crops. It connects a measurement to its
 page.
@@ -281,6 +284,7 @@ The flags:
 | `several_scales` | The page has more than one scale bar. `scale_id` is empty. | Examine the page. Write the correct `scale_id`. |
 | `no_identifier`, `several_identifiers`, `duplicate`, `not_read` | An identifier problem. See [Identifiers](#identifiers). | Examine the crop. Correct the filename, or accept it. |
 | `low_resolution` | The lines of the page are thin. The command upscaled a working copy to find the crops. See [Working Resolution](working-resolution.md). | Nothing is necessary. Use a larger scan if you have one. |
+| `scale_uncertain` | The classifier was not sure that the scale bar of this page is one. See [Scale bars](#scale-bars). | Open the scale crop. If it is not a scale bar, correct `scale_id`. |
 
 More than one flag is separated by `;`. A flag does not stop the
 analysis. `pylithics` runs the row like any other, in pixels when
@@ -375,6 +379,80 @@ does not put a scale bar in an artefact crop. It finds these styles:
   each end.
 
 If a caption such as `5 cm` is next to the bar, the crop includes it.
+
+### How a scale bar is decided
+
+The command applies these rules in this order.
+
+**1. The candidates**
+
+- A candidate is a mark at least 2.5 times longer than it is wide. It
+  can be across the page or down the page.
+- Its ink does not touch a drawing. A bar below the profile view of a
+  lithic is a candidate. A line that touches a drawing is not a
+  candidate.
+- The solid blocks or the dashes of a segmented bar on one line are
+  one candidate.
+- The command cuts a thick bar from the raw ink when the ink of the
+  caption touches the bar. It exports the bar with its caption.
+- The size limits are in the configuration: `min_long_side`,
+  `max_long_side` and `max_short_side`. Each is a fraction of the
+  longer side of the page.
+
+**2. The candidates that the command rejects before the score**
+
+- A line with no ticks and no caption at the edge of a drawing is a
+  connector, not a scale bar.
+- A line with no ticks and no caption between two views of one lithic
+  is a rule between the views, not a scale bar.
+- The score of these marks is `0`.
+
+**3. The score**
+
+A trained classifier (a random forest) measures each other candidate.
+It gives the candidate a score from 0 to 1. It measures:
+
+- The shape: length, width, aspect, density.
+- The pattern of the ink: the number of blocks and their regularity,
+  the tick marks, a continuous rule.
+- The cross-section: a bar is solid, or solid blocks, of one width to
+  its ends. The outline of a lithic surface is hollow, and becomes
+  narrow at its ends.
+- The tones of the pixels.
+- The small marks beside the candidate, for example the caption `5 cm`.
+- If the box of a drawing contains the candidate, and its position on
+  the page.
+
+A candidate with a score at or above the threshold (default `0.4`)
+is a scale bar. The other candidates keep the role that the rules
+give them.
+
+**4. The caption**
+
+- The crop of a scale bar contains the bar and its caption.
+- A caption is text on the line of the bar: numerals above or below
+  the bar in its span, a unit level with its end, or text after such a
+  caption (`cm` after `5`).
+- A mark at a corner of the bar is not a caption. A thin line, for
+  example an arrow, is not a caption.
+- A bar-shaped mark on the line of a bar with a higher score is a
+  caption of that bar, not a second bar. Examples: the `1` of a ruler,
+  the `5 cm` beside an upright bar.
+
+**5. After the decision**
+
+- The manifest records the score of each scale bar in `scale_score`.
+- When the score is in `uncertain_band` (default `0.15`) of the
+  threshold, the command puts the flag `scale_uncertain` on the
+  artefacts of that page in `meta_data.csv`.
+- With `--debug`, the overlay shows each accepted bar in purple with
+  its score. It shows each rejected candidate in grey with its score.
+- The command does not read the number on the bar. Write the value in
+  millimetres in the `scale` column.
+
+To use the rules only, set `scale_bars.classifier.enabled: false` in
+the configuration. The package includes the model. If the command
+cannot read the model, it reports this once, and the rules decide.
 
 !!! note "You write the scale values by hand"
     `pylithics-pages` writes the scale bar image and connects it to

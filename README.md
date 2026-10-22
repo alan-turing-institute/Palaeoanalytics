@@ -25,9 +25,13 @@ pylithics
 
 ```bash
 # Upgrade from version 1.0
+# PyLithics 2.0 requires Python 3.10 or later, and its packages differ
+# from version 1. Make a new virtual environment, then install.
 cd Palaeoanalytics
 git pull
-pip install . --upgrade
+python3 -m venv palaeo
+source palaeo/bin/activate
+pip install .
 ```
 
 

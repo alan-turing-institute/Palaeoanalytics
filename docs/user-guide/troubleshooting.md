@@ -10,7 +10,7 @@ with the lines from the log.
 
 ### Python version error
 
-**Problem**: "Python 3.8+ required", or a compatibility error
+**Problem**: "Python 3.10+ required", or a compatibility error
 
 **Procedure**:
 
@@ -20,10 +20,10 @@ python --version
 
 # Install the correct Python version
 # macOS (with Homebrew)
-brew install python@3.11
+brew install python@3.12
 
 # Ubuntu/Debian
-sudo apt-get install python3.11
+sudo apt-get install python3.12
 
 # Windows: get Python from python.org
 ```
@@ -41,8 +41,9 @@ pip install --upgrade pip
 # Install with full output to see the cause
 pip install . -v
 
-# If OpenCV is the cause, install it first
-pip install opencv-python-headless>=4.8.0
+# If OpenCV is the cause, install the contrib build first.
+# Only the contrib build has the upscaling module (dnn_superres).
+pip install "opencv-contrib-python-headless>=4.8.0"
 pip install .
 ```
 
@@ -292,11 +293,23 @@ print("Calibration methods:", df['calibration_method'].value_counts())
 **OpenCV does not install**:
 
 ```bash
-# Use the headless build (no GUI)
-pip install opencv-python-headless
+# Use the headless contrib build (no GUI, with the upscaling module)
+pip install opencv-contrib-python-headless
+```
 
-# Or install with conda
-conda install opencv
+Do not install `opencv-python` or `opencv-python-headless` beside it.
+Those builds have no `dnn_superres` module, and the upscaler stops.
+
+**PyLithics is slow on an Apple Silicon Mac**:
+
+An Intel build of Python runs on an Apple Silicon Mac through Rosetta,
+and the upscaler is three times slower. Make sure that Python is
+native:
+
+```bash
+# Must print arm64. If it prints x86_64, install a native Python
+# (for example with Homebrew) and make the virtual environment again.
+python -c "import platform; print(platform.machine())"
 ```
 
 ### Windows

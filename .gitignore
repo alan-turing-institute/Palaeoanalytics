@@ -270,3 +270,4 @@ pylithics/data/scales/*_scale_bar*.png
 pylithics/data/processed_pages/
 pylithics/data/processed_images/
 pylithics/data/corrections.csv
+.idea/

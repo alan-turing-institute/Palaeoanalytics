@@ -23,3 +23,10 @@ names as the origin of these models. The files are unchanged. The
 FSRCNN files were fetched on 2026-09-29 from the raw URLs of the
 Saafke repository (38–42 KB each; a file of about 290 KB in that
 place is a saved GitHub web page, not a model).
+
+scale_bar_classifier.json
+    A logistic model that scores scale bar candidates on a plate. It was
+    trained on candidates from the plates in the PyLithics project with
+    tools/train_scale_classifier.py. The file holds the feature names,
+    their means and scales, the weights and the bias. No third-party
+    material.

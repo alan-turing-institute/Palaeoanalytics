@@ -16,6 +16,28 @@ directory is renamed `results/`.
 alone will not create it. Reinstall with `pip install . --upgrade`.
 
 ### Added
+- **Scale bar classifier (`pylithics-pages`)** — a trained model (a random forest) decides
+  which bar-shaped marks are scale bars, in place of the shape rules alone.
+  Candidates include bars standing against a lithic, upright bars and
+  rulers, which the rules took for annotations or text. The manifest records
+  `scale_score` and `scale_method` for each scale bar; an artefact whose
+  scale bar scored close to the threshold gets the flag `scale_uncertain` in
+  `meta_data.csv`; the debug overlay draws rejected candidates in grey with
+  their scores. Section `scale_bars.classifier` in `config.yaml`;
+  `enabled: false` gives the rules of before. Model bundled as
+  `pylithics/models/scale_bar_classifier.json`, its training labels as
+  `pylithics/models/scale_bar_labels.csv`. Tools:
+  `tools/scale_candidates.py` writes the labelling table, prefilled from
+  the known labels and the model; `tools/train_scale_classifier.py`
+  trains the model. A candidate's ink, not the boxes around it, decides
+  whether it stands clear of the drawings, so a bar below a profile view
+  is found; upright dashes form one bar; a thick bar fused with its
+  caption is found from the raw ink; a plain stroke at a drawing's edge
+  or between two views is a connector, never scored. A scale crop
+  takes its caption (`0`, `5 cm`, and text that follows it) and not an
+  arrow or an identifier at the bar's corner. Size limits are fractions
+  of the page's longer side, so a strip cut from a page keeps its digits
+  as labels.
 - **Working resolution** — both commands measure the line width of each
   image and, when the lines are too thin for detection, find the ink on a
   working copy upscaled 2, 3 or 4 times with ESPCN or FSRCNN (bundled). The
@@ -147,6 +169,11 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
   nothing. All three now write under `results/`.
 
 ### Changed
+- **Python 3.10 or later is necessary** (was 3.8). The package is developed and
+  tested on 3.12. The installation guide and the troubleshooting page name the
+  contrib build of OpenCV, the only build with the upscaling module, and tell
+  Apple Silicon users to check that Python is a native build: an Intel build
+  runs through Rosetta and the upscaler is three times slower.
 - **Crop padding is 10 px** (was 20). A scale crop still holds its caption,
   which is joined to the bar before the crop is cut.
 - **One flat project folder for both commands.** `pylithics-pages` writes

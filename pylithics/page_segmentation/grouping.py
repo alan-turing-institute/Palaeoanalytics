@@ -28,6 +28,7 @@ import cv2
 import numpy as np
 
 from .detection import Component
+from .scale_classifier import Candidate, Model, score_candidates
 from .geometry import (
     BBox,
     box_distance,
@@ -50,7 +51,7 @@ _MAX_DASH_EXTENT = 0.10
 _MIN_DASH_LENGTH = 0.007
 # Dash thickness ceiling, as a fraction of the page.
 _DASH_THICKNESS = 0.006
-# A label blob is smaller than this fraction of page height or width.
+# A label blob is smaller than these fractions of the page's long side.
 _LABEL_MAX_HEIGHT = 0.03
 _LABEL_MAX_WIDTH = 0.05
 # Ink coverage separating annotation marks from hollow outline drawings.
@@ -98,6 +99,36 @@ _MIN_CONTAINMENT = 0.10
 # numeral). A lithic's identifier beside a scale sits further off.
 _CAPTION_LINE_GAP = 1.5
 _CAPTION_END_GAP = 2.0
+# A unit set past the end is level with the bar: it overlaps the bar's
+# line by at least this share of its own height. An arrow hanging off
+# the end does not.
+_CAPTION_LEVEL_SHARE = 0.4
+# A caption may follow another ("cm" after "5") within this many glyph
+# heights, level with it, wherever that puts it against the bar.
+_CAPTION_CHAIN_GAP = 2.5
+# A caption glyph carries at least this share of ink in its box; an
+# arrow or a stray line carries less.
+_MIN_CAPTION_DENSITY = 0.25
+# A caption glyph is at most this fraction of the page's long side
+# tall, and a caption word ("cm") at most this many glyph heights wide.
+# The digits of a ruler on a strip cut from a page pass the label limit
+# by a hair; this admits them when they sit on the line, and keeps out
+# the small surface views of a lithic set above a bar.
+_CAPTION_MAX_HEIGHT = 0.04
+_CAPTION_MAX_WIDTH_GLYPHS = 1.5
+# A blob that closing fused from a bar and its caption is no thicker
+# than this fraction of the page's long side, and the bar holds at
+# least this share of its ink.
+_FUSED_MAX_SHORT = 0.08
+_FUSED_MIN_SHARE = 0.5
+# A run of several pieces is a segmented bar only when every piece is
+# a block: this much ink in its box. Outlined surface views set in a
+# row are not.
+_MIN_RUN_PIECE_DENSITY = 0.3
+# Ink closer than this fraction of the page's short side to a candidate
+# bar belongs to a drawing it touches; a bar whose ink stands clear is a
+# candidate even where a drawing's box spans it.
+_ISOLATION_MARGIN = 0.01
 # A caption line spanning more than this fraction of page width is text.
 _CAPTION_LINE_WIDTH = 0.06
 # Annotations further than this fraction of page width from any artefact
@@ -106,6 +137,11 @@ _ANNOTATION_REACH = 0.06
 # A view overlapping vertically by less than this fraction is not a
 # side-by-side neighbour.
 _SIDE_BY_SIDE_OVERLAP = 0.3
+# Two views drawn close together have bounding boxes that overlap by a
+# few pixels. Such a pair is still side by side when the overlap is at
+# most this fraction of the narrower box; a diagonal corner clip fails
+# the vertical test above instead.
+_SLIGHT_OVERLAP = 0.1
 # The cross-section rule asks two different questions, which need
 # different answers:
 #
@@ -227,6 +263,27 @@ class Classified:
     bars: List[BBox] = field(default_factory=list)
     bar_captions: List[BBox] = field(default_factory=list)
     text: List[BBox] = field(default_factory=list)
+    candidates: List[Candidate] = field(default_factory=list)
+
+
+@dataclass
+class ScaleContext:
+    """
+    What the scale bar classifier needs from the page, and what it found.
+
+    ``raw`` is the unclosed ink mask and ``gray`` the grey page, both at
+    source resolution. After grouping, ``candidates`` holds every scored
+    candidate and ``bar_scores`` the score of each exported bar, in the
+    order the bars are returned.
+    """
+
+    raw: np.ndarray
+    gray: np.ndarray
+    model: Model
+    threshold: float = 0.4
+    settings: Dict = field(default_factory=dict)
+    candidates: List[Candidate] = field(default_factory=list)
+    bar_scores: List[float] = field(default_factory=list)
 
 
 class _UnionFind:
@@ -251,24 +308,16 @@ def group_components(
     components: Sequence[Component],
     page_size: Tuple[int, int],
     config: Dict,
+    context: Optional[ScaleContext] = None,
 ) -> Tuple[List[BBox], List[BBox]]:
     """
     Group ink blobs into one box per artefact.
 
-    Parameters
-    ----------
-    components : sequence of Component
-        Ink blobs found on the page.
-    page_size : tuple of int
-        Page ``(width, height)`` in pixels.
-    config : dict
-        Page segmentation configuration.
-
-    Returns
-    -------
-    tuple of list
-        ``(artefact_boxes, scale_bar_boxes)``. Artefact boxes are in
-        reading order; scale bar boxes are ordered top to bottom.
+    ``page_size`` is ``(width, height)`` in pixels and ``config`` the
+    page segmentation configuration. With a ``context`` the classifier
+    decides which candidates are scale bars, and the context receives
+    its results. Returns ``(artefact_boxes, scale_bar_boxes)``: artefact
+    boxes in reading order, scale bars from top to bottom.
     """
     width, height = page_size
     grouping = config.get('grouping', {})
@@ -279,6 +328,7 @@ def group_components(
         grouping.get('min_area', 0.0004),
         bar_config,
         config.get('text_rejection', {}),
+        context,
     )
     classified.labels = reject_caption_lines(classified.labels, width)
 
@@ -286,13 +336,16 @@ def group_components(
     boxes = merge_overlapping(boxes)
     boxes = attach_annotations(classified, boxes, width)
 
-    bars = build_scale_bars(classified, bar_config, width)
+    bars = sorted(build_scale_bars(classified, bar_config, width), key=lambda b: b[1])
+    if context is not None:
+        context.candidates = classified.candidates
+        context.bar_scores = _bar_scores(bars, classified.candidates)
 
     logging.debug(
         "Grouped %d components into %d artefacts and %d scale bars",
         len(components), len(boxes), len(bars),
     )
-    return reading_order(boxes), sorted(bars, key=lambda b: b[1])
+    return reading_order(boxes), bars
 
 
 def _link_drawings(
@@ -340,48 +393,46 @@ def classify_components(
     min_area_frac: float,
     bar_config: Dict,
     text_config: Optional[Dict] = None,
+    context: Optional[ScaleContext] = None,
 ) -> Classified:
     """
     Sort components into drawings, labels, dashes, and scale bars.
 
     Text and legend keys are recognised here and discarded before linking.
-
-    Parameters
-    ----------
-    components : sequence of Component
-        Ink blobs found on the page.
-    width, height : int
-        Page dimensions in pixels.
-    min_area_frac : float
-        Blobs with less ink than this fraction of page area are labels.
-    bar_config : dict
-        Scale bar configuration.
-    text_config : dict, optional
-        Text rejection configuration. Defaults apply when omitted.
-
-    Returns
-    -------
-    Classified : components sorted by role.
+    Blobs with less ink than ``min_area_frac`` of the page area are
+    labels. ``bar_config`` and ``text_config`` are the scale bar and text
+    rejection sections. With a classifier ``context`` the classifier
+    decides the scale bars among a wider set of candidates than the
+    rules admit; without it the rules alone decide.
     """
     result = Classified()
     bar_indices = _scale_bar_indices(components, width, height, bar_config)
+    if context is not None and bar_config.get('enabled', True):
+        bar_indices = _classified_bar_indices(
+            result, components, width, height, bar_indices, context
+        )
     min_ink = min_area_frac * width * height
 
     for position, component in enumerate(components):
         if position in bar_indices:
-            result.bars.append(component.box)
             continue
         role = _component_role(
             component, width, height, min_ink, text_config or {}
         )
         _assign_role(result, role, component)
+    result.bars = [
+        list(c.crop or c.box) for c in result.candidates if c.accepted
+    ] if result.candidates else [components[i].box for i in sorted(bar_indices)]
 
     _drop_text_line_remnants(result)
-    _drop_legend_keys(result)
-    _demote_connector_bars(result, width)
+    if not result.candidates:
+        # The classifier weighs captions and connectors itself.
+        _drop_legend_keys(result)
+        _demote_connector_bars(result, width)
     result.bar_captions, result.labels = _split_bar_captions(
-        result.labels, result.bars
+        result.labels, result.bars, components
     )
+    _captions_among_drawings(result, width, height)
     return result
 
 
@@ -414,6 +465,235 @@ def _bar_between(bar: BBox, pair: Tuple[int, int], result: Classified) -> bool:
     return any(
         other is not bar and boxes_intersect(span, other) for other in result.bars
     )
+
+
+def _classified_bar_indices(
+    result: Classified,
+    components: Sequence[Component],
+    width: int,
+    height: int,
+    rule_bars: set,
+    context: ScaleContext,
+) -> set:
+    """Score the candidates, keep them on ``result``, and return the accepted indices."""
+    result.candidates = find_scale_candidates(
+        components, width, height, rule_bars, context.settings, context.raw
+    )
+    score_candidates(result.candidates, components, context.raw, context.gray,
+                     width, height, context.model, context.threshold)
+    _demote_captions(result.candidates, width, height)
+    return {i for c in result.candidates if c.accepted for i in c.indices}
+
+
+def _demote_captions(candidates: Sequence[Candidate], width: int, height: int) -> None:
+    """
+    Reject an accepted mark that is the caption of a stronger accepted bar.
+
+    A numeral or a unit beside a ruler can have a bar's proportions and
+    a middling score. Set on the line of a bar that scored higher, as a
+    caption is, it is that bar's caption and joins its crop as one.
+    """
+    limit = _CAPTION_MAX_HEIGHT * max(width, height)
+    accepted = sorted((c for c in candidates if c.accepted), key=lambda c: -c.score)
+    for candidate in accepted:
+        if min(box_width(candidate.box), box_height(candidate.box)) > limit:
+            continue
+        for bar in accepted:
+            if bar.score > candidate.score and bar.accepted and _is_bar_caption(
+                candidate.box, bar.box
+            ):
+                candidate.accepted = False
+                candidate.rejected_by = 'caption of a bar'
+                logging.debug("Scale candidate %s is the caption of %s", candidate.box, bar.box)
+                break
+
+
+def find_scale_candidates(
+    components: Sequence[Component],
+    width: int,
+    height: int,
+    rule_bars: set,
+    settings: Optional[Dict] = None,
+    raw: Optional[np.ndarray] = None,
+) -> List[Candidate]:
+    """
+    Collect every group of components that could be a scale bar.
+
+    Wider than the rules: a component qualifies by proportion alone, in
+    either orientation, as long as its ink stands clear of every drawing
+    (by box alone when ``raw`` is not given). Collinear blocks in either
+    orientation form one candidate, as the filled blocks of a segmented
+    bar do, and the length limits apply to the whole run. Every
+    component the rules accept is a candidate too, so the classifier can
+    reject a false bar.
+    """
+    settings = settings or {}
+    min_long = settings.get('min_long_side', 0.03)
+    clear = _IsolationTest(components, raw, width, height)
+    across, upright, fused = [], [], []
+    for index, component in enumerate(components):
+        shaped = _bar_shaped(component, width, height, settings)
+        if not (shaped or index in rule_bars):
+            if raw is not None and clear(index):
+                fused += _fused_bar(index, components, raw, width, height, settings)
+            continue
+        if not clear(index):
+            continue
+        (across if component.width >= component.height else upright).append(index)
+    flipped = [_transposed(component) for component in components]
+    candidates = [
+        Candidate(indices=run, box=_union_all(components, run),
+                  by_rules=any(i in rule_bars for i in run),
+                  enclosed=not all(clear.by_box(i) for i in run))
+        for run in _block_runs(components, across, width)
+    ] + [
+        Candidate(indices=run, box=_union_all(components, run), upright=True,
+                  by_rules=any(i in rule_bars for i in run),
+                  enclosed=not all(clear.by_box(i) for i in run))
+        for run in _block_runs(flipped, upright, height)
+    ]
+    return [
+        c for c in candidates + fused
+        if c.by_rules or max(box_width(c.box), box_height(c.box))
+        >= min_long * (height if c.upright else width)
+    ]
+
+
+def _fused_bar(
+    index: int,
+    components: Sequence[Component],
+    raw: np.ndarray,
+    width: int,
+    height: int,
+    settings: Dict,
+) -> List[Candidate]:
+    """
+    Cut a candidate from a blob that closing fused with its caption.
+
+    A thick bar with "2 cm" set against it closes into one component of
+    no bar's proportions. In the raw ink the bar is one piece, holding
+    most of the blob's ink. That piece is the candidate; the whole blob
+    is its crop, so the caption is exported with it.
+    """
+    component = components[index]
+    if min(component.width, component.height) > _FUSED_MAX_SHORT * max(width, height):
+        return []
+    x0, y0, x1, y1 = component.box
+    count, _, stats, _ = cv2.connectedComponentsWithStats(
+        (raw[y0:y1, x0:x1] > 0).astype(np.uint8), connectivity=8
+    )
+    if count < 3:
+        return []
+    k = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
+    left, top, w, h, area = (int(v) for v in stats[k][:5])
+    if area < _FUSED_MIN_SHARE * component.ink:
+        return []
+    piece = Component(box=[x0 + left, y0 + top, x0 + left + w, y0 + top + h],
+                      width=w, height=h, ink=area)
+    if not _bar_shaped(piece, width, height, settings):
+        return []
+    return [Candidate(indices=[index], box=piece.box, upright=h > w,
+                      crop=list(component.box))]
+
+
+def _block_runs(
+    components: Sequence[Component], pieces: Sequence[int], width: int
+) -> List[List[int]]:
+    """
+    Group pieces into collinear runs; only solid blocks may share a run.
+
+    A segmented bar breaks into filled blocks. The outlined surface
+    views of a row of lithics are collinear too, and together would
+    pass for a long segmented bar; each stays a run of its own.
+    """
+    blocks = [i for i in pieces if components[i].density >= _MIN_RUN_PIECE_DENSITY]
+    sparse = [i for i in pieces if i not in blocks]
+    return _collinear_runs(components, blocks, width) + [[i] for i in sparse]
+
+
+def _bar_shaped(component: Component, width: int, height: int, settings: Dict) -> bool:
+    """Whether a component has a bar's proportions, in either orientation."""
+    long_px = max(component.width, component.height)
+    short_px = min(component.width, component.height)
+    long_page = width if component.width >= component.height else height
+    return (
+        short_px <= settings.get('max_short_side', 0.08) * max(width, height)
+        and long_px >= settings.get('min_aspect_ratio', 2.5) * short_px
+        and long_px <= settings.get('max_long_side', 0.9) * long_page
+    )
+
+
+class _IsolationTest:
+    """
+    Whether a component's ink stands clear of every drawing.
+
+    By box, a bar is not isolated when a drawing's box spans it, though
+    its ink may be well clear: a bar set below a lithic's profile view.
+    With the raw ink, a component is clear when no drawing-sized piece
+    of raw ink lies within the margin around its box.
+    """
+
+    def __init__(self, components, raw, width, height):
+        self.components, self.raw = components, raw
+        self.width, self.height = width, height
+        self.margin = int(_ISOLATION_MARGIN * min(width, height))
+        self.labels = None
+        self.stats = None
+        self.big = None
+
+    def by_box(self, index: int) -> bool:
+        """Whether no drawing's box spans the component."""
+        return _is_isolated(index, self.components, self.width, self.height)
+
+    def __call__(self, index: int) -> bool:
+        if self.by_box(index):
+            return True
+        if self.raw is None:
+            return False
+        if self.labels is None:
+            self._label_raw()
+        x0, y0, x1, y1 = self.components[index].box
+        own = set(np.unique(self.labels[y0:y1, x0:x1])) - {0}
+        if any(not self._within(k, x0, y0, x1, y1) for k in own & self.big):
+            return False
+        ring = self.labels[max(0, y0 - self.margin):y1 + self.margin,
+                           max(0, x0 - self.margin):x1 + self.margin]
+        return not ((set(np.unique(ring)) - own) & self.big)
+
+    def _within(self, label: int, x0: int, y0: int, x1: int, y1: int) -> bool:
+        """Whether a piece of raw ink lies inside the box, to the margin."""
+        left, top, w, h = self.stats[label][:4]
+        return (
+            left >= x0 - self.margin and top >= y0 - self.margin
+            and left + w <= x1 + self.margin and top + h <= y1 + self.margin
+        )
+
+    def _label_raw(self) -> None:
+        count, self.labels, self.stats, _ = cv2.connectedComponentsWithStats(
+            (self.raw > 0).astype(np.uint8), connectivity=8
+        )
+        self.big = {
+            k for k in range(1, count)
+            if self.stats[k, cv2.CC_STAT_HEIGHT] >= _LABEL_MAX_HEIGHT * max(self.width, self.height)
+            or self.stats[k, cv2.CC_STAT_WIDTH] >= _LABEL_MAX_WIDTH * self.width
+        }
+
+
+def _union_all(components: Sequence[Component], indices: Sequence[int]) -> BBox:
+    """Return the box enclosing the given components."""
+    box = list(components[indices[0]].box)
+    for index in indices[1:]:
+        box = union(box, components[index].box)
+    return box
+
+
+def _bar_scores(bars: Sequence[BBox], candidates: Sequence[Candidate]) -> List[float]:
+    """Return the score of each exported bar: the best accepted candidate it holds."""
+    scores = []
+    for bar in bars:
+        inside = [c.score for c in candidates if c.accepted and boxes_intersect(bar, c.box)]
+        scores.append(max(inside) if inside else 0.0)
+    return scores
 
 
 def _scale_bar_indices(
@@ -528,10 +808,7 @@ def _is_label(
     ink for its size, which would otherwise misclassify small surface
     views such as platforms as labels and drop them from their artefact.
     """
-    small = (
-        component.height < _LABEL_MAX_HEIGHT * height
-        and component.width < _LABEL_MAX_WIDTH * width
-    )
+    small = not _is_drawing_sized(component, width, height)
     sparse = (
         component.ink < min_ink
         and component.height < 0.04 * height
@@ -1170,9 +1447,16 @@ def _is_isolated(
 def _is_drawing_sized(
     component: Component, width: int, height: int
 ) -> bool:
-    """Report whether a component is too large to be an annotation."""
+    """
+    Report whether a component is too large to be an annotation.
+
+    The height limit is a fraction of the page's long side: a strip cut
+    from a page is as wide as the page but a few glyphs tall, and its
+    digits are not drawings. The width limit stays a fraction of the
+    page width.
+    """
     return (
-        component.height >= _LABEL_MAX_HEIGHT * height
+        component.height >= _LABEL_MAX_HEIGHT * max(width, height)
         or component.width >= _LABEL_MAX_WIDTH * width
     )
 
@@ -1400,28 +1684,64 @@ def _on_rejected_line(box: BBox, text: Sequence[BBox]) -> bool:
     return any(_shares_baseline(box, line) for line in text)
 
 
+def _captions_among_drawings(result: Classified, width: int, height: int) -> None:
+    """
+    Move a glyph-sized drawing set on a bar's line to the bar's captions.
+
+    On a strip cut from a page the digits of a ruler pass the label
+    limit by a hair and would be cut as artefacts. A drawing no taller
+    than a caption glyph, set on a bar's line as a caption is, or
+    following a caption ("cm" after "5"), goes with the bar.
+    """
+    limit = _CAPTION_MAX_HEIGHT * max(width, height)
+    changed = True
+    while changed:
+        changed = False
+        for component in list(result.drawings):
+            if component.height > limit or component.width > _CAPTION_MAX_WIDTH_GLYPHS * limit:
+                continue
+            if any(_is_bar_caption(component.box, bar) for bar in result.bars) or any(
+                _follows_caption(component.box, caption) for caption in result.bar_captions
+            ):
+                result.bar_captions.append(component.box)
+                result.drawings.remove(component)
+                changed = True
+
+
 def _split_bar_captions(
-    labels: Sequence[BBox], bars: Sequence[BBox]
+    labels: Sequence[BBox], bars: Sequence[BBox], components: Sequence[Component]
 ) -> Tuple[List[BBox], List[BBox]]:
     """
     Separate text sitting beside a scale bar from artefact labels.
 
     Captions such as ``0`` or ``5 cm`` belong to the bar, not to any
     artefact. They are kept so the exported bar crop is self-describing,
-    and withheld from artefact grouping.
+    and withheld from artefact grouping. A caption sits on the bar's
+    line, or follows a caption that does; a mark with little ink (an
+    arrow) is never one.
 
     Returns
     -------
     tuple of list
         ``(bar_captions, artefact_labels)``.
     """
-    captions, remaining = [], []
-    for box in labels:
-        if any(_is_bar_caption(box, bar) for bar in bars):
-            captions.append(box)
-        else:
-            remaining.append(box)
-    return captions, remaining
+    density = {tuple(c.box): c.density for c in components}
+    captions: List[BBox] = []
+    remaining = [
+        box for box in labels if density.get(tuple(box), 1.0) >= _MIN_CAPTION_DENSITY
+    ]
+    sparse = [box for box in labels if box not in remaining]
+    changed = True
+    while changed:
+        changed = False
+        for box in list(remaining):
+            if any(_is_bar_caption(box, bar) for bar in bars) or any(
+                _follows_caption(box, caption) for caption in captions
+            ):
+                captions.append(box)
+                remaining.remove(box)
+                changed = True
+    return captions, remaining + sparse
 
 
 def _is_bar_caption(box: BBox, bar: BBox) -> bool:
@@ -1429,15 +1749,34 @@ def _is_bar_caption(box: BBox, bar: BBox) -> bool:
     Report whether a label sits on a scale bar as its caption does.
 
     A caption is set on the bar's own line: numerals directly above or
-    below it within its span, or a unit just past its end. Anything
-    within three glyph heights in any direction was taken before, which
-    swallowed the identifiers of the lithics beside a scale and the
-    marks of the lithics above it into the scale's crop.
+    below it within its span, or a unit level with its end just past it.
+    For an upright bar the same holds turned through a right angle: text
+    beside it within its span, or past its top or foot. A mark at a
+    corner of the bar, off its line in both directions, is an identifier
+    of the lithic beside it or an arrow, not a caption.
     """
-    height = max(1, box_height(box))
-    if vertical_gap(box, bar) >= _CAPTION_LINE_GAP * height:
+    if box_width(bar) >= box_height(bar):
+        glyph = max(1, box_height(box))
+        if horizontal_overlap(box, bar) > 0:
+            return vertical_gap(box, bar) < _CAPTION_LINE_GAP * glyph
+        if vertical_overlap(box, bar) >= _CAPTION_LEVEL_SHARE * glyph:
+            return horizontal_gap(box, bar) < _CAPTION_END_GAP * glyph
         return False
-    return horizontal_gap(box, bar) < _CAPTION_END_GAP * height
+    glyph = max(1, min(box_width(box), box_height(box)))    # text may be set upright too
+    if vertical_overlap(box, bar) > 0:
+        return horizontal_gap(box, bar) < _CAPTION_LINE_GAP * glyph
+    if horizontal_overlap(box, bar) >= _CAPTION_LEVEL_SHARE * glyph:
+        return vertical_gap(box, bar) < _CAPTION_END_GAP * glyph
+    return False
+
+
+def _follows_caption(box: BBox, caption: BBox) -> bool:
+    """Report whether a label is set level with a caption, just after it."""
+    glyph = max(1, box_height(box))
+    return (
+        vertical_overlap(box, caption) >= _CAPTION_LEVEL_SHARE * glyph
+        and horizontal_gap(box, caption) < _CAPTION_CHAIN_GAP * glyph
+    )
 
 
 def reject_caption_lines(
@@ -1558,15 +1897,15 @@ def link_adjacent_views(
             if overlap_fraction(a, b) >= _MIN_CONTAINMENT:
                 sets.link(i, j)
                 continue
-            # Only boxes that are actually separated can be side by side;
-            # for overlapping boxes the gap is negative and would always
-            # satisfy the test.
+            # Boxes that overlap by more than a sliver are not side by
+            # side: their gap is negative and would always pass the test.
             separation = horizontal_gap(a, b)
+            slack = _SLIGHT_OVERLAP * min(box_width(a), box_width(b))
             shared = _SIDE_BY_SIDE_OVERLAP * min(
                 box_height(a), box_height(b)
             )
             if (
-                separation >= 0
+                separation >= -slack
                 and vertical_overlap(a, b) > shared
                 and separation < gap * width
             ):

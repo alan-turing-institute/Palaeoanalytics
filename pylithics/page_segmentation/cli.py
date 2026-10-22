@@ -37,8 +37,9 @@ from .export import (
     write_manifest,
 )
 from .geometry import BBox
-from .grouping import classify_components, group_components, reading_order
+from .grouping import ScaleContext, classify_components, group_components, reading_order
 from .identifiers import PageReads, assign_reads, read_page, report_identifiers
+from .scale_classifier import ModelUnavailable, load_model
 from .regroup import JOIN, SPLIT, refine_boxes
 from .logging_setup import setup_logging
 
@@ -85,9 +86,10 @@ thresholding is applied. The pylithics analysis does those steps.
 meta_data.csv is the file that pylithics reads. The scale column (the
 printed length of the bar, in millimetres) is empty. Fill it in. A row
 with a flag has a problem for you to examine: no scale bar on the page,
-several scale bars, or no identifier. pylithics analyses the row like
-any other, in pixels when the scale is empty, and reports the flags at
-the end. Remove the flag when the row is correct.
+several scale bars, a scale bar with a low score, or no identifier.
+pylithics analyses the row like any other, in pixels when the scale is
+empty, and reports the flags at the end. Remove the flag when the row
+is correct.
 
 Every run cuts every plate in pages/. A plate cut before is cut again,
 and its crops and rows are replaced. The scale values that you typed
@@ -105,7 +107,9 @@ procedure:
        pylithics-pages --data_dir <project> --debug
   3. Examine <project>/pages_debug/. Each numbered box must contain one
      lithic and all of its surfaces. Each scale bar must have its own
-     box. Each green identifier must match the number on the plate.
+     purple box, with its score beside it. A grey box is a mark that
+     the command rejected. Each green identifier must match the number
+     on the plate.
   4. Correct each page that is wrong (see below). Then start the command
      again:
        pylithics-pages --data_dir <project> --overrides corrections.csv
@@ -176,7 +180,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if config.get('export', {}).get('manifest', True):
         kept = [r for r in previous if r['input_page_id'] not in run.recut]
         write_manifest(kept + run.rows, args.output_dir)
-        write_metadata(run.rows, args.output_dir, run.removed)
+        write_metadata(run.rows, args.output_dir, run.removed, _uncertain_scales(run.rows, config))
 
     debug = args.debug or config.get('debug', {}).get('enabled', False)
     _log_summary(run, previous, len(pages), args.output_dir, debug)
@@ -340,10 +344,13 @@ def _process_page(
         )
         return []
 
+    context = _scale_context(page, raw, config)
     boxes, bars = group_components(
-        components, (page.width, page.height), config
+        components, (page.width, page.height), config, context
     )
-    reads = _read_page(page, components, boxes, bars, raw, closed, config, masks.working)
+    _report_candidates(page, context)
+    reads = _read_page(page, components, boxes, bars, raw, closed, config, masks.working,
+                       context)
     boxes, tags = refine_boxes(
         boxes, reads, components, (page.width, page.height), config
     )
@@ -359,22 +366,75 @@ def _process_page(
         write_debug_overlay(
             page, boxes, bars, args.output_dir,
             identifiers if read else None, corrections, masks.working.factor,
+            context.candidates if context else None,
         )
 
     return export_page(
         page, boxes, bars, args.output_dir, padding, '',
         _count_components(boxes, components), identifiers, corrections,
-        masks.working, taken, orphans,
+        masks.working, taken, orphans, context.bar_scores if context else None,
     )
 
 
-def _read_page(page, components, boxes, bars, raw, closed, config, working) -> PageReads:
+_SCALE_MODEL: Dict[str, object] = {}
+
+
+def _scale_context(page: PageImage, raw, config: Dict) -> Optional[ScaleContext]:
+    """
+    Build the classifier's context for a page, or None when the rules decide.
+
+    The model is read once for each run. When it cannot be read, that is
+    reported once and every page falls back to the rules.
+    """
+    settings = config.get('scale_bars', {}).get('classifier', {})
+    if not settings.get('enabled', True):
+        return None
+    if 'model' not in _SCALE_MODEL:
+        try:
+            _SCALE_MODEL['model'] = load_model(settings.get('model'))
+        except ModelUnavailable as exc:
+            logging.warning("%s. The scale bar rules decide for every page.", exc)
+            _SCALE_MODEL['model'] = None
+    model = _SCALE_MODEL['model']
+    if model is None:
+        return None
+    return ScaleContext(
+        raw=raw, gray=page.gray, model=model,
+        threshold=float(settings.get('threshold', 0.4)), settings=settings,
+    )
+
+
+def _report_candidates(page: PageImage, context: Optional[ScaleContext]) -> None:
+    """Log what the classifier decided on a page."""
+    if context is None or not context.candidates:
+        return
+    accepted = sum(1 for c in context.candidates if c.accepted)
+    logging.info(
+        "%s: %d scale bar candidate(s) scored, %d accepted",
+        os.path.basename(page.path), len(context.candidates), accepted,
+    )
+
+
+def _uncertain_scales(rows: Sequence[ManifestRow], config: Dict) -> set:
+    """Return the scale bar crops whose score lies within the band around the threshold."""
+    settings = config.get('scale_bars', {}).get('classifier', {})
+    threshold = float(settings.get('threshold', 0.4))
+    band = float(settings.get('uncertain_band', 0.15))
+    return {
+        row.output_crop_id for row in rows
+        if row.image_type == 'scale_bar' and row.scale_score
+        and abs(float(row.scale_score) - threshold) <= band
+    }
+
+
+def _read_page(page, components, boxes, bars, raw, closed, config, working,
+               context=None) -> PageReads:
     """Read the plate's identifiers, with their positions."""
     grouping = config.get('grouping', {})
     classified = classify_components(
         components, page.width, page.height,
         grouping.get('min_area', 0.0004), config.get('scale_bars', {}),
-        config.get('text_rejection', {}),
+        config.get('text_rejection', {}), context,
     )
     return read_page(
         page, components, classified, boxes, bars, raw, closed,
@@ -747,7 +807,8 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         '--debug', action='store_true',
         help='Write pages_debug/{page}.png for each page. The overlay '
-             'shows each box, each scale bar and each identifier read.'
+             'shows each box, each scale bar with its score, each '
+             'rejected candidate in grey, and each identifier read.'
     )
     group.add_argument(
         '--disable_scale_bars', action='store_true',

@@ -2,11 +2,13 @@ r"""
 Score a ``pylithics-pages`` run against a corrections file.
 
 The corrections file is the ground truth: its ``expect`` column gives
-the number of lithics on each page. This script counts the artefact
+the number of lithics on each page, and its ``scales`` column, when
+present, the number of real scale bars. This script counts the artefact
 boxes each page produced and reports how many pages match, which
 identifier rules fired, and every page where a rule fired without
 bringing the count nearer to ``expect``. Those pages are the ones to
-examine on the overlay.
+examine on the overlay. It then lists the pages whose scale bar count
+differs from ``scales``.
 
 Usage::
 
@@ -41,14 +43,36 @@ def load_manifest(path: str) -> Dict[str, List[dict]]:
     return pages
 
 
-def load_expected(path: str) -> Dict[str, int]:
-    """``page_id -> expect`` from a corrections file, skipping blanks."""
+def load_expected(path: str, column: str = 'expect') -> Dict[str, int]:
+    """``page_id -> count`` from one column of a corrections file, skipping blanks."""
     expected = {}
     with open(path, newline='', encoding='utf-8') as handle:
         for row in csv.DictReader(handle):
-            if (row.get('expect') or '').strip():
-                expected[unicodedata.normalize('NFC', row['page_id'])] = int(row['expect'])
+            if (row.get(column) or '').strip():
+                expected[unicodedata.normalize('NFC', row['page_id'])] = int(row[column])
     return expected
+
+
+def load_scale_counts(path: str) -> Dict[str, int]:
+    """``page_id -> number of scale bar crops`` from a manifest."""
+    counts: Dict[str, int] = Counter()
+    with open(path, newline='', encoding='utf-8') as handle:
+        for row in csv.DictReader(handle):
+            if row['image_type'] == 'scale_bar':
+                counts[unicodedata.normalize('NFC', row['input_page_id'])] += 1
+    return counts
+
+
+def scale_report(counts: Dict[str, int], expected: Dict[str, int]) -> None:
+    """Print the pages whose scale bar count differs from the ``scales`` column."""
+    if not expected:
+        return
+    wrong = [(page, want, counts.get(page, 0)) for page, want in sorted(expected.items())
+             if counts.get(page, 0) != want]
+    print(f"\nScale bars: {len(expected) - len(wrong)} of {len(expected)} pages "
+          f"with the expected count")
+    for page, want, got in wrong:
+        print(f"  {short(page):<44} expected {want}, got {got}")
 
 
 def score_page(rows: List[dict]) -> dict:
@@ -134,7 +158,9 @@ def main(argv=None) -> int:
     parser.add_argument('--before', help='an earlier pages_manifest.csv to compare with')
     args = parser.parse_args(argv)
     before = load_manifest(args.before) if args.before else None
-    return report(load_manifest(args.manifest), load_expected(args.corrections), before)
+    code = report(load_manifest(args.manifest), load_expected(args.corrections), before)
+    scale_report(load_scale_counts(args.manifest), load_expected(args.corrections, 'scales'))
+    return code
 
 
 if __name__ == '__main__':

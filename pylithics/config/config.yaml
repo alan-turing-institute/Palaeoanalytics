@@ -329,6 +329,21 @@ page_segmentation:
     max_height: 0.06  # A bar is never taller than this fraction of page H
                       # - Typical range: 0.02 - 0.10
 
+    classifier:
+      enabled: true  # Score every bar-shaped candidate with the trained
+                     # model and export the ones above the threshold.
+                     # false: the rules above decide, as before.
+      model: scale_bar_classifier.json  # File under pylithics/models/, or a path
+      threshold: 0.4  # A score at or above this is a scale bar
+      uncertain_band: 0.15  # A score within this of the threshold flags the
+                            # artefacts paired with the bar: scale_uncertain
+      min_aspect_ratio: 2.5  # A candidate is at least this many times longer
+                             # than it is wide, in either orientation
+      max_short_side: 0.08  # ... and its short side is at most this fraction
+                            # of the longer page dimension
+      min_long_side: 0.03  # ... and its long side spans at least this
+      max_long_side: 0.9   # and at most this fraction of the page
+
   text_rejection:
     enabled: true  # Discard captions, legend text and legend keys before
                    # grouping, so they are never exported or attached to

@@ -62,6 +62,10 @@ _MIN_ALIGNMENT = 0.5
 # it joins. A stray view is of the same order as its lithic; a box many
 # times larger is a row of other lithics.
 _MAX_JOIN_AREA_RATIO = 3.0
+# A host may grow to this many times its starting area over all its
+# joins. A lithic of four views grows to about four times its labelled
+# view; a chain across a page of unlabelled lithics grows past this.
+_MAX_HOST_GROWTH = 6.0
 # Two lithics made by a seeded split may overlap by at most this share
 # of the smaller one's drawings: more means the views were not sorted.
 _MAX_HULL_OVERLAP = 0.5
@@ -522,10 +526,11 @@ def join_by_identifiers(
     """
     result = [(list(box), tag) for box, tag in tagged]
     limit = join_gap * width
+    origin: Dict[Tuple[int, ...], int] = {}
     while True:
         boxes = [box for box, _ in result]
         identifiers = assign_reads(evidence, boxes)
-        joined = _join_one(result, identifiers, evidence, reads, limit)
+        joined = _join_one(result, identifiers, evidence, reads, limit, origin)
         if joined is None:
             return result
         result = joined
@@ -537,15 +542,18 @@ def _join_one(
     evidence: PageReads,
     reads: PageReads,
     limit: float,
+    origin: Dict[Tuple[int, ...], int],
 ) -> Optional[List[Tuple[BBox, str]]]:
     """
     Make the first join the rule allows, or return None.
 
     A stray view is of the same order of size as its lithic, so a box
-    joins only a host at least a third of its own area: without that,
-    one labelled box grows and absorbs its way across a page of
-    unlabelled lithics. A host may take any number of views; a lithic
-    is often drawn in three or four.
+    joins only a host at least a third of its own area. A host may take
+    any number of views, since a lithic is often drawn in three or
+    four, but it may not grow past ``_MAX_HOST_GROWTH`` times the area
+    it started with: without that, one labelled box absorbs its way
+    across a page of small unlabelled lithics. ``origin`` remembers the
+    starting area of each host across the joins.
     """
     boxes = [box for box, _ in tagged]
     for index, identifier in enumerate(identifiers):
@@ -560,11 +568,17 @@ def _join_one(
                           boxes[index], boxes[host], ratio)
             continue
         merged = union(boxes[index], boxes[host])
+        start = origin.get(tuple(boxes[host]), _area(boxes[host]))
+        if _area(merged) > _MAX_HOST_GROWTH * start:
+            logging.debug("Box %s not joined into %s: the host would grow to %.1f times its size",
+                          boxes[index], boxes[host], _area(merged) / max(1, start))
+            continue
         trial = [box for i, box in enumerate(boxes) if i not in (index, host)]
         trial.append(merged)
         if not assign_reads(reads, trial)[-1].named:
             continue                     # judged on every read, not only the evidence
         logging.debug("Box %s joined into %s by its identifier", boxes[index], boxes[host])
+        origin[tuple(merged)] = origin.pop(tuple(boxes[host]), start)
         kept = [tagged[i] for i in range(len(tagged)) if i not in (index, host)]
         return kept + [(merged, JOIN)]
     return None
