@@ -23,6 +23,7 @@ holds images and a ``meta_data.csv`` is added to, never replaced::
 
 import csv
 import logging
+import math
 import os
 from dataclasses import asdict, dataclass
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -31,8 +32,10 @@ import cv2
 import numpy as np
 from PIL import Image
 
+from pylithics.image_processing.resolution import WorkingCopy
+
 from .detection import PageImage
-from .geometry import BBox, box_height, box_width, clamp_box
+from .geometry import BBox, clamp_box
 from .identifiers import Identifier
 
 IMAGES_DIRNAME = 'images'
@@ -49,6 +52,9 @@ METADATA_COLUMNS = ['image_id', 'scale_id', 'scale', 'flag']
 # and runs it like any other, so the user knows which crops to examine.
 NO_SCALE_FLAG = 'no_scale'
 SEVERAL_SCALES_FLAG = 'several_scales'
+# The page was upscaled for detection: its strokes are thin at source size.
+LOW_RESOLUTION_FLAG = 'low_resolution'
+SCALE_UNCERTAIN_FLAG = 'scale_uncertain'
 _FLAG_SEPARATOR = ';'
 
 MANIFEST_COLUMNS = [
@@ -56,7 +62,8 @@ MANIFEST_COLUMNS = [
     'x0', 'y0', 'x1', 'y1', 'width_px', 'height_px',
     'dpi', 'colour_mode', 'n_components', 'correction_applied',
     'label', 'label_source', 'label_confidence', 'label_flag',
-    'label_candidates',
+    'label_candidates', 'stroke_width_px', 'upscale_factor',
+    'scale_score', 'scale_method',
 ]
 
 # Manifest names for the source colour mode. Pillow's own names are
@@ -66,6 +73,7 @@ _COLOUR_MODE_NAMES = {'L': 'greyscale', '1': 'bilevel', 'RGB': 'RGB', 'RGBA': 'R
 # Debug overlay colours, RGB.
 _BOX_COLOUR = (215, 48, 39)
 _BAR_COLOUR = (94, 60, 153)
+_CANDIDATE_COLOUR = (140, 140, 140)
 _TEXT_COLOUR = (0, 0, 0)
 _LABEL_COLOUR = (0, 140, 0)
 # Height of the summary band above a labels overlay, before scaling.
@@ -95,6 +103,10 @@ class ManifestRow:
     label_confidence: str = ''
     label_flag: str = ''
     label_candidates: str = ''
+    stroke_width_px: str = ''
+    upscale_factor: int = 1
+    scale_score: str = ''
+    scale_method: str = ''
 
 
 def prepare_output_dir(output_dir: str) -> List[Dict[str, str]]:
@@ -188,63 +200,80 @@ def export_page(
     component_counts: Optional[Dict[int, int]] = None,
     identifiers: Optional[Sequence[Identifier]] = None,
     box_corrections: Optional[Sequence[str]] = None,
+    working: Optional[WorkingCopy] = None,
+    taken: Optional[Dict[str, str]] = None,
+    orphans: Optional[List[str]] = None,
+    bar_scores: Optional[Sequence[float]] = None,
 ) -> List[ManifestRow]:
     """
     Write every crop for one page and return its manifest rows.
 
-    Parameters
-    ----------
-    page : PageImage
-        The loaded source page.
-    boxes, bars : sequence of BBox
-        Artefact boxes in reading order, and scale bar boxes.
-    output_dir : str
-        Destination root.
-    padding : int
-        Pixels of whitespace kept around each crop.
-    correction_applied : str
-        Corrections applied to the page, for every row of the manifest.
-    component_counts : dict, optional
-        Map of box index to the number of ink blobs it groups.
-    identifiers : sequence of Identifier, optional
-        The identifier read for each box; a read one names its crop.
-    box_corrections : sequence of str, optional
-        Per-box corrections, replacing ``correction_applied``.
+    ``boxes`` are the artefact boxes in reading order and ``bars`` the
+    scale bars. ``padding`` is the whitespace kept around each crop.
+    ``correction_applied`` goes on every row unless ``box_corrections``
+    gives one entry per box. ``component_counts`` maps a box index to
+    the ink blobs it groups, ``identifiers`` holds the read for each box
+    (a read one names its crop), and ``working`` is recorded on every
+    row. ``taken`` maps each crop name written earlier in this run to
+    its page; ``orphans`` is extended with each crop file of an earlier
+    run that this page replaced because it had no manifest row.
+    ``bar_scores`` gives the classifier's score for each bar, in order;
+    without it the bars were chosen by the rules.
 
-    Returns
-    -------
-    list of ManifestRow : one row per crop written.
+    Raises
+    ------
+    FileExistsError
+        When another page in this run wrote one of this page's crop names.
     """
     identifiers = identifiers or [Identifier() for _ in boxes]
     corrections = list(box_corrections or [correction_applied] * len(boxes))
-    _refuse_collisions(page, bars, output_dir, identifiers)
-    rows = _export_artefacts(
-        page, boxes, output_dir, padding,
-        component_counts or {}, corrections, identifiers,
-    )
-    rows.extend(_export_scale_bars(page, bars, output_dir, padding))
+    found = _claim_crop_names(page, bars, output_dir, identifiers, taken or {})
+    if orphans is not None:
+        orphans.extend(found)
+    rows = _export_artefacts(page, boxes, output_dir, padding,
+                             component_counts or {}, corrections, identifiers)
+    rows.extend(_export_scale_bars(page, bars, output_dir, padding, bar_scores))
+    _record_resolution(rows, working)
     logging.info("%s: %d artefact(s), %d scale bar(s)",
                  os.path.basename(page.path), len(boxes), len(bars))
     return rows
 
 
-def _refuse_collisions(
+def _record_resolution(rows: Sequence[ManifestRow], working: Optional[WorkingCopy]) -> None:
+    """Write the measured stroke width and the factor on every row of a page."""
+    if working is None:
+        return
+    width = working.geometry.stroke_width
+    text = '' if math.isnan(width) else f'{width:.1f}'
+    for row in rows:
+        row.stroke_width_px = text
+        row.upscale_factor = working.factor
+
+
+def _claim_crop_names(
     page: PageImage,
     bars: Sequence[BBox],
     output_dir: str,
     identifiers: Sequence[Identifier],
-) -> None:
+    taken: Dict[str, str],
+) -> List[str]:
     """
-    Stop before writing a page whose crop would replace a user's image.
+    Make sure every crop name of a page is free to write, and return the orphans removed.
 
-    Checked for the whole page first, so a refused page leaves no crop
-    behind. The crops of a previous run never collide: they were
-    removed before the page was cut again.
+    A file that already carries a crop name of this page was written by
+    the command: the crops of a previous run were removed before the
+    page was cut again, so what is left is an orphan of a run that
+    stopped before its manifest was saved. It is removed here. The one
+    exception is a name that another page wrote earlier in this run,
+    which means two pages in ``pages/`` differ only by extension.
+
+    The twin check runs over the whole page first, so a refused page
+    leaves no crop behind.
 
     Raises
     ------
     FileExistsError
-        Naming the first crop that already exists.
+        When a crop name was written by another page in this run.
     """
     names = [
         (IMAGES_DIRNAME, _artefact_name(page.stem, index, identifier))
@@ -254,12 +283,20 @@ def _refuse_collisions(
         (SCALES_DIRNAME, _scale_bar_name(page.stem, index, len(bars)))
         for index in range(1, len(bars) + 1)
     ]
-    for folder, name in names:
-        if os.path.exists(os.path.join(output_dir, folder, name)):
+    for _, name in names:
+        if name in taken:
             raise FileExistsError(
-                f"{folder}/{name} is already in the project. The page is "
-                f"not written. Rename the file, or the page."
+                f"{os.path.basename(page.path)} gives the same crop names as "
+                f"{taken[name]}, cut earlier in this run. Rename one."
             )
+    orphans = []
+    for folder, name in names:
+        path = os.path.join(output_dir, folder, name)
+        if os.path.isfile(path):
+            os.remove(path)
+            orphans.append(f"{folder}/{name}")
+            logging.debug("%s had no manifest row; replaced", name)
+    return orphans
 
 
 def _export_artefacts(
@@ -310,16 +347,23 @@ def _export_scale_bars(
     bars: Sequence[BBox],
     output_dir: str,
     padding: int,
+    scores: Optional[Sequence[float]] = None,
 ) -> List[ManifestRow]:
-    """Write the scale bar crops."""
-    return [
-        _write_crop(
+    """Write the scale bar crops, recording how each was chosen."""
+    rows = []
+    for index, bar in enumerate(bars, start=1):
+        row = _write_crop(
             page, bar, output_dir, SCALES_DIRNAME,
             _scale_bar_name(page.stem, index, len(bars)),
             'scale_bar', '', padding, 1, '',
         )
-        for index, bar in enumerate(bars, start=1)
-    ]
+        if scores is not None:
+            row.scale_score = f"{scores[index - 1]:.2f}"
+            row.scale_method = 'classifier'
+        else:
+            row.scale_method = 'rules'
+        rows.append(row)
+    return rows
 
 
 def _scale_bar_name(stem: str, index: int, total: int) -> str:
@@ -413,6 +457,7 @@ def write_metadata(
     rows: Sequence[ManifestRow],
     output_dir: str,
     removed: Optional[set] = None,
+    uncertain: Optional[set] = None,
 ) -> str:
     """
     Write ``meta_data.csv``, the file the analysis command reads.
@@ -426,14 +471,10 @@ def write_metadata(
     An existing file is merged, not replaced: see
     :func:`_merge_metadata_rows`. A ``flag`` column is added if missing.
 
-    Parameters
-    ----------
-    rows : sequence of ManifestRow
-        Rows accumulated across all pages.
-    output_dir : str
-        Destination root. Returns the path of the written file.
-    removed : set of str, optional
-        Crops of a previous run removed before this run.
+    ``rows`` are the manifest rows of every page, ``removed`` the crops
+    of a previous run removed before this one, and ``uncertain`` the
+    scale bar crops whose classifier score lies close to the threshold,
+    whose artefacts are flagged. Returns the path of the written file.
     """
     scales_by_page = _scales_by_page(rows)
     path = os.path.join(output_dir, METADATA_FILENAME)
@@ -445,7 +486,7 @@ def write_metadata(
         fieldnames.append('flag')
     new = {
         row.output_crop_id: _metadata_row(
-            row, scales_by_page.get(row.input_page_id, [])
+            row, scales_by_page.get(row.input_page_id, []), uncertain or set()
         )
         for row in rows if row.image_type == 'artefact'
     }
@@ -495,18 +536,24 @@ def _merge_metadata_rows(
     return merged
 
 
-def _metadata_row(row: ManifestRow, scales: Sequence[str]) -> Dict[str, str]:
+def _metadata_row(
+    row: ManifestRow, scales: Sequence[str], uncertain: Optional[set] = None
+) -> Dict[str, str]:
     """Build one meta_data.csv row for an artefact crop."""
     flags = []
     scale_id = ''
     if len(scales) == 1:
         scale_id = scales[0]
+        if scale_id in (uncertain or set()):
+            flags.append(SCALE_UNCERTAIN_FLAG)
     elif not scales:
         flags.append(NO_SCALE_FLAG)
     else:
         flags.append(SEVERAL_SCALES_FLAG)
     if row.label_flag:
         flags.append(row.label_flag)
+    if int(row.upscale_factor or 1) > 1:
+        flags.append(LOW_RESOLUTION_FLAG)
     return {
         'image_id': row.output_crop_id,
         'scale_id': scale_id,
@@ -522,28 +569,22 @@ def write_debug_overlay(
     output_dir: str,
     identifiers: Optional[Sequence[Identifier]] = None,
     corrections: Optional[Sequence[str]] = None,
+    working_factor: int = 1,
+    candidates: Optional[Sequence] = None,
 ) -> str:
     """
     Draw the page with its artefact boxes, scale bars and readings.
 
-    Red numbered boxes are the crops (the numbers are what the
-    corrections CSV refers to), purple boxes are scale bars. Each
-    reading is drawn in green beside its glyph with the crop's name
-    under its number; an unnamed crop shows its flag and every reading
-    inside it in red. A header gives the page's totals.
+    Red numbered boxes are the crops (the numbers the corrections CSV
+    refers to), purple boxes are scale bars. Readings are green beside
+    their glyphs; an unnamed crop shows its flag in red. A header gives
+    the page's totals.
 
-    Parameters
-    ----------
-    page : PageImage
-        The loaded source page.
-    boxes, bars : sequence of BBox
-        Artefact boxes in reading order; scale bar boxes.
-    output_dir : str
-        Destination root.
-    identifiers : sequence of Identifier, optional
-        The identifier read for each box.
-    corrections : sequence of str, optional
-        Per-box corrections; a box the rules made says so after its verdict.
+    ``identifiers`` are the reads for each box and ``corrections`` the
+    per-box corrections, named after a box's verdict. ``working_factor``
+    above 1 is named in the header. ``candidates`` are the classifier's
+    scale bar candidates: the rejected ones are drawn in grey, and every
+    one shows its score.
 
     Returns
     -------
@@ -551,13 +592,14 @@ def write_debug_overlay(
     """
     debug_dir = os.path.join(output_dir, DEBUG_DIRNAME)
     os.makedirs(debug_dir, exist_ok=True)
-    scale = max(1, page.width // 700)
-    canvas = _debug_canvas(page)
-    lift = 0
+    scale, canvas, lift = max(1, page.width // 700), _debug_canvas(page), 0
     if identifiers:
-        canvas = _with_header(canvas, _labels_summary(identifiers), scale)
+        note = f"; detected at x{working_factor}" if working_factor > 1 else ''
+        canvas = _with_header(canvas, _labels_summary(identifiers) + note, scale)
         lift = _HEADER_HEIGHT * scale
     _draw_debug_boxes(canvas, boxes, bars, scale, lift)
+    if candidates:
+        _draw_candidates(canvas, candidates, scale, lift)
     if identifiers:
         _draw_readings(canvas, boxes, identifiers, scale, lift, corrections)
     path = os.path.join(debug_dir, f"{page.stem}.png")
@@ -591,6 +633,21 @@ def _draw_debug_boxes(
         )
 
 
+def _draw_candidates(canvas: np.ndarray, candidates: Sequence, scale: int, lift: int) -> None:
+    """Draw the rejected scale bar candidates in grey and write every score."""
+    for candidate in candidates:
+        box = candidate.box
+        colour = _BAR_COLOUR if candidate.accepted else _CANDIDATE_COLOUR
+        if not candidate.accepted:
+            cv2.rectangle(
+                canvas, (box[0], box[1] + lift), (box[2], box[3] + lift), colour, 1 * scale,
+            )
+        cv2.putText(
+            canvas, f"{candidate.score:.2f}", (box[2] + 4, box[1] + lift + 12 * scale),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.45 * scale, colour, 1 * scale,
+        )
+
+
 def _draw_readings(
     canvas: np.ndarray,
     boxes: Sequence[BBox],
@@ -613,7 +670,7 @@ def _draw_readings(
 
 
 def _rule_note(correction: str) -> str:
-    """The word the overlay adds for a box an identifier rule made."""
+    """Return the word the overlay adds for a box an identifier rule made."""
     if 'identifier_split' in correction:
         return ' split'
     if 'identifier_join' in correction:

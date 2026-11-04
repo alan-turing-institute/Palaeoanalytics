@@ -27,6 +27,7 @@ def _letterbox(path, box: int = _PANEL_BOX_PX) -> Image.Image:
 
 
 def render(bundle: dict) -> None:
+    """Render the Per-Lithic Detail page."""
     df = bundle["metrics"]
 
     st.header("Per-Lithic Detail")

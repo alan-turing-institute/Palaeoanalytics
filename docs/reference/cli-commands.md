@@ -72,6 +72,8 @@ pylithics --data_dir pylithics/data
 pylithics --data_dir ./data --config_file ./my_config.yaml
 ```
 
+The `working_resolution` section of the configuration sets when an image is upscaled for detection. See [Working Resolution](../user-guide/working-resolution.md).
+
 ### Three levels
 
 1. **Defaults** — in the code
@@ -351,7 +353,7 @@ The two commands share one project folder:
 | `pylithics-pages` | `<data_dir>/pages/` | `<data_dir>/images/`, `scales/`, `pages_manifest.csv`, `meta_data.csv`, and `pages_debug/` with `--debug` |
 | `pylithics` | `<data_dir>/images/`, `scales/`, `meta_data.csv` | `<data_dir>/results/` |
 
-`meta_data.csv` has one row for each artefact crop. `scale_id` is the scale bar from the same page. `scale` is empty for you to fill in. `flag` names a problem to correct first (`no_scale`, `several_scales`, or an identifier flag). See [meta_data.csv](../user-guide/page-segmentation.md#meta_datacsv).
+`meta_data.csv` has one row for each artefact crop. `scale_id` is the scale bar from the same page. `scale` is empty for you to fill in. `flag` names a problem to correct first (`no_scale`, `several_scales`, `scale_uncertain`, `low_resolution`, or an identifier flag). See [meta_data.csv](../user-guide/page-segmentation.md#meta_datacsv).
 
 ### Crop Names
 
@@ -381,10 +383,10 @@ All distances are fractions of the page width or the page height. The same value
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--output_dir PATH` | The folder for `images/`, `scales/`, `pages_manifest.csv` and `meta_data.csv` | the `--data_dir` project folder |
-| `--padding PX` | The white margin around each crop, in pixels | `20` |
-| `--debug` | Write one overlay for each page to `pages_debug/<page>.png`. The overlay shows each box, each scale bar and each identifier read | off |
+| `--padding PX` | The white margin around each crop, in pixels | `10` |
+| `--debug` | Write one overlay for each page to `pages_debug/<page>.png`. The overlay shows each box, each scale bar with its score, each rejected candidate in grey, and each identifier read | off |
 | `--disable_scale_bars` | Do not write scale bar crops | off |
-| `--read_labels` | Read the identifier next to each lithic and name the crop with it. `pip install "PyLithics[ocr]"` is necessary | on |
+| `--read_labels` | Read the identifier next to each lithic and name the crop with it. RapidOCR is necessary; see [Installation](../installation.md#step-4-install-pylithics) | on |
 | `--no_read_labels` | Do not read identifiers. Name the crops by box number only | off |
 
 ### Configuration Options
@@ -397,11 +399,15 @@ All distances are fractions of the page width or the page height. The same value
 
 The `identifiers` section of `config.yaml` sets `reach`, the distance in glyph heights at which an identifier outside a box belongs to the nearest box (default `1.5`). Increase it for plates that print the identifier far from the lithic.
 
+The `working_resolution` section sets when a page is upscaled for detection. See [Working Resolution](../user-guide/working-resolution.md).
+
+The `scale_bars.classifier` section controls how a scale bar is decided. `enabled` turns the classifier off (default `true`); the rules then decide. `threshold` is the score at or above which a candidate is a scale bar (default `0.4`). `uncertain_band` is the distance from the threshold within which the page's artefacts get the flag `scale_uncertain` (default `0.15`). `min_aspect_ratio`, `max_short_side`, `min_long_side` and `max_long_side` set the shape of a candidate; the three side limits are fractions of the page's longer side. See [How a scale bar is decided](../user-guide/page-segmentation.md#how-a-scale-bar-is-decided).
+
 The `identifiers.regroup` section lets the identifiers correct the grouping: a box that holds several identifiers is cut into one box for each, and a box that holds none joins the labelled box next to it. `enabled` turns the rules off (default `true`). `join_gap` is the distance a box looks for its neighbour, as a fraction of page width (default `0.12`). See [How identifiers correct the grouping](../user-guide/page-segmentation.md#how-identifiers-correct-the-grouping).
 
 ### Re-runs
 
-Every run cuts every plate. A plate cut before is cut again and its crops and rows are replaced; the scale values that you typed stay. A new plate is added. A crop that the new run does not make is removed. Your own images and rows are never changed, and a crop with the same filename as one of your images is not written. See [Re-runs](../user-guide/page-segmentation.md#re-runs).
+Every run cuts every plate. A plate cut before is cut again and its crops and rows are replaced; the scale values that you typed stay. A new plate is added. A crop that the new run does not make is removed. A crop file that an earlier run left without a manifest row is replaced, and the run reports the number. Your own images and rows are never changed. Two pages with the same name and different extensions give the same crop names: the second is not written. See [Re-runs](../user-guide/page-segmentation.md#re-runs).
 
 If a plate cannot be cut, the command reports it, cuts the other plates, writes the manifest, and exits with code `1`. The reason is in `pylithics-pages.log`. The manifest is written again after each plate, so a run that you stop leaves a manifest that names each crop it wrote. The next run replaces them.
 

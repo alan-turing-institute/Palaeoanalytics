@@ -16,6 +16,37 @@ directory is renamed `results/`.
 alone will not create it. Reinstall with `pip install . --upgrade`.
 
 ### Added
+- **Scale bar classifier (`pylithics-pages`)** — a trained model (a random forest) decides
+  which bar-shaped marks are scale bars, in place of the shape rules alone.
+  Candidates include bars standing against a lithic, upright bars and
+  rulers, which the rules took for annotations or text. The manifest records
+  `scale_score` and `scale_method` for each scale bar; an artefact whose
+  scale bar scored close to the threshold gets the flag `scale_uncertain` in
+  `meta_data.csv`; the debug overlay draws rejected candidates in grey with
+  their scores. Section `scale_bars.classifier` in `config.yaml`;
+  `enabled: false` gives the rules of before. Model bundled as
+  `pylithics/models/scale_bar_classifier.json`, its training labels as
+  `pylithics/models/scale_bar_labels.csv`. Tools:
+  `tools/scale_candidates.py` writes the labelling table, prefilled from
+  the known labels and the model; `tools/train_scale_classifier.py`
+  trains the model. A candidate's ink, not the boxes around it, decides
+  whether it stands clear of the drawings, so a bar below a profile view
+  is found; upright dashes form one bar; a thick bar fused with its
+  caption is found from the raw ink; a plain stroke at a drawing's edge
+  or between two views is a connector, never scored. A scale crop
+  takes its caption (`0`, `5 cm`, and text that follows it) and not an
+  arrow or an identifier at the bar's corner. Size limits are fractions
+  of the page's longer side, so a strip cut from a page keeps its digits
+  as labels.
+- **Working resolution** — both commands measure the line width of each
+  image and, when the lines are too thin for detection, find the ink on a
+  working copy upscaled 2, 3 or 4 times with ESPCN or FSRCNN (bundled). The
+  result is returned to the input pixel grid: crops, DPI tags and every
+  measurement stay at the input size, and the factor is recorded
+  (`upscale_factor` in `pages_manifest.csv`, `processed_metrics.csv` and the
+  JSON; flag `low_resolution` in `meta_data.csv`). Never downscales. Section
+  `working_resolution` in `config.yaml`. **Dependency change**: OpenCV is now
+  `opencv-contrib-python-headless`; remove the plain build before reinstalling.
 - **Identifier-guided grouping (`pylithics-pages`)** — the identifiers read
   from a plate now correct the grouping. A crop holding several identifiers is
   cut into one crop each where empty space between the drawings permits; a crop
@@ -55,9 +86,9 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
 - **Debug overlays** — `--debug` writes numbered artefact boxes over the page;
   those numbers are what the corrections CSV refers to.
 - **Sample plate fixture** — `pylithics/data/pages/sample_plate.png`, composited
-  from the five shipped drawings with a shared scale bar, for trying the
-  workflow and for the test suite. Regenerate with
-  `tests/fixtures/generate_sample_plate.py`.
+  from the five shipped drawings, numbered 1 to 5 just under their ink, with a
+  shared scale bar, for trying the workflow and for the test suite. Regenerate
+  with `tests/fixtures/generate_sample_plate.py [OUTPUT.png]`.
 - **`page_segmentation` configuration section** in `config.yaml`, with
   `get_page_segmentation_config()` following the established getter pattern.
 - **`archaeological` pytest marker** for tests validating domain correctness.
@@ -99,6 +130,33 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
   analysing. A bare `--explore` still analyses and then opens.
 
 ### Fixed
+- **An orphaned crop locked its page out of every run.** A crop written by a
+  run that stopped before the manifest was saved had no manifest row, so the
+  next run took it for the user's own file and refused the page, every time.
+  A file that carries a crop name of a page in `pages/` is now replaced, and
+  the run reports how many such files it replaced. Two pages that differ only
+  by extension are still refused, with a message that names the other page,
+  and the run reports how many pages it cut again.
+- **`pylithics --config_file` was ignored.** The update check created the
+  process-wide configuration before the file named on the command line was
+  read, so every run used the default configuration. The file is now read
+  first. The same fault in `pylithics-pages` is fixed below.
+- **A labelled crop could absorb a whole page.** The join rule let one
+  labelled box take every unlabelled neighbour in turn, growing as it went;
+  a page with one read label collapsed to one crop. A box now joins only a
+  neighbour at least a third of its size.
+- **`pylithics-pages` printed every log line twice**, including DEBUG lines
+  whatever `--log_level` said: the first line logged at start-up made the
+  standard library attach its own console handler. A placeholder handler
+  now prevents it.
+- **The OCR extra no longer reinstalls the plain OpenCV build.** RapidOCR
+  declares `opencv-python` by name, so `pip install ".[ocr]"` put a second
+  OpenCV beside the contrib build and left a mixed `cv2` that lost modules at
+  random. The extra now carries RapidOCR's other dependencies, and RapidOCR is
+  installed with `--no-deps`. See the installation page.
+- **`pylithics-pages --config_file` was ignored** — the update check created the
+  process-wide configuration before the file was read, so every run used the
+  built-in defaults. The manager is now created from the file first.
 - **Command-line overrides now reach parallel workers.** Worker processes were
   built from the configuration file alone, so on a multi-worker run every
   override (`--threshold_method`, `--disable_arrow_detection`, the debug
@@ -111,6 +169,13 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
   nothing. All three now write under `results/`.
 
 ### Changed
+- **Python 3.10 or later is necessary** (was 3.8). The package is developed and
+  tested on 3.12. The installation guide and the troubleshooting page name the
+  contrib build of OpenCV, the only build with the upscaling module, and tell
+  Apple Silicon users to check that Python is a native build: an Intel build
+  runs through Rosetta and the upscaler is three times slower.
+- **Crop padding is 10 px** (was 20). A scale crop still holds its caption,
+  which is joined to the bar before the crop is cut.
 - **One flat project folder for both commands.** `pylithics-pages` writes
   `images/`, `scales/`, `pages_manifest.csv` and `meta_data.csv` into the project
   folder itself (formerly `processed_pages/`), so the whole workflow is

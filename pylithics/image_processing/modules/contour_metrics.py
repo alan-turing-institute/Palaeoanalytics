@@ -1,6 +1,5 @@
 """
-PyLithics: Contour Metrics
-==========================
+Contour metrics for PyLithics.
 
 Calculates geometric measurements for parent and child contours.
 """
@@ -9,7 +8,7 @@ import cv2
 import numpy as np
 import logging
 from scipy.spatial.distance import pdist
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Tuple
 
 
 def calculate_contour_metrics(

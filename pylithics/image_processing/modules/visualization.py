@@ -1,8 +1,7 @@
 """
-PyLithics: Visualization and CSV Export
-=======================================
+Visualization and CSV export for PyLithics.
 
-Generates labeled output images and exports comprehensive CSV data.
+Generates labeled output images and exports the metrics CSV.
 """
 
 import cv2
@@ -560,12 +559,11 @@ _INTEGER_CSV_COLUMNS = (
 
 
 def _coerce_integer_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Cast count-like columns to nullable Int64 so they render as
-    integers in the CSV instead of decimal "N.0" floats. Pandas
-    upcasts int64 columns to float64 whenever any row is NaN, which
-    is why scar_count and voronoi_num_cells were appearing as
-    decimals — Int64 (capital I, the nullable type) lets the column
-    hold both integers and NA without that upcast.
+    """Cast count-like columns to nullable Int64 so the CSV shows integers.
+
+    Pandas upcasts int64 columns to float64 whenever any row is NaN, which
+    would write scar_count and voronoi_num_cells as "N.0" decimals. The
+    nullable Int64 type holds both integers and NA without that upcast.
     """
     for col in _INTEGER_CSV_COLUMNS:
         if col not in df.columns:
@@ -622,7 +620,7 @@ _CSV_PASSTHROUGH_FIELDS = (
 )
 
 _CALIBRATION_FIELDS = (
-    "calibration_method", "pixels_per_mm", "scale_confidence",
+    "calibration_method", "pixels_per_mm", "scale_confidence", "upscale_factor",
 )
 
 _OPTIONAL_ARROW_FIELDS = (
@@ -717,10 +715,7 @@ def _build_column_order(
 
     calibration = []
     if calibration_metadata:
-        calibration = [
-            "calibration_method", "pixels_per_mm",
-            "scale_confidence",
-        ]
+        calibration = list(_CALIBRATION_FIELDS)
 
     return (base + voronoi + symmetry + lateral + cortex
             + complexity + arrows + calibration)

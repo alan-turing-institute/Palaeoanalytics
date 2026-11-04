@@ -1,6 +1,5 @@
 """
-PyLithics: Voronoi Analysis
-============================
+Voronoi analysis for PyLithics.
 
 Generates Voronoi diagrams for spatial distribution analysis of
 dorsal surface features. Provides tessellation patterns, spatial
@@ -14,14 +13,12 @@ from typing import List, Dict, Optional, Tuple
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpl_patches
 from matplotlib.patches import Polygon as MplPolygon
 from matplotlib.collections import PatchCollection
 import matplotlib
 from matplotlib.colors import Normalize
 from matplotlib.ticker import FuncFormatter
 
-from scipy.spatial import ConvexHull, Voronoi, voronoi_plot_2d
 from shapely.geometry import MultiPoint, Point, Polygon
 from shapely.ops import voronoi_diagram
 

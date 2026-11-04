@@ -1,6 +1,4 @@
-"""
-PyLithics: Archaeological Lithic Analysis Tool
-"""
+"""PyLithics: archaeological lithic analysis tool."""
 
 __version__ = "2.0.0"
 __author__ = "Jason Gellis, Camila Rangel Smith, Robert Foley"

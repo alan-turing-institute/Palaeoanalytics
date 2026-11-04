@@ -1,6 +1,5 @@
 """
-PyLithics: Symmetry Analysis
-=============================
+Symmetry analysis for PyLithics.
 
 Calculates area-based symmetry metrics for dorsal surfaces
 using geometric centroid analysis.

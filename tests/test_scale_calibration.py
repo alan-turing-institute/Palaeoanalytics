@@ -15,8 +15,7 @@ from pylithics.image_processing.modules.scale_calibration import (
 
 
 SCALE_EXAMPLES_DIR = os.path.join(
-    os.path.dirname(__file__), "..", ".claude", "visual_examples",
-    "features", "scale_calibration",
+    os.path.dirname(__file__), "fixtures", "scale_calibration",
 )
 
 SCALE_EXAMPLE_FILES = [

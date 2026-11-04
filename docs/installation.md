@@ -1,11 +1,11 @@
 # Installation Guide
 
 This guide gives the procedure to install PyLithics. PyLithics operates
-on macOS, Windows and Linux. Python 3.8 or later is necessary.
+on macOS, Windows and Linux. Python 3.10 or later is necessary.
 
 ## What is necessary
 
-- **Python**: 3.8 or later
+- **Python**: 3.10 or later
 - **Operating system**:
   - macOS 10.14 or later
   - Windows 10 or later
@@ -20,12 +20,12 @@ on macOS, Windows and Linux. Python 3.8 or later is necessary.
 === "macOS & Linux"
 
     ```bash
-    # Show the Python version. It must be 3.8 or later.
+    # Show the Python version. It must be 3.10 or later.
     python3 --version
 
     # If Python is not installed:
     # macOS (with Homebrew, from https://brew.sh/)
-    brew install python@3.11
+    brew install python@3.12
 
     # Ubuntu/Debian
     sudo apt-get update
@@ -38,7 +38,7 @@ on macOS, Windows and Linux. Python 3.8 or later is necessary.
 === "Windows"
 
     ```powershell
-    # Show the Python version. It must be 3.8 or later.
+    # Show the Python version. It must be 3.10 or later.
     python --version
 
     # If Python is not installed, get it from https://python.org
@@ -74,8 +74,21 @@ on macOS, Windows and Linux. Python 3.8 or later is necessary.
     ```
 
 !!! warning "Python version"
-    Python 3.8 or later is necessary. If your version is older, install
+    Python 3.10 or later is necessary. If your version is older, install
     a new version before you continue.
+
+!!! warning "Apple Silicon Macs"
+    On a Mac with an Apple Silicon chip (M1 or later), Python must be
+    a native build. An Intel build runs through Rosetta, and the
+    upscaler is three times slower. Check it:
+
+    ```bash
+    # Must print arm64
+    python3 -c "import platform; print(platform.machine())"
+    ```
+
+    If it prints `x86_64`, install a native Python (for example with
+    Homebrew) and use that Python in Step 2.
 
 ## Step 2: Make a virtual environment
 
@@ -151,15 +164,31 @@ pip install .
 This command:
 
 - Installs the PyLithics package
-- Installs the dependencies in `requirements.txt`
+- Installs the dependencies in `requirements.txt`, including the
+  contrib build of OpenCV (`opencv-contrib-python-headless`)
 - Makes the `pylithics` and `pylithics-pages` commands available
 
+!!! note "An environment with the plain OpenCV build"
+    If `opencv-python-headless` or `opencv-python` is already installed,
+    remove it first. Two builds of OpenCV cannot be installed together.
+
+    ```bash
+    pip uninstall opencv-python-headless opencv-python
+    pip install .
+    ```
+
 To read the identifiers printed on published plates, install the
-optional OCR package too:
+optional OCR package too. Two commands:
 
 ```bash
 pip install ".[ocr]"
+pip install --no-deps "rapidocr_onnxruntime>=1.3,<2"
 ```
+
+The second command has `--no-deps` on purpose. RapidOCR asks for the
+plain OpenCV package by name. That package and the contrib package that
+PyLithics uses cannot be installed together. The first command installs
+the other packages that RapidOCR needs.
 
 ## Step 5: Make sure that the installation is correct
 
@@ -267,13 +296,13 @@ If you get a Python version error:
 # Show your Python version
 python --version
 
-# If necessary, install Python 3.8 or later with your package manager
+# If necessary, install Python 3.10 or later with your package manager
 # macOS (with Homebrew)
-brew install python@3.11
+brew install python@3.12
 
 # Ubuntu/Debian
 sudo apt-get update
-sudo apt-get install python3.11
+sudo apt-get install python3.12
 
 # Windows: get Python from python.org
 ```
@@ -314,8 +343,8 @@ pip install . -v
 If OpenCV does not install:
 
 ```bash
-# Install OpenCV first
-pip install opencv-python-headless>=4.8.0
+# Install OpenCV first (the contrib build)
+pip install opencv-contrib-python-headless>=4.8.0
 
 # Then install PyLithics
 pip install .

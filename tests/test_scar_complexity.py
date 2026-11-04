@@ -8,7 +8,6 @@ detection and integration with the PyLithics pipeline.
 
 import pytest
 import numpy as np
-from unittest.mock import patch, MagicMock
 
 from pylithics.image_processing.modules.scar_complexity import (
     analyze_scar_complexity,

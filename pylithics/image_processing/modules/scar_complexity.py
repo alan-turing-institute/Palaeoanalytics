@@ -1,6 +1,5 @@
 """
-Scar Complexity Analysis Module
-===============================
+Scar complexity analysis for PyLithics.
 
 Analyzes border-sharing relationships between scars on dorsal surfaces.
 Counts how many scars each scar shares a border with using geometric analysis.
@@ -89,7 +88,7 @@ def _find_dorsal_scars(metrics: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def _count_shared_borders(
     scars: List[Dict[str, Any]], distance_threshold: float,
 ) -> Dict[str, int]:
-    """For each scar, count others whose polygon lies within threshold distance."""
+    """Count the neighbouring scars of each scar within the distance threshold."""
     polygons = [_create_polygon_from_contour(s.get('contour')) for s in scars]
     results: Dict[str, int] = {}
 

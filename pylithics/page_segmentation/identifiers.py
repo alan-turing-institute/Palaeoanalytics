@@ -34,6 +34,8 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import cv2
 import numpy as np
 
+from pylithics.image_processing.resolution import WorkingCopy
+
 from .detection import Component, PageImage
 from .geometry import (
     BBox, box_distance, box_height, box_width, horizontal_gap, vertical_overlap,
@@ -194,6 +196,7 @@ def read_page(
     raw: np.ndarray,
     closed: np.ndarray,
     config: Dict,
+    working: Optional[WorkingCopy] = None,
 ) -> PageReads:
     """
     Read every identifier on the page, without assigning them.
@@ -203,12 +206,13 @@ def read_page(
     page, components, classified
         The loaded page, its ink blobs, and the blobs sorted by role.
     boxes, bars : sequence of BBox
-        Artefact boxes, which say where to look; scale bars with their
-        captions, which are never identifiers.
+        Artefact boxes, which say where to look; scale bars, never identifiers.
     raw, closed : np.ndarray
         The detection mask before and after morphological closing.
     config : dict
         The ``identifiers`` configuration section.
+    working : WorkingCopy, optional
+        The page at working resolution; glyphs are cut from it when given.
 
     Returns
     -------
@@ -228,7 +232,7 @@ def read_page(
     strings = _join_strings(_dedupe(glyphs))
     strings = _filter_strings(strings, raw, config)
     dropped: List[Read] = []
-    reads = _read(strings, page, engine, config, dropped)
+    reads = _read(strings, page, engine, config, dropped, working)
     result.reads = _validate(_consistent_size(reads))
     result.seen = _seen_glyphs(reads, dropped)
     return result
@@ -297,7 +301,8 @@ def _load_engine():
         if not _engine_missing_reported:
             logging.error(
                 "RapidOCR is necessary to read the plate identifiers. Install it with:\n"
-                "           pip install 'PyLithics[ocr]'\n"
+                "           pip install '.[ocr]'\n"
+                "           pip install --no-deps 'rapidocr_onnxruntime>=1.3,<2'\n"
                 "       The crops are numbered in reading order."
             )
             _engine_missing_reported = True
@@ -333,7 +338,7 @@ def _candidates(
 
 
 def _glyph_ceiling(page: PageImage) -> float:
-    """The tallest a glyph can be on this page, in pixels."""
+    """Return the tallest a glyph can be on this page, in pixels."""
     return max(_MAX_GLYPH_PAGE_FRAC * page.height, _MIN_GLYPH_CEILING)
 
 
@@ -417,15 +422,20 @@ def _home_box(
     """
     Index of the artefact box a glyph belongs to, or None.
 
-    Inside a box, the glyph is that box's. Outside every box, it is the
-    nearest box's if that box lies within a glyph height or so and the
-    next nearest does not: some plates set the letter above the drawing
-    rather than beneath it, clear of the ink and so of the box.
+    Inside a box, the glyph is that box's; inside several, where boxes
+    overlap, the smallest, since a label sits close to its own lithic
+    and a larger box reaching over it is a neighbour's. Outside every
+    box, it is the nearest box's if that box lies within a glyph height
+    or so and the next nearest does not: some plates set the letter
+    above the drawing rather than beneath it, clear of the ink.
     """
-    for index, box in enumerate(boxes):
+    holding = [
+        index for index, box in enumerate(boxes)
         if (box[0] - margin <= glyph[0] and box[1] - margin <= glyph[1]
-                and box[2] + margin >= glyph[2] and box[3] + margin >= glyph[3]):
-            return index
+            and box[2] + margin >= glyph[2] and box[3] + margin >= glyph[3])
+    ]
+    if holding:
+        return min(holding, key=lambda i: box_width(boxes[i]) * box_height(boxes[i]))
     reach = reach * box_height(glyph)
     near = sorted((box_distance(glyph, box), index) for index, box in enumerate(boxes))
     if near and near[0][0] <= reach and (len(near) == 1 or near[1][0] > reach):
@@ -614,6 +624,7 @@ def _read(
     engine,
     config: Dict,
     dropped: Optional[List[Read]] = None,
+    working: Optional[WorkingCopy] = None,
 ) -> List[Read]:
     """
     Read each candidate, keeping alphanumerics above the confidence floor.
@@ -623,7 +634,7 @@ def _read(
     floor = config.get('min_confidence', 0.6)
     reads = []
     for box in candidates:
-        text, confidence = _read_one(_glyph_image(page, box), engine)
+        text, confidence = _read_one(_glyph_image(page, box, working), engine)
         needed = _CONFIDENT if text in _LONE_STROKE_GLYPHS else floor
         if text and confidence >= needed:
             reads.append((text, confidence, box))
@@ -635,11 +646,21 @@ def _read(
     return reads
 
 
-def _glyph_image(page: PageImage, box: BBox) -> np.ndarray:
-    """Cut, pad, upscale and contrast-stretch a glyph for reading."""
-    x0, y0, x1, y1 = box
-    m = max(4, box_height(box) // 3)
-    crop = page.gray[max(0, y0 - m):y1 + m, max(0, x0 - m):x1 + m]
+def _glyph_image(
+    page: PageImage, box: BBox, working: Optional[WorkingCopy] = None
+) -> np.ndarray:
+    """
+    Cut, pad, upscale and contrast-stretch a glyph for reading.
+
+    With a working copy, the glyph is cut from it at the working
+    resolution, so the neural upscale reaches the reader instead of a
+    plain resize of the source pixels.
+    """
+    factor = working.factor if working is not None else 1
+    x0, y0, x1, y1 = (v * factor for v in box)
+    gray = working.gray if working is not None else page.gray
+    m = max(4, (y1 - y0) // 3)
+    crop = gray[max(0, y0 - m):y1 + m, max(0, x0 - m):x1 + m]
     lo, hi = int(crop.min()), int(crop.max())
     if hi > lo:
         crop = ((crop.astype(np.float32) - lo) * (255.0 / (hi - lo))).astype(np.uint8)
@@ -676,7 +697,7 @@ def _read_one(image: np.ndarray, engine) -> Tuple[str, float]:
 
 def _typical_height(reads: Sequence[Tuple[str, float, BBox]]) -> int:
     """
-    The plate's type size: median height of its confident reads.
+    Return the plate's type size: the median height of its confident reads.
 
     Falls back to all reads when fewer than two are confident.
     """

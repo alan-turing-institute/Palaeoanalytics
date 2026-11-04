@@ -14,6 +14,7 @@ nav:
     - Overview: user-guide/index.md
     - Working from Published Plates: user-guide/page-segmentation.md
     - Prepare Your Images: user-guide/image-requirements.md
+    - Working Resolution: user-guide/working-resolution.md
     - Metadata Setup: user-guide/metadata-setup.md
     - Basic Usage: user-guide/basic-usage.md
     - Outputs: user-guide/outputs.md

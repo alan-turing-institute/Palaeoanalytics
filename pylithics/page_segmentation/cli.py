@@ -37,8 +37,9 @@ from .export import (
     write_manifest,
 )
 from .geometry import BBox
-from .grouping import classify_components, group_components, reading_order
+from .grouping import ScaleContext, classify_components, group_components, reading_order
 from .identifiers import PageReads, assign_reads, read_page, report_identifiers
+from .scale_classifier import ModelUnavailable, load_model
 from .regroup import JOIN, SPLIT, refine_boxes
 from .logging_setup import setup_logging
 
@@ -85,14 +86,18 @@ thresholding is applied. The pylithics analysis does those steps.
 meta_data.csv is the file that pylithics reads. The scale column (the
 printed length of the bar, in millimetres) is empty. Fill it in. A row
 with a flag has a problem for you to examine: no scale bar on the page,
-several scale bars, or no identifier. pylithics analyses the row like
-any other, in pixels when the scale is empty, and reports the flags at
-the end. Remove the flag when the row is correct.
+several scale bars, a scale bar with a low score, or no identifier.
+pylithics analyses the row like any other, in pixels when the scale is
+empty, and reports the flags at the end. Remove the flag when the row
+is correct.
 
 Every run cuts every plate in pages/. A plate cut before is cut again,
 and its crops and rows are replaced. The scale values that you typed
 stay. A new plate is added. Images and rows that you put in the project
-yourself do not change.
+yourself do not change. A crop file that an earlier run left without a
+manifest row is replaced, and the run reports the number. Two pages
+with the same name and different extensions give the same crop names:
+the second is not written. Rename one.
 """
 
 EPILOG = """
@@ -102,7 +107,9 @@ procedure:
        pylithics-pages --data_dir <project> --debug
   3. Examine <project>/pages_debug/. Each numbered box must contain one
      lithic and all of its surfaces. Each scale bar must have its own
-     box. Each green identifier must match the number on the plate.
+     purple box, with its score beside it. A grey box is a mark that
+     the command rejected. Each green identifier must match the number
+     on the plate.
   4. Correct each page that is wrong (see below). Then start the command
      again:
        pylithics-pages --data_dir <project> --overrides corrections.csv
@@ -145,6 +152,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     int : exit code. 0 on success, 1 when a page was not cut, 130 when stopped.
     """
     args = build_parser().parse_args(argv)
+    logging.getLogger().addHandler(logging.NullHandler())   # no stdlib fallback handler
+    get_config_manager(args.config_file)     # first use creates the process-wide manager
     _offer_update()
     pages_dir = _resolve_pages_dir(args.data_dir)
     if not args.output_dir:
@@ -171,10 +180,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if config.get('export', {}).get('manifest', True):
         kept = [r for r in previous if r['input_page_id'] not in run.recut]
         write_manifest(kept + run.rows, args.output_dir)
-        write_metadata(run.rows, args.output_dir, run.removed)
+        write_metadata(run.rows, args.output_dir, run.removed, _uncertain_scales(run.rows, config))
 
     debug = args.debug or config.get('debug', {}).get('enabled', False)
-    _log_summary(run.rows, len(pages), args.output_dir, debug)
+    _log_summary(run, previous, len(pages), args.output_dir, debug)
     if run.failed:
         logging.error("%d page(s) not cut: %s. See %s for the reason.", len(run.failed),
                       ', '.join(run.failed), os.path.join(args.output_dir, 'pylithics-pages.log'))
@@ -207,6 +216,7 @@ class RunResult:
     rows: List[ManifestRow] = field(default_factory=list)
     recut: set = field(default_factory=set)
     removed: set = field(default_factory=set)
+    orphans: List[str] = field(default_factory=list)
     failed: List[str] = field(default_factory=list)
 
 
@@ -222,14 +232,10 @@ def _process_pages(
     Segment every page, replacing what a previous run cut from it.
 
     A page that fails, for any reason, is reported and the batch goes
-    on: one bad plate must not cost the run its manifest. The manifest
-    is rewritten after every page, so a run that is stopped part way
-    still names every crop it wrote, and the next run replaces them.
-
-    Shows a live progress bar on a terminal. Segmenting a large plate
-    takes a noticeable moment, and without it a long batch looks frozen.
+    on. The manifest is rewritten after every page, so a stopped run
+    still names every crop it wrote. A progress bar shows on a terminal.
     """
-    padding = config.get('export', {}).get('padding', 20)
+    padding = config.get('export', {}).get('padding', 10)
     by_page: Dict[str, List[Dict[str, str]]] = {}
     for row in previous:
         by_page.setdefault(row['input_page_id'], []).append(row)
@@ -247,11 +253,13 @@ def _process_pages(
                     args.output_dir, by_page.get(name, [])
                 )
                 run.recut.add(name)
-                run.rows.extend(
-                    _process_page(page, corrections.get(name), config, args, padding)
-                )
+                taken = {r.output_crop_id: r.input_page_id for r in run.rows}
+                run.rows.extend(_process_page(
+                    page, corrections.get(name), config, args, padding, taken, run.orphans
+                ))
             except FileExistsError as exc:
-                logging.error("%s: %s", name, exc)
+                run.failed.append(name)
+                logging.error("%s: not cut. %s", name, exc)
             except (OSError, ValueError) as exc:
                 logging.error("Page not read, %s: %s", name, exc)
             except Exception as exc:  # noqa: BLE001 - one page must not stop the batch
@@ -322,10 +330,13 @@ def _process_page(
     config: Dict,
     args: argparse.Namespace,
     padding: int,
+    taken: Optional[Dict[str, str]] = None,
+    orphans: Optional[List[str]] = None,
 ) -> List[ManifestRow]:
     """Segment one loaded page and write its crops."""
     path = page.path
-    closed, raw = build_detection_mask(page, get_config_manager().config)
+    masks = build_detection_mask(page, get_config_manager().config)
+    closed, raw = masks.closed, masks.raw
     components = find_components(closed, raw)
     if not components:
         logging.warning(
@@ -333,10 +344,13 @@ def _process_page(
         )
         return []
 
+    context = _scale_context(page, raw, config)
     boxes, bars = group_components(
-        components, (page.width, page.height), config
+        components, (page.width, page.height), config, context
     )
-    reads = _read_page(page, components, boxes, bars, raw, closed, config)
+    _report_candidates(page, context)
+    reads = _read_page(page, components, boxes, bars, raw, closed, config, masks.working,
+                       context)
     boxes, tags = refine_boxes(
         boxes, reads, components, (page.width, page.height), config
     )
@@ -351,26 +365,80 @@ def _process_page(
         read = config.get('identifiers', {}).get('enabled', True)
         write_debug_overlay(
             page, boxes, bars, args.output_dir,
-            identifiers if read else None, corrections,
+            identifiers if read else None, corrections, masks.working.factor,
+            context.candidates if context else None,
         )
 
     return export_page(
         page, boxes, bars, args.output_dir, padding, '',
         _count_components(boxes, components), identifiers, corrections,
+        masks.working, taken, orphans, context.bar_scores if context else None,
     )
 
 
-def _read_page(page, components, boxes, bars, raw, closed, config) -> PageReads:
+_SCALE_MODEL: Dict[str, object] = {}
+
+
+def _scale_context(page: PageImage, raw, config: Dict) -> Optional[ScaleContext]:
+    """
+    Build the classifier's context for a page, or None when the rules decide.
+
+    The model is read once for each run. When it cannot be read, that is
+    reported once and every page falls back to the rules.
+    """
+    settings = config.get('scale_bars', {}).get('classifier', {})
+    if not settings.get('enabled', True):
+        return None
+    if 'model' not in _SCALE_MODEL:
+        try:
+            _SCALE_MODEL['model'] = load_model(settings.get('model'))
+        except ModelUnavailable as exc:
+            logging.warning("%s. The scale bar rules decide for every page.", exc)
+            _SCALE_MODEL['model'] = None
+    model = _SCALE_MODEL['model']
+    if model is None:
+        return None
+    return ScaleContext(
+        raw=raw, gray=page.gray, model=model,
+        threshold=float(settings.get('threshold', 0.4)), settings=settings,
+    )
+
+
+def _report_candidates(page: PageImage, context: Optional[ScaleContext]) -> None:
+    """Log what the classifier decided on a page."""
+    if context is None or not context.candidates:
+        return
+    accepted = sum(1 for c in context.candidates if c.accepted)
+    logging.info(
+        "%s: %d scale bar candidate(s) scored, %d accepted",
+        os.path.basename(page.path), len(context.candidates), accepted,
+    )
+
+
+def _uncertain_scales(rows: Sequence[ManifestRow], config: Dict) -> set:
+    """Return the scale bar crops whose score lies within the band around the threshold."""
+    settings = config.get('scale_bars', {}).get('classifier', {})
+    threshold = float(settings.get('threshold', 0.4))
+    band = float(settings.get('uncertain_band', 0.15))
+    return {
+        row.output_crop_id for row in rows
+        if row.image_type == 'scale_bar' and row.scale_score
+        and abs(float(row.scale_score) - threshold) <= band
+    }
+
+
+def _read_page(page, components, boxes, bars, raw, closed, config, working,
+               context=None) -> PageReads:
     """Read the plate's identifiers, with their positions."""
     grouping = config.get('grouping', {})
     classified = classify_components(
         components, page.width, page.height,
         grouping.get('min_area', 0.0004), config.get('scale_bars', {}),
-        config.get('text_rejection', {}),
+        config.get('text_rejection', {}), context,
     )
     return read_page(
         page, components, classified, boxes, bars, raw, closed,
-        config.get('identifiers', {}),
+        config.get('identifiers', {}), working,
     )
 
 
@@ -378,7 +446,7 @@ def _box_corrections(
     boxes: Sequence[BBox], tags: Sequence[str], applied: str
 ) -> List[str]:
     """
-    The corrections recorded for each final box, for the manifest.
+    Record the corrections for each final box, for the manifest.
 
     A box the identifier rules made keeps its tag while the user's
     corrections leave it as it was; a box the user changed carries the
@@ -617,16 +685,33 @@ def _console_level(args: argparse.Namespace) -> int:
 
 
 def _log_summary(
-    rows: Sequence[ManifestRow], page_count: int, output_dir: str,
-    debug: bool = False,
+    run: RunResult, previous: Sequence[Dict[str, str]], page_count: int,
+    output_dir: str, debug: bool = False,
 ) -> None:
-    """Report what the run produced, and where the overlays are."""
+    """Report what the run produced, what it replaced, and where the overlays are."""
+    rows = run.rows
     artefacts = sum(1 for r in rows if r.image_type == 'artefact')
     bars = sum(1 for r in rows if r.image_type == 'scale_bar')
     logging.info(
         "Done: %d page(s) -> %d artefact(s), %d scale bar(s) in %s",
         page_count, artefacts, bars, output_dir,
     )
+    cut_before = {r['input_page_id'] for r in previous} & run.recut
+    if cut_before:
+        logging.info(
+            "%d page(s) were cut before; their crops were replaced.", len(cut_before)
+        )
+    if run.orphans:
+        logging.warning(
+            "%d crop file(s) left by an earlier run had no manifest row "
+            "and were replaced.", len(run.orphans),
+        )
+    upscaled = {r.input_page_id for r in rows if int(r.upscale_factor or 1) > 1}
+    if upscaled:
+        logging.info(
+            "%d page(s) upscaled for detection. The crops are at the source "
+            "size; see upscale_factor in pages_manifest.csv.", len(upscaled),
+        )
     split = sum(SPLIT in r.correction_applied for r in rows)
     joined = sum(JOIN in r.correction_applied for r in rows)
     if split or joined:
@@ -717,12 +802,13 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group('OUTPUT OPTIONS')
     group.add_argument(
         '--padding', type=int, metavar='PX',
-        help='The white margin around each crop, in pixels (default: 20).'
+        help='The white margin around each crop, in pixels (default: 10).'
     )
     group.add_argument(
         '--debug', action='store_true',
         help='Write pages_debug/{page}.png for each page. The overlay '
-             'shows each box, each scale bar and each identifier read.'
+             'shows each box, each scale bar with its score, each '
+             'rejected candidate in grey, and each identifier read.'
     )
     group.add_argument(
         '--disable_scale_bars', action='store_true',
@@ -733,7 +819,7 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
         default=None,
         help='Read the identifier printed next to each lithic and name '
              'the crop {page}_figure_{label}.png. This is the default. '
-             'RapidOCR is necessary: pip install "PyLithics[ocr]".'
+             'RapidOCR is necessary; see the installation page.'
     )
     group.add_argument(
         '--no_read_labels', dest='read_labels', action='store_false',

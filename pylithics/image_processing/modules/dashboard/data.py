@@ -20,7 +20,7 @@ LOW_SCALE_CONFIDENCE_THRESHOLD = 0.8
 
 # Known column / value labels used across the dashboard UI.  Anything
 # missing from this map falls through ``humanize()`` (snake_case → "Title
-# case"), which is reasonable for fields we haven't curated.
+# case"), which is reasonable for fields that are not curated here.
 LABELS = {
     "image_id": "Image ID",
     "surface_type": "Surface type",
@@ -95,8 +95,9 @@ _AREA_FIELDS = frozenset({
 
 def unit_suffix(df: pd.DataFrame, field: str) -> str:
     """
-    Return a parenthesised unit suffix for ``field`` based on the
-    calibration method(s) present in ``df``.
+    Return a parenthesised unit suffix for ``field``.
+
+    The suffix depends on the calibration method(s) present in ``df``:
 
     - All rows ``scale_bar`` calibrated → ``(mm)`` / ``(mm²)``
     - All rows pixel-only             → ``(px)`` / ``(px²)``
@@ -256,7 +257,7 @@ def overview_counts(
     run_summary: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, int]:
     """
-    Counts powering the Overview page.
+    Count the values shown on the Overview page.
 
     The dashboard renders these as two rows of metric tiles: data quality
     (Row 1) and assemblage volume (Row 2). All values are integers; missing
@@ -327,12 +328,12 @@ def filter_metrics(
 
 
 def parent_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """Public alias for ``_parent_rows`` — the dorsal/ventral/etc. parents."""
+    """Return the parent rows (dorsal, ventral, etc.); alias for ``_parent_rows``."""
     return _parent_rows(df)
 
 
 def dorsal_scars(df: pd.DataFrame) -> pd.DataFrame:
-    """Public alias for ``_dorsal_scar_rows``."""
+    """Return the dorsal scar rows; alias for ``_dorsal_scar_rows``."""
     return _dorsal_scar_rows(df)
 
 
@@ -359,14 +360,14 @@ def per_image_image_paths(
 
 
 def _parent_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """Rows where the surface_feature equals the surface_type (the parent)."""
+    """Return rows where the surface_feature equals the surface_type (the parent)."""
     if df.empty:
         return df
     return df[df["surface_feature"] == df["surface_type"]]
 
 
 def _dorsal_scar_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """Child rows on the Dorsal surface whose surface_feature starts 'scar'."""
+    """Return child rows on the Dorsal surface whose surface_feature starts 'scar'."""
     if df.empty:
         return df
     feature = df["surface_feature"].fillna("").str.lower()
@@ -377,14 +378,14 @@ def _dorsal_scar_rows(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _cortex_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """Rows flagged ``is_cortex == True``."""
+    """Return rows flagged ``is_cortex == True``."""
     if df.empty or "is_cortex" not in df.columns:
         return df.iloc[0:0]
     return df[_as_bool(df["is_cortex"])]
 
 
 def _scar_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """Child rows whose ``surface_feature`` starts with 'scar '."""
+    """Return child rows whose ``surface_feature`` starts with 'scar '."""
     if df.empty:
         return df
     feature = df["surface_feature"].fillna("").str.lower()
@@ -395,7 +396,7 @@ def _scar_rows(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _scar_rows_with_arrows(df: pd.DataFrame) -> pd.DataFrame:
-    """Scar children that also have ``has_arrow == True``."""
+    """Return scar children that also have ``has_arrow == True``."""
     scars = _scar_rows(df)
     if scars.empty or "has_arrow" not in scars.columns:
         return scars.iloc[0:0]
@@ -403,7 +404,7 @@ def _scar_rows_with_arrows(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _count_low_confidence_scales(df: pd.DataFrame) -> int:
-    """Distinct image_ids whose scale_confidence is below the threshold."""
+    """Count distinct image_ids whose scale_confidence is below the threshold."""
     if df.empty or "scale_confidence" not in df.columns:
         return 0
     confidence = pd.to_numeric(df["scale_confidence"], errors="coerce")
@@ -412,7 +413,7 @@ def _count_low_confidence_scales(df: pd.DataFrame) -> int:
 
 
 def _count_unclassified_surfaces(df: pd.DataFrame) -> int:
-    """Parent rows whose ``surface_type`` is 'Unclassified'."""
+    """Count parent rows whose ``surface_type`` is 'Unclassified'."""
     if df.empty:
         return 0
     parents = _parent_rows(df)
@@ -420,7 +421,7 @@ def _count_unclassified_surfaces(df: pd.DataFrame) -> int:
 
 
 def _count_zero_scar_lithics(df: pd.DataFrame) -> int:
-    """Lithics whose dorsal parent reports zero ``scar_count``."""
+    """Count lithics whose dorsal parent reports zero ``scar_count``."""
     if df.empty or "scar_count" not in df.columns:
         return 0
     parents = _parent_rows(df)
@@ -435,7 +436,7 @@ def _count_zero_scar_lithics(df: pd.DataFrame) -> int:
 
 
 def _count_pixel_only_lithics(df: pd.DataFrame) -> int:
-    """Distinct lithics whose ``calibration_method`` is 'pixels'."""
+    """Count distinct lithics whose ``calibration_method`` is 'pixels'."""
     if df.empty or "calibration_method" not in df.columns:
         return 0
     pixels_only = df[df["calibration_method"] == "pixels"]
@@ -444,7 +445,7 @@ def _count_pixel_only_lithics(df: pd.DataFrame) -> int:
 
 def _count_mixed_dpi(run_summary: Dict[str, Any]) -> int:
     """
-    Number of distinct non-null DPI values across successful images.
+    Count the distinct non-null DPI values across successful images.
 
     Returns 0 when fewer than two distinct values are found (the assemblage
     is consistent — nothing to flag). Returns N ≥ 2 when multiple DPIs are
@@ -459,7 +460,7 @@ def _count_mixed_dpi(run_summary: Dict[str, Any]) -> int:
 
 
 def _count_missing_dpi(run_summary: Dict[str, Any]) -> int:
-    """Successful images whose DPI could not be extracted from metadata."""
+    """Count successful images whose DPI could not be extracted from metadata."""
     successful = run_summary.get("successful") or []
     return sum(
         1 for entry in successful

@@ -1,5 +1,5 @@
 # Core dependencies for image processing and computer vision
-opencv-python-headless>=4.8.0,<5.0.0    # For image processing (headless version, no GUI)
+opencv-contrib-python-headless>=4.8.0,<5.0.0  # Image processing; contrib for dnn_superres (upscaling)
 Pillow>=10.0.0,<11.0.0                   # For handling image files and DPI checks
 numpy>=1.24.0,<2.0.0                     # Array handling and mathematical operations
 

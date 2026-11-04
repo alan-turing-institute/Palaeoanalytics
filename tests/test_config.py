@@ -1,7 +1,6 @@
 """Tests for the configuration management system."""
 
 import os
-import tempfile
 from unittest.mock import patch
 
 import pytest

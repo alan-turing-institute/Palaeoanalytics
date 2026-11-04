@@ -26,6 +26,7 @@ from pylithics.image_processing.config import (
     get_config_manager,
     get_page_segmentation_config,
 )
+from pylithics.page_segmentation.detection import Component
 from pylithics.page_segmentation import export as export_module
 from pylithics.page_segmentation import grouping as grouping_module
 from pylithics.page_segmentation import identifiers as identifiers_module
@@ -57,7 +58,7 @@ from pylithics.page_segmentation.grouping import (
     reading_order,
 )
 
-# The sample plate shows five lithics and one shared scale bar.
+# The sample plate shows five lithics numbered 1 to 5 and one shared scale bar.
 EXPECTED_ARTEFACTS = 5
 EXPECTED_SCALE_BARS = 1
 EXPECTED_DPI = 300.0
@@ -698,6 +699,11 @@ class TestIdentifierStages:
         boxes = [[100, 100, 400, 400], [430, 100, 700, 400]]
         assert identifiers_module._home_box([405, 200, 425, 230], boxes) is None
 
+    def test_glyph_inside_two_overlapping_boxes_goes_to_the_smaller(self):
+        """Fauresmith figure 16, box 6: the E sits where a neighbour's box reaches over."""
+        boxes = [[600, 700, 1700, 1500], [1450, 560, 2180, 950]]
+        assert identifiers_module._home_box([1460, 880, 1490, 930], boxes) == 1
+
     def test_read_name_and_index_name_differ(self):
         read = identifiers_module.Identifier(label='7', source='read', confidence=0.9)
         assert export_module._artefact_name('plate', 3, read) == 'plate_figure_7.png'
@@ -1081,6 +1087,35 @@ class TestCrossSectionAttachment:
 
 
 @pytest.mark.unit
+class TestSideBySideViews:
+    """Two views whose boxes overlap by a sliver are still side by side."""
+
+    PAGE_WIDTH = 2000
+
+    @staticmethod
+    def _component(box):
+        x0, y0, x1, y1 = box
+        return grouping_module.Component(
+            box=list(box), width=x1 - x0, height=y1 - y0, ink=(x1 - x0) * (y1 - y0),
+        )
+
+    def _linked(self, a, b):
+        sets = grouping_module._UnionFind(2)
+        grouping_module.link_adjacent_views(
+            [self._component(a), self._component(b)], sets, self.PAGE_WIDTH, 0.025
+        )
+        return sets.find(0) == sets.find(1)
+
+    def test_a_slight_overlap_still_links(self):
+        """Archaic Oldowan figure 4: two views overlapping by 15 px of 194."""
+        assert self._linked((1391, 15, 1667, 363), (1652, 56, 1846, 390))
+
+    def test_a_corner_clip_does_not_link(self):
+        """Diagonal neighbours on a dense plate clip at a corner only."""
+        assert not self._linked((100, 100, 400, 400), (385, 385, 700, 700))
+
+
+@pytest.mark.unit
 class TestPageFurniture:
     """A page-wide header rule is neither a scale nor a drawing."""
 
@@ -1322,19 +1357,21 @@ class TestOutputSafety:
         assert (out / "images" / "my_flake.png").exists()
 
     def test_a_second_run_replaces_its_crops_and_keeps_typed_scales(
-        self, tmp_path, pages_dir
+        self, tmp_path, pages_dir, caplog
     ):
         out = tmp_path / "out"
         assert run_prep(pages_dir, out) == 0
         before = sorted(os.listdir(out / "images"))
         manifest_before = read_manifest(out)
         meta = _fill_scales(out)
+        assert "were cut before" not in caplog.text
 
         assert run_prep(pages_dir, out) == 0
 
         assert sorted(os.listdir(out / "images")) == before
         assert read_manifest(out) == manifest_before
         assert (out / "meta_data.csv").read_text() == meta
+        assert "1 page(s) were cut before; their crops were replaced." in caplog.text
 
     def test_added_pages_are_cut_and_appended(self, tmp_path, pages_dir, plate_path):
         """Adding a plate adds its crops. The rest is cut again, unchanged."""
@@ -1386,16 +1423,30 @@ class TestOutputSafety:
         assert (out / "images" / "my_flake.png").read_bytes() == b"mine"
         assert _read_metadata(out)["my_flake.png"]["scale"] == "50"
 
-    def test_a_crop_never_replaces_an_existing_image(self, tmp_path, pages_dir):
-        """A page whose crop name is taken is refused whole, before any write."""
+    def test_a_crop_left_without_a_manifest_row_is_replaced(
+        self, tmp_path, pages_dir, caplog
+    ):
+        """A file carrying a crop name of a page was written by the command."""
         out = tmp_path / "out"
         prepare_output_dir(str(out))
-        taken = out / "images" / "sample_plate_box_01.png"
-        taken.write_bytes(b"mine")
+        orphan = out / "images" / "sample_plate_figure_1.png"
+        orphan.write_bytes(b"left by a stopped run")
         assert run_prep(pages_dir, out) == 0
-        assert taken.read_bytes() == b"mine"
-        assert os.listdir(out / "images") == ["sample_plate_box_01.png"]
-        assert _read_metadata(out) == {}
+        assert orphan.read_bytes() != b"left by a stopped run"
+        assert len(os.listdir(out / "images")) == EXPECTED_ARTEFACTS
+        assert "1 crop file(s) left by an earlier run had no manifest row" in caplog.text
+
+    def test_a_twin_page_is_refused_and_named(self, tmp_path, plate_path, caplog):
+        """Two pages that differ only by extension give the same crop names."""
+        pages = tmp_path / "pages"
+        pages.mkdir()
+        for name in ("plate.png", "plate.tif"):
+            Image.open(plate_path).save(pages / name, dpi=(EXPECTED_DPI, EXPECTED_DPI))
+        out = tmp_path / "out"
+        assert run_prep(pages, out) == 1
+        assert len(os.listdir(out / "images")) == EXPECTED_ARTEFACTS
+        assert "plate.tif gives the same crop names as plate.png" in caplog.text
+        assert "1 page(s) not cut: plate.tif" in caplog.text
 
 
 ### METADATA FOR THE ANALYSIS ###
@@ -1532,11 +1583,11 @@ class TestPipeline:
         scales = sorted(os.listdir(out / "scales"))
         assert len(images) == EXPECTED_ARTEFACTS
         assert scales == ["sample_plate_scale_bar.png"]
-        assert images[0] == "sample_plate_box_01.png"
+        assert images == [f"sample_plate_figure_{n}.png" for n in range(1, 6)]
 
         meta = _read_metadata(out)
         assert set(meta) == set(images)
-        assert meta["sample_plate_box_01.png"]["scale_id"] == "sample_plate_scale_bar.png"
+        assert meta["sample_plate_figure_1.png"]["scale_id"] == "sample_plate_scale_bar.png"
 
     def test_default_output_is_the_project_folder(self, tmp_path, pages_dir):
         """pages/ in, images/ and scales/ out, in the same folder."""
@@ -1637,6 +1688,62 @@ class TestPipeline:
         out = tmp_path / "out"
         run_prep(pages_dir, out, "--gap", "0.4", "--narrow", "0.4", "--no_read_labels")
         assert len(os.listdir(out / "images")) < EXPECTED_ARTEFACTS
+
+
+### WORKING RESOLUTION ###
+
+@pytest.mark.integration
+class TestWorkingResolution:
+    """A thin page is detected on an upscaled copy; the crops stay source pixels."""
+
+    @staticmethod
+    def _small_pages(tmp_path, plate_path):
+        """The sample plate at a quarter of its size: strokes about one pixel."""
+        pytest.importorskip('cv2.dnn_superres')
+        pages = tmp_path / "pages"
+        pages.mkdir()
+        image = Image.open(plate_path)
+        small = image.resize((image.width // 4, image.height // 4), Image.LANCZOS)
+        small.save(pages / "small_plate.png", dpi=(75, 75))
+        return pages
+
+    def test_a_thin_page_is_upscaled_and_its_crops_are_source_pixels(
+        self, tmp_path, plate_path
+    ):
+        pages = self._small_pages(tmp_path, plate_path)
+        out = tmp_path / "out"
+        assert run_prep(pages, out, "--no_read_labels") == 0
+        rows = [r for r in read_manifest(out) if r["image_type"] == "artefact"]
+        assert rows and {r["upscale_factor"] for r in rows} <= {"2", "3", "4"}
+        assert all(float(r["stroke_width_px"]) < 4 for r in rows)
+        page = np.array(Image.open(pages / "small_plate.png"))
+        for row in rows:
+            crop = np.array(Image.open(out / "images" / row["output_crop_id"]))
+            box = page[int(row["y0"]):int(row["y1"]), int(row["x0"]):int(row["x1"])]
+            assert np.array_equal(crop, box)
+        with open(out / "meta_data.csv", newline="", encoding="utf-8") as handle:
+            flags = [r["flag"] for r in csv.DictReader(handle)]
+        assert all("low_resolution" in f for f in flags)
+
+    def test_switched_off_means_factor_one(self, tmp_path, plate_path, monkeypatch):
+        """The configuration manager is a process-wide cache; clear it so the file is read."""
+        from pylithics.image_processing.config import clear_config_cache
+        clear_config_cache()
+        monkeypatch.setattr("pylithics.image_processing.config._config_manager", None)
+        pages = self._small_pages(tmp_path, plate_path)
+        config = tmp_path / "config.yaml"
+        with open(os.path.join(os.path.dirname(__file__), "..", "pylithics", "config",
+                               "config.yaml")) as handle:
+            text = handle.read().replace("  enabled: true\n  model: espcn",
+                                         "  enabled: false\n  model: espcn")
+        config.write_text(text)
+        out = tmp_path / "out"
+        assert run_prep(pages, out, "--no_read_labels", "--config_file", str(config)) == 0
+        rows = [r for r in read_manifest(out) if r["image_type"] == "artefact"]
+        assert rows and {r["upscale_factor"] for r in rows} == {"1"}
+        with open(out / "meta_data.csv", newline="", encoding="utf-8") as handle:
+            assert not any("low_resolution" in r["flag"] for r in csv.DictReader(handle))
+        clear_config_cache()
 
 
 ### A RUN THAT GOES WRONG ###
@@ -1834,3 +1941,55 @@ class TestConfiguration:
             {'page_segmentation': {'grouping': {'gap': 0.99}}}
         )
         assert config['grouping']['gap'] == 0.99
+
+
+@pytest.mark.unit
+class TestCaptionCornersAndChains:
+    """A caption sits on the bar's line or follows another caption; a sparse mark never joins."""
+
+    BAR = [400, 1000, 800, 1020]
+
+    def test_a_mark_at_the_corner_is_not_a_caption(self):
+        """Spain 5's "18" sat above and past the end of its scale; Gadeb's arrows likewise."""
+        assert not grouping_module._is_bar_caption([810, 970, 830, 990], self.BAR)
+
+    def test_a_unit_hanging_off_the_end_is_not_level_with_it(self):
+        """p47's arrow overlapped the bar's line by a sliver of its own height."""
+        assert not grouping_module._is_bar_caption([810, 1016, 890, 1100], self.BAR)
+
+    def test_text_beside_an_upright_bar_is_its_caption(self):
+        """Wimereux's "5 cm" stands beside the top of its upright ruler, set upright too."""
+        upright = [56, 683, 60, 760]
+        assert grouping_module._is_bar_caption([35, 658, 48, 693], upright)
+        assert not grouping_module._is_bar_caption([35, 600, 48, 640], upright)
+
+    def test_a_unit_follows_the_numeral_before_it(self):
+        numeral, unit = [760, 970, 775, 990], [805, 972, 845, 990]
+        assert not grouping_module._is_bar_caption(unit, self.BAR)
+        assert grouping_module._follows_caption(unit, numeral)
+
+    def test_the_split_chains_and_drops_sparse_marks(self):
+        numeral, unit = [760, 970, 775, 990], [805, 972, 845, 990]
+        arrow = [810, 1016, 840, 1050]
+        components = [
+            Component(box=numeral, width=15, height=20, ink=180),     # dense glyph
+            Component(box=unit, width=40, height=18, ink=400),
+            Component(box=arrow, width=30, height=34, ink=100),       # a thin diagonal stroke
+        ]
+        captions, labels = grouping_module._split_bar_captions(
+            [numeral, unit, arrow], [self.BAR], components
+        )
+        assert captions == [numeral, unit] and labels == [arrow]
+
+
+@pytest.mark.unit
+class TestLabelSizeOnAStrip:
+    """Label size limits follow the page's long side, so a strip's digits stay labels."""
+
+    def test_a_digit_on_a_strip_is_not_drawing_sized(self):
+        digit = Component(box=[100, 10, 115, 30], width=15, height=20, ink=200)
+        assert not grouping_module._is_drawing_sized(digit, 800, 200)
+
+    def test_a_drawing_on_a_strip_still_is(self):
+        drawing = Component(box=[100, 10, 300, 150], width=200, height=140, ink=5000)
+        assert grouping_module._is_drawing_sized(drawing, 800, 200)

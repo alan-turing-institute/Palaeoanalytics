@@ -273,6 +273,40 @@ class TestVerifyImageDpiAndScale:
 
 
 @pytest.mark.unit
+class TestWorkingResolutionInPreprocessing:
+    """The binary image is built at working resolution and returned at source size."""
+
+    @staticmethod
+    def _thin_drawing(path):
+        image = np.full((150, 200), 255, dtype=np.uint8)
+        cv2.rectangle(image, (20, 20), (180, 130), 0, 1)          # a one-pixel outline
+        for y in range(30, 125, 6):
+            cv2.line(image, (30, y), (170, y), 0, 1)
+        Image.fromarray(image).save(path, dpi=(75, 75))
+        return path
+
+    def test_thin_drawing_is_upscaled_and_returned_at_source_size(self, tmp_path):
+        pytest.importorskip('cv2.dnn_superres')
+        path = self._thin_drawing(str(tmp_path / "thin.png"))
+        config = {'thresholding': {'method': 'otsu'}, 'normalization': {'enabled': False},
+                  'grayscale_conversion': {'enabled': True}}
+        result = execute_preprocessing_pipeline(path, config)
+        assert result is not None
+        assert result.upscale_factor >= 2
+        assert result.image.shape == (150, 200)
+        assert set(np.unique(result.image)).issubset({0, 255})
+
+    def test_off_gives_factor_one(self, tmp_path):
+        path = self._thin_drawing(str(tmp_path / "thin.png"))
+        config = {'thresholding': {'method': 'otsu'}, 'normalization': {'enabled': False},
+                  'grayscale_conversion': {'enabled': True},
+                  'working_resolution': {'enabled': False}}
+        result = execute_preprocessing_pipeline(path, config)
+        assert result is not None and result.upscale_factor == 1
+        assert result.image.shape == (150, 200)
+
+
+@pytest.mark.unit
 class TestExecutePreprocessingPipeline:
 
     def test_returns_binary_image_for_valid_input(
@@ -280,8 +314,9 @@ class TestExecutePreprocessingPipeline:
     ):
         result = execute_preprocessing_pipeline(test_image_with_dpi, sample_config)
         assert result is not None
-        assert result.ndim == 2
-        assert set(np.unique(result)).issubset({0, 255})
+        assert result.image.ndim == 2
+        assert set(np.unique(result.image)).issubset({0, 255})
+        assert result.upscale_factor >= 1
 
     def test_returns_none_for_missing_image(self, sample_config):
         assert execute_preprocessing_pipeline(
@@ -372,7 +407,7 @@ class TestPipelineEdgeCases:
             result = execute_preprocessing_pipeline(path, sample_config)
 
         assert result is not None
-        assert set(np.unique(result)).issubset({0, 255})
+        assert set(np.unique(result.image)).issubset({0, 255})
 
 
 # ---------------------------------------------------------------------------

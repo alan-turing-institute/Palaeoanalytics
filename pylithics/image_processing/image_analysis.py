@@ -1,18 +1,8 @@
 """
-PyLithics: Image Analysis Pipeline
-==================================
+Image analysis pipeline for PyLithics.
 
-Main orchestrator for the PyLithics image analysis pipeline. Coordinates
-specialized modules to perform comprehensive quantitative analysis of
-lithic artifacts via image processing.
-
-Main Functions:
-    * process_and_save_contours(inverted_image, conversion_factor,
-          output_dir, image_id, image_dpi)
-
-Usage Example:
-    >>> from pylithics.image_processing.image_analysis import process_and_save_contours
-    >>> process_and_save_contours(inverted_image, 0.01, "/path/to/output", "artifact_001", 300)
+Coordinates the analysis modules to measure a lithic artifact from its
+preprocessed image and to write the results.
 """
 
 import logging
@@ -79,10 +69,10 @@ def process_and_save_contours(
     calibration_method="pixels",
     scale_confidence=None,
     csv_path: Optional[str] = None,
+    upscale_factor: int = 1,
 ) -> None:
     """
-    Main pipeline for processing contours and generating
-    comprehensive lithic analysis.
+    Run the analysis pipeline on one image and save the results.
 
     Parameters
     ----------
@@ -100,6 +90,10 @@ def process_and_save_contours(
         Conversion method ("scale_bar", "dpi", "pixels").
     scale_confidence : float, optional
         Scale detection confidence (0-1).
+    upscale_factor : int, optional
+        The working-resolution factor the binary image was made at;
+        recorded in the CSV and JSON. Measurements are in source pixels
+        whatever its value.
 
     Returns
     -------
@@ -139,7 +133,7 @@ def process_and_save_contours(
         _convert_and_export(
             metrics, conversion_factor, output_dir, image_id,
             calibration_method, scale_confidence,
-            csv_path=csv_path,
+            csv_path=csv_path, upscale_factor=upscale_factor,
         )
 
         config_manager = get_config_manager()
@@ -502,6 +496,7 @@ def _convert_and_export(
     metrics, conversion_factor, output_dir, image_id,
     calibration_method, scale_confidence,
     csv_path: Optional[str] = None,
+    upscale_factor: int = 1,
 ) -> None:
     """
     Convert metrics to real-world units and save to CSV.
@@ -538,7 +533,8 @@ def _convert_and_export(
             if conversion_factor and conversion_factor != 1.0
             else None
         ),
-        'scale_confidence': scale_confidence
+        'scale_confidence': scale_confidence,
+        'upscale_factor': upscale_factor,
     }
 
     try:

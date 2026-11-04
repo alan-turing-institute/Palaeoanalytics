@@ -1,7 +1,6 @@
 """Tests for the dashboard data layer."""
 
 import json
-import os
 
 import pandas as pd
 import pytest

@@ -109,7 +109,7 @@ A row with no `scale` value can only be measured in **pixels**. Before
 the batch starts, the command counts those rows and asks once:
 
 ```
-257 of 316 images have no scale value. Measure them in pixels? [y/N]
+257 of 316 rows in meta_data.csv have an empty scale column (the length of the scale bar in mm). Measure them in pixels? [y/N]
 ```
 
 - `y`: all images are analysed. The images with no scale value are in

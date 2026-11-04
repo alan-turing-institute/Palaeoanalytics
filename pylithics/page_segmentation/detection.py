@@ -22,6 +22,10 @@ from pylithics.image_processing.importer import (
     normalise_dpi,
 )
 
+from pylithics.image_processing.resolution import (
+    WorkingCopy, restore_to_grid, settings_for, working_copy,
+)
+
 from .geometry import BBox
 
 # Components below both thresholds are scanner speckle, not illustration.
@@ -164,49 +168,74 @@ def _extract_dpi(
     return (normalise_dpi(dpi[0]), normalise_dpi(dpi[1]))
 
 
-def build_detection_mask(
-    page: PageImage, config: Dict
-) -> Tuple[np.ndarray, np.ndarray]:
+@dataclass
+class DetectionMasks:
+    """
+    The masks ink is located on, and the working copy they came from.
+
+    ``closed`` and ``raw`` are on the source pixel grid whatever the
+    working resolution was, so every box measured on them is in source
+    coordinates. ``working`` holds the grayscale copy detection ran on
+    and its factor, for a caller that reads glyphs from it.
+    """
+
+    closed: np.ndarray
+    raw: np.ndarray
+    working: WorkingCopy
+
+    def __iter__(self):
+        """Unpack as ``closed, raw`` for callers that need only the masks."""
+        return iter((self.closed, self.raw))
+
+
+def build_detection_mask(page: PageImage, config: Dict) -> DetectionMasks:
     """
     Build the binary masks used to locate ink.
 
-    Ink is thresholded with Otsu and inverted so that marks are set
-    pixels, then closed with a DPI-scaled kernel so a stippled or
-    broken outline reads as one region.
+    The page is measured first. When its strokes are too thin for
+    detection, a working copy is upscaled by an integer factor (see
+    ``image_processing.resolution``). Ink is thresholded with Otsu on
+    that copy and inverted so that marks are set pixels, then closed
+    with a kernel scaled by DPI and by the factor so a stippled or
+    broken outline reads as one region. Both masks are then restored
+    to the source pixel grid.
 
-    No filter runs before the threshold. A 3 px median was measured
-    on 2026-09-28 over the 92-page folder: line drawings are set in
-    strokes about two pixels wide on a page under 900 px, and the
-    filter erased a quarter of the ink on such pages. Crops named from
-    the plate fell from 580 to 541 and flagged crops rose by a half.
+    No filter runs before the threshold: on a small page the strokes
+    are about two pixels wide, and a median filter erases them.
 
     Parameters
     ----------
     page : PageImage
         The loaded page.
     config : dict
-        Full configuration dictionary, used for DPI scaling.
+        Full configuration dictionary, for DPI scaling and the
+        ``working_resolution`` section.
 
     Returns
     -------
-    tuple of np.ndarray
-        ``(closed, raw)`` masks. ``raw`` measures true ink coverage;
-        ``closed`` is what connected components are found on.
+    DetectionMasks
+        ``closed`` is what connected components are found on; ``raw``
+        measures true ink coverage; both on the source grid.
     """
+    working = working_copy(
+        page.gray, settings_for(config, 'pages'), os.path.basename(page.path)
+    )
     raw = cv2.threshold(
-        page.gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+        working.gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
     )[1]
-
-    dpi_scale = _page_dpi_scale(page, config)
+    dpi_scale = _page_dpi_scale(page, config) * working.factor
     size = max(3, int(_BASE_CLOSE_KERNEL * dpi_scale))
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (size, size))
     closed = cv2.morphologyEx(raw, cv2.MORPH_CLOSE, kernel)
-
     logging.debug(
-        "Detection mask: closing %dx%d (dpi scale %.2f)",
-        size, size, dpi_scale,
+        "Detection mask: closing %dx%d (dpi scale %.2f, working x%d)",
+        size, size, dpi_scale, working.factor,
     )
-    return closed, raw
+    coverage = settings_for(config, 'pages').get('restore_ink_coverage', 0.35)
+    shape = working.source_shape
+    return DetectionMasks(
+        restore_to_grid(closed, shape, coverage), restore_to_grid(raw, shape, coverage), working
+    )
 
 
 def _page_dpi_scale(page: PageImage, config: Dict) -> float:

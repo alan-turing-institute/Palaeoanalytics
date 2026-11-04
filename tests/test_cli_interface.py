@@ -1,7 +1,6 @@
 """Tests for the CLI argument parser and main() entry point."""
 
 import os
-import tempfile
 from unittest.mock import patch
 
 import pytest
@@ -477,3 +476,26 @@ class TestSetupLoggingLogFile:
             isinstance(h, logging.FileHandler)
             for h in logging.getLogger().handlers
         )
+
+
+@pytest.mark.integration
+class TestConfigFileIsRead:
+    """``--config_file`` must reach the process-wide configuration manager."""
+
+    def test_config_file_values_are_in_force(self, tmp_path):
+        from pylithics.image_processing.config import get_config_manager
+        config = tmp_path / "config.yaml"
+        config.write_text("working_resolution:\n  enabled: false\n")
+        clear_config_cache()
+        try:
+            argv = ["pylithics", "--data_dir", "/d", "--meta_file", "/m.csv",
+                    "--config_file", str(config)]
+            with patch("sys.argv", argv), \
+                 patch.object(PyLithicsApplication, "validate_inputs", return_value=True), \
+                 patch.object(PyLithicsApplication, "run_batch_analysis",
+                              return_value={"success": True, "processed_successfully": 1,
+                                            "total_images": 1, "failed_images": []}):
+                assert main() == 0
+            assert get_config_manager().config["working_resolution"]["enabled"] is False
+        finally:
+            clear_config_cache()

@@ -10,7 +10,7 @@ with the lines from the log.
 
 ### Python version error
 
-**Problem**: "Python 3.8+ required", or a compatibility error
+**Problem**: "Python 3.10+ required", or a compatibility error
 
 **Procedure**:
 
@@ -20,10 +20,10 @@ python --version
 
 # Install the correct Python version
 # macOS (with Homebrew)
-brew install python@3.11
+brew install python@3.12
 
 # Ubuntu/Debian
-sudo apt-get install python3.11
+sudo apt-get install python3.12
 
 # Windows: get Python from python.org
 ```
@@ -41,8 +41,9 @@ pip install --upgrade pip
 # Install with full output to see the cause
 pip install . -v
 
-# If OpenCV is the cause, install it first
-pip install opencv-python-headless>=4.8.0
+# If OpenCV is the cause, install the contrib build first.
+# Only the contrib build has the upscaling module (dnn_superres).
+pip install "opencv-contrib-python-headless>=4.8.0"
 pip install .
 ```
 
@@ -292,11 +293,23 @@ print("Calibration methods:", df['calibration_method'].value_counts())
 **OpenCV does not install**:
 
 ```bash
-# Use the headless build (no GUI)
-pip install opencv-python-headless
+# Use the headless contrib build (no GUI, with the upscaling module)
+pip install opencv-contrib-python-headless
+```
 
-# Or install with conda
-conda install opencv
+Do not install `opencv-python` or `opencv-python-headless` beside it.
+Those builds have no `dnn_superres` module, and the upscaler stops.
+
+**PyLithics is slow on an Apple Silicon Mac**:
+
+An Intel build of Python runs on an Apple Silicon Mac through Rosetta,
+and the upscaler is three times slower. Make sure that Python is
+native:
+
+```bash
+# Must print arm64. If it prints x86_64, install a native Python
+# (for example with Homebrew) and make the virtual environment again.
+python -c "import platform; print(platform.machine())"
 ```
 
 ### Windows
@@ -327,12 +340,12 @@ sudo yum install python3-devel opencv-devel
 
 ## Error messages
 
-### "images have no scale value. Measure them in pixels?"
+### "rows in meta_data.csv have an empty scale column. Measure them in pixels?"
 
-**Cause**: Some rows in `meta_data.csv` have no `scale` value. Those images can only be measured in pixels
+**Cause**: Some rows in `meta_data.csv` have no value in the `scale` column. That column holds the length of the scale bar in millimetres, which you type. The `scale_id` column names the scale image; it is not enough on its own. Those images can only be measured in pixels
 **Procedure**: Answer `y` to analyse all images, in pixels where there is no scale. Answer `n` to analyse only the images with a scale. Then fill in the `scale` column and start the command again. See [Basic Usage](basic-usage.md#rows-with-no-scale-and-rows-with-a-flag)
 
-### "images with no scale value not analysed"
+### "rows with an empty scale column are not analysed"
 
 **Cause**: You answered `n` to the question above
 **Procedure**: Fill in the `scale` column of `meta_data.csv` for those images. `run_summary.json` lists them. Start the command again

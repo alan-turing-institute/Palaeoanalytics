@@ -22,7 +22,7 @@ def read_requirements():
     else:
         # Fallback requirements if file doesn't exist
         return [
-            "opencv-python-headless>=4.8.0,<5.0.0",
+            "opencv-contrib-python-headless>=4.8.0,<5.0.0",
             "Pillow>=10.0.0,<11.0.0",
             "numpy>=1.24.0,<2.0.0",
             "PyYAML>=6.0,<7.0",
@@ -91,8 +91,6 @@ setup(
         "Topic :: Scientific/Engineering :: Information Analysis",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
@@ -107,19 +105,25 @@ setup(
             "config/*.yaml",
             "config/*.yml",
             "data/pages/sample_plate.png",
+            "models/*.pb",
+            "models/*.json",
+            "models/NOTICE",
             "_source_path.txt",
         ],
     },
 
     # Dependencies
-    python_requires=">=3.8",
+    python_requires=">=3.10",
     install_requires=read_requirements(),
 
     # Optional dependencies for development
     extras_require={
         # Reading the identifiers printed beside each lithic on a plate
-        # (pylithics-pages --read_labels). Pure pip, no system binary.
-        "ocr": ["rapidocr_onnxruntime>=1.3,<2.0"],
+        # (pylithics-pages --read_labels). RapidOCR itself is installed
+        # separately with --no-deps: it declares opencv-python by name,
+        # which would reinstall the plain OpenCV build beside the contrib
+        # build PyLithics needs. This extra carries its other dependencies.
+        "ocr": ["onnxruntime>=1.14", "pyclipper>=1.3", "six>=1.16", "tqdm>=4.60"],
         "dev": [
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
