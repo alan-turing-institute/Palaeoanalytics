@@ -8,7 +8,6 @@ forest from the JSON file bundled with the package. Scoring uses numpy
 only; training lives in ``tools/train_scale_classifier.py``.
 """
 
-import json
 import logging
 import os
 from dataclasses import dataclass, field
@@ -17,8 +16,11 @@ from typing import Dict, List, Optional, Sequence
 import cv2
 import numpy as np
 
+from ..forest import Model, ModelUnavailable, Tree, load_forest, score_features
 from .detection import Component
 from .geometry import BBox, box_height, box_width
+
+__all__ = ['Model', 'ModelUnavailable', 'Tree', 'load_model', 'score', 'score_candidates']
 
 FEATURES = [
     'long_frac', 'short_frac', 'aspect', 'density', 'runs', 'run_regularity',
@@ -88,84 +90,21 @@ class Candidate:
     features: Dict[str, float] = field(default_factory=dict)
 
 
-@dataclass
-class Tree:
-    """One decision tree as parallel node arrays; a leaf has ``left == -1``."""
-
-    left: np.ndarray
-    right: np.ndarray
-    feature: np.ndarray
-    threshold: np.ndarray
-    value: np.ndarray
-
-
-@dataclass
-class Model:
-    """A random forest over the named features: the mean of its trees' leaf values."""
-
-    features: List[str]
-    trees: List[Tree]
-
-
-class ModelUnavailable(RuntimeError):
-    """The model file is missing or unreadable."""
-
-
 def load_model(path: Optional[str] = None) -> Model:
     """
-    Read a model from JSON, by default the file bundled with the package.
+    Read the scale bar model from JSON, by default the file bundled with the package.
 
     Raises
     ------
     ModelUnavailable
         When the file is missing or does not hold a complete model.
     """
-    path = path or os.path.join(MODELS_DIR, DEFAULT_MODEL)
-    if not os.path.isabs(path) and not os.path.isfile(path):
-        path = os.path.join(MODELS_DIR, path)
-    try:
-        with open(path, encoding='utf-8') as handle:
-            data = json.load(handle)
-        model = Model(
-            features=list(data['features']),
-            trees=[_tree_from(t) for t in data['trees']],
-        )
-    except (OSError, KeyError, TypeError, ValueError) as exc:
-        raise ModelUnavailable(f"Scale bar model not read from {path}: {exc}") from exc
-    if not model.trees or any(
-        (t.feature >= len(model.features)).any() for t in model.trees
-    ):
-        raise ModelUnavailable(f"Scale bar model at {path} is not consistent")
-    return model
-
-
-def _tree_from(data: Dict) -> Tree:
-    """Build a tree from its JSON node arrays, checking they agree in length."""
-    arrays = {k: np.asarray(data[k]) for k in ('left', 'right', 'feature', 'threshold', 'value')}
-    if len({len(a) for a in arrays.values()}) != 1:
-        raise ValueError('tree arrays differ in length')
-    return Tree(
-        left=arrays['left'].astype(int), right=arrays['right'].astype(int),
-        feature=arrays['feature'].astype(int), threshold=arrays['threshold'].astype(float),
-        value=arrays['value'].astype(float),
-    )
+    return load_forest(path or DEFAULT_MODEL, MODELS_DIR)
 
 
 def score(features: Dict[str, float], model: Model) -> float:
     """Return the probability that a candidate with these features is a scale bar."""
-    values = np.array([features.get(name, 0.0) for name in model.features], dtype=float)
-    return float(np.mean([_leaf_value(tree, values) for tree in model.trees]))
-
-
-def _leaf_value(tree: Tree, values: np.ndarray) -> float:
-    """Follow one tree down to its leaf for these feature values."""
-    node = 0
-    while tree.left[node] != -1:
-        if values[tree.feature[node]] <= tree.threshold[node]:
-            node = tree.left[node]
-        else:
-            node = tree.right[node]
-    return float(tree.value[node])
+    return score_features(features, model)
 
 
 ### FEATURES ###

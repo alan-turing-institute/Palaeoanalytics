@@ -10,10 +10,6 @@ import os
 import logging
 import yaml
 from typing import Dict, Any, Optional
-try:
-    from importlib import resources
-except ImportError:
-    import importlib_resources as resources
 
 
 class ConfigurationManager:
@@ -190,10 +186,7 @@ def get_arrow_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]:
 
     return config.get('arrow_detection', {
         'enabled': True,
-        'reference_dpi': 300.0,
-        'min_area_scale_factor': 0.7,
-        'min_defect_depth_scale_factor': 0.8,
-        'min_triangle_height_scale_factor': 0.8,
+        'classifier': {'enabled': True, 'model': 'arrow_classifier.json', 'threshold': 0.5},
         'debug_enabled': False,
         'show_arrow_lines': False
     })
@@ -242,9 +235,8 @@ def get_arrow_integration_config(config: Optional[Dict] = None) -> Dict[str, Any
     if config is None:
         config = get_config_manager().config
     return config.get('arrow_integration', {
-        'min_candidate_area': 1.0,
-        'min_solidity': 0.4,
-        'max_solidity': 0.9,
+        'min_candidate_area': 4.0,
+        'max_candidate_share': 0.02,
         'area_match_tolerance': 1.0
     })
 

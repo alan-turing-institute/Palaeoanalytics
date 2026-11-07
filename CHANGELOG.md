@@ -15,7 +15,50 @@ directory is renamed `results/`.
 **Note for testing**: `pylithics-pages` is a new console script, so `git pull`
 alone will not create it. Reinstall with `pip install . --upgrade`.
 
+### Fixed
+- **`symmetry_analysis.enabled` and `voronoi_analysis.enabled` now work (`pylithics`)** —
+  both flags were in `config.yaml` and the documentation but the code did not read
+  them. Set to `false`, the stage is skipped: its CSV columns are `NA` and no
+  `_voronoi.png` is written. New switches `--disable_symmetry_analysis` and
+  `--disable_voronoi_analysis` do the same for one run.
+
+### Changed
+- **Dependencies** — `requirements.txt` lists only what the package needs to run.
+  The test tools (`pytest`, `pytest-cov`, `psutil`, `pyflakes`, `pydocstyle`) are
+  the `dev` extra and the documentation tools (`mkdocs`, `mkdocs-material`,
+  `pymdown-extensions`) the `docs` extra: `pip install -e ".[dev,docs]"`.
+  `setup.py` uses the SPDX licence `GPL-3.0-or-later` and ships the config,
+  model and sample data folders without build warnings.
+- **Travis CI removed** — the configuration, the README badge and the
+  CONTRIBUTING text. The last build was in April 2025.
+- **`.gitignore`** cut to the rules this project uses.
+
 ### Added
+- **`--hide_labels` removes labels from the labelled image (`pylithics`)** — a
+  list with commas of `surfaces`, `scars`, `cortex`, `arrows`, or `all`. The
+  outlines and centroid dots always stay. The same setting is
+  `visualization.labels` in `config.yaml`. Default: every label drawn.
+- **Arrow detection by a width profile and a trained classifier (`pylithics`)** —
+  the arrow drawn on a scar is found from the width of the mark along its
+  axis (a thin, even shaft, a head that widens and then narrows to a point),
+  measured on a four-times supersampled copy, instead of from the two
+  notches between head and shaft. A random forest trained on the project's
+  labelled arrows scores the mark in both directions; the higher score gives
+  the direction, and must reach `arrow_detection.classifier.threshold`
+  (default `0.5`). Small arrows are found and the tail and the tip are no
+  longer swapped on them. A scar or a surface small enough to be a mark is
+  tried too; one that is an arrow becomes the arrow of the scar around it
+  and leaves the scar count. New CSV column `arrow_score`. The columns
+  `triangle_base_length`, `triangle_height`, `shaft_solidity` and
+  `tip_solidity` are gone, with the notch geometry. Arrow detection now
+  runs before scar complexity and Voronoi, so a reassigned mark is not
+  counted. Model bundled as `pylithics/models/arrow_classifier.json`, its
+  labels as `pylithics/models/arrow_labels.csv`; tools
+  `tools/arrow_candidates.py` and `tools/train_arrow_classifier.py`. The
+  `arrow_detection` section of `config.yaml` loses its DPI-scaled
+  thresholds; `arrow_integration` loses `min_solidity`, `max_solidity` and
+  `reference_thresholds` and gains `max_candidate_share`.
+  `pylithics.forest` reads a forest from JSON for both classifiers.
 - **Scale bar classifier (`pylithics-pages`)** — a trained model (a random forest) decides
   which bar-shaped marks are scale bars, in place of the shape rules alone.
   Candidates include bars standing against a lithic, upright bars and

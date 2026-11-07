@@ -190,6 +190,12 @@ pylithics --data_dir ./data --cortex_sensitivity high
 # No scar adjacency analysis
 pylithics --data_dir ./data --disable_scar_complexity
 
+# No symmetry analysis
+pylithics --data_dir ./data --disable_symmetry_analysis
+
+# No Voronoi and convex hull analysis
+pylithics --data_dir ./data --disable_voronoi_analysis
+
 # No morphological closing in the preprocessing
 pylithics --data_dir ./data --closing False
 ```

@@ -247,14 +247,14 @@ plt.show()
 
 ### Speed
 
-There is no command-line switch for the Voronoi analysis. To set it
-off, set `voronoi_analysis.enabled: false` in your `config.yaml` and
-give the file with `--config_file`:
+To set the Voronoi analysis off for a run, use the switch:
 
 ```bash
-pylithics --data_dir ./large_dataset \
-    --config_file ./no_voronoi.yaml
+pylithics --data_dir ./large_dataset --disable_voronoi_analysis
 ```
+
+To set it off for every run, set `voronoi_analysis.enabled: false` in
+your `config.yaml` and give the file with `--config_file`.
 
 ## Archaeological examples
 

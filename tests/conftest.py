@@ -60,10 +60,7 @@ def sample_config():
         },
         'arrow_detection': {
             'enabled': True,
-            'reference_dpi': 300.0,
-            'min_area_scale_factor': 0.7,
-            'min_defect_depth_scale_factor': 0.8,
-            'min_triangle_height_scale_factor': 0.8,
+            'classifier': {'enabled': True, 'model': 'arrow_classifier.json', 'threshold': 0.5},
             'debug_enabled': False,
         },
     }

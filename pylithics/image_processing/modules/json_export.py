@@ -38,11 +38,8 @@ _FEATURE_FIELDS = (
     "arrow_angle",
 )
 
-# Optional arrow-geometry fields (only included when present in the metric).
-_OPTIONAL_ARROW_FIELDS = (
-    "triangle_base_length", "triangle_height",
-    "shaft_solidity", "tip_solidity",
-)
+# Optional arrow fields (only included when present in the metric).
+_OPTIONAL_ARROW_FIELDS = ("arrow_score",)
 
 # Voronoi sub-block keys, sourced from the parent metric.
 _VORONOI_FIELDS = (

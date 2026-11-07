@@ -110,7 +110,7 @@ ALTER TYPE pixels_per_mm TO scale_confidence (F12.4).
 
 `is_cortex` and `has_arrow` stay as string variables with the values
 `True` and `False`. If your CSV has the optional arrow geometry columns
-(see [Glossary](glossary.md#arrow-geometry-optional)), add them to the
+(see [Glossary](glossary.md#arrows)), add them to the
 syntax.
 
 **The same analysis as above**:

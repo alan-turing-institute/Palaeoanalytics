@@ -63,17 +63,41 @@ def visualize_contours_with_hierarchy(
     original = cv2.bitwise_not(inverted_image)
     labeled = cv2.cvtColor(original, cv2.COLOR_GRAY2BGR)
 
+    labels = label_switches(config)
     _draw_arrow_contours(labeled, metrics, arrow_contours)
     contour_info = _draw_contours_and_centroids(
         labeled, contours, metrics
     )
-    label_positions = _draw_labels(labeled, contour_info)
-    _draw_arrow_annotations(labeled, metrics, label_positions, config)
+    label_positions = _draw_labels(labeled, contour_info, labels)
+    _draw_arrow_annotations(labeled, metrics, label_positions, config, labels['arrows'])
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     cv2.imwrite(output_path, labeled)
     logging.debug("Saved visualized contours with arrows to %s",
                  output_path)
+
+
+LABEL_KINDS = ('surfaces', 'scars', 'cortex', 'arrows')
+
+
+def label_switches(config: Optional[Dict]) -> Dict[str, bool]:
+    """
+    Return which kinds of label to draw, from ``visualization.labels``.
+
+    A kind not in the configuration is drawn. ``scars`` covers every
+    child feature that is not cortex: scars, platform marks and edges.
+    """
+    settings = (config or {}).get('visualization', {}).get('labels', {}) or {}
+    return {kind: bool(settings.get(kind, True)) for kind in LABEL_KINDS}
+
+
+def _label_kind(colour: Tuple) -> str:
+    """Return the label kind of a contour from its colour."""
+    if colour == COLOR_SURFACE:
+        return 'surfaces'
+    if colour == COLOR_CORTEX:
+        return 'cortex'
+    return 'scars'
 
 
 def _get_contour_style(metric: Dict) -> Tuple[Tuple, str]:
@@ -272,7 +296,8 @@ def _overlaps_labels(
 
 def _draw_labels(
     labeled: np.ndarray,
-    contour_info: List[Tuple]
+    contour_info: List[Tuple],
+    switches: Optional[Dict[str, bool]] = None,
 ) -> List[Tuple]:
     """
     Draw labels for all contours with overlap avoidance.
@@ -283,15 +308,20 @@ def _draw_labels(
         BGR image to draw on.
     contour_info : list
         From _draw_contours_and_centroids.
+    switches : dict, optional
+        Which label kinds to draw, from ``label_switches``; all when None.
 
     Returns
     -------
     list
         Label positions as (x, y, w, h) for arrow annotation.
     """
+    switches = switches or label_switches(None)
     label_positions = []
 
     for cnt, cx, cy, text, i, contour_color in contour_info:
+        if not switches[_label_kind(contour_color)]:
+            continue
         ts = cv2.getTextSize(text, FONT, FONT_SCALE, FONT_THICKNESS)[0]
         tx, ty = _find_non_overlapping_position(
             label_positions, ts, cnt, cx, cy
@@ -343,7 +373,8 @@ def _draw_arrow_annotations(
     labeled: np.ndarray,
     metrics: List[Dict],
     label_positions: List[Tuple],
-    config: Optional[Dict]
+    config: Optional[Dict],
+    with_labels: bool = True,
 ) -> None:
     """
     Draw arrow lines and angle labels.
@@ -358,6 +389,9 @@ def _draw_arrow_annotations(
         Existing label positions for overlap avoidance.
     config : dict or None
         Configuration dictionary.
+    with_labels : bool
+        Draw the angle label of each arrow; the line follows
+        ``show_arrow_lines`` either way.
     """
     arrow_config = get_arrow_detection_config(config)
     show_lines = arrow_config.get('show_arrow_lines', False)
@@ -377,7 +411,7 @@ def _draw_arrow_annotations(
             )
 
         angle = m.get("arrow_angle")
-        if angle is not None:
+        if with_labels and angle is not None:
             _draw_angle_label(
                 labeled, back, tip, angle, label_positions
             )
@@ -623,10 +657,7 @@ _CALIBRATION_FIELDS = (
     "calibration_method", "pixels_per_mm", "scale_confidence", "upscale_factor",
 )
 
-_OPTIONAL_ARROW_FIELDS = (
-    "triangle_base_length", "triangle_height",
-    "shaft_solidity", "tip_solidity",
-)
+_OPTIONAL_ARROW_FIELDS = ("arrow_score",)
 
 
 def _build_csv_row(
@@ -708,8 +739,7 @@ def _build_column_order(
     complexity = ["scar_complexity"]
     arrows = ["has_arrow", "arrow_angle"]
 
-    for key in ("triangle_base_length", "triangle_height",
-                "shaft_solidity", "tip_solidity"):
+    for key in _OPTIONAL_ARROW_FIELDS:
         if any(key in m for m in metrics):
             arrows.append(key)
 

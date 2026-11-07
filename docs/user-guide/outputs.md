@@ -38,8 +38,8 @@ my_project/results/
 │   └── scale_001.png
 └── arrow_debug/       --arrow_debug       one folder for each lithic
     └── flake_001/
-        ├── scar_1.png                     the arrow found in that scar, with its angle
-        └── scar_1.txt                     the steps of the detection for that scar
+        ├── scar_1.png                     the arrow found in that scar, with its angle and score
+        └── scar_1.txt                     the decision and the measurements for that scar
 ```
 
 `pylithics-pages --debug` follows the same rule in the project folder:
@@ -134,6 +134,7 @@ pixels when it is not. The column `calibration_method` shows which.
 |--------|-------|-------------|
 | `has_arrow` | bool | `True` if an arrow was found |
 | `arrow_angle` | degrees | The angle in the PyLithics frame. See the note below |
+| `arrow_score` | 0–1 | The score of the classifier for the arrow. Present when the classifier decided |
 
 !!! note "Arrow angle"
     `arrow_angle` is in a 0–360° frame like a compass, but the frame
@@ -158,13 +159,6 @@ These columns are present when scale bar calibration was tried:
 | `scale_confidence` | The confidence of the scale bar measurement (0–1) |
 | `upscale_factor` | The factor of the working copy the ink was found on: 1, 2, 3 or 4. Measurements are in input pixels for every value. See [Working Resolution](working-resolution.md). |
 
-### Arrow geometry (optional)
-
-These columns are present only when arrow detection found the
-triangle geometry for at least one scar:
-
-`triangle_base_length`, `triangle_height`, `shaft_solidity`, `tip_solidity`
-
 ## The images
 
 ### The labelled image — `{image_stem}_labeled.png`
@@ -174,6 +168,13 @@ triangle geometry for at least one scar:
 <div markdown>
 
 The source image with the contours, the labels and the arrows drawn on it.
+To remove some of the labels, use `--hide_labels`. The kinds are
+`surfaces`, `scars`, `cortex` and `arrows`; `all` removes every label.
+Give more than one kind in one list, with commas and no spaces. Give the
+option once; a second one replaces the first. For example,
+`--hide_labels surfaces,scars,cortex` leaves the outlines, the centroid
+dots and the arrow angles, and no other label. The same setting is
+`visualization.labels` in `config.yaml`.
 
 **Colours**:
 

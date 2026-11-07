@@ -136,10 +136,12 @@ You can also submit pull requests to other contributors' branches!
 Do you see an [open pull request](https://github.com/alan-turing-institute/Palaoanalytics/pulls) that you find interesting and want to contribute to?
 Simply make your edits on their files and open a pull request to their branch!
 
-What happens if the continuous integration (CI) fails (for example, if the pull request notifies you that "Some checks were not successful")?
-The CI could fail for a number of reasons.
-At the bottom of the pull request, where it says whether your build passed or failed, you can click “Details” next to the test, which takes you to the Travis page.
-You can view the log or rerun the checks if you have write access to the repo by clicking the “Restart build” button in the top right (you must be logged in to Travis CI with your GitHub account see the “Restart build” button).
+Before you open a pull request, run the tests:
+
+```bash
+pip install -e ".[dev]"
+pytest
+```
 
 GitHub has a [nice introduction][github-flow] to the pull request workflow, but please get in touch if you have any questions.
 

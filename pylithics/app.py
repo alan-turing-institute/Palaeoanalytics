@@ -441,7 +441,6 @@ def _worker_process_image(args_tuple) -> tuple:
     """
     (image_id, scale_mm, images_dir, processed_dir,
      entry, csv_path, log_path) = args_tuple
-    global _WORKER_APP
 
     root = logging.getLogger()
     log_handler = logging.FileHandler(log_path, mode="w")
@@ -1380,6 +1379,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
     _add_scale_args(parser)
     _add_cortex_args(parser)
     _add_scar_args(parser)
+    _add_surface_analysis_args(parser)
     _add_output_args(parser)
     _add_explore_args(parser)
     _add_help_args(parser)
@@ -1539,6 +1539,27 @@ def _add_scar_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_surface_analysis_args(parser: argparse.ArgumentParser) -> None:
+    """Add the symmetry and Voronoi switches."""
+    group = parser.add_argument_group('SURFACE ANALYSIS OPTIONS')
+    group.add_argument(
+        '--disable_symmetry_analysis', action='store_true',
+        help='Set symmetry analysis off.'
+    )
+    group.add_argument(
+        '--disable_voronoi_analysis', action='store_true',
+        help='Set Voronoi and convex hull analysis off. No Voronoi image is written.'
+    )
+
+
+def _label_kinds_arg(value: str) -> Dict[str, bool]:
+    """Parse ``--hide_labels`` for argparse, with a clear message for a bad kind."""
+    try:
+        return parse_label_kinds(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
 def _add_output_args(parser: argparse.ArgumentParser) -> None:
     """Add output options argument group."""
     group = parser.add_argument_group('OUTPUT OPTIONS')
@@ -1553,6 +1574,16 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
         '--save_visualizations', action='store_true',
         default=True,
         help='Write the labelled images (default: True).'
+    )
+    group.add_argument(
+        '--hide_labels', type=_label_kinds_arg, metavar='KINDS',
+        help=(
+            'Do not draw these labels on the labelled image: surfaces, scars, '
+            'cortex, arrows, or "all". Give more than one kind in one list, with '
+            'commas and no spaces: --hide_labels surfaces,scars,cortex keeps only '
+            'the arrow angles. Give the option once; a second one replaces the '
+            'first. The outlines and the centroid dots stay.'
+        )
     )
 
 
@@ -1745,6 +1776,7 @@ def _apply_config_overrides(
     _apply_scale_overrides(args, overrides)
     _apply_cortex_overrides(args, overrides)
     _apply_scar_overrides(args, overrides)
+    _apply_surface_analysis_overrides(args, overrides)
     _apply_dpi_overrides(args, overrides)
     _apply_export_overrides(args, overrides)
 
@@ -1794,6 +1826,16 @@ def _apply_scar_overrides(
         overrides['scar_complexity.distance_threshold'] = threshold
 
 
+def _apply_surface_analysis_overrides(
+    args: argparse.Namespace, overrides: Dict[str, Any]
+) -> None:
+    """Map the symmetry and Voronoi switches to config overrides."""
+    if getattr(args, 'disable_symmetry_analysis', False):
+        overrides['symmetry_analysis.enabled'] = False
+    if getattr(args, 'disable_voronoi_analysis', False):
+        overrides['voronoi_analysis.enabled'] = False
+
+
 def _apply_dpi_overrides(
     args: argparse.Namespace, overrides: Dict[str, Any]
 ) -> None:
@@ -1806,12 +1848,36 @@ def _apply_dpi_overrides(
         overrides['dpi_processing.max_scale_factor'] = args.dpi_max_scale
 
 
+LABEL_KINDS = ('surfaces', 'scars', 'cortex', 'arrows')
+
+
+def parse_label_kinds(value: str) -> Dict[str, bool]:
+    """
+    Turn the ``--hide_labels`` value into the ``visualization.labels`` setting.
+
+    The kinds named are set off, the rest stay on. ``all`` sets every
+    kind off. Raises ``ValueError`` for a kind that is not known.
+    """
+    hidden = {kind.strip().lower() for kind in value.split(',') if kind.strip()}
+    if hidden == {'all'}:
+        return {kind: False for kind in LABEL_KINDS}
+    unknown = sorted(hidden - set(LABEL_KINDS))
+    if unknown:
+        raise ValueError(
+            f"Unknown label kind(s) {', '.join(unknown)}. "
+            f"Use {', '.join(LABEL_KINDS)} or all."
+        )
+    return {kind: kind not in hidden for kind in LABEL_KINDS}
+
+
 def _apply_export_overrides(
     args: argparse.Namespace, overrides: Dict[str, Any]
 ) -> None:
     """Map output / export CLI args to config overrides."""
     if getattr(args, 'export_json', False):
         overrides['data_export.json_per_lithic'] = True
+    if getattr(args, 'hide_labels', None):
+        overrides['visualization.labels'] = args.hide_labels
     if args.dpi_scaling_mode:
         overrides['dpi_processing.scaling_mode'] = args.dpi_scaling_mode
 

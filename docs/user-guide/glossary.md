@@ -120,15 +120,8 @@ These columns are present when the pipeline had calibration metadata.
 **scale_confidence**
 : The confidence of the scale bar detection (0–1).
 
-## Arrow geometry (optional)
-
-These columns are present only when arrow detection found the triangle geometry for at least one scar.
-
-**triangle_base_length**, **triangle_height**
-: The geometry of the triangle of the arrow tip.
-
-**shaft_solidity**, **tip_solidity**
-: The solidity of the two halves of the arrow, divided at the base of the tip.
+**arrow_score**
+: The score of the arrow classifier for the arrow (0–1). A higher score is a more certain arrow. The column is present when the classifier decided.
 
 ## Surface types
 

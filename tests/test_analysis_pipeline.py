@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from pylithics.image_processing.config import clear_config_cache, get_config_manager
 from pylithics.image_processing.image_analysis import process_and_save_contours
 
 
@@ -126,6 +127,30 @@ class TestProcessAndSaveContours:
 
 
 @pytest.mark.performance
+class TestOptionalStages:
+    """The symmetry and Voronoi stages follow their ``enabled`` flags."""
+
+    def test_symmetry_and_voronoi_can_be_switched_off(self):
+        """With both off, their columns are NA and no Voronoi image is written."""
+        inverted = _make_inverted_binary_image()
+        manager = get_config_manager()
+        manager.update_value("symmetry_analysis", "enabled", False)
+        manager.update_value("voronoi_analysis", "enabled", False)
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                process_and_save_contours(
+                    inverted, conversion_factor=0.1, output_dir=temp_dir,
+                    image_id="simple_shape.png", image_dpi=300,
+                )
+                df = pd.read_csv(os.path.join(temp_dir, "processed_metrics.csv"))
+                assert df["voronoi_num_cells"].isna().all()
+                assert df["convex_hull_area"].isna().all()
+                assert df["vertical_symmetry"].isna().all()
+                assert not any(name.endswith("_voronoi.png") for name in os.listdir(temp_dir))
+        finally:
+            clear_config_cache()
+
+
 class TestPipelinePerformance:
     """Performance bounds for the pipeline."""
 

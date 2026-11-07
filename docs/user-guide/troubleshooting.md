@@ -189,17 +189,18 @@ pylithics --data_dir ./data \
     --arrow_debug --log_level DEBUG
 ```
 
-**Examine the debug output** in `results/arrow_debug/<image>/`. Each scar has a `.png` with the arrow found and a `.txt` with the steps.
+**Examine the debug output** in `results/arrow_debug/<image>/`. Each mark that was tried has a `.png` with the direction found, green when it is an arrow and orange when it is not, and a `.txt` with the scores and the measurements.
 
 **Adjust the settings in `config.yaml`**:
 
 ```yaml
 arrow_detection:
   enabled: true
-  reference_dpi: 300.0
-  min_area_scale_factor: 0.5
-  min_defect_depth_scale_factor: 0.7
+  classifier:
+    threshold: 0.5  # Decrease the value to find more arrows. Increase it to find fewer marks that are not arrows.
 ```
+
+A mark that touches the outline of its scar is not a candidate. If the arrows in a publication touch the scar outlines, they are not found.
 
 ### Cortex detection
 
@@ -231,7 +232,9 @@ pylithics --data_dir ./data --threshold_method simple
 pylithics --data_dir ./data \
     --disable_arrow_detection \
     --disable_cortex_detection \
-    --disable_scar_complexity
+    --disable_scar_complexity \
+    --disable_symmetry_analysis \
+    --disable_voronoi_analysis
 ```
 
 ### Voronoi analysis
@@ -244,9 +247,7 @@ that:
 - The surface classification gives a `Dorsal` row
 - The Dorsal surface has at least one scar
 - `voronoi_analysis.enabled` is `true` in `config.yaml` (the default)
-
-There is no command-line switch for Voronoi analysis. Use the
-configuration file.
+- The run did not use `--disable_voronoi_analysis`
 
 ## Data
 

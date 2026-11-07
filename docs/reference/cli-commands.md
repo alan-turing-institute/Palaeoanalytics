@@ -96,10 +96,8 @@ scale_calibration:
 
 arrow_detection:
   enabled: true
-  reference_dpi: 300.0
-  min_area_scale_factor: 0.7
-  min_defect_depth_scale_factor: 0.8
-  min_triangle_height_scale_factor: 0.8
+  classifier:
+    threshold: 0.5
   debug_enabled: false
 
 surface_classification:
@@ -208,7 +206,7 @@ pylithics --data_dir ./data \
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--disable_arrow_detection` | Set arrow detection off | on |
-| `--arrow_debug` | Write the arrow detection debug output to `results/arrow_debug/<image>/<scar>.png` and `.txt` | off |
+| `--arrow_debug` | Write the arrow detection debug output to `results/arrow_debug/<image>/<scar>.png` and `.txt`: the direction found, the scores and the measurements | off |
 | `--show-arrow-lines` | Draw a red line on each arrow in the labelled images | off |
 
 ```bash
@@ -216,6 +214,8 @@ pylithics --data_dir ./data --arrow_debug
 pylithics --data_dir ./data --disable_arrow_detection
 pylithics --data_dir ./data --show-arrow-lines
 ```
+
+The `arrow_detection.classifier` section of the configuration controls how an arrow is decided. A trained model (a random forest) measures the width of each mark along its axis, in both directions, and gives a score to each direction. The higher score gives the direction of the arrow. A mark is an arrow when that score is at or above `threshold` (default `0.5`). `enabled: false` makes a hand rule on the same measurements decide. The model is `arrow_classifier.json` under `pylithics/models/`. A scar or a surface small enough to be a mark is tried too: when it is an arrow, it becomes the arrow of the scar around it and is not counted as a scar. The CSV column `arrow_score` holds the score.
 
 ## Scale calibration
 
@@ -255,12 +255,24 @@ pylithics --data_dir ./data \
     --scar_complexity_distance_threshold 15.0
 ```
 
+## Surface analysis
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--disable_symmetry_analysis` | Set symmetry analysis off. The symmetry columns are `NA` | on |
+| `--disable_voronoi_analysis` | Set Voronoi and convex hull analysis off. The Voronoi and convex hull columns are `NA`, and no `_voronoi.png` is written | on |
+
+```bash
+pylithics --data_dir ./data --disable_symmetry_analysis --disable_voronoi_analysis
+```
+
 ## Output
 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--export_json` | Also write one JSON file for each lithic to `results/json/{image_stem}.json` | off |
 | `--save_visualizations` | Write the labelled images and the Voronoi diagrams | on |
+| `--hide_labels KINDS` | Do not draw these labels on the labelled image: `surfaces`, `scars`, `cortex`, `arrows`, or `all`. Give more than one kind in one list, with commas and no spaces. Give the option once; a second one replaces the first. The outlines and the centroid dots are always drawn | none hidden |
 | `--explore [PATH]` | With no `PATH`: do the analysis, then open the dashboard at `http://localhost:8501` for `<data_dir>/results/`. With `PATH`: open the dashboard for that folder. No analysis. | off |
 
 ```bash
@@ -269,6 +281,12 @@ pylithics --data_dir ./data
 
 # CSV plus one JSON file for each lithic
 pylithics --data_dir ./data --export_json
+
+# Labelled images with only the arrow angles: one list, commas, no spaces
+pylithics --data_dir ./data --hide_labels surfaces,scars,cortex
+
+# No labels at all
+pylithics --data_dir ./data --hide_labels all
 ```
 
 The same setting is in `config.yaml`:

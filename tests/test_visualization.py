@@ -73,16 +73,32 @@ def _scar_metric(name="scar 1", **overrides):
 class TestVisualizeContoursWithHierarchy:
     """Rendering of labeled contour visualizations."""
 
-    def _run_and_load(self, contours, hierarchy, metrics, image_shape=(100, 100)):
+    def _run_and_load(self, contours, hierarchy, metrics, image_shape=(100, 100), config=None):
         inverted = np.zeros(image_shape, dtype=np.uint8)
         with tempfile.TemporaryDirectory() as temp_dir:
             output_path = os.path.join(temp_dir, "out.png")
             visualize_contours_with_hierarchy(
-                contours, hierarchy, metrics, inverted, output_path
+                contours, hierarchy, metrics, inverted, output_path, config=config
             )
             assert os.path.exists(output_path)
             image = cv2.imread(output_path)
         return image
+
+    def test_label_switches_remove_the_label_boxes(self):
+        """With every label off, only the outlines and dots remain, so far less is drawn."""
+        parent = _square_contour(origin=(20, 20), side=60)
+        child = _square_contour(origin=(30, 30), side=20)
+        hierarchy = np.array([[-1, -1, 1, -1], [-1, -1, -1, 0]])
+        metrics = [_parent_metric(), _scar_metric()]
+        kinds = ("surfaces", "scars", "cortex", "arrows")
+        off = {"visualization": {"labels": {k: False for k in kinds}}}
+
+        with_labels = self._run_and_load([parent, child], hierarchy, metrics, (200, 200))
+        without = self._run_and_load([parent, child], hierarchy, metrics, (200, 200), config=off)
+
+        drawn = lambda img: int((img != 255).any(axis=2).sum())
+        assert drawn(without) < drawn(with_labels)
+        assert drawn(without) > 0
 
     def test_writes_valid_bgr_png_matching_input_dimensions(self):
         parent = _square_contour(origin=(20, 20), side=60)

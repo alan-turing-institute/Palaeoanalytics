@@ -210,6 +210,29 @@ class TestDebugFlagOverrides:
             "arrow_detection.debug_enabled": True
         }
 
+    def test_symmetry_and_voronoi_switches(self):
+        assert self._overrides_for(
+            "--disable_symmetry_analysis", "--disable_voronoi_analysis"
+        ) == {
+            "symmetry_analysis.enabled": False,
+            "voronoi_analysis.enabled": False,
+        }
+
+    def test_hide_labels_sets_the_named_kinds_off(self):
+        assert self._overrides_for("--hide_labels", "surfaces,cortex") == {
+            "visualization.labels": {
+                "surfaces": False, "scars": True, "cortex": False, "arrows": True,
+            }
+        }
+
+    def test_hide_labels_all(self):
+        every = self._overrides_for("--hide_labels", "all")["visualization.labels"]
+        assert not any(every.values())
+
+    def test_hide_labels_rejects_an_unknown_kind(self):
+        with pytest.raises(SystemExit):
+            create_argument_parser().parse_args(["--data_dir", "/d", "--hide_labels", "angles"])
+
     def test_no_flags_no_overrides(self):
         assert self._overrides_for() == {}
 

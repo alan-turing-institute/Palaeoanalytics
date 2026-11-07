@@ -198,6 +198,9 @@ def filter_contours_by_min_area(contours, hierarchy, min_area=1.0):
     """
     Filter out contours with area less than the minimum threshold.
 
+    The parent index of each kept contour is remapped to its new
+    position, as in the border filter, so the hierarchy stays valid.
+
     Args:
         contours (list): List of contours to filter
         hierarchy (numpy.ndarray): Hierarchy array corresponding to contours
@@ -209,12 +212,14 @@ def filter_contours_by_min_area(contours, hierarchy, min_area=1.0):
     if not contours or hierarchy is None:
         return [], None
 
-    filtered_indices = []
-    for i, cnt in enumerate(contours):
-        if cv2.contourArea(cnt) >= min_area:
-            filtered_indices.append(i)
-
+    filtered_indices = [
+        i for i, cnt in enumerate(contours) if cv2.contourArea(cnt) >= min_area
+    ]
+    if not filtered_indices:
+        return [], None
+    old_to_new = {old: new for new, old in enumerate(filtered_indices)}
     filtered_contours = [contours[i] for i in filtered_indices]
-    filtered_hierarchy = hierarchy[filtered_indices] if len(filtered_indices) > 0 else None
-
+    filtered_hierarchy = hierarchy[filtered_indices].copy()
+    for row in filtered_hierarchy:
+        row[3] = old_to_new.get(row[3], -1) if row[3] != -1 else -1
     return filtered_contours, filtered_hierarchy

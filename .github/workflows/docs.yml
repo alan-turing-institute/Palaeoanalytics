@@ -21,7 +21,7 @@ jobs:
         python-version: '3.x'
     - name: Install dependencies
       run: |
-        pip install mkdocs mkdocs-material
+        pip install mkdocs mkdocs-material pymdown-extensions
     - name: Configure git
       run: |
         git config --global user.name 'github-actions[bot]'

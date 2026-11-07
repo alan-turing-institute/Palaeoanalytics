@@ -21,7 +21,10 @@ _STAGE_ERRORS = (
     IndexError, AttributeError, RuntimeError, OSError,
 )
 
-from .config import get_config_manager, get_data_export_config
+from .config import (
+    get_config_manager, get_data_export_config, get_symmetry_analysis_config,
+    get_voronoi_analysis_config,
+)
 from .modules.contour_extraction import (
     extract_contours_with_hierarchy,
     sort_contours_by_hierarchy,
@@ -115,6 +118,11 @@ def process_and_save_contours(
         )
 
         _run_cortex_detection(metrics, inverted_image)
+        metrics = _run_arrow_detection(
+            metrics, sorted_contours, hierarchy,
+            contours, inverted_image, image_dpi,
+            debug_dir_for(output_dir, 'arrow', image_id),
+        )
         _run_scar_complexity(metrics)
 
         for metric in metrics:
@@ -124,11 +132,6 @@ def process_and_save_contours(
 
         voronoi_data = _run_voronoi_analysis(metrics, inverted_image)
         _run_lateral_analysis(metrics, sorted_contours, inverted_image)
-        _run_arrow_detection(
-            metrics, sorted_contours, hierarchy,
-            contours, inverted_image, image_dpi,
-            debug_dir_for(output_dir, 'arrow', image_id),
-        )
 
         _convert_and_export(
             metrics, conversion_factor, output_dir, image_id,
@@ -345,6 +348,9 @@ def _run_symmetry_analysis(
     inverted_image : numpy.ndarray
         Inverted binary image.
     """
+    if not get_symmetry_analysis_config().get('enabled', True):
+        logging.debug("Symmetry analysis is off in the configuration")
+        return
     try:
         all_contours = (
             sorted_contours.get("parents", []) +
@@ -381,10 +387,13 @@ def _run_voronoi_analysis(metrics, inverted_image):
     Returns
     -------
     dict or None
-        Voronoi analysis data, or None on failure.
+        Voronoi analysis data, or None when off or on failure.
     """
     for metric in metrics:
         metric['voronoi_cell_area'] = "NA"
+    if not get_voronoi_analysis_config().get('enabled', True):
+        logging.debug("Voronoi analysis is off in the configuration")
+        return None
 
     try:
         voronoi_data = calculate_voronoi_points(
@@ -447,9 +456,12 @@ def debug_dir_for(output_dir: str, step: str, image_id: str = '') -> str:
 def _run_arrow_detection(
     metrics, sorted_contours, hierarchy,
     contours, inverted_image, image_dpi, debug_dir=None,
-) -> None:
+) -> list:
     """
-    Detect and integrate arrows with scars.
+    Detect and integrate arrows with scars; return the metrics.
+
+    Runs before the scar analyses, so a small scar that turns out to be
+    an arrow is already gone when scars are counted and tessellated.
 
     Parameters
     ----------
@@ -469,27 +481,15 @@ def _run_arrow_detection(
     arrow_config = get_config_manager().get_section('arrow_detection')
     if not arrow_config.get('enabled', True):
         logging.debug("Arrow detection is off")
-        return
+        return metrics
     try:
-        scars_without_arrows = [
-            m for m in metrics
-            if m["parent"] != m["scar"]
-            and not m.get('has_arrow', False)
-        ]
-
-        if scars_without_arrows:
-            logging.debug(
-                f"Running arrow detection for "
-                f"{len(scars_without_arrows)} scars"
-            )
-            integrate_arrows(
-                sorted_contours, hierarchy, contours,
-                metrics, inverted_image, image_dpi, debug_dir,
-            )
-        else:
-            logging.debug("No scars need arrow detection")
+        return integrate_arrows(
+            sorted_contours, hierarchy, contours,
+            metrics, inverted_image, image_dpi, debug_dir,
+        )
     except _STAGE_ERRORS:
         logging.exception("Error in arrow detection")
+        return metrics
 
 
 def _convert_and_export(

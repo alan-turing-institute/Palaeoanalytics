@@ -1,49 +1,13 @@
-# Core dependencies for image processing and computer vision
+# Runtime dependencies of PyLithics. setup.py reads this file.
+# Test and documentation tools are extras in setup.py: pip install -e ".[dev,docs]"
 opencv-contrib-python-headless>=4.8.0,<5.0.0  # Image processing; contrib for dnn_superres (upscaling)
-Pillow>=10.0.0,<11.0.0                   # For handling image files and DPI checks
-numpy>=1.24.0,<2.0.0                     # Array handling and mathematical operations
-
-# Configuration and data handling
-PyYAML>=6.0,<7.0                         # For YAML configuration file parsing
-pandas>=1.5.0,<3.0.0                     # For CSV data processing and DataFrame operations
-
-# Scientific computing and spatial analysis
-scipy>=1.9.0,<2.0.0                      # Scientific computing functions (Voronoi diagrams, ConvexHull)
-shapely>=2.0.0,<3.0.0                    # Geometric operations and spatial analysis
-
-# Visualization and plotting
-matplotlib>=3.6.0,<4.0.0                 # For plotting and visualization (Voronoi diagrams)
-streamlit>=1.30,<2.0                     # Interactive dashboard launched via --explore
-plotly>=5.0,<6.0                         # Charts inside the Streamlit dashboard
-rich>=13.0,<14.0                         # Welcome splash and styled CLI output
-
-# Documentation generation
-mkdocs>=1.5.0                            # Static site generator for documentation
-mkdocs-material>=9.0.0                   # Material theme for MkDocs
-pymdown-extensions>=10.0                 # Markdown extensions for enhanced documentation
-
-# System monitoring and resource management
-psutil>=5.9.0,<6.0.0                     # For memory usage and file handle monitoring (used in tests)
-
-# Package management utilities
-setuptools>=65.0.0                       # For package building and distribution
-wheel>=0.38.0                            # For wheel package format
-
-# Development and testing
-pytest>=7.0.0                            # For running tests
-pytest-cov>=4.0.0                        # For test coverage reports
-
-# Built-in modules (no installation needed, listed for documentation)
-# argparse    # Built-in library (Python 3.2+)
-# os          # Built-in library
-# sys         # Built-in library
-# logging     # Built-in library
-# csv         # Built-in library
-# json        # Built-in library
-# math        # Built-in library
-# collections # Built-in library
-# functools   # Built-in library
-# pathlib     # Built-in library (Python 3.4+)
-# typing      # Built-in library (Python 3.5+)
-# tempfile    # Built-in library
-# unittest.mock # Built-in library (Python 3.3+)
+Pillow>=10.0.0,<11.0.0                   # Image files and DPI tags
+numpy>=1.24.0,<2.0.0                     # Arrays
+PyYAML>=6.0,<7.0                         # Configuration file
+pandas>=1.5.0,<3.0.0                     # CSV output
+scipy>=1.9.0,<2.0.0                      # Voronoi diagrams, convex hull
+shapely>=2.0.0,<3.0.0                    # Geometry
+matplotlib>=3.6.0,<4.0.0                 # Voronoi images
+streamlit>=1.30,<2.0                     # Dashboard (--explore)
+plotly>=5.0,<6.0                         # Dashboard charts
+rich>=13.0,<14.0                         # Splash and styled CLI output

@@ -133,7 +133,7 @@ GETTER_CASES = [
     (
         get_arrow_detection_config,
         "arrow_detection",
-        {"enabled": False, "reference_dpi": 150.0},
+        {"enabled": False, "debug_enabled": True},
     ),
     (
         get_surface_classification_config,
