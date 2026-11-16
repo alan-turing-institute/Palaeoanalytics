@@ -16,6 +16,20 @@ directory is renamed `results/`.
 alone will not create it. Reinstall with `pip install . --upgrade`.
 
 ### Fixed
+- **Small crops no longer lose their lines in preprocessing (`pylithics`)** — a
+  drawing cut from a PDF figure at 150 to 300 pixels wide came out of
+  thresholding as a few dots: the fixed threshold of 127 dropped grey outlines,
+  and the blur and closing kernels grew with the working-resolution factor to
+  21 and 12 pixels, wider than the strokes. Now the threshold is found from the
+  image (`thresholding.method: auto`, Otsu kept between `threshold_value` and
+  `threshold_ceiling`; it rises above 127 only when the grey it adds is thin,
+  so a shaded surface stays open), the blur and the closing are sized from the
+  measured stroke width (half a stroke and one stroke, never larger than
+  before), a DPI tag outside 50 to 1200 is treated as absent, and the contour
+  size filter is at most `contour_filtering.min_area_share` of the image area
+  (default one ten-thousandth), so a small arrow is kept and a speck is not.
+  On a 270-pixel Gadeb flake with seven arrows, zero were found before and four
+  after; large scans are unchanged.
 - **`symmetry_analysis.enabled` and `voronoi_analysis.enabled` now work (`pylithics`)** —
   both flags were in `config.yaml` and the documentation but the code did not read
   them. Set to `false`, the stage is skipped: its CSV columns are `NA` and no
@@ -34,31 +48,53 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
 - **`.gitignore`** cut to the rules this project uses.
 
 ### Added
+- **PDF input (`pylithics-pages`)** — a PDF file in `pages/` is read. Each page
+  is rendered to a PNG in `pages_rendered/` and cut like a scanned page. A page
+  that holds a raster image renders at the resolution of the sharpest large
+  image on it and copies that image pixel for pixel, so a scan inside a PDF
+  keeps its pixels and a label or scale bar drawn over it stays. A page with no
+  raster image renders at 300 dpi, or at `--pdf_dpi`. `--pdf_pages 4,7,11-14`
+  limits the pages. The log says what each page holds and warns below 200 dpi
+  and for JPEG compression. The manifest gains `source_pdf`, `source_page`,
+  `render_dpi`, `dpi_source` and `source_filters`. The `pdf` section of
+  `config.yaml` sets the limits. Needs the new optional extra:
+  `pip install ".[pdf]"` (pypdfium2).
 - **`--hide_labels` removes labels from the labelled image (`pylithics`)** — a
   list with commas of `surfaces`, `scars`, `cortex`, `arrows`, or `all`. The
   outlines and centroid dots always stay. The same setting is
   `visualization.labels` in `config.yaml`. Default: every label drawn.
-- **Arrow detection by a width profile and a trained classifier (`pylithics`)** —
-  the arrow drawn on a scar is found from the width of the mark along its
-  axis (a thin, even shaft, a head that widens and then narrows to a point),
-  measured on a four-times supersampled copy, instead of from the two
-  notches between head and shaft. A random forest trained on the project's
-  labelled arrows scores the mark in both directions; the higher score gives
-  the direction, and must reach `arrow_detection.classifier.threshold`
-  (default `0.5`). Small arrows are found and the tail and the tip are no
-  longer swapped on them. A scar or a surface small enough to be a mark is
-  tried too; one that is an arrow becomes the arrow of the scar around it
-  and leaves the scar count. New CSV column `arrow_score`. The columns
+- **Arrow detection in two stages (`pylithics`)** — the notch method stays
+  and decides first: the two notches where the head meets the shaft give
+  the head triangle and the direction, with its thresholds scaled from
+  300 DPI. What it accepts is an arrow. A trained classifier now runs on
+  the marks it rejects, the small arrows and the styles without a closed
+  head. A mark that holds other ink, or is shorter than 6 pixels, is
+  refused first. The rest is measured by the width of its ink along its
+  axis (a thin, even shaft, a head that widens and then narrows to a
+  point), on a four-times supersampled copy, in both directions, with the
+  notch measurements added; a random forest trained on the project's
+  labelled arrows scores each direction. The higher score gives the
+  direction and must reach `arrow_detection.classifier.threshold` (default
+  `0.5`). `classifier.enabled: false` leaves the notch method alone. The
+  only marks tried are those inside a recognised scar; a surface, a scar
+  or a mark outside every recognised scar is never tried. The marks are
+  cut from the working copy of the drawing (the upscaled binary, when
+  there is one), scar by scar, so a small arrow keeps the notches that
+  the return to the source grid removes; the notch thresholds scale by
+  the factor and the arrow positions come back in source pixels. The
+  debug files are named by scar and mark (`scar_3_mark_1.png`) and show
+  the scar at the working resolution. New CSV column
+  `arrow_score`, filled when the classifier decided. The columns
   `triangle_base_length`, `triangle_height`, `shaft_solidity` and
-  `tip_solidity` are gone, with the notch geometry. Arrow detection now
-  runs before scar complexity and Voronoi, so a reassigned mark is not
-  counted. Model bundled as `pylithics/models/arrow_classifier.json`, its
-  labels as `pylithics/models/arrow_labels.csv`; tools
-  `tools/arrow_candidates.py` and `tools/train_arrow_classifier.py`. The
-  `arrow_detection` section of `config.yaml` loses its DPI-scaled
-  thresholds; `arrow_integration` loses `min_solidity`, `max_solidity` and
-  `reference_thresholds` and gains `max_candidate_share`.
-  `pylithics.forest` reads a forest from JSON for both classifiers.
+  `tip_solidity` are gone from the CSV. Arrow detection runs before scar
+  complexity and Voronoi. Model bundled as
+  `pylithics/models/arrow_classifier.json`, with the hand labels it was
+  trained from in `arrow_labels.csv` and the arrow templates in
+  `pylithics/data/arrow_training/`; tools `tools/arrow_variants.py`,
+  `tools/arrow_candidates.py` and `tools/train_arrow_classifier.py`.
+  `arrow_integration` loses `min_solidity`, `max_solidity` and
+  `reference_thresholds`. `pylithics.forest` reads a forest from JSON for
+  both classifiers.
 - **Scale bar classifier (`pylithics-pages`)** — a trained model (a random forest) decides
   which bar-shaped marks are scale bars, in place of the shape rules alone.
   Candidates include bars standing against a lithic, upright bars and

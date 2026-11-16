@@ -25,6 +25,11 @@ input resolution.**
 The working resolution changes what PyLithics can find. It does not
 change what PyLithics measures.
 
+Arrow detection also reads the working copy. The return to the input
+pixel grid removes the small notches of a small arrow, so PyLithics
+cuts each scar from the working copy and looks for the arrows there.
+The arrow positions in the CSV are in the pixels of the input.
+
 ## How it operates
 
 1. PyLithics measures the width of the lines and the space between
@@ -37,6 +42,8 @@ change what PyLithics measures.
    threshold and the closing step are scaled by the factor.
 5. PyLithics returns the black-and-white result to the pixel grid of
    the input.
+6. PyLithics keeps the working copy and looks for the arrows on it,
+   scar by scar.
 
 The two commands use different limits. A plate holds many small
 drawings and fine hatching, so `pylithics-pages` uses the line width

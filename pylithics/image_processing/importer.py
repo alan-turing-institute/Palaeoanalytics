@@ -7,6 +7,7 @@ and morphological operations.
 """
 
 import logging
+import math
 import os
 from dataclasses import dataclass
 from typing import Optional, Dict, Tuple
@@ -16,11 +17,54 @@ import numpy as np
 from PIL import Image
 
 from .config import load_preprocessing_config
-from .resolution import LineGeometry, restore_to_grid, settings_for, working_copy
+from .resolution import LineGeometry, WorkingCopy, restore_to_grid, settings_for, working_copy
 from .utils import read_metadata
 
 
 ### DPI-AWARE PROCESSING FUNCTIONS ###
+
+# A DPI tag outside this range is corrupt (a crop from a PDF figure can
+# carry millions) and is treated as absent.
+DPI_RANGE = (50.0, 1200.0)
+DEFAULT_DPI = 300.0
+
+# Kernel sizes in units of the measured stroke width of the drawing, on
+# the working copy. The blur removes speckle finer than a stroke; the
+# closing bridges a break no wider than a stroke. Sizing from the stroke
+# rather than from the DPI tag or the upscale factor keeps both kernels
+# smaller than the lines they must not erase. The stroke only ever
+# shrinks a kernel: the base kernel at the DPI scale stays the ceiling,
+# so a filled shape, whose "stroke" is its whole width, is processed as
+# before.
+BLUR_PER_STROKE = 0.5
+MIN_BLUR = 3
+CLOSE_PER_STROKE = 1.0
+# The automatic threshold (Otsu) is kept between the configured value and
+# this ceiling, so grey lines are ink and paper texture is not. It rises
+# above the configured value only when what it adds is thin: a grey
+# region wider than this many strokes is a fill, not a line, and the
+# configured value stands.
+THRESHOLD_CEILING = 230
+FILL_RADIUS_IN_STROKES = 3.0
+FILL_RADIUS_FALLBACK_PX = 6.0
+# ... and never wider than this share of the image's short side, whatever
+# the stroke measurement says (a shaded drawing reads as a wide stroke).
+FILL_RADIUS_SHARE = 0.05
+
+
+def plausible_dpi(value) -> Optional[float]:
+    """Return the DPI tag rounded, or None when it is missing or not plausible."""
+    if value is None:
+        return None
+    dpi = value[0] if isinstance(value, tuple) else value
+    try:
+        dpi = float(dpi)
+    except (TypeError, ValueError):
+        return None
+    if not DPI_RANGE[0] <= dpi <= DPI_RANGE[1]:
+        return None
+    return normalise_dpi(dpi)
+
 
 def normalise_dpi(value: float) -> float:
     """
@@ -62,16 +106,12 @@ def get_image_dpi(image_path: str) -> float:
     """
     try:
         with Image.open(image_path) as img:
-            dpi = img.info.get('dpi')
-            if dpi is None:
-                logging.warning(
-                    f"DPI missing for {image_path}; "
-                    f"300 used"
-                )
-                return 300.0
-            image_dpi = normalise_dpi(
-                dpi[0] if isinstance(dpi, tuple) else dpi
-            )
+            tag = img.info.get('dpi')
+            image_dpi = plausible_dpi(tag)
+            if image_dpi is None:
+                reason = "missing" if tag is None else f"not plausible ({tag})"
+                logging.warning("DPI %s for %s; %g used", reason, image_path, DEFAULT_DPI)
+                return DEFAULT_DPI
             logging.debug(f"Image DPI detected: {image_dpi}")
             return image_dpi
     except Exception as e:
@@ -238,24 +278,32 @@ def apply_contrast_normalization(
 def perform_thresholding(
     normalized_image: np.ndarray,
     config: Dict,
-    dpi_scale: float = 1.0
+    dpi_scale: float = 1.0,
+    stroke_px: Optional[float] = None,
 ) -> Optional[np.ndarray]:
-    """Apply thresholding with DPI-aware kernel scaling."""
+    """
+    Blur and threshold the image.
+
+    The blur is the base kernel scaled by ``dpi_scale``. With
+    ``stroke_px``, the measured stroke width on this image, the blur is
+    half a stroke (see ``BLUR_PER_STROKE``) when that is smaller.
+    """
     try:
         thresh_config = config.get('thresholding', {})
-        method = thresh_config.get('method', 'default')
+        method = thresh_config.get('method', 'auto')
         max_val = thresh_config.get('max_value', 255)
         thresh_val = thresh_config.get('threshold_value', 127)
+        ceiling = thresh_config.get('threshold_ceiling', THRESHOLD_CEILING)
 
         base_kernels = config.get('dpi_processing', {}).get('base_kernels', {})
         base_blur = base_kernels.get('gaussian_blur', 5)
         base_block = base_kernels.get('adaptive_block', 11)
 
         blurred = _gaussian_blur_with_log(
-            normalized_image, base_blur, dpi_scale,
+            normalized_image, base_blur, dpi_scale, stroke_px,
         )
         result = _apply_threshold_method(
-            blurred, method, max_val, thresh_val, base_block, dpi_scale,
+            blurred, method, max_val, thresh_val, base_block, dpi_scale, ceiling, stroke_px,
         )
         logging.debug("Applied %s thresholding.", method)
         return result
@@ -269,15 +317,17 @@ def perform_thresholding(
 
 
 def _gaussian_blur_with_log(
-    image: np.ndarray, base_blur: int, dpi_scale: float,
+    image: np.ndarray, base_blur: int, dpi_scale: float, stroke_px: Optional[float] = None,
 ) -> np.ndarray:
-    """Apply Gaussian blur with DPI-scaled kernel size."""
+    """Apply a Gaussian blur at the DPI scale, or smaller when the stroke width says so."""
     blur_size = ensure_odd_kernel_size(base_blur * dpi_scale)
+    how = f"base {base_blur}, scale {dpi_scale:.2f}"
+    if stroke_px:
+        from_stroke = ensure_odd_kernel_size(max(MIN_BLUR, stroke_px * BLUR_PER_STROKE))
+        if from_stroke < blur_size:
+            blur_size, how = from_stroke, f"stroke {stroke_px:.1f} px"
     blurred = cv2.GaussianBlur(image, (blur_size, blur_size), 0)
-    logging.debug(
-        f"Gaussian blur: {blur_size}x{blur_size} "
-        f"(base: {base_blur}, scale: {dpi_scale:.2f})"
-    )
+    logging.debug("Gaussian blur: %dx%d (%s)", blur_size, blur_size, how)
     return blurred
 
 
@@ -288,8 +338,13 @@ def _apply_threshold_method(
     thresh_val: int,
     base_block: int,
     dpi_scale: float,
+    ceiling: int = THRESHOLD_CEILING,
+    stroke_px: Optional[float] = None,
 ) -> np.ndarray:
     """Dispatch to the requested thresholding algorithm."""
+    if method == "auto":
+        value = _auto_threshold(blurred, thresh_val, ceiling, stroke_px)
+        return cv2.threshold(blurred, value, max_val, cv2.THRESH_BINARY)[1]
     if method == "adaptive":
         block = ensure_odd_kernel_size(base_block * dpi_scale)
         logging.debug(
@@ -313,6 +368,35 @@ def _apply_threshold_method(
     raise ValueError(f"Unsupported thresholding method: {method}")
 
 
+def _auto_threshold(
+    blurred: np.ndarray, floor: int, ceiling: int, stroke_px: Optional[float],
+) -> int:
+    """
+    Return Otsu's threshold kept between ``floor`` and ``ceiling``, or ``floor``.
+
+    Grey ink between the floor and the Otsu value is kept when it is
+    thin, which is a grey line. When that ink holds a region wider than
+    ``FILL_RADIUS_IN_STROKES`` strokes it is a grey fill, a shaded
+    surface, and the floor stands so the surface stays open.
+    """
+    otsu = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[0]
+    value = int(min(max(otsu, floor), ceiling))
+    if value <= floor:
+        logging.debug("Auto threshold: %d (Otsu %d, floor %d)", floor, otsu, floor)
+        return floor
+    added = ((blurred <= value) & (blurred > floor)).astype(np.uint8)
+    radius = float(cv2.distanceTransform(added, cv2.DIST_L2, 3).max()) if added.any() else 0.0
+    limit = (stroke_px * FILL_RADIUS_IN_STROKES) if stroke_px else FILL_RADIUS_FALLBACK_PX
+    limit = min(limit, FILL_RADIUS_SHARE * min(blurred.shape[:2]))
+    if radius > limit:
+        logging.debug("Auto threshold: %d (Otsu %d adds a fill %.0f px wide; floor kept)",
+                      floor, otsu, 2 * radius)
+        return floor
+    logging.debug("Auto threshold: %d (Otsu %d, floor %d, ceiling %d, added ink %.0f px wide)",
+                  value, otsu, floor, ceiling, 2 * radius)
+    return value
+
+
 def invert_image(
     thresholded_image: np.ndarray
 ) -> np.ndarray:
@@ -323,10 +407,11 @@ def invert_image(
 def morphological_closing(
     inverted_image: np.ndarray,
     config: Dict,
-    dpi_scale: float = 1.0
+    dpi_scale: float = 1.0,
+    stroke_px: Optional[float] = None,
 ) -> np.ndarray:
     """
-    Apply DPI-aware morphological closing.
+    Close breaks in the ink no wider than a stroke.
 
     Parameters
     ----------
@@ -335,7 +420,10 @@ def morphological_closing(
     config : dict
         Configuration dictionary.
     dpi_scale : float
-        DPI scaling factor for kernel size.
+        DPI scaling factor for the kernel.
+    stroke_px : float, optional
+        The measured stroke width on this image. The kernel is one
+        stroke (see ``CLOSE_PER_STROKE``) when that is smaller.
 
     Returns
     -------
@@ -351,16 +439,18 @@ def morphological_closing(
     )
 
     scaled_size = max(1, int(base_size * dpi_scale))
+    how = f"base {base_size}, scale {dpi_scale:.2f}"
+    if stroke_px:
+        from_stroke = max(1, int(round(stroke_px * CLOSE_PER_STROKE)))
+        if from_stroke < scaled_size:
+            scaled_size, how = from_stroke, f"stroke {stroke_px:.1f} px"
     kernel = cv2.getStructuringElement(
         cv2.MORPH_RECT, (scaled_size, scaled_size)
     )
     closed = cv2.morphologyEx(
         inverted_image, cv2.MORPH_CLOSE, kernel
     )
-    logging.debug(
-        f"Morphological closing: {scaled_size}x{scaled_size} "
-        f"(base: {base_size}, scale: {dpi_scale:.2f})"
-    )
+    logging.debug("Morphological closing: %dx%d (%s)", scaled_size, scaled_size, how)
     return closed
 
 
@@ -387,19 +477,19 @@ def verify_image_dpi_and_scale(
     """
     try:
         with Image.open(image_path) as img:
-            dpi = img.info.get('dpi')
+            dpi = plausible_dpi(img.info.get('dpi'))
             if dpi is None:
                 logging.warning(
-                    "DPI missing for %s", image_path
+                    "DPI missing or not plausible for %s", image_path
                 )
                 return None
 
-            pixels_per_mm = normalise_dpi(dpi[0]) / 25.4
+            pixels_per_mm = dpi / 25.4
             scale_px = real_world_scale_mm * pixels_per_mm
             logging.debug(
                 "DPI: %.2f, Scale (mm): %.2f, "
                 "Scale (px): %.2f",
-                normalise_dpi(dpi[0]),
+                dpi,
                 round(real_world_scale_mm, 2),
                 round(scale_px, 2)
             )
@@ -422,12 +512,21 @@ class Preprocessed:
     ``image`` is on the source pixel grid whatever the working
     resolution was, so every contour and measurement taken from it is
     in source pixels. ``upscale_factor`` is provenance: 1 when the
-    image was thresholded as it came.
+    image was thresholded as it came. ``working`` is the same binary
+    before its return to the source grid, ``upscale_factor`` times the
+    size of ``image``, for the detection of marks too fine for the
+    source grid; at factor 1 it is ``image`` itself.
     """
 
     image: np.ndarray
     upscale_factor: int = 1
     geometry: Optional[LineGeometry] = None
+    working: Optional[np.ndarray] = None
+
+    def __post_init__(self):
+        """At factor 1 the working binary is the image itself."""
+        if self.working is None:
+            self.working = self.image
 
 
 def execute_preprocessing_pipeline(
@@ -439,8 +538,10 @@ def execute_preprocessing_pipeline(
     Read, grayscale, contrast normalisation; then the working
     resolution: the normalised image is measured and, when its strokes
     are too thin, a working copy is upscaled. Threshold, inversion and
-    closing run on that copy with kernels scaled by the factor, and the
-    binary result is returned to the source pixel grid.
+    closing run on that copy with kernels scaled by the factor, made
+    smaller when the measured stroke width at that copy's scale says
+    so, and the binary result is returned to the source pixel grid. The
+    working copy's binary is kept beside it for arrow detection.
 
     Parameters
     ----------
@@ -466,19 +567,25 @@ def execute_preprocessing_pipeline(
 
     settings = settings_for(config, 'analysis')
     working = working_copy(normalized, settings, os.path.basename(image_path))
-    thresholded = perform_thresholding(
-        working.gray, config, dpi_scale * working.factor
-    )
+    stroke = _working_stroke(working)
+    scale = dpi_scale * working.factor
+    thresholded = perform_thresholding(working.gray, config, scale, stroke)
     if thresholded is None:
         return None
-    closed = morphological_closing(
-        invert_image(thresholded), config, dpi_scale * working.factor
-    )
+    closed = morphological_closing(invert_image(thresholded), config, scale, stroke)
     if closed is None:
         return None
     coverage = settings.get('restore_ink_coverage', 0.35)
     restored = restore_to_grid(closed, working.source_shape, coverage)
-    return Preprocessed(restored, working.factor, working.geometry)
+    return Preprocessed(restored, working.factor, working.geometry, closed)
+
+
+def _working_stroke(working: WorkingCopy) -> Optional[float]:
+    """Return the stroke width on the working copy, or None when it was not measured."""
+    width = working.geometry.stroke_width if working.geometry else math.nan
+    if width is None or math.isnan(width) or width <= 0:
+        return None
+    return float(width) * working.factor
 
 
 def preprocess_images(

@@ -77,7 +77,8 @@ class ConfigurationManager:
         defaults = {
             'working_resolution': _WORKING_RESOLUTION_DEFAULTS,
             'thresholding': {
-                'method': 'simple',
+                'method': 'auto',
+                'threshold_ceiling': 230,
                 'threshold_value': 127,
                 'max_value': 255
             },
@@ -101,6 +102,7 @@ class ConfigurationManager:
             },
             'contour_filtering': {
                 'min_area': 50.0,
+                'min_area_share': 0.0001,
                 'exclude_border': True
             }
         }
@@ -175,6 +177,7 @@ def get_contour_filtering_config(
         config = get_config_manager().config
     return config.get('contour_filtering', {
         'min_area': 50.0,
+        'min_area_share': 0.0001,
         'exclude_border': True,
     })
 
@@ -186,6 +189,10 @@ def get_arrow_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]:
 
     return config.get('arrow_detection', {
         'enabled': True,
+        'reference_dpi': 300.0,
+        'min_area_scale_factor': 0.7,
+        'min_defect_depth_scale_factor': 0.8,
+        'min_triangle_height_scale_factor': 0.8,
         'classifier': {'enabled': True, 'model': 'arrow_classifier.json', 'threshold': 0.5},
         'debug_enabled': False,
         'show_arrow_lines': False
@@ -235,8 +242,6 @@ def get_arrow_integration_config(config: Optional[Dict] = None) -> Dict[str, Any
     if config is None:
         config = get_config_manager().config
     return config.get('arrow_integration', {
-        'min_candidate_area': 4.0,
-        'max_candidate_share': 0.02,
         'area_match_tolerance': 1.0
     })
 
@@ -358,6 +363,11 @@ _PAGE_SEGMENTATION_DEFAULTS: Dict[str, Any] = {
     'export': {
         'padding': 10,
         'manifest': True,
+    },
+    'pdf': {
+        'rasterise_dpi': 300.0,
+        'min_coverage': 0.05,
+        'max_dpi': 1200.0,
     },
     'scale_bars': {
         'enabled': True,

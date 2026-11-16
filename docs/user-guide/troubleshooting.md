@@ -189,18 +189,19 @@ pylithics --data_dir ./data \
     --arrow_debug --log_level DEBUG
 ```
 
-**Examine the debug output** in `results/arrow_debug/<image>/`. Each mark that was tried has a `.png` with the direction found, green when it is an arrow and orange when it is not, and a `.txt` with the scores and the measurements.
+**Examine the debug output** in `results/arrow_debug/<image>/`. Each mark that was tried has a `.png` and a `.txt`, named by its scar and its number in that scar, for example `scar_3_mark_1.png`. The `.png` shows the scar at the working resolution with the direction found, green when the mark is an arrow and orange when it is not. The `.txt` shows the tests of stage 1, the stage that decided (`triangle`, `model`, `ink inside`, `too short` or `no model`), the scores and the measurements.
 
 **Adjust the settings in `config.yaml`**:
 
 ```yaml
 arrow_detection:
   enabled: true
+  min_defect_depth_scale_factor: 0.8  # Decrease the value to let stage 1 accept shallower notches.
   classifier:
-    threshold: 0.5  # Decrease the value to find more arrows. Increase it to find fewer marks that are not arrows.
+    threshold: 0.5  # Decrease the value to find more arrows with stage 2. Increase it to find fewer marks that are not arrows.
 ```
 
-A mark that touches the outline of its scar is not a candidate. If the arrows in a publication touch the scar outlines, they are not found.
+Only a mark inside a recognised scar is tried. A mark that touches the outline of its scar is part of the outline and is not found. A scar with a broken outline is not recognised, so the arrows in it are not found. The scars of a ventral or platform surface have no row in the results, so the arrows in them are not found.
 
 ### Cortex detection
 

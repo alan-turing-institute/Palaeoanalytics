@@ -73,6 +73,7 @@ def process_and_save_contours(
     scale_confidence=None,
     csv_path: Optional[str] = None,
     upscale_factor: int = 1,
+    working_image: Optional[numpy.ndarray] = None,
 ) -> None:
     """
     Run the analysis pipeline on one image and save the results.
@@ -97,6 +98,10 @@ def process_and_save_contours(
         The working-resolution factor the binary image was made at;
         recorded in the CSV and JSON. Measurements are in source pixels
         whatever its value.
+    working_image : numpy.ndarray, optional
+        The binary image at the working resolution, ``upscale_factor``
+        times the size of ``inverted_image``. Arrows are looked for on
+        it. Without it they are looked for on ``inverted_image``.
 
     Returns
     -------
@@ -119,9 +124,9 @@ def process_and_save_contours(
 
         _run_cortex_detection(metrics, inverted_image)
         metrics = _run_arrow_detection(
-            metrics, sorted_contours, hierarchy,
-            contours, inverted_image, image_dpi,
+            metrics, sorted_contours, inverted_image, image_dpi,
             debug_dir_for(output_dir, 'arrow', image_id),
+            working_image, upscale_factor,
         )
         _run_scar_complexity(metrics)
 
@@ -454,8 +459,8 @@ def debug_dir_for(output_dir: str, step: str, image_id: str = '') -> str:
 
 
 def _run_arrow_detection(
-    metrics, sorted_contours, hierarchy,
-    contours, inverted_image, image_dpi, debug_dir=None,
+    metrics, sorted_contours, inverted_image, image_dpi, debug_dir=None,
+    working_image=None, upscale_factor=1,
 ) -> list:
     """
     Detect and integrate arrows with scars; return the metrics.
@@ -469,14 +474,16 @@ def _run_arrow_detection(
         Metric dictionaries to update in place.
     sorted_contours : dict
         Sorted contour structure.
-    hierarchy : numpy.ndarray
-        Contour hierarchy.
-    contours : list
-        All extracted contours.
     inverted_image : numpy.ndarray
-        Inverted binary image.
+        Inverted binary image on the source grid.
     image_dpi : float or None
         Image DPI for scaling detection parameters.
+    debug_dir : str or None
+        Folder for the arrow debug files.
+    working_image : numpy.ndarray or None
+        The binary image at the working resolution, when there is one.
+    upscale_factor : int
+        Pixels of ``working_image`` per pixel of ``inverted_image``.
     """
     arrow_config = get_config_manager().get_section('arrow_detection')
     if not arrow_config.get('enabled', True):
@@ -484,8 +491,8 @@ def _run_arrow_detection(
         return metrics
     try:
         return integrate_arrows(
-            sorted_contours, hierarchy, contours,
-            metrics, inverted_image, image_dpi, debug_dir,
+            sorted_contours, metrics, inverted_image, image_dpi, debug_dir,
+            working_image, upscale_factor,
         )
     except _STAGE_ERRORS:
         logging.exception("Error in arrow detection")

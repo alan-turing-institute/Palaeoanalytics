@@ -46,7 +46,7 @@ class TestConfigurationManager:
             manager = ConfigurationManager("/nonexistent/config.yaml")
 
         assert "thresholding" in manager.config
-        assert manager.config["thresholding"]["method"] == "simple"
+        assert manager.config["thresholding"]["method"] == "auto"
         mock_logging.error.assert_called()
 
     def test_falls_back_to_defaults_on_invalid_yaml(self, tmp_path):
@@ -221,6 +221,7 @@ class TestSectionGetters:
 class TestLoadPreprocessingConfig:
 
     def test_with_explicit_file(self, sample_config_file):
+        clear_config_cache()   # the process-wide manager may hold the packaged file
         config = load_preprocessing_config(sample_config_file)
         assert config["thresholding"]["method"] == "simple"
         assert "normalization" in config

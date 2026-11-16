@@ -87,6 +87,8 @@ setup(
         # which would reinstall the plain OpenCV build beside the contrib
         # build PyLithics needs. This extra carries its other dependencies.
         "ocr": ["onnxruntime>=1.14", "pyclipper>=1.3", "six>=1.16", "tqdm>=4.60"],
+        # Reading PDF files in pages/ (pylithics-pages).
+        "pdf": ["pypdfium2>=5,<6"],
         "dev": [
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",

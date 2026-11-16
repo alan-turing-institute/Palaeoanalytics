@@ -9,9 +9,9 @@ one from the repository root with the project's Python, for example
 
 | Script | What it does |
 |--------|--------------|
-| `arrow_variants.py` | Makes the training rows for the arrow classifier from a folder of arrow images (one arrow each, drawn pointing one way) and a folder of non-arrow marks. Each image gives variants at four sizes, every 15 degrees and three line weights. The label comes from the rotation, so no hand labelling. |
-| `train_arrow_classifier.py` | Trains the arrow random forest from a row table, reports the held-out misses, flips and false arrows, and writes `pylithics/models/arrow_classifier.json`. |
-| `arrow_candidates.py` | Runs the arrow detector over a folder of real drawings and writes one row for each mark, an overlay for each drawing and numbered contact sheets. Use it to see what the detector accepts and rejects on real plates, and to label marks by hand. |
+| `arrow_variants.py` | Makes training rows for the arrow classifier from a folder of arrow images (one arrow each, drawn pointing one way) and a folder of non-arrow marks. Each image gives variants at five sizes and its own, every 15 degrees and three line weights, each decided by the detector's two stages on its ink. The label comes from the rotation, so no hand labelling. |
+| `train_arrow_classifier.py` | Trains the stage 2 forest from a row table (generated rows and labelled real rows together), reports what stage 1 and the vetoes did against the labels and the held-out misses, flips and false arrows on the rows left to the forest, and writes `pylithics/models/arrow_classifier.json`. |
+| `arrow_candidates.py` | Runs the two-stage arrow detector over a folder of real drawings, on the marks inside each closed contour cut from the working copy as the analysis does it, and writes one row for each mark with the stage that decided it, an overlay for each drawing and numbered contact sheets. Boxes are in source pixels. Use it to see what the detector accepts and rejects on real plates, and to label marks by hand (`--labels` keeps known labels, matched by box overlap; the project's labels are `pylithics/models/arrow_labels.csv`). |
 
 ## Scale bar classifier
 

@@ -10,6 +10,11 @@ round, a ``no`` negative both ways. The forest is scored with grouped
 folds by crop, the misses, false arrows and flips are reported, and the
 forest is written as JSON for ``pylithics/models/arrow_classifier.json``.
 
+The forest is stage 2 of the detector: it decides only what the notch
+method (stage 1) rejects and the vetoes let through. The report says
+first what stage 1 and the vetoes did against the labels, then scores
+the forest on the rows left to it. Every labelled row trains it.
+
 Usage::
 
     python tools/train_arrow_classifier.py \\
@@ -88,12 +93,34 @@ def evaluate(rows: List[Dict], scores: np.ndarray, threshold: float) -> Dict[str
     return result
 
 
+def forest_rows(rows: List[Dict]) -> List[int]:
+    """Return the indices of the rows that reach the forest: not stage 1's, not vetoed."""
+    return [i for i, r in enumerate(rows) if r.get('stage', 'model') in ('model', 'no model')]
+
+
+def report_stages(rows: List[Dict]) -> None:
+    """Print what stage 1 and the vetoes did against the labels."""
+    by_stage: Dict[str, Dict[str, int]] = {}
+    for row in rows:
+        stage = row.get('stage', 'model')
+        if stage in ('model', 'no model'):
+            continue
+        counts = by_stage.setdefault(stage, {label: 0 for label in LABELS})
+        counts[row['label'].strip().lower()] += 1
+    for stage, counts in sorted(by_stage.items()):
+        verb = 'accepted' if stage == 'triangle' else 'refused'
+        print(f"{stage}: {verb} {sum(counts.values())} row(s): {counts}")
+    print(f"left to the forest: {len(forest_rows(rows))} row(s)")
+
+
 def report(rows: List[Dict], scores: np.ndarray, threshold: float, show: int) -> None:
-    """Print the held-out errors."""
-    arrows = sum(1 for r in rows if r['label'].strip().lower() != 'no')
+    """Print the held-out errors of the forest on the rows left to it."""
+    kept = forest_rows(rows)
+    arrows = sum(1 for i in kept if rows[i]['label'].strip().lower() != 'no')
     outcome = evaluate(rows, scores, threshold)
+    outcome = {kind: [i for i in indices if i in set(kept)] for kind, indices in outcome.items()}
     print(f"held out: {len(outcome['missed'])} missed and {len(outcome['flipped'])} flipped "
-          f"of {arrows} arrow(s); {len(outcome['false'])} false arrow(s) of {len(rows) - arrows}")
+          f"of {arrows} arrow(s); {len(outcome['false'])} false arrow(s) of {len(kept) - arrows}")
     for kind, indices in outcome.items():
         for i in indices[:show]:
             row = rows[i]
@@ -105,12 +132,12 @@ def write_scores(rows: List[Dict], scores: np.ndarray, path: str) -> None:
     """Write each row's key, label and held-out scores, for a look at the errors."""
     with open(path, 'w', newline='', encoding='utf-8') as handle:
         writer = csv.writer(handle)
-        writer.writerow(['k', 'image', 'x0', 'y0', 'x1', 'y1', 'label', 'fwd', 'rev', 'length',
-                         'depth'])
+        writer.writerow(['k', 'image', 'x0', 'y0', 'x1', 'y1', 'label', 'stage', 'fwd', 'rev',
+                         'length', 'depth'])
         for i, row in enumerate(rows):
             writer.writerow([row['k'], row['image'], row['x0'], row['y0'], row['x1'], row['y1'],
-                             row['label'], round(scores[2 * i], 3), round(scores[2 * i + 1], 3),
-                             row['length'], row['depth']])
+                             row['label'], row.get('stage', ''), round(scores[2 * i], 3),
+                             round(scores[2 * i + 1], 3), row['length'], row['depth']])
 
 
 def main(argv=None) -> int:
@@ -136,6 +163,7 @@ def main(argv=None) -> int:
     labels = [r['label'].strip().lower() for r in rows]
     counts = {label: labels.count(label) for label in LABELS}
     print(f"{len(rows)} labelled candidate(s) on {len(set(groups))} crop(s): {counts}")
+    report_stages(rows)
     settings = (args.trees, args.depth, args.leaf)
     scores = held_out_scores(x, y, groups, settings, args.folds)
     report(rows, scores, args.threshold, args.show)

@@ -37,6 +37,14 @@ from .export import (
     write_manifest,
 )
 from .geometry import BBox
+from .pdf_input import (
+    PdfSupportMissing,
+    RenderedPage,
+    is_pdf,
+    parse_page_spec,
+    render_pdf,
+    rendered_by_name,
+)
 from .grouping import ScaleContext, classify_components, group_components, reading_order
 from .identifiers import PageReads, assign_reads, read_page, report_identifiers
 from .scale_classifier import ModelUnavailable, load_model
@@ -164,13 +172,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     logging.info("Writing output to %s", args.output_dir)
 
     try:
-        config, pages, corrections, previous = _prepare(args, pages_dir)
-    except (FileNotFoundError, NotADirectoryError) as exc:
+        config, pages, corrections, previous, rendered = _prepare(args, pages_dir)
+    except (FileNotFoundError, NotADirectoryError, PdfSupportMissing, ValueError) as exc:
         logging.error("%s", exc)
         return 1
 
     try:
-        run = _process_pages(pages, corrections, config, args, previous, console)
+        run = _process_pages(pages, corrections, config, args, previous, console, rendered)
     except KeyboardInterrupt:
         logging.error(
             "Stopped. The manifest names every crop written so far; "
@@ -191,15 +199,40 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 
 def _prepare(args: argparse.Namespace, pages_dir: str) -> Tuple:
-    """Resolve the configuration, list the pages, read corrections and the old manifest."""
+    """Resolve the configuration, list and render the pages, read corrections, old manifest."""
     config = _resolve_config(args)
-    pages = _list_pages(pages_dir)
+    pages, pdfs = _list_pages(pages_dir)
+    rendered = _render_pdfs(pdfs, args, config)
+    pages += [r.path for r in rendered]
     corrections = overrides_module.load_overrides(args.overrides)
     overrides_module.warn_unmatched(
         corrections, [os.path.basename(p) for p in pages]
     )
     previous = prepare_output_dir(args.output_dir)
-    return config, pages, corrections, previous
+    return config, pages, corrections, previous, rendered_by_name(rendered)
+
+
+def _render_pdfs(pdfs: Sequence[str], args: argparse.Namespace, config: Dict) -> List[RenderedPage]:
+    """
+    Render every PDF in the pages folder to PNG pages and return the records.
+
+    A PDF that pypdfium2 cannot open is reported and the batch goes on.
+    Without pypdfium2 the run stops before any page is processed.
+    """
+    if not pdfs:
+        return []
+    wanted = parse_page_spec(args.pdf_pages)
+    rendered: List[RenderedPage] = []
+    for path in pdfs:
+        try:
+            rendered += render_pdf(path, args.output_dir, config.get('pdf', {}), wanted)
+        except PdfSupportMissing:
+            raise
+        except Exception as exc:  # noqa: BLE001 - one file must not stop the batch
+            logging.error("%s: not read. %s: %s", os.path.basename(path),
+                          type(exc).__name__, exc)
+            logging.debug("Trace for %s", path, exc_info=True)
+    return rendered
 
 
 def _offer_update() -> None:
@@ -227,6 +260,7 @@ def _process_pages(
     args: argparse.Namespace,
     previous: Sequence[Dict[str, str]],
     console=None,
+    rendered: Optional[Dict[str, RenderedPage]] = None,
 ) -> RunResult:
     """
     Segment every page, replacing what a previous run cut from it.
@@ -234,6 +268,8 @@ def _process_pages(
     A page that fails, for any reason, is reported and the batch goes
     on. The manifest is rewritten after every page, so a stopped run
     still names every crop it wrote. A progress bar shows on a terminal.
+    ``rendered`` maps a PNG name to the PDF page it was rendered from;
+    those rows record their source.
     """
     padding = config.get('export', {}).get('padding', 10)
     by_page: Dict[str, List[Dict[str, str]]] = {}
@@ -254,9 +290,11 @@ def _process_pages(
                 )
                 run.recut.add(name)
                 taken = {r.output_crop_id: r.input_page_id for r in run.rows}
-                run.rows.extend(_process_page(
+                rows = _process_page(
                     page, corrections.get(name), config, args, padding, taken, run.orphans
-                ))
+                )
+                _record_source(rows, (rendered or {}).get(name))
+                run.rows.extend(rows)
             except FileExistsError as exc:
                 run.failed.append(name)
                 logging.error("%s: not cut. %s", name, exc)
@@ -268,6 +306,18 @@ def _process_pages(
                 logging.debug("Trace for %s", name, exc_info=True)
             _checkpoint(run, previous, config, args.output_dir)
     return run
+
+
+def _record_source(rows: Sequence[ManifestRow], source: Optional[RenderedPage]) -> None:
+    """Write the PDF page a rendered page came from on every row of that page."""
+    if source is None:
+        return
+    for row in rows:
+        row.source_pdf = source.source_pdf
+        row.source_page = str(source.source_page)
+        row.render_dpi = f"{source.dpi:g}"
+        row.dpi_source = source.dpi_source
+        row.source_filters = source.filters
 
 
 def _checkpoint(
@@ -573,12 +623,17 @@ def _resolve_config(args: argparse.Namespace) -> Dict:
     if args.read_labels is not None:
         identifiers['enabled'] = args.read_labels
 
+    pdf = dict(config.get('pdf', {}))
+    if getattr(args, 'pdf_dpi', None) is not None:
+        pdf['rasterise_dpi'] = args.pdf_dpi
+
     return {
         **config,
         'grouping': grouping,
         'export': export,
         'scale_bars': bars,
         'identifiers': identifiers,
+        'pdf': pdf,
     }
 
 
@@ -600,14 +655,13 @@ def _resolve_pages_dir(data_dir: str) -> str:
     return data_dir
 
 
-def _list_pages(data_dir: str) -> List[str]:
+def _list_pages(data_dir: str) -> Tuple[List[str], List[str]]:
     """
-    List readable page images, reporting anything skipped.
+    List readable page images and PDF files, reporting anything skipped.
 
     Files the tool cannot read are named rather than silently ignored.
     A folder of scans that yields no crops is otherwise indistinguishable
-    from a folder in the wrong format, and the commonest case — a PDF of
-    a paper — looks like a valid input to the person supplying it.
+    from a folder in the wrong format.
 
     Parameters
     ----------
@@ -616,8 +670,8 @@ def _list_pages(data_dir: str) -> List[str]:
 
     Returns
     -------
-    list of str
-        Paths of readable pages, sorted.
+    tuple of (list of str, list of str)
+        Paths of readable pages, sorted, and paths of PDF files, sorted.
 
     Raises
     ------
@@ -627,46 +681,33 @@ def _list_pages(data_dir: str) -> List[str]:
     if not os.path.isdir(data_dir):
         raise NotADirectoryError(f"Input directory not found: {data_dir}")
 
-    pages, skipped = [], []
+    pages, pdfs, skipped = [], [], []
     for name in sorted(os.listdir(data_dir)):
         path = os.path.join(data_dir, name)
         if name.startswith('.') or not os.path.isfile(path):
             continue
         if name.lower().endswith(PAGE_EXTENSIONS):
             pages.append(path)
+        elif is_pdf(name):
+            pdfs.append(path)
         else:
             skipped.append(name)
 
     _report_skipped(skipped)
-    if not pages:
+    if not pages and not pdfs:
         logging.warning("No page images found in %s", data_dir)
     else:
-        logging.info("Found %d page(s) in %s", len(pages), data_dir)
-    return pages
+        logging.info("Found %d page(s) and %d PDF file(s) in %s", len(pages), len(pdfs),
+                     data_dir)
+    return pages, pdfs
 
 
 def _report_skipped(skipped: Sequence[str]) -> None:
     """Warn about files that are not a readable page format."""
-    if not skipped:
-        return
-
-    pdfs = [name for name in skipped if name.lower().endswith('.pdf')]
-    others = [name for name in skipped if name not in pdfs]
-
-    if pdfs:
-        logging.warning(
-            "%d PDF file(s) not read: PDFs are not supported. Export the "
-            "figure pages as PNG or TIFF at their original resolution "
-            "first, so that the DPI agrees with the scan.",
-            len(pdfs),
-        )
-        for name in pdfs:
-            logging.warning("  unsupported (PDF): %s", name)
-
-    for name in others:
+    for name in skipped:
         extension = os.path.splitext(name)[1] or 'no extension'
         logging.warning(
-            "  not supported (%s): %s — the formats read are %s",
+            "  not supported (%s): %s. The formats read are %s and PDF.",
             extension, name, ', '.join(PAGE_EXTENSIONS),
         )
 
@@ -738,6 +779,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_required_args(parser)
     _add_grouping_args(parser)
     _add_output_args(parser)
+    _add_pdf_args(parser)
     _add_config_args(parser)
     return parser
 
@@ -824,6 +866,22 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         '--no_read_labels', dest='read_labels', action='store_false',
         help='Do not read identifiers. Name the crops by box number only.'
+    )
+
+
+def _add_pdf_args(parser: argparse.ArgumentParser) -> None:
+    """Add the PDF input argument group."""
+    group = parser.add_argument_group('PDF OPTIONS')
+    group.add_argument(
+        '--pdf_dpi', type=float, metavar='DPI',
+        help='The resolution for a PDF page that holds no raster image, in '
+             'dots per inch (default: 300). A page that holds a raster image '
+             'renders at the resolution of that image.'
+    )
+    group.add_argument(
+        '--pdf_pages', metavar='LIST',
+        help='The pages to render from each PDF file, for example 4,7,11-14 '
+             '(default: all pages).'
     )
 
 

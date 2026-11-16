@@ -190,6 +190,15 @@ plain OpenCV package by name. That package and the contrib package that
 PyLithics uses cannot be installed together. The first command installs
 the other packages that RapidOCR needs.
 
+To read PDF files in `pages/`, install the `pdf` extra too:
+
+```bash
+pip install ".[pdf]"
+```
+
+This installs pypdfium2. No other program is necessary. See [PDF
+input](user-guide/page-segmentation.md#pdf-input).
+
 ## Step 5: Make sure that the installation is correct
 
 Type `pylithics` with no arguments:

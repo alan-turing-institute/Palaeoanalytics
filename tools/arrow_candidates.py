@@ -1,14 +1,19 @@
 r"""
 List every arrow candidate on a folder of crops, for labelling.
 
-Each crop is preprocessed as the analysis does it. Every small contour at
-any level of the hierarchy is a candidate: an arrow sits inside a closed
-scar (nested), inside an open scar (at the scar's level) or in the
-background (top level). The package's detector assesses each candidate
-both ways along its axis, with the model given by ``--model`` (else the
-hand rule), and the table holds one row per candidate: the decision, the
-scores, the chosen direction, the profile features in that orientation
-and, as ``r_`` columns, in the other, and a ``label`` column.
+Each crop is preprocessed as the analysis does it. The candidates are
+the ones the analysis tries: the pieces of ink inside a closed contour,
+cut from the working copy of the drawing (``arrow_integration``). The
+analysis only tries the contours it recognised as scars; the tool has no
+surface classification, so it tries every contour below the top level.
+The package's detector decides each candidate in its two stages, the
+notch method first and then, with the model given by ``--model``, the
+classifier on the candidate's real ink. The table holds one row per
+candidate: the decision, the ``stage`` that made it (``triangle``,
+``model``, ``no model``, or the veto ``ink inside`` or ``too short``),
+the scores, the chosen direction, the features in that orientation and,
+as ``r_`` columns, in the other, and a ``label`` column. Boxes and
+points are in source pixels.
 
 Outputs under ``--out``: ``arrow_candidates.csv``; one overlay per crop in
 ``overlays/`` (green box and arrow = accepted, grey box = rejected); and
@@ -18,8 +23,9 @@ by the ``k`` column. A cell shows the candidate's box in blue and, unless
 
 Labels: ``yes`` (an arrow, the drawn direction is right), ``flipped`` (an
 arrow, the drawn direction is reversed), ``no``. Known labels are read
-from ``--labels`` and kept; the rest are prefilled from the decision,
-with ``label_source`` saying ``known``, ``model`` or ``rule``.
+from ``--labels`` and kept, matched by image and box, exactly or by the
+box that overlaps most (at least half); the rest are prefilled from the
+decision, with ``label_source`` saying ``known``, ``model`` or ``rule``.
 
 Usage::
 
@@ -46,13 +52,15 @@ from pylithics.image_processing.modules import arrow_profile as profile  # noqa:
 from pylithics.image_processing.modules.arrow_detection import (  # noqa: E402
     ArrowDetector, Assessment,
 )
+from pylithics.image_processing.modules.arrow_integration import marks_in_scar  # noqa: E402
 from pylithics.image_processing.modules.contour_extraction import (  # noqa: E402
     extract_contours_with_hierarchy,
 )
 
 IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp')
-MAX_SIDE = 0.2          # a candidate's long side is at most this share of the image's
+MAX_SIDE = 0.5          # a candidate's long side is at most this share of the image's
 MIN_AREA = 4.0          # source pixels
+MIN_OVERLAP = 0.5       # a known label applies to a box that overlaps its own by this share
 SHEET_HEAD_RATIO = 1.3  # without a model, rejected rows below this stay off the sheets
 SHEET_MIN_SCORE = 0.2   # with a model, rejected rows scoring under this stay off the sheets
 CELL = 96               # thumbnail cell, pixels (``--cell``)
@@ -60,7 +68,7 @@ SHEET_COLUMNS = 10
 DEFAULT_LABELS = os.path.join('pylithics', 'models', 'arrow_labels.csv')
 
 COLUMNS = [
-    'k', 'image', 'n', 'depth', 'x0', 'y0', 'x1', 'y1', 'arrow', 'rule', 'reverse',
+    'k', 'image', 'n', 'depth', 'x0', 'y0', 'x1', 'y1', 'arrow', 'stage', 'rule', 'reverse',
     'score_fwd', 'score_rev', 'angle', 'bx', 'by', 'tx', 'ty', *profile.FEATURES,
     *['r_' + name for name in profile.FEATURES], 'label', 'label_source',
 ]
@@ -77,15 +85,29 @@ def list_images(folder: str) -> List[str]:
     )
 
 
-def find_candidates(contours, hierarchy, shape) -> List[Tuple[int, int, Box]]:
-    """Return (index, depth, box) of every contour small enough to be an arrow."""
-    limit = MAX_SIDE * max(shape)
-    found = []
-    for i, cnt in enumerate(contours):
-        x, y, w, h = cv2.boundingRect(cnt)
-        if max(w, h) > limit or cv2.contourArea(cnt) < MIN_AREA:
+def find_candidates(contours, hierarchy, ink, factor: int) -> List[Tuple]:
+    """
+    Return (marks, contour, depth, box) of every mark inside a contour below the top level.
+
+    ``marks`` is the mark's crop (``arrow_integration.Marks``); the contour
+    is in its pixels; the box is in source pixels. A mark is offered once,
+    under the smallest contour that holds it.
+    """
+    limit = MAX_SIDE * max(ink.shape) / factor
+    found, seen = [], set()
+    order = sorted(range(len(contours)), key=lambda i: cv2.contourArea(contours[i]))
+    for i in order:
+        depth = _depth(hierarchy, i)
+        if depth == 0:
             continue
-        found.append((i, _depth(hierarchy, i), (x, y, x + w, y + h)))
+        marks = marks_in_scar(contours[i], ink, factor)
+        for cnt in marks.contours:
+            x, y, w, h = cv2.boundingRect(cnt)
+            box = (*marks.to_source((x, y)), *marks.to_source((x + w, y + h)))
+            if max(w, h) > limit * factor or w * h < MIN_AREA * factor ** 2 or box in seen:
+                continue
+            seen.add(box)
+            found.append((marks, cnt, depth + 1, box))
     return found
 
 
@@ -97,16 +119,17 @@ def _depth(hierarchy, index: int) -> int:
     return depth
 
 
-def row_fields(assessment: Assessment) -> Dict:
-    """Return the table fields of one assessment."""
+def row_fields(assessment: Assessment, to_source=lambda point: point) -> Dict:
+    """Return the table fields of one assessment; ``to_source`` maps its points to source pixels."""
     geometry = assessment.geometry
     rule = assessment.rule[1] if assessment.reversed else assessment.rule[0]
+    back, tip = to_source(geometry['arrow_back']), to_source(geometry['arrow_tip'])
     row = {
-        'arrow': int(assessment.accepted), 'rule': int(rule), 'reverse': int(assessment.reversed),
+        'arrow': int(assessment.accepted), 'stage': assessment.stage, 'rule': int(rule),
+        'reverse': int(assessment.reversed),
         'score_fwd': _blank(assessment.scores[0]), 'score_rev': _blank(assessment.scores[1]),
         'angle': geometry['compass_angle'],
-        'bx': geometry['arrow_back'][0], 'by': geometry['arrow_back'][1],
-        'tx': geometry['arrow_tip'][0], 'ty': geometry['arrow_tip'][1],
+        'bx': back[0], 'by': back[1], 'tx': tip[0], 'ty': tip[1],
     }
     other = assessment.forward if assessment.reversed else assessment.reverse
     row.update({name: round(assessment.features[name], 4) for name in profile.FEATURES})
@@ -131,17 +154,30 @@ def candidate_rows(
     if not contours:
         return [], image
     rows = []
-    for index, depth, box in find_candidates(contours, hierarchy, pre.image.shape):
-        assessment = detector.assess(contours[index])
+    dpi = _dpi(path)
+    candidates = find_candidates(contours, hierarchy, pre.working, pre.upscale_factor)
+    for marks, cnt, depth, box in candidates:
+        assessment = detector.assess(cnt, marks.ink, dpi, marks.factor)
         if assessment is None:
             continue
-        fields = row_fields(assessment)
+        fields = row_fields(assessment, marks.to_source)
         fields.update({
             'image': os.path.basename(path), 'n': len(rows) + 1, 'depth': depth,
             'x0': box[0], 'y0': box[1], 'x1': box[2], 'y1': box[3],
         })
         rows.append(fields)
     return rows, image
+
+
+def _dpi(path: str) -> Optional[float]:
+    """Return the image's DPI tag, or None."""
+    try:
+        from PIL import Image
+        with Image.open(path) as handle:
+            dpi = handle.info.get('dpi')
+        return float(dpi[0]) if dpi else None
+    except (OSError, ValueError, TypeError):
+        return None
 
 
 ### DRAWING ###
@@ -216,22 +252,46 @@ def write_sheets(cells: List[np.ndarray], out: str, cell_size: int = CELL) -> in
 
 ### LABELS ###
 
-def read_labels(path: str) -> Dict[Tuple, str]:
-    """Return known labels keyed by image and box, or an empty dict."""
+def read_labels(path: str) -> Dict[str, List[Tuple[Box, str]]]:
+    """Return the known labels of each image as (box, label) pairs, or an empty dict."""
+    known: Dict[str, List[Tuple[Box, str]]] = {}
     if not path or not os.path.isfile(path):
-        return {}
+        return known
     with open(path, newline='', encoding='utf-8') as handle:
-        return {
-            (r['image'], r['x0'], r['y0'], r['x1'], r['y1']): r['label'].strip().lower()
-            for r in csv.DictReader(handle) if r.get('label', '').strip()
-        }
+        for r in csv.DictReader(handle):
+            if r.get('label', '').strip():
+                box = (int(r['x0']), int(r['y0']), int(r['x1']), int(r['y1']))
+                known.setdefault(r['image'], []).append((box, r['label'].strip().lower()))
+    return known
 
 
-def prefill(row: Dict, known: Dict[Tuple, str], with_model: bool) -> None:
+def known_label(row: Dict, known: Dict[str, List[Tuple[Box, str]]]) -> Optional[str]:
+    """Return the known label whose box overlaps the row's most, if at least half; else None."""
+    box = (row['x0'], row['y0'], row['x1'], row['y1'])
+    best, best_overlap = None, MIN_OVERLAP
+    for other, label in known.get(row['image'], []):
+        overlap = _overlap(box, other)
+        if overlap >= best_overlap:
+            best, best_overlap = label, overlap
+    return best
+
+
+def _overlap(a: Box, b: Box) -> float:
+    """Return the shared area of two boxes over the area of their union."""
+    w = min(a[2], b[2]) - max(a[0], b[0])
+    h = min(a[3], b[3]) - max(a[1], b[1])
+    if w <= 0 or h <= 0:
+        return 0.0
+    shared = w * h
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - shared
+    return shared / union if union > 0 else 0.0
+
+
+def prefill(row: Dict, known: Dict[str, List[Tuple[Box, str]]], with_model: bool) -> None:
     """Set the label of a row from the known labels, else from the decision."""
-    key = (row['image'], str(row['x0']), str(row['y0']), str(row['x1']), str(row['y1']))
-    if key in known:
-        row['label'], row['label_source'] = known[key], 'known'
+    label = known_label(row, known)
+    if label is not None:
+        row['label'], row['label_source'] = label, 'known'
     else:
         row['label'] = 'yes' if row['arrow'] else 'no'
         row['label_source'] = 'model' if with_model else 'rule'
@@ -271,7 +331,7 @@ def parse_args(argv=None) -> argparse.Namespace:
         '--out', default=os.path.join('pylithics', 'data', 'results', 'arrow_candidates'),
     )
     parser.add_argument('--labels', default=DEFAULT_LABELS, help='CSV of known labels to keep')
-    parser.add_argument('--model', help='Model JSON to decide with (default: the hand rule)')
+    parser.add_argument('--model', help='Model JSON for stage 2 (default: stage 1 alone)')
     parser.add_argument('--threshold', type=float, default=0.5, help='Model score to accept')
     parser.add_argument('--limit', type=int, default=0, help='Only the first N images')
     parser.add_argument('--only', action='append', default=[], metavar='TEXT',
@@ -290,7 +350,7 @@ def parse_args(argv=None) -> argparse.Namespace:
 
 
 def make_detector(args: argparse.Namespace) -> ArrowDetector:
-    """Return a detector that uses the model given, or the hand rule."""
+    """Return a detector with the model given for stage 2, or stage 1 alone."""
     settings = {'classifier': {'enabled': bool(args.model), 'threshold': args.threshold}}
     model = load_forest(args.model) if args.model else None
     return ArrowDetector(settings, model=model)

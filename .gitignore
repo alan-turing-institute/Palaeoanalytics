@@ -34,18 +34,27 @@ paperV2/
 # Written by setup.py at install time: the path of this clone
 pylithics/_source_path.txt
 
-# Sample project data: only the generated sample plate and five drawings are
-# in the repo. The research corpus and all pipeline output stay local.
-pylithics/data/pages/*
+# Sample project data: only the sample plate, the five drawings, their scale
+# bar and their metadata are in the repo. Everything else put in these
+# folders (the research corpus, pages, scale bars, pipeline output) stays
+# local. The tracked samples are listed with "!" so they stay tracked.
+pylithics/data/images/
+!pylithics/data/images/KL3_5313_1.png
+!pylithics/data/images/awbari.png
+!pylithics/data/images/qesem_cave.png
+!pylithics/data/images/replica_1.png
+!pylithics/data/images/rub_al_khali.png
+pylithics/data/pages/
 !pylithics/data/pages/sample_plate.png
+pylithics/data/scales/
+!pylithics/data/scales/sc_001.png
+pylithics/data/meta_data.csv
+pylithics/data/pylithics-pages.log
 pylithics/data/results/
 pylithics/data/pages_manifest.csv
 pylithics/data/pages_debug/
-pylithics/data/pylithics-pages.log
-pylithics/data/images/*_figure_*.png
-pylithics/data/images/*_box_[0-9][0-9].png
-pylithics/data/scales/*_scale_bar*.png
 pylithics/data/processed_pages/
 pylithics/data/processed_images/
 pylithics/data/corrections.csv
 *.log
+pylithics/models/arrow_variants.csv

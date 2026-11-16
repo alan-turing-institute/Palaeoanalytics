@@ -312,7 +312,7 @@ Find the scale bar and calculate the pixels for each millimetre. If there is no 
 Remove scan noise and make the lines clearer.
 
 **D. Thresholding**
-Change the image to black and white with the simple, Otsu or adaptive method.
+Change the image to black and white. The default `auto` method finds the threshold from the image and keeps it between `threshold_value` and `threshold_ceiling`, so grey lines are kept and a grey-filled surface stays open. The other methods are `simple`, `otsu` and `adaptive`. The blur before the threshold and the closing after it are sized from the measured line width of the drawing.
 
 **E. Contour extraction**
 Find the object boundaries as a parent–child hierarchy (surfaces and scars).

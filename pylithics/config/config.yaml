@@ -21,20 +21,28 @@ dpi_processing:
                              # standard: Moderate scaling for mixed content (default)
                              # aggressive: Full DPI-proportional scaling
 
-  # Base kernel sizes (optimized for reference_dpi)
+  # Base kernel sizes (optimized for reference_dpi). The blur and the
+  # closing are sized from the measured stroke width of each drawing
+  # (half a stroke and one stroke); these bases apply only when the
+  # stroke could not be measured.
   base_kernels:
     gaussian_blur: 5      # Base Gaussian blur kernel size
     adaptive_block: 11    # Base adaptive threshold block size
     morphological: 3      # Base morphological closing kernel size
 
 thresholding:
-  method: simple  # Choose the thresholding method:
-                  # - "simple" thresholding uses a fixed threshold value (see threshold_value below) and is the "default" method.
-                  # - "adaptive" adjusts the threshold based on local image regions.
-                  # - "otsu" calculates the optimal threshold value automatically.
+  method: auto  # Choose the thresholding method:
+                # - "auto" finds the threshold from the image (Otsu) and keeps it
+                #   between threshold_value and threshold_ceiling. Grey lines are
+                #   ink; paper texture is not. This is the default.
+                # - "simple" uses threshold_value for every image.
+                # - "adaptive" adjusts the threshold based on local image regions.
+                # - "otsu" uses the Otsu value with no floor and no ceiling.
 
-  threshold_value: 127  # Only used for "simple" thresholding. This sets the threshold value.
-                        # Any pixel intensity above this value is set to max_value, and below this is set to 0.
+  threshold_value: 127  # For "simple": the threshold. For "auto": the lowest threshold.
+                        # Any pixel intensity above the threshold is set to max_value, and below this is set to 0.
+
+  threshold_ceiling: 230  # For "auto": the highest threshold.
 
   max_value: 255  # Maximum pixel intensity after thresholding.
                   # Typically set to 255 (for binary images), but you can change this if needed.
@@ -120,7 +128,10 @@ logging:
               # output so it follows your dataset, not your shell cwd.
 
 contour_filtering:
-  min_area: 50.0  # Minimum contour area in pixels
+  min_area: 50.0  # Minimum contour area in pixels, for a large scan
+  min_area_share: 0.0001  # On a small image the minimum is at most this share
+                          # of the image area, so a small arrow is kept and only
+                          # a speck is removed. 0 turns the share off.
   exclude_border: true  # Whether to exclude contours touching the image border
 
 # Arrow Detection Configuration
@@ -128,11 +139,21 @@ arrow_detection:
   enabled: true  # Find the arrows drawn on scars and give their direction
                  # - false: skip arrow detection
 
+  # Stage 1, the notch method: the two notches where the head meets the
+  # shaft give the head triangle. Its thresholds are set for 300 DPI and
+  # scaled to the image. A factor under 1 makes a test more permissive.
+  reference_dpi: 300.0
+  min_area_scale_factor: 0.7           # on the smallest area
+  min_defect_depth_scale_factor: 0.8   # on the depth of a notch
+  min_triangle_height_scale_factor: 0.8  # on the height of the head
+
+  # Stage 2, the classifier: runs only on a mark that stage 1 rejected.
   classifier:
-    enabled: true  # A trained model (a random forest) decides whether a mark
-                   # is an arrow and which way it points, from the width
-                   # profile of the mark along its axis.
-                   # false: a hand rule on the same profile decides.
+    enabled: true  # A trained model (a random forest) decides whether the
+                   # mark is an arrow and which way it points, from the
+                   # width profile of its ink along its axis and the notch
+                   # measurements of stage 1.
+                   # false: stage 1 alone decides.
     model: arrow_classifier.json  # File under pylithics/models/, or a path
     threshold: 0.5  # A score at or above this is an arrow
 
@@ -147,11 +168,6 @@ arrow_detection:
 # Arrow Integration Configuration
 # Controls which marks are tried as arrows and how an arrow is matched to a scar
 arrow_integration:
-  min_candidate_area: 4.0    # A mark smaller than this (source pixels) is a speck
-  max_candidate_share: 0.02  # A scar or surface no larger than this share of the
-                             # main surface is tried as an arrow. One that is an
-                             # arrow becomes the arrow of the scar around it and
-                             # is no longer counted as a scar.
   area_match_tolerance: 1.0  # Tolerance for matching contours by area (pixels)
 
 # Surface Classification Configuration
@@ -313,6 +329,17 @@ page_segmentation:
     manifest: true  # Write pages_manifest.csv recording every crop's source page,
                     # bounding box, DPI, and colour mode. Required for
                     # reproducible research; disable only for quick tests.
+
+  pdf:
+    # A PDF file in pages/ is rendered to one PNG for each page, in
+    # pages_rendered/. A page that holds a raster image renders at the
+    # resolution of that image, so no pixel is added or lost.
+    # pypdfium2 is necessary: pip install 'pylithics[pdf]'
+    rasterise_dpi: 300  # Resolution for a page with no raster image (a vector
+                        # drawing or text). --pdf_dpi sets another value.
+    min_coverage: 0.05  # A raster must cover this share of the page area to set
+                        # the resolution. Small logos do not count.
+    max_dpi: 1200  # Cap on a derived resolution
 
   scale_bars:
     enabled: true  # Export detected page scale bars as their own crops to

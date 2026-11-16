@@ -134,7 +134,7 @@ pixels when it is not. The column `calibration_method` shows which.
 |--------|-------|-------------|
 | `has_arrow` | bool | `True` if an arrow was found |
 | `arrow_angle` | degrees | The angle in the PyLithics frame. See the note below |
-| `arrow_score` | 0–1 | The score of the classifier for the arrow. Present when the classifier decided |
+| `arrow_score` | 0–1 | The score of the classifier for the arrow. Present when stage 2, the classifier, decided. Empty when stage 1, the notch method, decided |
 
 !!! note "Arrow angle"
     `arrow_angle` is in a 0–360° frame like a compass, but the frame

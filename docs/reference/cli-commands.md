@@ -64,7 +64,7 @@ pylithics --data_dir pylithics/data
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--config_file FILE` | A YAML configuration file to use in place of the default | the built-in defaults |
-| `--threshold_method METHOD` | `simple`, `otsu`, `adaptive` or `default` | `default` |
+| `--threshold_method METHOD` | `auto`, `simple`, `otsu` or `adaptive`. `auto` finds the threshold from the image and keeps it between `threshold_value` and `threshold_ceiling` | `auto` |
 | `--log_level LEVEL` | The logging level for the screen and the log file: `DEBUG`, `INFO`, `WARNING`, `ERROR`. The log file *always* has the full DEBUG trace. | `INFO` on the screen |
 | `--verbose`, `-v` | Show the full trace for each step on the screen (the same as `--log_level DEBUG` for the screen only). | off |
 
@@ -85,8 +85,9 @@ The `working_resolution` section of the configuration sets when an image is upsc
 ```yaml
 # config.yaml
 thresholding:
-  method: otsu
+  method: auto
   threshold_value: 127
+  threshold_ceiling: 230
   max_value: 255
   debug_output: false
 
@@ -96,6 +97,7 @@ scale_calibration:
 
 arrow_detection:
   enabled: true
+  reference_dpi: 300.0
   classifier:
     threshold: 0.5
   debug_enabled: false
@@ -215,7 +217,7 @@ pylithics --data_dir ./data --disable_arrow_detection
 pylithics --data_dir ./data --show-arrow-lines
 ```
 
-The `arrow_detection.classifier` section of the configuration controls how an arrow is decided. A trained model (a random forest) measures the width of each mark along its axis, in both directions, and gives a score to each direction. The higher score gives the direction of the arrow. A mark is an arrow when that score is at or above `threshold` (default `0.5`). `enabled: false` makes a hand rule on the same measurements decide. The model is `arrow_classifier.json` under `pylithics/models/`. A scar or a surface small enough to be a mark is tried too: when it is an arrow, it becomes the arrow of the scar around it and is not counted as a scar. The CSV column `arrow_score` holds the score.
+A mark is decided in two stages. Stage 1 is the notch method: the two notches where the head of an arrow meets its shaft give the head triangle, and the triangle gives the direction. Its thresholds are set for 300 DPI and scaled to the image with the `reference_dpi` and `*_scale_factor` keys of `arrow_detection`. What stage 1 accepts is an arrow. Stage 2 runs only on the marks that stage 1 rejects. A mark that holds other ink, or that is shorter than 6 pixels, is refused. For the rest, a trained model (a random forest) measures the width of the mark's ink along its axis, in both directions, with the notch measurements of stage 1, and gives a score to each direction. The higher score gives the direction. The mark is an arrow when that score is at or above `classifier.threshold` (default `0.5`). `classifier.enabled: false` makes stage 1 alone decide. The model is `arrow_classifier.json` under `pylithics/models/`. The only marks tried are the marks inside a recognised scar. A surface, a scar, or a mark outside every recognised scar is never tried. When the image was upscaled for detection (see [Working Resolution](../user-guide/working-resolution.md)), the marks are cut from the upscaled copy, so a small arrow keeps its notches. The arrow positions in the CSV are in the pixels of the input. The CSV column `arrow_score` holds the score when stage 2 decided.
 
 ## Scale calibration
 
@@ -368,7 +370,7 @@ The two commands share one project folder:
 
 | Command | Reads | Writes |
 |---------|-------|--------|
-| `pylithics-pages` | `<data_dir>/pages/` | `<data_dir>/images/`, `scales/`, `pages_manifest.csv`, `meta_data.csv`, and `pages_debug/` with `--debug` |
+| `pylithics-pages` | `<data_dir>/pages/` | `<data_dir>/images/`, `scales/`, `pages_manifest.csv`, `meta_data.csv`, `pages_debug/` with `--debug`, and `pages_rendered/` for PDF input |
 | `pylithics` | `<data_dir>/images/`, `scales/`, `meta_data.csv` | `<data_dir>/results/` |
 
 `meta_data.csv` has one row for each artefact crop. `scale_id` is the scale bar from the same page. `scale` is empty for you to fill in. `flag` names a problem to correct first (`no_scale`, `several_scales`, `scale_uncertain`, `low_resolution`, or an identifier flag). See [meta_data.csv](../user-guide/page-segmentation.md#meta_datacsv).
@@ -407,6 +409,15 @@ All distances are fractions of the page width or the page height. The same value
 | `--read_labels` | Read the identifier next to each lithic and name the crop with it. RapidOCR is necessary; see [Installation](../installation.md#step-4-install-pylithics) | on |
 | `--no_read_labels` | Do not read identifiers. Name the crops by box number only | off |
 
+### PDF Options
+
+A PDF file in `pages/` is rendered to one PNG for each page in `pages_rendered/`, then cut like a scanned page. The optional package pypdfium2 is necessary: `pip install ".[pdf]"`. See [PDF input](../user-guide/page-segmentation.md#pdf-input).
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--pdf_dpi DPI` | The resolution for a PDF page that holds no raster image, in dots per inch. A page that holds a raster image renders at the resolution of that image | `300` |
+| `--pdf_pages LIST` | The pages to render from each PDF file, for example `4,7,11-14` | all pages |
+
 ### Configuration Options
 
 | Flag | Description | Default |
@@ -414,6 +425,8 @@ All distances are fractions of the page width or the page height. The same value
 | `--config_file FILE` | A YAML configuration file to use in place of the default | packaged `config.yaml` |
 | `--log_level LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` | `INFO` |
 | `--verbose`, `-v` | Show the full trace for each page | off |
+
+The `pdf` section of `config.yaml` sets how a PDF page is rendered: `rasterise_dpi` for a page with no raster image (default `300`), `min_coverage`, the share of the page an image must cover to set the resolution (default `0.05`), and `max_dpi`, the cap on a derived resolution (default `1200`).
 
 The `identifiers` section of `config.yaml` sets `reach`, the distance in glyph heights at which an identifier outside a box belongs to the nearest box (default `1.5`). Increase it for plates that print the identifier far from the lithic.
 
@@ -447,6 +460,9 @@ pylithics-pages --data_dir pylithics/data --gap 0.05
 
 # Name the crops by box number only
 pylithics-pages --data_dir pylithics/data --no_read_labels
+
+# Cut the figure pages of a downloaded paper
+pylithics-pages --data_dir my_project --pdf_pages 4,7,11-14 --debug
 ```
 
 ## Environment Variables

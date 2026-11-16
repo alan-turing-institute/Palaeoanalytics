@@ -1,14 +1,21 @@
 """
-Width profile of a blob along its long axis, the measurement behind arrow detection.
+Width profile of a blob along its long axis, the measurement behind the arrow classifier.
 
 An arrow has a thin, even shaft and a head that widens and then narrows to
 a point. Those are properties of the ink width along the axis of the
 blob, and they survive at small sizes, where the notches between head and
-shaft are a pixel deep and useless. This module renders a contour at a
-supersampled scale, finds its long axis, cuts the length into bins and
-measures the ink in each bin. The features of the profile are computed
-for one orientation (tail at the first bin, head at the last) and again
-reversed, so a classifier can say which way the arrow points.
+shaft are a pixel deep and useless. This module takes the ink of a
+contour, renders it at a supersampled scale, finds its long axis, cuts
+the length into bins and measures the ink in each bin. The features of
+the profile are computed for one orientation (tail at the first bin,
+head at the last) and again reversed, so a classifier can say which way
+the arrow points.
+
+The ink is the real ink of the binary image inside the contour when the
+caller gives the image. A scar outline is then measured as the ring it
+is, not as the filled shape its contour encloses, and the fill features
+tell a drawn stroke from an empty outline. Without the image the filled
+contour is measured, which is the same thing for a solid mark.
 
 Every length is in source pixels; every other feature is a ratio.
 """
@@ -33,19 +40,34 @@ PROFILE_POINTS = 10      # the span profile is also given as this many values
 
 # Every feature but ``length`` is a ratio, so the model does not learn the
 # scale of the drawings it was trained on.
-FEATURES: List[str] = [
+PROFILE_FEATURES: List[str] = [
     'length', 'head_ratio', 'head_pos', 'tip_taper', 'tail_even', 'tail_end',
     'head_fill', 'shaft_fill', 'head_len', 'asymmetry', 'aspect', 'solidity',
     'head_skew', 'tail_skew', *[f'span_{i}' for i in range(PROFILE_POINTS)],
     *[f'shape_{i}' for i in range(PROFILE_POINTS)],
 ]
 
+# The measurements of the notch method (``arrow_detection``), given to the
+# classifier as ratios so it knows what that method knows. The same in
+# both orientations.
+STRUCTURE_FEATURES: List[str] = [
+    'notches', 'notch_depth_1', 'notch_depth_2', 'triangle_height',
+    'shaft_solidity', 'head_solidity',
+]
+
+FEATURES: List[str] = PROFILE_FEATURES + STRUCTURE_FEATURES
+
 Point = Tuple[float, float]
 
 
 @dataclass(frozen=True)
 class Profile:
-    """The ink of a blob measured along its long axis, in source pixels."""
+    """
+    The ink of a blob measured along its long axis.
+
+    The lengths are in source pixels. ``ends`` are in the pixels of the
+    image the blob was measured on, so a caller can draw them on it.
+    """
 
     length: float
     span: np.ndarray
@@ -58,44 +80,54 @@ class Profile:
 
 ### MEASUREMENT ###
 
-def measure_profile(contour: np.ndarray) -> Optional[Profile]:
+def measure_profile(
+    contour: np.ndarray, ink: Optional[np.ndarray] = None, scale: float = 1.0,
+) -> Optional[Profile]:
     """
     Measure the width profile of a contour, or return None for a degenerate one.
 
-    The contour is rendered at ``SUPERSAMPLE`` times its size, so a one-pixel
-    stroke is measured with four pixels. ``ends`` are the extreme ink points
-    along the axis, in source coordinates: the first at the first bin.
+    With ``ink``, the binary image the contour came from (ink white), the
+    ink pixels inside the contour are measured. Without it the filled
+    contour is. Either is rendered at ``SUPERSAMPLE`` times its size, so a
+    one-pixel stroke is measured with four pixels. ``scale`` is the number
+    of pixels of ``ink`` per source pixel: the lengths come out in source
+    pixels whatever the working resolution. ``ends`` are the extreme ink
+    points along the axis, in the pixels of ``ink``: the first at the
+    first bin.
     """
     points = contour.reshape(-1, 2).astype(np.float64) * SUPERSAMPLE
     if len(points) < 3:
         return None
-    coords = _render(points)
+    coords = _render(points) if ink is None else _render_ink(contour, ink)
     if coords is None:
         return None
     hull_area = cv2.contourArea(cv2.convexHull(points.astype(np.float32)))
     area = float(len(coords))
     solidity = area / hull_area if hull_area > 0 else 0.0
+    unit = SUPERSAMPLE * scale
     return min(
-        (_profile_along(coords, axis, area, solidity) for axis in _axes(coords)),
+        (_profile_along(coords, axis, area, solidity, unit) for axis in _axes(coords)),
         key=_skewness,
     )
 
 
-def _profile_along(coords: np.ndarray, axis: np.ndarray, area: float, solidity: float) -> Profile:
-    """Measure the ink along one unit axis."""
+def _profile_along(
+    coords: np.ndarray, axis: np.ndarray, area: float, solidity: float, unit: float,
+) -> Profile:
+    """Measure the ink along one unit axis; ``unit`` is the rendered pixels per source pixel."""
     centre = coords.mean(axis=0)
     along = (coords - centre) @ axis
     across = (coords - centre) @ np.array([-axis[1], axis[0]])
     span, fill, offset, extent = _bin_profile(along, across)
     first, last = _axis_ends(coords, axis, along)
     return Profile(
-        length=extent / SUPERSAMPLE,
-        span=span / SUPERSAMPLE,
+        length=extent / unit,
+        span=span / unit,
         fill=fill,
-        offset=offset / SUPERSAMPLE,
-        area=area / SUPERSAMPLE ** 2,
+        offset=offset / unit,
+        area=area / unit ** 2,
         solidity=solidity,
-        ends=(_source_point(first), _source_point(last)),
+        ends=(_image_point(first), _image_point(last)),
     )
 
 
@@ -117,6 +149,61 @@ def _render(points: np.ndarray) -> Optional[np.ndarray]:
     if len(xs) < _MIN_PIXELS:
         return None
     return np.column_stack((xs + origin[0], ys + origin[1])).astype(np.float64)
+
+
+def _render_ink(contour: np.ndarray, ink: np.ndarray) -> Optional[np.ndarray]:
+    """
+    Return the supersampled coordinates of the ink pixels inside the contour, or None.
+
+    Each source pixel becomes a ``SUPERSAMPLE`` square block, so the
+    measurement has the same scale as the polygon render.
+    """
+    pixels, (left, top) = ink_in_contour(contour, ink)
+    if int(pixels.sum()) * SUPERSAMPLE ** 2 < _MIN_PIXELS:
+        return None
+    block = np.ones((SUPERSAMPLE, SUPERSAMPLE), dtype=bool)
+    ys, xs = np.nonzero(np.kron(pixels, block))
+    return np.column_stack(
+        (xs + left * SUPERSAMPLE, ys + top * SUPERSAMPLE)
+    ).astype(np.float64)
+
+
+def ink_in_contour(contour: np.ndarray, ink: np.ndarray) -> Tuple[np.ndarray, Point]:
+    """
+    Return the ink pixels inside the filled contour as a boolean crop, and the crop's origin.
+
+    The crop is the contour's box with a one-pixel border, clipped to the
+    image.
+    """
+    x, y, w, h = cv2.boundingRect(contour)
+    left, top = max(x - 1, 0), max(y - 1, 0)
+    right, bottom = min(x + w + 1, ink.shape[1]), min(y + h + 1, ink.shape[0])
+    mask = np.zeros((bottom - top, right - left), dtype=np.uint8)
+    cv2.drawContours(mask, [contour - np.array([left, top])], 0, 255, cv2.FILLED)
+    pixels = (mask > 0) & (ink[top:bottom, left:right] > 0)
+    return pixels, (left, top)
+
+
+def ink_inside(contour: np.ndarray, ink: np.ndarray) -> bool:
+    """
+    Say whether the contour holds ink that is not joined to its own boundary.
+
+    A scar outline holds the arrow drawn in it; a hollow arrow holds
+    nothing. The ink inside the filled contour is split into connected
+    pieces, and a piece that touches no pixel of the contour's own rim
+    is other ink.
+    """
+    pixels, _ = ink_in_contour(contour, ink)
+    mask = np.zeros(pixels.shape, dtype=np.uint8)
+    x, y, _, _ = cv2.boundingRect(contour)
+    cv2.drawContours(mask, [contour - np.array([max(x - 1, 0), max(y - 1, 0)])], 0, 255,
+                     cv2.FILLED)
+    rim = (mask > 0) & (cv2.erode(mask, np.ones((3, 3), dtype=np.uint8)) == 0)
+    count, labels = cv2.connectedComponents(pixels.astype(np.uint8), connectivity=8)
+    for piece in range(1, count):
+        if not rim[labels == piece].any():
+            return True
+    return False
 
 
 def _axes(coords: np.ndarray) -> List[np.ndarray]:
@@ -164,8 +251,8 @@ def _bin_profile(
     return span, np.minimum(fill, 1.0), offset, extent
 
 
-def _source_point(coord: np.ndarray) -> Point:
-    """Return a supersampled coordinate in source pixels."""
+def _image_point(coord: np.ndarray) -> Point:
+    """Return a supersampled coordinate in the pixels of the measured image."""
     return (float(coord[0]) / SUPERSAMPLE, float(coord[1]) / SUPERSAMPLE)
 
 

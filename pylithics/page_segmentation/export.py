@@ -64,6 +64,7 @@ MANIFEST_COLUMNS = [
     'label', 'label_source', 'label_confidence', 'label_flag',
     'label_candidates', 'stroke_width_px', 'upscale_factor',
     'scale_score', 'scale_method',
+    'source_pdf', 'source_page', 'render_dpi', 'dpi_source', 'source_filters',
 ]
 
 # Manifest names for the source colour mode. Pillow's own names are
@@ -107,6 +108,11 @@ class ManifestRow:
     upscale_factor: int = 1
     scale_score: str = ''
     scale_method: str = ''
+    source_pdf: str = ''
+    source_page: str = ''
+    render_dpi: str = ''
+    dpi_source: str = ''
+    source_filters: str = ''
 
 
 def prepare_output_dir(output_dir: str) -> List[Dict[str, str]]:

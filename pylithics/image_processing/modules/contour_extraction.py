@@ -25,9 +25,11 @@ def extract_contours_with_hierarchy(inverted_image, image_id, output_dir):
     valid_contours : list of ndarray
     valid_hierarchy : ndarray or None
     """
-    min_contour_area = get_contour_filtering_config()['min_area']
+    min_contour_area = minimum_contour_area(
+        get_contour_filtering_config(), inverted_image.shape,
+    )
     logging.debug(
-        f"Using minimum contour area: {min_contour_area} pixels for image {image_id}"
+        f"Using minimum contour area: {min_contour_area:.1f} pixels for image {image_id}"
     )
 
     contours, hierarchy = cv2.findContours(
@@ -192,6 +194,22 @@ def hide_nested_child_contours(contours, hierarchy):
 
     logging.debug("Flagged %d single-child contours for exclusion.", sum(flags))
     return flags
+
+
+def minimum_contour_area(config, shape):
+    """
+    Return the smallest contour area kept, in pixels.
+
+    ``min_area`` is the limit for a large scan. On a small crop the same
+    number of pixels is an arrow, so the limit is also at most
+    ``min_area_share`` of the image area: a speck is a speck in
+    proportion to the drawing, not in absolute pixels.
+    """
+    min_area = float(config.get('min_area', 50.0))
+    share = float(config.get('min_area_share', 0.0) or 0.0)
+    if share > 0:
+        min_area = min(min_area, share * shape[0] * shape[1])
+    return min_area
 
 
 def filter_contours_by_min_area(contours, hierarchy, min_area=1.0):

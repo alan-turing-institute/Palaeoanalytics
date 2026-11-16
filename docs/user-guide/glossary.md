@@ -159,7 +159,7 @@ Platform child contours are not in the output. They are usually the boundaries o
 : The image resolution. PyLithics uses fixed kernels by default from 75 to 600 DPI. `--enable_dpi_scaling` sets the kernel sizes from the DPI, for scans with noise.
 
 **Thresholding**
-: The change of a greyscale image to a black-and-white image. PyLithics has `simple` (a fixed value), `otsu` (an automatic division into two tones), `adaptive` (a value for each region) and `default` (`simple` with the default value).
+: The change of a greyscale image to a black-and-white image. PyLithics has `auto` (the default: the Otsu value kept between `threshold_value` and `threshold_ceiling`, raised above the floor only when the grey it adds is thin), `simple` (a fixed value), `otsu` (an automatic division into two tones, with no limits) and `adaptive` (a value for each region).
 
 **Contour**
 : The boundary line around an object in the black-and-white image.

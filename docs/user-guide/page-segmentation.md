@@ -27,9 +27,10 @@ with it. The crops are ready for `pylithics`.
     inside it cannot change. `pylithics-pages` writes the first three for you from the plates
     in `pages/`. `pylithics` writes the analysis to `results/`.
 
-**1. Put the scanned plates in `pages/` in your project folder.**
-The two commands share the project folder. `--data_dir` is the same
-folder for both:
+**1. Put the scanned plates in `pages/` in your project folder.** A
+PDF file can go there too. See [PDF input](#pdf-input). The two
+commands share the project folder. `--data_dir` is the same folder for
+both:
 
 | Command | Reads | Writes |
 |---|---|---|
@@ -202,6 +203,71 @@ Set `identifiers.regroup.enabled: false` in `config.yaml` to turn the
 rules off. `identifiers.regroup.join_gap` sets how far a crop looks
 for its neighbour, as a fraction of page width (default 0.12).
 
+## PDF input
+
+A PDF file in `pages/` is read. The command renders each page of the
+file to a PNG file in `pages_rendered/`, with the name
+`<file>_p<NNN>.png`. Then it cuts those pages as it cuts a scanned page.
+The PDF file stays in `pages/`. The PNG files are written again on each
+run.
+
+This needs the optional package pypdfium2. Install it with the `pdf`
+extra:
+
+```bash
+pip install ".[pdf]"
+```
+
+Without it, a PDF file in `pages/` stops the command with a message that
+gives this command.
+
+### The resolution of a rendered page
+
+A PDF page has no resolution of its own. The command reads the images
+that the page holds and decides from them:
+
+- **A page that holds a raster image** renders at the resolution of the
+  sharpest large image on it. The render copies that image pixel for
+  pixel: no pixel is added and no pixel is lost. The manifest says
+  `derived`. A scanned PDF with a sharp 1-bit layer over a soft
+  background renders at the resolution of the sharp layer. Labels and
+  scale bars drawn over the image stay in the render.
+- **A page with no raster image** (a redrawn figure, a text page)
+  renders at 300 dpi. `--pdf_dpi` sets another value. The manifest says
+  `selected`.
+
+A small image, for example a logo, does not set the resolution. The
+`pdf` section of `config.yaml` sets the limits: `min_coverage` (default
+`0.05`, the share of the page that an image must cover), `max_dpi`
+(default `1200`) and `rasterise_dpi` (default `300`).
+
+The log gives one line for each page with what the PDF holds: the size
+of each image, its resolution, its bit depth and its compression. Two
+warnings tell you what the render cannot correct:
+
+| Warning | Meaning | What to do |
+|---|---|---|
+| `the resolution is N dpi, less than 200` | The publisher or the scanner reduced the image. The lines are thin. | Nothing is necessary. The main run upscales the image for detection. Use a better scan if you have one. |
+| `JPEG compression (DCTDecode)` | The image was saved as JPEG. The ink edges can have small artefacts. | Nothing is necessary. Examine the crops. |
+
+### Page selection
+
+By default each page of each PDF file renders. A long article has few
+figure pages. Name the pages:
+
+```bash
+pylithics-pages --data_dir my_project --pdf_pages 4,7,11-14
+```
+
+The list applies to each PDF file in `pages/`. A text page gives no
+crops. This is not a fault.
+
+### Corrections for a PDF page
+
+A rendered page is a page like the others. Its `page_id` in the
+corrections CSV is the PNG file name, for example `report_p004.png`, and
+its overlay is `pages_debug/report_p004.png`.
+
 ## The pixels do not change
 
 The command cuts each crop from the source image. The crop has the DPI
@@ -224,6 +290,7 @@ my_project/
 ├── images/          one crop for each artefact
 ├── scales/          one crop for each scale bar
 ├── pages_debug/     one overlay for each page, `<page>.png` (--debug only)
+├── pages_rendered/  one PNG for each PDF page, `<file>_p<NNN>.png` (PDF input only)
 ├── pages_manifest.csv     one row for each crop
 └── meta_data.csv    one row for each artefact crop
 ```
@@ -242,7 +309,7 @@ source page.
 |---|---|
 | `output_crop_id` | The filename of the crop in `images/` or `scales/`. |
 | `image_type` | `artefact` or `scale_bar`. |
-| `input_page_id` | The filename of the plate in `pages/`. |
+| `input_page_id` | The filename of the plate in `pages/`, or of the rendered page in `pages_rendered/`. |
 | `crop_id_index` | The box number of the crop on the debug overlay, in reading order. The same number as in `_box_NN`. Empty for a scale bar. |
 | `x0, y0, x1, y1` | The box of the crop on the source page, in pixels. |
 | `width_px, height_px` | The size of the crop, in pixels. |
@@ -259,6 +326,11 @@ source page.
 | `upscale_factor` | The factor of the working copy the page was detected on: 1, 2, 3 or 4. See [Working Resolution](working-resolution.md). |
 | `scale_score` | For a scale bar: the score of the classifier, from 0 to 1. See [Scale bars](#scale-bars). Empty for an artefact. |
 | `scale_method` | For a scale bar: `classifier`, or `rules` when the classifier is off. |
+| `source_pdf` | For a page rendered from a PDF file: the name of the file. Empty for a scanned page. |
+| `source_page` | For a page rendered from a PDF file: the page number in the file, from 1. |
+| `render_dpi` | For a page rendered from a PDF file: the resolution of the render. See [PDF input](#pdf-input). |
+| `dpi_source` | For a page rendered from a PDF file: `derived` from an image on the page, or `selected` by `--pdf_dpi`. |
+| `source_filters` | For a page rendered from a PDF file: the compression of the images on the page, separated by `;`. `DCTDecode` is JPEG. |
 
 Keep the manifest with the crops. It connects a measurement to its
 page.

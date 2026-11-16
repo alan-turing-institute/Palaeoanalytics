@@ -1,14 +1,19 @@
 r"""
 Make labelled arrow rows from a folder of arrow images.
 
-Each image holds one arrow, dark on white, drawn pointing the way
-``--points`` says (``right`` unless told otherwise). The tool makes
+Each image holds one arrow, dark on a light ground, drawn pointing the
+way ``--points`` says (``right`` unless told otherwise). The tool makes
 variants of each arrow at the sizes arrows have on a drawing, at every
 ``--step`` degrees of rotation, and at three line weights (thin, as
-drawn, thick). A variant that breaks into pieces (a dot tail at 10 pixels) is
-skipped. Each variant is measured by the package's arrow detector
-and written as one row of the same table ``arrow_candidates.py`` writes,
-so ``train_arrow_classifier.py`` reads it unchanged.
+drawn, thick). An image is never enlarged: a small crop of a real arrow
+gives variants at its own size and smaller, so the sizes above its own
+are left to the larger images. A variant that breaks into pieces (a dot
+tail at 10 pixels) is skipped, and so is one whose head has collapsed
+into the shaft (a thick line at a small size): it no longer shows an
+arrow, and as a ``yes`` row it would teach that a plain strip is
+one. Each variant is decided by the package's arrow detector, on its
+ink, and written as one row of the same table ``arrow_candidates.py``
+writes, so ``train_arrow_classifier.py`` reads it unchanged.
 
 The label needs no hand work. The true direction of a variant follows
 from the rotation, so a variant is ``yes`` when the detector's chosen
@@ -47,13 +52,15 @@ from arrow_candidates import (  # noqa: E402
 )
 from pylithics.image_processing.modules.arrow_detection import ArrowDetector  # noqa: E402
 
-LENGTHS = (10, 16, 24, 40)      # long side of the variant, source pixels
+LENGTHS = (8, 10, 16, 24, 40)   # long side of the variant, source pixels
 STEP = 15                       # degrees between rotations
 WEIGHTS = ('thin', 'drawn', 'thick')
-INK = 128                       # grey level below which a pixel is ink
+INK = 128                       # grey level below which a mask pixel is set
+MIN_CONTRAST = 40               # a source image with less range than this holds no ink
 MARGIN = 6                      # white border around a variant, pixels
 SAMPLES = 4                     # variants of each source on the sheets
 WHOLE = 0.8                     # an arrow variant must keep this share of its ink in one piece
+HEAD_MIN = 1.5                  # an arrow variant must keep a head this much wider than its shaft
 MIN_AREA = 4.0                  # a non-arrow piece smaller than this is not a candidate
 EXTRA_COLUMNS = ['variant', 'truth']
 
@@ -63,12 +70,29 @@ POINTS = {'right': (1.0, 0.0), 'left': (-1.0, 0.0), 'up': (0.0, -1.0), 'down': (
 
 ### VARIANTS ###
 
+def ink_level(image: np.ndarray) -> Optional[int]:
+    """
+    Return the grey level at or below which a pixel of the image is ink, or None.
+
+    Otsu's level splits the image into ground and ink. On a small crop of
+    a real arrow the shaft is a one-pixel grey line, and on a screenshot
+    the ground is grey; a fixed level loses one or the other.
+    """
+    if float(np.median(image)) - float(image.min()) < MIN_CONTRAST:
+        return None
+    level, _ = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return int(level)
+
+
 def read_ink(path: str) -> Optional[np.ndarray]:
     """Return the arrow as a white-on-black mask cropped to its ink, or None."""
     image = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
     if image is None:
         return None
-    mask = (image < INK).astype(np.uint8) * 255
+    level = ink_level(image)
+    if level is None:
+        return None
+    mask = (image <= level).astype(np.uint8) * 255
     points = cv2.findNonZero(mask)
     if points is None:
         return None
@@ -117,11 +141,28 @@ def truth_angle(direction: Tuple[float, float], rotation: np.ndarray) -> float:
     return round((270.0 + angle_deg) % 360.0, 1)
 
 
+def sizes_for(mask: np.ndarray, lengths) -> List[int]:
+    """
+    Return the long sides to make from the mask: the requested ones it reaches, and its own.
+
+    A mask is never enlarged. Its own size is added when it falls under
+    the largest requested length, so a small crop of a real arrow is used
+    as it is. A mask under the smallest requested length gives nothing.
+    """
+    own = max(mask.shape)
+    if own < min(lengths):
+        return []
+    sizes = [length for length in lengths if length <= own]
+    if own < max(lengths) and own not in sizes:
+        sizes.append(own)
+    return sizes
+
+
 def variants(
     mask: np.ndarray, direction: Tuple[float, float], lengths, step: int
 ) -> Iterator[Tuple[str, np.ndarray, float]]:
     """Yield (name, mask, true compass angle) for every size, rotation and weight."""
-    for length in lengths:
+    for length in sizes_for(mask, lengths):
         base = scaled(mask, length)
         for weight in WEIGHTS:
             shaped = weighted(base, weight)
@@ -172,15 +213,21 @@ def source_rows(
     if mask is None:
         print(f"no ink in {path}", file=sys.stderr)
         return [], []
+    if not sizes_for(mask, args.lengths):
+        print(f"{path}: {max(mask.shape)} px long, under the smallest size; skipped",
+              file=sys.stderr)
+        return [], []
     rows, images = [], []
     for name, turned, truth in variants(mask, direction or POINTS['right'], args.lengths,
                                         args.step):
         pieces = [whole_contour(turned)] if direction else every_piece(turned)
         for contour in pieces:
-            assessment = detector.assess(contour) if contour is not None else None
+            assessment = detector.assess(contour, turned) if contour is not None else None
             if assessment is None:
                 continue
             fields = row_fields(assessment)
+            if direction and max(fields['head_ratio'], fields['r_head_ratio']) < HEAD_MIN:
+                continue
             x, y, w, h = cv2.boundingRect(contour)
             fields.update({
                 'image': os.path.basename(path), 'n': len(rows) + 1, 'depth': 0,

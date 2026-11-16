@@ -882,6 +882,7 @@ class PyLithicsApplication:
                 scale_confidence,
                 csv_path=csv_path,
                 upscale_factor=processed.upscale_factor,
+                working_image=processed.working,
             )
 
             suffix = _calibration_suffix(calibration_method, conversion_factor)
@@ -1413,9 +1414,11 @@ def _add_config_args(parser: argparse.ArgumentParser) -> None:
     )
     group.add_argument(
         '--threshold_method',
-        choices=["adaptive", "simple", "otsu", "default"],
+        choices=["auto", "adaptive", "simple", "otsu", "default"],
         metavar='METHOD',
-        help='The threshold method: simple, otsu, adaptive or default.'
+        help='The threshold method: auto (default), simple, otsu or adaptive. '
+             'auto finds the threshold from the image and keeps it between '
+             'threshold_value and threshold_ceiling.'
     )
     group.add_argument(
         '--log_level',

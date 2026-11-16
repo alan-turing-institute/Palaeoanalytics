@@ -295,6 +295,7 @@ class TestWorkingResolutionInPreprocessing:
         assert result.upscale_factor >= 2
         assert result.image.shape == (150, 200)
         assert set(np.unique(result.image)).issubset({0, 255})
+        assert result.working.shape == (150 * result.upscale_factor, 200 * result.upscale_factor)
 
     def test_off_gives_factor_one(self, tmp_path):
         path = self._thin_drawing(str(tmp_path / "thin.png"))
@@ -304,6 +305,7 @@ class TestWorkingResolutionInPreprocessing:
         result = execute_preprocessing_pipeline(path, config)
         assert result is not None and result.upscale_factor == 1
         assert result.image.shape == (150, 200)
+        assert result.working is result.image
 
 
 @pytest.mark.unit

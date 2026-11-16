@@ -73,7 +73,7 @@ class TestFeatures:
         assert head_last['tail_end'] == pytest.approx(1.0, abs=0.15)
         assert head_first['tail_end'] < 0.5
         assert forward['asymmetry'] == pytest.approx(1.0 / reverse['asymmetry'], rel=0.05)
-        assert set(forward) == set(ap.FEATURES)
+        assert set(forward) == set(ap.PROFILE_FEATURES)
 
     def test_a_dot_at_the_tail_does_not_win_the_direction(self):
         profile = ap.measure_profile(_contour(np.vstack([_ARROW, _DOT])))
@@ -117,3 +117,64 @@ class TestRule:
         assert ap.rule_says_arrow(features)
         assert not ap.rule_says_arrow({**features, 'head_ratio': 1.0})
         assert not ap.rule_says_arrow({**features, 'tip_taper': 0.95})
+
+
+# ---------------------------------------------------------------------------
+# Measuring the real ink, and the ink inside a contour
+# ---------------------------------------------------------------------------
+
+
+def _drawn(draw):
+    """Draw on a blank binary with ``draw(canvas)``; return the outer contour and the binary."""
+    import cv2
+    canvas = np.zeros((80, 80), np.uint8)
+    draw(canvas)
+    contours, _ = cv2.findContours(canvas, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    return max(contours, key=cv2.contourArea), canvas
+
+
+def _ring(canvas):
+    import cv2
+    cv2.polylines(canvas, [np.array([[10, 10], [70, 14], [66, 70], [12, 66]], np.int32)],
+                  True, 255, 1)
+
+
+def _solid(canvas):
+    import cv2
+    cv2.line(canvas, (40, 70), (40, 25), 255, 3)
+    cv2.fillPoly(canvas, [np.array([[40, 8], [52, 30], [28, 30]], np.int32)], 255)
+
+
+@pytest.mark.unit
+class TestRealInk:
+
+    def test_the_feature_list_holds_the_profile_and_the_structure(self):
+        assert ap.FEATURES == ap.PROFILE_FEATURES + ap.STRUCTURE_FEATURES
+        assert len(ap.FEATURES) == 40
+
+    def test_an_outline_is_measured_as_a_ring_not_a_filled_shape(self):
+        contour, ink = _drawn(_ring)
+        filled = ap.profile_features(ap.measure_profile(contour))
+        real = ap.profile_features(ap.measure_profile(contour, ink))
+        assert filled['shaft_fill'] > 0.8
+        assert real['shaft_fill'] < 0.2
+        assert real['length'] == pytest.approx(filled['length'], abs=2)
+
+    def test_a_solid_mark_measures_the_same_either_way(self):
+        contour, ink = _drawn(_solid)
+        filled = ap.profile_features(ap.measure_profile(contour))
+        real = ap.profile_features(ap.measure_profile(contour, ink))
+        assert real['shaft_fill'] == pytest.approx(filled['shaft_fill'], abs=0.15)
+        assert real['head_ratio'] == pytest.approx(filled['head_ratio'], rel=0.3)
+
+    def test_ink_inside_sees_a_mark_drawn_in_an_outline(self):
+        import cv2
+        empty, ink = _drawn(_ring)
+        assert ap.ink_inside(empty, ink) is False
+        with_mark = ink.copy()
+        cv2.line(with_mark, (30, 40), (50, 40), 255, 1)
+        assert ap.ink_inside(empty, with_mark) is True
+
+    def test_ink_inside_is_false_for_a_solid_mark(self):
+        contour, ink = _drawn(_solid)
+        assert ap.ink_inside(contour, ink) is False
