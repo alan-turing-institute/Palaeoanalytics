@@ -1,6 +1,7 @@
 """Tests for the CLI argument parser and main() entry point."""
 
 import os
+import tempfile
 from unittest.mock import patch
 
 import pytest
@@ -75,6 +76,10 @@ class TestCreateArgumentParser:
             ])
 
 
+# A real folder for the tests that drive main() with mocked validation: main()
+# refuses a --data_dir that does not exist before anything is mocked.
+_PROJECT = tempfile.mkdtemp(prefix="pylithics-cli-test-")
+
 # ---------------------------------------------------------------------------
 # main(): exit-code contract
 # ---------------------------------------------------------------------------
@@ -95,7 +100,7 @@ class TestMainExitCodes:
 
     def test_full_success_exits_zero(self):
         code, _ = self._invoke_with(
-            ["pylithics", "--data_dir", "/d", "--meta_file", "/m.csv"],
+            ["pylithics", "--data_dir", _PROJECT, "--meta_file", "/m.csv"],
             validate_return=True,
             batch_result={
                 "success": True, "processed_successfully": 2,
@@ -106,7 +111,7 @@ class TestMainExitCodes:
 
     def test_partial_success_still_exits_zero(self):
         code, _ = self._invoke_with(
-            ["pylithics", "--data_dir", "/d", "--meta_file", "/m.csv"],
+            ["pylithics", "--data_dir", _PROJECT, "--meta_file", "/m.csv"],
             validate_return=True,
             batch_result={
                 "success": True, "processed_successfully": 2,
@@ -117,7 +122,7 @@ class TestMainExitCodes:
 
     def test_validation_failure_exits_one(self):
         code, _ = self._invoke_with(
-            ["pylithics", "--data_dir", "/d", "--meta_file", "/m.csv"],
+            ["pylithics", "--data_dir", _PROJECT, "--meta_file", "/m.csv"],
             validate_return=False,
             batch_result={"success": False, "error": "Input validation failed"},
         )
@@ -125,19 +130,27 @@ class TestMainExitCodes:
 
     def test_batch_failure_exits_one(self):
         code, _ = self._invoke_with(
-            ["pylithics", "--data_dir", "/d", "--meta_file", "/m.csv"],
+            ["pylithics", "--data_dir", _PROJECT, "--meta_file", "/m.csv"],
             validate_return=True,
             batch_result={"success": False, "error": "boom"},
         )
         assert code == 1
 
     def test_value_error_during_setup_exits_one(self):
-        argv = ["pylithics", "--data_dir", "/d", "--meta_file", "/m.csv"]
+        argv = ["pylithics", "--data_dir", _PROJECT, "--meta_file", "/m.csv"]
         with patch("sys.argv", argv), \
              patch.object(PyLithicsApplication, "validate_inputs",
                           side_effect=ValueError("bad input")):
             assert main() == 1
 
+
+    def test_a_folder_that_does_not_exist_is_reported_and_not_created(self, tmp_path, capsys):
+        missing = tmp_path / "no_such_project"
+        with patch("sys.argv", ["pylithics", "--data_dir", str(missing)]):
+            assert main() == 1
+        out = capsys.readouterr().out
+        assert "does not exist" in out and str(missing) in out
+        assert not missing.exists()
 
     def test_missing_meta_file_and_no_default_exits_one(self, tmp_path, capsys):
         with patch("sys.argv", ["pylithics", "--data_dir", str(tmp_path)]):
@@ -283,7 +296,7 @@ class TestMainFlagForwarding:
     def _run(self, argv_extras):
         argv = [
             "pylithics",
-            "--data_dir", "/d",
+            "--data_dir", _PROJECT,
             "--meta_file", "/m.csv",
             *argv_extras,
         ]
@@ -327,7 +340,7 @@ class TestMainFlagForwarding:
         kwargs = mock_run.call_args.kwargs
         data_dir = args[0] if args else kwargs.get("data_dir")
         meta_file = args[1] if len(args) > 1 else kwargs.get("meta_file")
-        assert data_dir == "/d"
+        assert data_dir == _PROJECT
         assert meta_file == "/m.csv"
 
 
@@ -511,7 +524,7 @@ class TestConfigFileIsRead:
         config.write_text("working_resolution:\n  enabled: false\n")
         clear_config_cache()
         try:
-            argv = ["pylithics", "--data_dir", "/d", "--meta_file", "/m.csv",
+            argv = ["pylithics", "--data_dir", _PROJECT, "--meta_file", "/m.csv",
                     "--config_file", str(config)]
             with patch("sys.argv", argv), \
                  patch.object(PyLithicsApplication, "validate_inputs", return_value=True), \

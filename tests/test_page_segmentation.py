@@ -10,6 +10,7 @@ why the real plate is used for the grouping assertions.
 """
 
 import csv
+import logging
 import os
 import sys
 
@@ -1588,6 +1589,18 @@ class TestPipeline:
         meta = _read_metadata(out)
         assert set(meta) == set(images)
         assert meta["sample_plate_figure_1.png"]["scale_id"] == "sample_plate_scale_bar.png"
+
+    def test_a_folder_that_does_not_exist_is_reported_and_not_created(self, tmp_path, caplog):
+        missing = tmp_path / "no_such_project"
+        with caplog.at_level(logging.ERROR):
+            assert main(["--data_dir", str(missing)]) == 1
+        assert "does not exist" in caplog.text and str(missing) in caplog.text
+        assert not missing.exists()
+
+    def test_a_project_without_pages_says_where_the_pages_go(self, tmp_path, caplog):
+        with caplog.at_level(logging.WARNING):
+            assert main(["--data_dir", str(tmp_path)]) == 0
+        assert "No page images" in caplog.text and "pages/" in caplog.text
 
     def test_default_output_is_the_project_folder(self, tmp_path, pages_dir):
         """pages/ in, images/ and scales/ out, in the same folder."""

@@ -157,12 +157,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     Returns
     -------
-    int : exit code. 0 on success, 1 when a page was not cut, 130 when stopped.
+    int : exit code. 0 on success, 1 when a page was not cut or the project
+    folder does not exist, 130 when stopped.
     """
     args = build_parser().parse_args(argv)
     logging.getLogger().addHandler(logging.NullHandler())   # no stdlib fallback handler
     get_config_manager(args.config_file)     # first use creates the process-wide manager
     _offer_update()
+    if not os.path.isdir(args.data_dir):
+        setup_logging(_console_level(args))
+        logging.error("The folder %s does not exist. Give --data_dir the project folder "
+                      "that holds pages/, or a folder of page images.", args.data_dir)
+        return 1
     pages_dir = _resolve_pages_dir(args.data_dir)
     if not args.output_dir:
         args.output_dir = args.data_dir
@@ -660,8 +666,8 @@ def _list_pages(data_dir: str) -> Tuple[List[str], List[str]]:
     List readable page images and PDF files, reporting anything skipped.
 
     Files the tool cannot read are named rather than silently ignored.
-    A folder of scans that yields no crops is otherwise indistinguishable
-    from a folder in the wrong format.
+    A folder with no page at all is reported with where the pages go;
+    the run goes on and writes empty tables, as before.
 
     Parameters
     ----------
@@ -695,7 +701,10 @@ def _list_pages(data_dir: str) -> Tuple[List[str], List[str]]:
 
     _report_skipped(skipped)
     if not pages and not pdfs:
-        logging.warning("No page images found in %s", data_dir)
+        logging.warning(
+            "No page images in %s. Put the plates in a pages/ folder inside the project "
+            "folder. The formats read are %s and PDF.", data_dir, ', '.join(PAGE_EXTENSIONS),
+        )
     else:
         logging.info("Found %d page(s) and %d PDF file(s) in %s", len(pages), len(pdfs),
                      data_dir)

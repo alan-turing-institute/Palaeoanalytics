@@ -156,6 +156,9 @@ arrow_detection:
                    # false: stage 1 alone decides.
     model: arrow_classifier.json  # File under pylithics/models/, or a path
     threshold: 0.5  # A score at or above this is an arrow
+    direction_threshold: 0.6  # An arrow that stage 1 accepted is turned round when
+                              # the classifier scores the other direction at or
+                              # above this, and higher than stage 1's direction.
 
   debug_enabled: false  # Write the arrow found in each scar, and the profile
                         # features, to results/arrow_debug/<image>/<scar>.png

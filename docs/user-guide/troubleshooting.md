@@ -189,7 +189,7 @@ pylithics --data_dir ./data \
     --arrow_debug --log_level DEBUG
 ```
 
-**Examine the debug output** in `results/arrow_debug/<image>/`. Each mark that was tried has a `.png` and a `.txt`, named by its scar and its number in that scar, for example `scar_3_mark_1.png`. The `.png` shows the scar at the working resolution with the direction found, green when the mark is an arrow and orange when it is not. The `.txt` shows the tests of stage 1, the stage that decided (`triangle`, `model`, `ink inside`, `too short` or `no model`), the scores and the measurements.
+**Examine the debug output** in `results/arrow_debug/<image>/`. Each mark that was tried has a `.png` and a `.txt`, named by its scar and its number in that scar, for example `scar_3_mark_1.png`. The `.png` shows the scar at the working resolution with the direction found, green when the mark is an arrow and orange when it is not. The `.txt` shows the tests of stage 1, the stage that decided (`triangle`, `triangle turned` when the model turned the direction, `model`, `ink inside`, `too short` or `no model`), the scores and the measurements.
 
 **Adjust the settings in `config.yaml`**:
 
@@ -366,6 +366,16 @@ sudo yum install python3-devel opencv-devel
 
 **Cause**: An image or a scale file in the metadata is missing
 **Procedure**: Make sure that each `image_id` and each `scale_id` in the CSV is the name of a file that is there
+
+### "the folder ... does not exist"
+
+**Cause**: The folder given to `--data_dir` is not there. Both commands stop before they write anything. A frequent cause is a space at the end of the folder name, which the Finder does not show
+**Procedure**: Compare the name in the message with the name of the folder. Correct the name, or rename the folder. Then start the command again
+
+### "No page images in ..."
+
+**Cause**: `pylithics-pages` found no page image and no PDF file in the folder. The run completes with no crops. The pages go in a `pages/` folder inside the project folder
+**Procedure**: Put the plates in `<project>/pages/`. The formats read are `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp` and PDF. Then start the command again
 
 ### "ValueError: could not convert string to float"
 

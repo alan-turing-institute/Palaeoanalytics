@@ -26,7 +26,7 @@ FEATURES = [
     'long_frac', 'short_frac', 'aspect', 'density', 'runs', 'run_regularity',
     'ticks', 'end_ticks', 'spine', 'tone_variance', 'caption_marks', 'y_frac',
     'pieces', 'ink_pieces', 'plain_line', 'plain_no_caption', 'flanked',
-    'solid', 'straight', 'taper', 'enclosed',
+    'solid', 'straight', 'taper', 'enclosed', 'head_end',
 ]
 
 MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models')
@@ -134,6 +134,7 @@ def candidate_features(
     ticks, end_ticks = _count_ticks(ink)
     captions = _caption_marks(candidate, components, width, height)
     solid, straight, taper = _shape_along(ink)
+    head_end = _head_end(ink)
     plain = float(runs <= 1 and ticks == 0)
     return {
         'long_frac': long_px / float(long_page),
@@ -157,6 +158,7 @@ def candidate_features(
         'straight': straight,
         'taper': taper,
         'enclosed': float(candidate.enclosed),
+        'head_end': head_end,
     }
 
 
@@ -170,6 +172,34 @@ def _shape_along(ink: np.ndarray) -> "tuple":
     constant in width and square-ended; the outline of a lithic surface
     is hollow, wavering and tapered.
     """
+    spans, fills = _column_spans(ink)
+    if len(spans) < 3:
+        return 0.0, 0.0, 0.0
+    median = max(1.0, float(np.median(spans)))
+    straight = float((np.abs(spans - median) <= max(1.0, _WIDTH_TOLERANCE * median)).mean())
+    end = max(1, int(_END_SHARE * len(spans)))
+    taper = float((spans[:end].mean() + spans[-end:].mean()) / (2.0 * median))
+    return float((fills >= _SOLID_FILL).mean()), straight, taper
+
+
+def _head_end(ink: np.ndarray) -> float:
+    """
+    Return how much wider the mark's widest end is than its other end.
+
+    A bar is as wide at one end as at the other, with or without end
+    ticks, so it reads 1. An arrow has its head at one end and a plain
+    shaft at the other and reads about 2.
+    """
+    spans, _ = _column_spans(ink)
+    if len(spans) < 3:
+        return 0.0
+    end = max(1, int(_END_SHARE * len(spans)))
+    first, last = float(spans[:end].max()), float(spans[-end:].max())
+    return max(first, last) / max(1.0, min(first, last))
+
+
+def _column_spans(ink: np.ndarray) -> "tuple":
+    """Return the ink span and the fill of every inked column, as two arrays."""
     spans, fills = [], []
     for column in range(ink.shape[1]):
         inked = np.where(ink[:, column])[0]
@@ -177,14 +207,7 @@ def _shape_along(ink: np.ndarray) -> "tuple":
             span = inked[-1] - inked[0] + 1
             spans.append(span)
             fills.append(len(inked) / float(span))
-    if len(spans) < 3:
-        return 0.0, 0.0, 0.0
-    spans, fills = np.array(spans, dtype=float), np.array(fills)
-    median = max(1.0, float(np.median(spans)))
-    straight = float((np.abs(spans - median) <= max(1.0, _WIDTH_TOLERANCE * median)).mean())
-    end = max(1, int(_END_SHARE * len(spans)))
-    taper = float((spans[:end].mean() + spans[-end:].mean()) / (2.0 * median))
-    return float((fills >= _SOLID_FILL).mean()), straight, taper
+    return np.array(spans, dtype=float), np.array(fills, dtype=float)
 
 
 def _runs_on_best_row(ink: np.ndarray) -> "tuple":

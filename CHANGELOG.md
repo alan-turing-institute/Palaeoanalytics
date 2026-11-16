@@ -16,6 +16,12 @@ directory is renamed `results/`.
 alone will not create it. Reinstall with `pip install . --upgrade`.
 
 ### Fixed
+
+- **A missing project folder is reported, not created.** Both commands
+  stop with "the folder ... does not exist" when `--data_dir` names a folder
+  that is not there, before any log file or `results/` folder is made.
+  When the project folder holds no page and no PDF, `pylithics-pages` says
+  where the pages go.
 - **Small crops no longer lose their lines in preprocessing (`pylithics`)** — a
   drawing cut from a PDF figure at 150 to 300 pixels wide came out of
   thresholding as a few dots: the fixed threshold of 127 dropped grey outlines,
@@ -82,6 +88,12 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
   there is one), scar by scar, so a small arrow keeps the notches that
   the return to the source grid removes; the notch thresholds scale by
   the factor and the arrow positions come back in source pixels. The
+  notch method's acceptance is final, but its direction is turned when the
+  classifier scores the other direction at or above
+  `classifier.direction_threshold` (default `0.6`) and higher: on the
+  labelled corpus the notch method pointed 41 of 345 arrows the wrong way,
+  and the classifier was right on 39 of them while disagreeing on 4 of
+  the 304 it had right. The
   debug files are named by scar and mark (`scar_3_mark_1.png`) and show
   the scar at the working resolution. New CSV column
   `arrow_score`, filled when the classifier decided. The columns
@@ -116,7 +128,12 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
   takes its caption (`0`, `5 cm`, and text that follows it) and not an
   arrow or an identifier at the bar's corner. Size limits are fractions
   of the page's longer side, so a strip cut from a page keeps its digits
-  as labels.
+  as labels. A large free-standing arrow on a drawing is no longer taken
+  for a bar: the feature `head_end` compares the widest span at one end
+  of a mark with the other end (a bar reads 1, with or without end ticks;
+  an arrow about 2), and the labels gained 35 pages from a PDF with such
+  arrows. Leave-one-page-out at the threshold: 11 false bars and 7 missed
+  of 1,030 candidates, against 18 and 8 before.
 - **Working resolution** — both commands measure the line width of each
   image and, when the lines are too thin for detection, find the ink on a
   working copy upscaled 2, 3 or 4 times with ESPCN or FSRCNN (bundled). The

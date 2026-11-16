@@ -1963,12 +1963,19 @@ def _offer_update() -> None:
 
 def _resolve_inputs(args: argparse.Namespace, explore: bool) -> bool:
     """
-    Fill the metadata default and report a missing argument.
+    Fill the metadata default and report a missing argument or folder.
 
-    Prints the error, since logging is not yet set up at this point.
+    Prints the error, since logging is not yet set up at this point. The
+    folder is checked here, before the log file is opened, so a wrong
+    name does not get a results/ folder made for it.
     """
     if not args.data_dir:
         print("Error: --data_dir is necessary.")
+        print("Use 'pylithics --help' or 'pylithics --docs'.")
+        return False
+    if not os.path.isdir(args.data_dir):
+        print(f"Error: the folder {args.data_dir} does not exist. Give --data_dir the "
+              f"project folder that holds images/ and {METADATA_FILENAME}.")
         print("Use 'pylithics --help' or 'pylithics --docs'.")
         return False
     if not args.meta_file:

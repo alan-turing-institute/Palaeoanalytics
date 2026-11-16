@@ -26,6 +26,9 @@ arrow, the drawn direction is reversed), ``no``. Known labels are read
 from ``--labels`` and kept, matched by image and box, exactly or by the
 box that overlaps most (at least half); the rest are prefilled from the
 decision, with ``label_source`` saying ``known``, ``model`` or ``rule``.
+A known label may carry the arrow's true compass ``angle``; then ``yes``
+or ``flipped`` is decided against the direction drawn in this run, so a
+label made against one model's direction stays right under the next.
 
 Usage::
 
@@ -182,11 +185,21 @@ def _dpi(path: str) -> Optional[float]:
 
 ### DRAWING ###
 
+MIN_ARROW = 24   # a drawn arrow is at least this long on a sheet, so its head shows
+
+
 def _draw_arrow(canvas, row: Dict, colour, scale: float, origin=(0, 0)) -> None:
-    """Draw the row's arrow, scaled and shifted onto the canvas."""
-    start = (int((row['bx'] - origin[0]) * scale), int((row['by'] - origin[1]) * scale))
-    end = (int((row['tx'] - origin[0]) * scale), int((row['ty'] - origin[1]) * scale))
-    cv2.arrowedLine(canvas, start, end, colour, 1, tipLength=0.3)
+    """Draw the row's arrow, scaled and shifted onto the canvas, never shorter than MIN_ARROW."""
+    start = ((row['bx'] - origin[0]) * scale, (row['by'] - origin[1]) * scale)
+    end = ((row['tx'] - origin[0]) * scale, (row['ty'] - origin[1]) * scale)
+    dx, dy = end[0] - start[0], end[1] - start[1]
+    length = (dx * dx + dy * dy) ** 0.5
+    if 0 < length < MIN_ARROW:
+        grow = (MIN_ARROW - length) / 2.0
+        start = (start[0] - dx / length * grow, start[1] - dy / length * grow)
+        end = (end[0] + dx / length * grow, end[1] + dy / length * grow)
+    cv2.arrowedLine(canvas, (int(start[0]), int(start[1])), (int(end[0]), int(end[1])),
+                    colour, 2, tipLength=0.35)
 
 
 def draw_overlay(image: np.ndarray, rows: List[Dict], path: str) -> None:
@@ -252,28 +265,43 @@ def write_sheets(cells: List[np.ndarray], out: str, cell_size: int = CELL) -> in
 
 ### LABELS ###
 
-def read_labels(path: str) -> Dict[str, List[Tuple[Box, str]]]:
-    """Return the known labels of each image as (box, label) pairs, or an empty dict."""
-    known: Dict[str, List[Tuple[Box, str]]] = {}
+Known = Tuple[Box, str, Optional[float]]   # box, label, true compass angle when known
+
+
+def read_labels(path: str) -> Dict[str, List[Known]]:
+    """Return the known labels of each image as (box, label, angle) rows, or an empty dict."""
+    known: Dict[str, List[Known]] = {}
     if not path or not os.path.isfile(path):
         return known
     with open(path, newline='', encoding='utf-8') as handle:
         for r in csv.DictReader(handle):
             if r.get('label', '').strip():
                 box = (int(r['x0']), int(r['y0']), int(r['x1']), int(r['y1']))
-                known.setdefault(r['image'], []).append((box, r['label'].strip().lower()))
+                angle = float(r['angle']) if r.get('angle', '').strip() else None
+                known.setdefault(r['image'], []).append((box, r['label'].strip().lower(), angle))
     return known
 
 
-def known_label(row: Dict, known: Dict[str, List[Tuple[Box, str]]]) -> Optional[str]:
-    """Return the known label whose box overlaps the row's most, if at least half; else None."""
+def known_label(row: Dict, known: Dict[str, List[Known]]) -> Optional[str]:
+    """
+    Return the known label whose box overlaps the row's most, if at least half; else None.
+
+    With a true angle on the label, an arrow is ``yes`` when the direction
+    drawn in this row is within a right angle of it, else ``flipped``.
+    """
     box = (row['x0'], row['y0'], row['x1'], row['y1'])
     best, best_overlap = None, MIN_OVERLAP
-    for other, label in known.get(row['image'], []):
+    for other, label, angle in known.get(row['image'], []):
         overlap = _overlap(box, other)
         if overlap >= best_overlap:
-            best, best_overlap = label, overlap
-    return best
+            best, best_overlap = (label, angle), overlap
+    if best is None:
+        return None
+    label, angle = best
+    if angle is None or label == 'no':
+        return label
+    apart = abs((float(row['angle']) - angle + 180.0) % 360.0 - 180.0)
+    return 'yes' if apart <= 90.0 else 'flipped'
 
 
 def _overlap(a: Box, b: Box) -> float:
@@ -287,7 +315,7 @@ def _overlap(a: Box, b: Box) -> float:
     return shared / union if union > 0 else 0.0
 
 
-def prefill(row: Dict, known: Dict[str, List[Tuple[Box, str]]], with_model: bool) -> None:
+def prefill(row: Dict, known: Dict[str, List[Known]], with_model: bool) -> None:
     """Set the label of a row from the known labels, else from the decision."""
     label = known_label(row, known)
     if label is not None:

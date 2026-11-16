@@ -9,8 +9,12 @@ meets its shaft. The two deepest convexity defects of the contour give
 the base of the head triangle, the half-space with the lower solidity
 holds the head, its farthest point is the tip, and the triangle must be
 tall enough. Its thresholds are calibrated for 300 DPI and scaled to
-the image. What this stage accepts is an arrow, and its direction is the
-direction from the triangle. Nothing behind it overrules it.
+the image. What this stage accepts is an arrow. Nothing behind it
+overrules that. Its direction is the direction from the triangle, unless
+the classifier scores the other direction at ``direction_threshold`` or
+more and higher than the triangle's: then the arrow is turned, because
+on the labelled corpus the triangle pointed one arrow in eight the wrong
+way and the classifier was right on nearly all of them.
 
 Stage 2 runs only on what stage 1 rejects: the small arrows whose notches
 are a pixel deep, and the styles without a closed head. A candidate that
@@ -45,6 +49,7 @@ from . import arrow_profile as profile
 
 DEFAULT_MODEL = 'arrow_classifier.json'
 DEFAULT_THRESHOLD = 0.5
+DEFAULT_DIRECTION_THRESHOLD = 0.6   # the classifier turns a stage 1 arrow from this score
 MIN_LENGTH = 6.0   # source pixels; a shorter mark cannot show a head
 
 # Stage 1 thresholds, calibrated for 300 DPI.
@@ -131,6 +136,9 @@ class ArrowDetector:
         self.ref_thresholds = dict(REFERENCE_THRESHOLDS)
         classifier = self.config.get('classifier', {}) or {}
         self.threshold = float(classifier.get('threshold', DEFAULT_THRESHOLD))
+        self.direction_threshold = float(
+            classifier.get('direction_threshold', DEFAULT_DIRECTION_THRESHOLD)
+        )
         self.model = model if model is not None else _load_once(classifier)
         self.debug_enabled = self.config.get('debug_enabled', False)
 
@@ -250,15 +258,36 @@ class ArrowDetector:
         scores = self._scores(forward, reverse)
         rule = (profile.rule_says_arrow(forward), profile.rule_says_arrow(reverse))
         if triangle is not None:
-            return Assessment(
-                forward, reverse, scores, rule, _points_back(measured, triangle), True,
-                'triangle', {key: triangle[key] for key in _GEOMETRY_KEYS},
-            )
+            reversed_ = _points_back(measured, triangle)
+            turned = self._turned(scores, reversed_)
+            if turned is None:
+                return Assessment(forward, reverse, scores, rule, reversed_, True, 'triangle',
+                                  {key: triangle[key] for key in _GEOMETRY_KEYS})
+            _DebugWriter(debug_log).write(f"Direction turned by the classifier: {scores}\n")
+            return Assessment(forward, reverse, scores, rule, turned, True, 'triangle turned',
+                              profile.arrow_geometry(measured, turned))
         assessment = self._run_classifier(contour, ink, measured, forward, reverse, scores, rule,
                                           _DebugWriter(debug_log))
         if debug_dir and ink is not None:
             cv2.imwrite(f"{debug_dir}.png", _draw(ink, contour, assessment))
         return assessment
+
+    def _turned(
+        self, scores: Tuple[Optional[float], Optional[float]], reversed_: bool
+    ) -> Optional[bool]:
+        """
+        Return the orientation the classifier turns a stage 1 arrow to, or None to keep it.
+
+        ``reversed_`` is the triangle's orientation. The arrow is turned when
+        the classifier's score for the other orientation reaches the
+        direction threshold and beats its score for the triangle's.
+        """
+        if self.model is None:
+            return None
+        own, other = (scores[1], scores[0]) if reversed_ else (scores[0], scores[1])
+        if other >= self.direction_threshold and other > own:
+            return not reversed_
+        return None
 
     def _scores(
         self, forward: Dict[str, float], reverse: Dict[str, float]

@@ -383,6 +383,19 @@ class TestShapeAlong:
         solid, straight, taper = sc._shape_along(ink)
         assert straight < 0.7 and taper < 0.5
 
+    def test_an_arrow_has_one_wide_end_and_a_ruled_bar_has_two(self):
+        arrow = np.zeros((30, 100), dtype=bool)
+        arrow[13:17, :] = True                            # a 4 px shaft
+        for column in range(85, 100):                     # a head widening to 24 px
+            half = 2 + (column - 85) * 10 // 15
+            arrow[15 - half:15 + half, column] = True
+        ruled = np.zeros((30, 100), dtype=bool)
+        ruled[14:16, :] = True                            # a line with a tick at each end
+        ruled[5:25, :3] = ruled[5:25, -3:] = True
+        assert sc._head_end(arrow) > 1.8
+        assert sc._head_end(ruled) == 1.0
+        assert sc._head_end(np.zeros((5, 5), dtype=bool)) == 0.0
+
     def test_too_little_ink_measures_nothing(self):
         assert sc._shape_along(np.zeros((5, 5), dtype=bool)) == (0.0, 0.0, 0.0)
 

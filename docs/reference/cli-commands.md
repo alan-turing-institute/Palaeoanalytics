@@ -100,6 +100,7 @@ arrow_detection:
   reference_dpi: 300.0
   classifier:
     threshold: 0.5
+    direction_threshold: 0.6
   debug_enabled: false
 
 surface_classification:
@@ -217,7 +218,7 @@ pylithics --data_dir ./data --disable_arrow_detection
 pylithics --data_dir ./data --show-arrow-lines
 ```
 
-A mark is decided in two stages. Stage 1 is the notch method: the two notches where the head of an arrow meets its shaft give the head triangle, and the triangle gives the direction. Its thresholds are set for 300 DPI and scaled to the image with the `reference_dpi` and `*_scale_factor` keys of `arrow_detection`. What stage 1 accepts is an arrow. Stage 2 runs only on the marks that stage 1 rejects. A mark that holds other ink, or that is shorter than 6 pixels, is refused. For the rest, a trained model (a random forest) measures the width of the mark's ink along its axis, in both directions, with the notch measurements of stage 1, and gives a score to each direction. The higher score gives the direction. The mark is an arrow when that score is at or above `classifier.threshold` (default `0.5`). `classifier.enabled: false` makes stage 1 alone decide. The model is `arrow_classifier.json` under `pylithics/models/`. The only marks tried are the marks inside a recognised scar. A surface, a scar, or a mark outside every recognised scar is never tried. When the image was upscaled for detection (see [Working Resolution](../user-guide/working-resolution.md)), the marks are cut from the upscaled copy, so a small arrow keeps its notches. The arrow positions in the CSV are in the pixels of the input. The CSV column `arrow_score` holds the score when stage 2 decided.
+A mark is decided in two stages. Stage 1 is the notch method: the two notches where the head of an arrow meets its shaft give the head triangle, and the triangle gives the direction. Its thresholds are set for 300 DPI and scaled to the image with the `reference_dpi` and `*_scale_factor` keys of `arrow_detection`. What stage 1 accepts is an arrow. Its direction can be turned: when the model of stage 2 scores the other direction at or above `classifier.direction_threshold` (default `0.6`) and higher than the direction of stage 1, the arrow takes the model's direction. Stage 2 runs only on the marks that stage 1 rejects. A mark that holds other ink, or that is shorter than 6 pixels, is refused. For the rest, a trained model (a random forest) measures the width of the mark's ink along its axis, in both directions, with the notch measurements of stage 1, and gives a score to each direction. The higher score gives the direction. The mark is an arrow when that score is at or above `classifier.threshold` (default `0.5`). `classifier.enabled: false` makes stage 1 alone decide. The model is `arrow_classifier.json` under `pylithics/models/`. The only marks tried are the marks inside a recognised scar. A surface, a scar, or a mark outside every recognised scar is never tried. When the image was upscaled for detection (see [Working Resolution](../user-guide/working-resolution.md)), the marks are cut from the upscaled copy, so a small arrow keeps its notches. The arrow positions in the CSV are in the pixels of the input. The CSV column `arrow_score` holds the score when stage 2 decided.
 
 ## Scale calibration
 

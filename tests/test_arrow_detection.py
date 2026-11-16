@@ -248,7 +248,7 @@ class TestCalculateArrowProperties:
 
 
 # ---------------------------------------------------------------------------
-# Stage 1 decides first and is never overruled
+# Stage 1 decides first; its acceptance is never overruled, its direction can be
 # ---------------------------------------------------------------------------
 
 
@@ -260,6 +260,23 @@ class TestStageOne:
         assert result is not None
         assert result['stage'] == 'triangle'
         assert 'score' not in result
+
+    def test_the_classifier_turns_the_arrow_when_it_is_sure_of_the_other_direction(self):
+        # The notch method points the drawn up-arrow down (compass 0); the head model
+        # scores the upward reading 0.9 against 0.1, so the arrow is turned.
+        plain = ArrowDetector(_NO_MODEL).assess(_BIG, _BIG_INK, 300.0)
+        turned = _with_model(_HEAD_MODEL).assess(_BIG, _BIG_INK, 300.0)
+        assert plain.stage == 'triangle' and plain.geometry['compass_angle'] == 0.0
+        assert turned.stage == 'triangle turned' and turned.accepted
+        assert turned.geometry['compass_angle'] == pytest.approx(180.0, abs=5.0)
+        assert 'score' not in turned.result()
+
+    def test_a_doubtful_classifier_leaves_the_direction_alone(self):
+        both_equal = _with_model(_constant_model(0.9)).assess(_BIG, _BIG_INK, 300.0)
+        too_low = ArrowDetector({'classifier': {'direction_threshold': 0.95}},
+                                model=_HEAD_MODEL).assess(_BIG, _BIG_INK, 300.0)
+        assert both_equal.stage == 'triangle' and too_low.stage == 'triangle'
+        assert too_low.geometry['compass_angle'] == 0.0
 
     def test_the_same_arrow_is_accepted_without_a_model(self):
         result = ArrowDetector(_NO_MODEL).analyze_contour_for_arrow(_BIG, {}, _BIG_INK)
