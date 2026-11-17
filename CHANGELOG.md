@@ -150,7 +150,7 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
   complexity and Voronoi. Model bundled as
   `pylithics/models/arrow_classifier.json`, with the hand labels it was
   trained from in `arrow_labels.csv` and the arrow templates in
-  `pylithics/data/arrow_training/`; tools `tools/arrow_variants.py`,
+  `training/arrows/` and `training/non_arrows/`; tools `tools/arrow_variants.py`,
   `tools/arrow_candidates.py` and `tools/train_arrow_classifier.py`.
   `arrow_integration` loses `min_solidity`, `max_solidity` and
   `reference_thresholds`. `pylithics.forest` reads a forest from JSON for

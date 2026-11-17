@@ -9,6 +9,14 @@ The training scripts (`train_arrow_classifier.py` and `train_scale_classifier.py
 need scikit-learn: `pip install ".[train]"`. The package itself scores the bundled
 models with numpy and does not need it.
 
+## Training material
+
+`training/` holds what the classifiers are trained from and nothing the package
+reads: `training/arrows/`, one arrow for each image, all pointing down;
+`training/non_arrows/`, marks that are not arrows. The hand labels that point into
+real pages are `pylithics/models/arrow_labels.csv` and
+`pylithics/models/scale_bar_labels.csv`. The generated arrow table is not kept.
+
 ## Arrow classifier
 
 | Script | What it does |
