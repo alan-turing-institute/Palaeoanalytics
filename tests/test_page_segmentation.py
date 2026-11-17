@@ -1602,6 +1602,29 @@ class TestPipeline:
             assert main(["--data_dir", str(tmp_path)]) == 0
         assert "No page images" in caplog.text and "pages/" in caplog.text
 
+    def test_a_run_writes_an_empty_corrections_file_and_reads_it_next_time(
+        self, tmp_path, pages_dir,
+    ):
+        project = os.path.dirname(pages_dir)
+        assert main(["--data_dir", project]) == 0
+        corrections = tmp_path / "corrections.csv"
+        assert corrections.read_text() == "page_id,expect,join,split\n"
+        before = len([r for r in read_manifest(tmp_path) if r['image_type'] == 'artefact'])
+        corrections.write_text("page_id,expect,join,split\nsample_plate.png,,1+2,\n")
+        assert main(["--data_dir", project]) == 0          # no --overrides given
+        rows = [r for r in read_manifest(tmp_path) if r['image_type'] == 'artefact']
+        assert len(rows) == before - 1
+        assert any(r['correction_applied'] == 'join' for r in rows)
+        assert corrections.read_text().count('\n') == 2     # the file is not overwritten
+
+    def test_a_given_overrides_file_wins_over_the_project_file(self, tmp_path):
+        (tmp_path / "corrections.csv").write_text("page_id,expect,join,split\n")
+        given = "/elsewhere/fixes.csv"
+        assert overrides_module.project_corrections(str(tmp_path), given) == given
+        own = str(tmp_path / "corrections.csv")
+        assert overrides_module.project_corrections(str(tmp_path), None) == own
+        assert overrides_module.project_corrections(str(tmp_path / "empty"), None) is None
+
     def test_default_output_is_the_project_folder(self, tmp_path, pages_dir):
         """pages/ in, images/ and scales/ out, in the same folder."""
         project = os.path.dirname(pages_dir)

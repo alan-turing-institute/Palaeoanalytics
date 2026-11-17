@@ -70,7 +70,7 @@ crops flagged.
 page](#correct-a-page). Then start the command again:
 
 ```bash
-pylithics-pages --data_dir my_project --overrides corrections.csv
+pylithics-pages --data_dir my_project
 ```
 
 **5. Open `meta_data.csv`. Fill in the `scale` column. Correct each
@@ -111,6 +111,31 @@ The number of surfaces does not change this.
 The command discards captions, legend text and running heads. It does
 not make crops of them. It does not attach them to a lithic. It keeps
 the identifier next to each lithic.
+
+## Text that is not an artefact
+
+A plate carries text that is not a label beside a lithic: a specimen code
+in a frame, a site name, a caption. Two tests keep it off the artefact
+list.
+
+The first test is on shape, before the grouping. A word is many
+letter-sized pieces of ink on one baseline. It is discarded and never
+exported.
+
+The second test is on reading, after the grouping. A framed code passes
+the shape test, because the frame is one piece that holds most of the
+ink. So `pylithics-pages` reads each artefact box with the identifier
+reader (RapidOCR). A box is text when the lines read at a confidence of
+0.8 or more cover at least 80 percent of its ink, a straight frame
+discounted, and spell at least three characters. Print reads near 1; a
+small drawing misread as a glyph reads at 0.6 to 0.7 and does not count. A lithic that carries a numeral reads the numeral, but the
+numeral is a small part of its ink, so the lithic stays. A text box is
+not cut. It is recorded in `pages_manifest.csv` with `image_type` `text`
+and the text in the column `text_read`, so you can see what was removed.
+
+To keep such boxes for one run, give `--keep_text_boxes`. The settings are
+in `page_segmentation.text_boxes` in `config.yaml`. Without RapidOCR the
+second test does not run.
 
 ## Identifiers
 
@@ -308,7 +333,7 @@ source page.
 | Column | Meaning |
 |---|---|
 | `output_crop_id` | The filename of the crop in `images/` or `scales/`. |
-| `image_type` | `artefact` or `scale_bar`. |
+| `image_type` | `artefact`, `scale_bar`, or `text` for a box that the reader found to be writing and did not cut. |
 | `input_page_id` | The filename of the plate in `pages/`, or of the rendered page in `pages_rendered/`. |
 | `crop_id_index` | The box number of the crop on the debug overlay, in reading order. The same number as in `_box_NN`. Empty for a scale bar. |
 | `x0, y0, x1, y1` | The box of the crop on the source page, in pixels. |
@@ -328,6 +353,7 @@ source page.
 | `scale_method` | For a scale bar: `classifier`, or `rules` when the classifier is off. |
 | `source_pdf` | For a page rendered from a PDF file: the name of the file. Empty for a scanned page. |
 | `source_page` | For a page rendered from a PDF file: the page number in the file, from 1. |
+| `text_read` | For a `text` row: the text the reader read in the box. |
 | `render_dpi` | For a page rendered from a PDF file: the resolution of the render. See [PDF input](#pdf-input). |
 | `dpi_source` | For a page rendered from a PDF file: `derived` from an image on the page, or `selected` by `--pdf_dpi`. |
 | `source_filters` | For a page rendered from a PDF file: the compression of the images on the page, separated by `;`. `DCTDecode` is JPEG. |
@@ -389,10 +415,13 @@ plate_021.jpg,,,2
 | `join` | Merge two boxes, for example `3+4`. Separate more than one pair with a space. |
 | `split` | Cut one box into two boxes at its widest empty column. |
 
-The box numbers are the numbers on the `--debug` overlay. The
-procedure is: start the command with `--debug`, read the numbers,
-write the correction, start the command again with `--overrides`.
-Pages that are not in the CSV file are cut again with no correction.
+The first run writes this file empty, with its header, as
+`corrections.csv` in the project folder. Every later run reads it
+from there. The box numbers are the numbers on the `--debug` overlay.
+The procedure is: start the command with `--debug`, read the numbers,
+write the rows in `corrections.csv`, start the command again. To use a
+file elsewhere, give its path with `--overrides`. Pages that are not in
+the file are cut again with no correction.
 
 !!! warning "Write the CSV file with a spreadsheet or a CSV writer"
     Page filenames often contain commas. Then `page_id` must be in
@@ -491,6 +520,9 @@ It gives the candidate a score from 0 to 1. It measures:
   its ends. The outline of a lithic surface is hollow, and becomes
   narrow at its ends.
 - The tones of the pixels.
+- The two ends of the candidate: a bar is as wide at one end as at the
+  other, with or without end ticks. An arrow has its head at one end,
+  and a large arrow drawn on an artefact is not a bar.
 - The small marks beside the candidate, for example the caption `5 cm`.
 - If the box of a drawing contains the candidate, and its position on
   the page.

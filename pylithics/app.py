@@ -1526,6 +1526,11 @@ def _add_cortex_args(parser: argparse.ArgumentParser) -> None:
         choices=['low', 'medium', 'high'],
         help='The cortex detection sensitivity (default: medium).'
     )
+    group.add_argument(
+        '--min_stipple_pieces', type=int, metavar='N',
+        help='A scar is cortex only when it holds at least N small pieces of ink '
+             '(default: 3). One or two pieces are an arrow or a numeral.'
+    )
 
 
 def _add_scar_args(parser: argparse.ArgumentParser) -> None:
@@ -1806,6 +1811,9 @@ def _apply_cortex_overrides(
     """Map cortex detection CLI args to config overrides."""
     if getattr(args, 'disable_cortex_detection', False):
         overrides['cortex_detection.enabled'] = False
+    pieces = getattr(args, 'min_stipple_pieces', None)
+    if pieces is not None:
+        overrides['cortex_detection.min_stipple_pieces'] = pieces
 
     sensitivity = getattr(args, 'cortex_sensitivity', None)
     if sensitivity == 'low':

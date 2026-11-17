@@ -89,6 +89,9 @@ setup(
         "ocr": ["onnxruntime>=1.14", "pyclipper>=1.3", "six>=1.16", "tqdm>=4.60"],
         # Reading PDF files in pages/ (pylithics-pages).
         "pdf": ["pypdfium2>=5,<6"],
+        # Training the arrow and scale bar classifiers (tools/). The package
+        # itself scores the bundled models with numpy and needs none of this.
+        "train": ["scikit-learn>=1.3"],
         "dev": [
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",

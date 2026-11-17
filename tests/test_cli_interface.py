@@ -232,6 +232,9 @@ class TestDebugFlagOverrides:
         }
 
     def test_hide_labels_sets_the_named_kinds_off(self):
+        assert self._overrides_for("--min_stipple_pieces", "5") == {
+            "cortex_detection.min_stipple_pieces": 5,
+        }
         assert self._overrides_for("--hide_labels", "surfaces,cortex") == {
             "visualization.labels": {
                 "surfaces": False, "scars": True, "cortex": False, "arrows": True,

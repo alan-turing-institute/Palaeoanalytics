@@ -98,6 +98,28 @@ class TestCortexDetection:
         result = _detect_cortex_texture(contour, inverted_image, config)
         assert result == False
 
+    def test_one_piece_of_ink_in_a_small_scar_is_not_cortex(self):
+        """An arrow is one small piece of ink; alone it used to pass the density test."""
+        contour = np.array([[10, 10], [40, 10], [40, 40], [10, 40]], dtype=np.int32)
+        image = np.zeros((60, 60), dtype=np.uint8)
+        image[22:26, 18:28] = 255          # one mark of 40 px
+        config = {'stippling_density_threshold': 0.1, 'texture_variance_threshold': 10,
+                  'edge_density_threshold': 0.01}
+        assert _detect_cortex_texture(contour, image, config) is False
+
+    def test_two_pieces_are_not_cortex_and_three_are(self):
+        contour = np.array([[10, 10], [40, 10], [40, 40], [10, 40]], dtype=np.int32)
+        config = {'stippling_density_threshold': 0.1, 'texture_variance_threshold': 10,
+                  'edge_density_threshold': 0.01}
+        two = np.zeros((60, 60), dtype=np.uint8)
+        two[15:18, 15:18] = 255
+        two[30:33, 30:33] = 255
+        three = two.copy()
+        three[15:18, 30:33] = 255
+        assert _detect_cortex_texture(contour, two, config) is False
+        assert _detect_cortex_texture(contour, three, config) is True
+        assert _detect_cortex_texture(contour, two, {**config, 'min_stipple_pieces': 1}) is True
+
     def test_cortex_texture_detection_complex(self):
         """Test texture analysis with complex stippled pattern."""
         # Create a contour

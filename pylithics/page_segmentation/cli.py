@@ -48,6 +48,7 @@ from .pdf_input import (
 from .grouping import ScaleContext, classify_components, group_components, reading_order
 from .identifiers import PageReads, assign_reads, read_page, report_identifiers
 from .scale_classifier import ModelUnavailable, load_model
+from .text_boxes import find_text_boxes
 from .regroup import JOIN, SPLIT, refine_boxes
 from .logging_setup import setup_logging
 
@@ -118,9 +119,10 @@ procedure:
      purple box, with its score beside it. A grey box is a mark that
      the command rejected. Each green identifier must match the number
      on the plate.
-  4. Correct each page that is wrong (see below). Then start the command
-     again:
-       pylithics-pages --data_dir <project> --overrides corrections.csv
+  4. Correct each page that is wrong (see below): write a row in
+     <project>/corrections.csv, which the first run wrote empty. Then
+     start the command again:
+       pylithics-pages --data_dir <project>
   5. Open <project>/meta_data.csv. Fill in the scale column. Correct each
      flagged row. Then remove its flag.
   6. Analyse the crops:
@@ -164,14 +166,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     logging.getLogger().addHandler(logging.NullHandler())   # no stdlib fallback handler
     get_config_manager(args.config_file)     # first use creates the process-wide manager
     _offer_update()
-    if not os.path.isdir(args.data_dir):
-        setup_logging(_console_level(args))
-        logging.error("The folder %s does not exist. Give --data_dir the project folder "
-                      "that holds pages/, or a folder of page images.", args.data_dir)
+    if not _project_folder_exists(args):
         return 1
-    pages_dir = _resolve_pages_dir(args.data_dir)
-    if not args.output_dir:
-        args.output_dir = args.data_dir
+    pages_dir = _resolve_paths(args)
 
     console = setup_logging(_console_level(args), args.output_dir)
     logging.info("Reading pages from %s", pages_dir)
@@ -191,10 +188,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "start the command again to cut the remaining pages."
         )
         return 130
-    if config.get('export', {}).get('manifest', True):
-        kept = [r for r in previous if r['input_page_id'] not in run.recut]
-        write_manifest(kept + run.rows, args.output_dir)
-        write_metadata(run.rows, args.output_dir, run.removed, _uncertain_scales(run.rows, config))
+    _write_tables(run, previous, config, args.output_dir)
+    overrides_module.write_empty_corrections(args.data_dir)
 
     debug = args.debug or config.get('debug', {}).get('enabled', False)
     _log_summary(run, previous, len(pages), args.output_dir, debug)
@@ -202,6 +197,34 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         logging.error("%d page(s) not cut: %s. See %s for the reason.", len(run.failed),
                       ', '.join(run.failed), os.path.join(args.output_dir, 'pylithics-pages.log'))
     return 1 if run.failed else 0
+
+
+def _resolve_paths(args: argparse.Namespace) -> str:
+    """Return the pages folder; default the output folder and the corrections file."""
+    if not args.output_dir:
+        args.output_dir = args.data_dir
+    args.overrides = overrides_module.project_corrections(args.data_dir, args.overrides)
+    return _resolve_pages_dir(args.data_dir)
+
+
+def _project_folder_exists(args: argparse.Namespace) -> bool:
+    """Report a ``--data_dir`` that is not there, before anything is written."""
+    if os.path.isdir(args.data_dir):
+        return True
+    setup_logging(_console_level(args))
+    logging.error("The folder %s does not exist. Give --data_dir the project folder "
+                  "that holds pages/, or a folder of page images.", args.data_dir)
+    return False
+
+
+def _write_tables(run: 'RunResult', previous: Sequence[Dict[str, str]], config: Dict,
+                  output_dir: str) -> None:
+    """Write the manifest and the metadata when the export asks for them."""
+    if not config.get('export', {}).get('manifest', True):
+        return
+    kept = [r for r in previous if r['input_page_id'] not in run.recut]
+    write_manifest(kept + run.rows, output_dir)
+    write_metadata(run.rows, output_dir, run.removed, _uncertain_scales(run.rows, config))
 
 
 def _prepare(args: argparse.Namespace, pages_dir: str) -> Tuple:
@@ -413,23 +436,45 @@ def _process_page(
     boxes, applied = _apply_overrides(
         boxes, override, components, page, config, reads
     )
+    text = find_text_boxes(page, boxes, raw, _text_config(config), masks.working)
+    boxes, tags = _without(boxes, tags, {t.index for t in text})
     identifiers = assign_reads(reads, boxes)
     report_identifiers(page, identifiers)
     corrections = _box_corrections(boxes, tags, applied)
 
-    if args.debug or config.get('debug', {}).get('enabled', False):
-        read = config.get('identifiers', {}).get('enabled', True)
-        write_debug_overlay(
-            page, boxes, bars, args.output_dir,
-            identifiers if read else None, corrections, masks.working.factor,
-            context.candidates if context else None,
-        )
+    _write_overlay(args, config, page, boxes, bars, identifiers, corrections, masks, context)
 
     return export_page(
         page, boxes, bars, args.output_dir, padding, '',
         _count_components(boxes, components), identifiers, corrections,
         masks.working, taken, orphans, context.bar_scores if context else None,
+        text_boxes=text,
     )
+
+
+def _write_overlay(args, config, page, boxes, bars, identifiers, corrections, masks,
+                   context) -> None:
+    """Write the debug overlay for a page when the run asks for it."""
+    if not (args.debug or config.get('debug', {}).get('enabled', False)):
+        return
+    read = config.get('identifiers', {}).get('enabled', True)
+    write_debug_overlay(
+        page, boxes, bars, args.output_dir,
+        identifiers if read else None, corrections, masks.working.factor,
+        context.candidates if context else None,
+    )
+
+
+def _text_config(config: Dict) -> Dict:
+    """Return the text box settings."""
+    return dict(config.get('text_boxes', {}))
+
+
+def _without(boxes: Sequence[BBox], tags: Sequence[str], drop: set) -> Tuple[List, List]:
+    """Return the boxes and their tags without the given positions."""
+    kept = [i for i in range(len(boxes)) if i not in drop]
+    aligned = list(tags) if len(tags) == len(boxes) else None
+    return [boxes[i] for i in kept], ([aligned[i] for i in kept] if aligned else list(tags))
 
 
 _SCALE_MODEL: Dict[str, object] = {}
@@ -629,6 +674,10 @@ def _resolve_config(args: argparse.Namespace) -> Dict:
     if args.read_labels is not None:
         identifiers['enabled'] = args.read_labels
 
+    text = dict(config.get('text_boxes', {}))
+    if getattr(args, 'keep_text_boxes', False):
+        text['enabled'] = False
+
     pdf = dict(config.get('pdf', {}))
     if getattr(args, 'pdf_dpi', None) is not None:
         pdf['rasterise_dpi'] = args.pdf_dpi
@@ -639,6 +688,7 @@ def _resolve_config(args: argparse.Namespace) -> Dict:
         'export': export,
         'scale_bars': bars,
         'identifiers': identifiers,
+        'text_boxes': text,
         'pdf': pdf,
     }
 
@@ -742,9 +792,10 @@ def _log_summary(
     rows = run.rows
     artefacts = sum(1 for r in rows if r.image_type == 'artefact')
     bars = sum(1 for r in rows if r.image_type == 'scale_bar')
+    texts = sum(1 for r in rows if r.image_type == 'text')
     logging.info(
-        "Done: %d page(s) -> %d artefact(s), %d scale bar(s) in %s",
-        page_count, artefacts, bars, output_dir,
+        "Done: %d page(s) -> %d artefact(s), %d scale bar(s), %d text box(es) not cut, in %s",
+        page_count, artefacts, bars, texts, output_dir,
     )
     cut_before = {r['input_page_id'] for r in previous} & run.recut
     if cut_before:
@@ -844,7 +895,8 @@ def _add_grouping_args(parser: argparse.ArgumentParser) -> None:
         '--overrides', metavar='FILE',
         help='A CSV file of corrections, one row for each page. '
              'Columns: page_id, expect, join, split. Use the box numbers '
-             'shown by --debug.'
+             'shown by --debug. Default: corrections.csv in the project '
+             'folder, which the command writes empty when it is missing.'
     )
 
 
@@ -864,6 +916,12 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         '--disable_scale_bars', action='store_true',
         help='Do not write scale bar crops.'
+    )
+    group.add_argument(
+        '--keep_text_boxes', action='store_true',
+        help='Keep a box that the reader finds to be writing, such as a framed '
+             'specimen code. By default such a box is recorded in the manifest as '
+             'text and no crop is written for it.'
     )
     group.add_argument(
         '--read_labels', dest='read_labels', action='store_true',

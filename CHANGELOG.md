@@ -17,6 +17,12 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
 
 ### Fixed
 
+- **A scar that holds an arrow is no longer cortex (`pylithics`).** The stippling
+  test was a density of small ink pieces with no count, so in a scar under
+  5,000 pixels one piece passed it, and an arrow is one piece. Cortex now needs
+  at least `cortex_detection.min_stipple_pieces` small pieces (default 3; also
+  `--min_stipple_pieces N`). On the research corpus 775 of 832 cortex marks held
+  one or two pieces, and 252 arrows were lost behind them.
 - **A missing project folder is reported, not created.** Both commands
   stop with "the folder ... does not exist" when `--data_dir` names a folder
   that is not there, before any log file or `results/` folder is made.
@@ -54,6 +60,21 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
 - **`.gitignore`** cut to the rules this project uses.
 
 ### Added
+
+- **The corrections file is part of the project (`pylithics-pages`).** The first
+  run writes `corrections.csv` with its header into the project folder, and
+  every run reads it from there, so a correction is a row to write and a
+  rerun, with no `--overrides` to pass. `--overrides` still names a file
+  elsewhere.
+
+- **A box of text is not an artefact (`pylithics-pages`).** After the grouping,
+  each artefact box is read with RapidOCR. A box whose lines read at
+  `text_boxes.min_confidence` (0.8) or more cover at least
+  `text_boxes.min_ink_share` (0.8) of its ink, a straight frame
+  discounted, and spell at least `min_characters` (3), is writing: a framed
+  specimen code, a site name. It is recorded in the manifest as `image_type`
+  `text` with the text in `text_read`, and no crop is written.
+  `--keep_text_boxes` keeps such boxes for one run.
 - **PDF input (`pylithics-pages`)** — a PDF file in `pages/` is read. Each page
   is rendered to a PNG in `pages_rendered/` and cut like a scanned page. A page
   that holds a raster image renders at the resolution of the sharpest large
@@ -95,7 +116,8 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
   and the classifier was right on 39 of them while disagreeing on 4 of
   the 304 it had right. The
   debug files are named by scar and mark (`scar_3_mark_1.png`) and show
-  the scar at the working resolution. New CSV column
+  the scar at the working resolution; the `.txt` names the stage that
+  decided, `triangle`, `triangle turned` or `model`. New CSV column
   `arrow_score`, filled when the classifier decided. The columns
   `triangle_base_length`, `triangle_height`, `shaft_solidity` and
   `tip_solidity` are gone from the CSV. Arrow detection runs before scar

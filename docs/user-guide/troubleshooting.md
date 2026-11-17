@@ -218,6 +218,11 @@ pylithics --data_dir ./data --cortex_sensitivity low
 pylithics --data_dir ./data --disable_cortex_detection
 ```
 
+**Problem**: A scar that holds an arrow or a numeral is marked as cortex, and its arrow is not found
+
+**Cause**: Cortex is stippling, many small pieces of ink. A scar is cortex only when it holds at least `min_stipple_pieces` of them (default 3). A larger value makes the test stricter
+**Procedure**: `pylithics --data_dir ./data --min_stipple_pieces 4`, or set `cortex_detection.min_stipple_pieces` in `config.yaml`
+
 ### The analysis is slow
 
 **Problem**: The analysis takes too long

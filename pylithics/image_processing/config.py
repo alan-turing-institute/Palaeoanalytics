@@ -223,6 +223,7 @@ def get_cortex_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]
         config = get_config_manager().config
     return config.get('cortex_detection', {
         'enabled': True,
+        'min_stipple_pieces': 3,            # Fewer small pieces of ink than this is not cortex
         'stippling_density_threshold': 0.2, # Minimum density of small dots/stipples per 1000 pixels
                                             # Higher values = more restrictive cortex detection
                                             # Lower values = more sensitive cortex detection
@@ -396,6 +397,8 @@ _PAGE_SEGMENTATION_DEFAULTS: Dict[str, Any] = {
         'swatch_density': 0.90,
         'swatch_max_size': 0.06,
     },
+    'text_boxes': {'enabled': True, 'min_confidence': 0.8, 'min_ink_share': 0.8,
+                   'min_characters': 3},
     'identifiers': {
         'enabled': True,
         'min_confidence': 0.6,

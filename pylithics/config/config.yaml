@@ -250,6 +250,10 @@ cortex_detection:
                  # - true: Cortex detection will be performed on child contours
                  # - false: Skip cortex detection entirely
 
+  min_stipple_pieces: 3  # A scar with fewer small pieces of ink than this is not
+                         # cortex. One or two pieces are an arrow, a numeral or a
+                         # dot. Command line: --min_stipple_pieces
+
   # Detection sensitivity parameters
   # Lower values make detection more sensitive (detect more cortex)
   # Higher values make detection more restrictive (detect less cortex)
@@ -401,6 +405,19 @@ page_segmentation:
     swatch_density: 0.90  # A solid block this full is a legend key
     swatch_max_size: 0.06  # ...when no larger than this fraction of the
                            # smaller page dimension
+
+  text_boxes:
+    enabled: true  # After grouping, read each artefact box with RapidOCR.
+                   # A box whose read lines cover nearly all of its ink is
+                   # writing (a framed specimen code, a site name): it is
+                   # recorded in the manifest as text and not cut.
+                   # CLI flag: --keep_text_boxes sets this off for one run.
+    min_confidence: 0.8  # A read line counts from this confidence. Print
+                         # reads near 1; a small drawing misread as a glyph
+                         # reads at 0.6 to 0.7 and would cover its own ink.
+    min_ink_share: 0.8  # The read lines must cover this share of the box's
+                        # ink, a straight frame on the border discounted.
+    min_characters: 3   # A shorter read is an identifier, not a text box.
 
   identifiers:
     enabled: true  # Read the number or letter printed beside each lithic

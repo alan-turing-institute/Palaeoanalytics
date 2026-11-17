@@ -5,6 +5,10 @@ the package and the user documentation does not describe them. Run each
 one from the repository root with the project's Python, for example
 `.venv/bin/python tools/arrow_variants.py --help`.
 
+The training scripts (`train_arrow_classifier.py` and `train_scale_classifier.py`)
+need scikit-learn: `pip install ".[train]"`. The package itself scores the bundled
+models with numpy and does not need it.
+
 ## Arrow classifier
 
 | Script | What it does |

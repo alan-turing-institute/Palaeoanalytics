@@ -6,7 +6,15 @@ stippled texture, which represents the original weathered surface of the stone.
 
 Cortex is detected at the child contour level, labelled ``cortex 1``, ``cortex 2`` and
 so on, and measured as an area and as a percentage of the parent surface area.
+
+Stippling is many small pieces of ink. A scar needs at least
+``min_stipple_pieces`` of them (default 3) before the density, variance
+and edge tests are asked: one or two pieces are an arrow, a numeral or a
+dot, and a small scar that holds an arrow passed the density test alone.
 """
+
+DEFAULT_MIN_STIPPLE_PIECES = 3
+STIPPLE_MAX_AREA = 50   # a piece of ink up to this many pixels counts as a stipple
 
 import cv2
 import numpy as np
@@ -155,7 +163,8 @@ def _detect_cortex_texture(
     Decide whether a contour region shows cortex-like texture.
 
     Cortex surfaces are characterized by a stippled pattern with many small
-    connected components, high local variance, and high edge density.
+    connected components, high local variance, and high edge density. Fewer
+    small components than ``min_stipple_pieces`` is never cortex.
     """
     try:
         roi_cropped, mask_cropped = _crop_contour_roi(contour, inverted_image)
@@ -166,17 +175,18 @@ def _detect_cortex_texture(
         if roi_area == 0:
             return False
 
-        stippling = _stippling_density(roi_cropped, roi_area)
+        pieces, stippling = _stippling_density(roi_cropped, roi_area)
         variance = _texture_variance(roi_cropped, mask_cropped)
         edge_density = _edge_density(roi_cropped, roi_area)
 
         cortex_detected = (
-            stippling > config.get('stippling_density_threshold', 0.2)
+            pieces >= int(config.get('min_stipple_pieces', DEFAULT_MIN_STIPPLE_PIECES))
+            and stippling > config.get('stippling_density_threshold', 0.2)
             and variance > config.get('texture_variance_threshold', 100)
             and edge_density > config.get('edge_density_threshold', 0.05)
         )
         logging.debug(
-            f"Cortex analysis: stippling_density={stippling:.3f}, "
+            f"Cortex analysis: stipple_pieces={pieces}, stippling_density={stippling:.3f}, "
             f"variance={variance:.1f}, edge_density={edge_density:.3f} -> "
             f"cortex={cortex_detected}"
         )
@@ -203,16 +213,16 @@ def _crop_contour_roi(
     return roi_cropped, mask_cropped
 
 
-def _stippling_density(roi_cropped: np.ndarray, roi_area: int) -> float:
-    """Count small connected components per 1000 pixels of ROI."""
+def _stippling_density(roi_cropped: np.ndarray, roi_area: int) -> "tuple[int, float]":
+    """Return the number of small connected components, and that number per 1000 pixels."""
     num_labels, _, stats, _ = cv2.connectedComponentsWithStats(
         roi_cropped, connectivity=8,
     )
     small = sum(
         1 for i in range(1, num_labels)
-        if 1 <= stats[i, cv2.CC_STAT_AREA] <= 50
+        if 1 <= stats[i, cv2.CC_STAT_AREA] <= STIPPLE_MAX_AREA
     )
-    return small / roi_area * 1000
+    return small, small / roi_area * 1000
 
 
 def _texture_variance(

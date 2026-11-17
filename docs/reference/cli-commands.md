@@ -113,6 +113,7 @@ scar_complexity:
 
 cortex_detection:
   enabled: true
+  min_stipple_pieces: 3
   stippling_density_threshold: 0.2
   texture_variance_threshold: 100
   edge_density_threshold: 0.05
@@ -240,6 +241,7 @@ pylithics --data_dir ./data --disable_scale_calibration
 |--------|-------------|---------|
 | `--disable_cortex_detection` | Set cortex detection off | on |
 | `--cortex_sensitivity {low,medium,high}` | The detection sensitivity | `medium` |
+| `--min_stipple_pieces N` | A scar is cortex only when it holds at least N small pieces of ink. One or two pieces are an arrow or a numeral | `3` |
 
 ```bash
 pylithics --data_dir ./data --cortex_sensitivity high
@@ -397,7 +399,7 @@ All distances are fractions of the page width or the page height. The same value
 | `--vertical_gap FRAC` | A short view joins the taller view above it if the distance is less than this | `0.06` |
 | `--bridge FRAC` | Views connected by a dash mark join if the dash is shorter than this | `0.06` |
 | `--min_area FRAC` | Ink blobs smaller than this fraction of the page area are labels, not artefacts | `0.0004` |
-| `--overrides FILE` | A CSV file of corrections, one row for each page (`page_id`, `expect`, `join`, `split`) | none |
+| `--overrides FILE` | A CSV file of corrections, one row for each page (`page_id`, `expect`, `join`, `split`). Use the box numbers shown by `--debug` | `corrections.csv` in the project folder, written empty by the first run |
 
 ### Output Options
 
@@ -409,6 +411,7 @@ All distances are fractions of the page width or the page height. The same value
 | `--disable_scale_bars` | Do not write scale bar crops | off |
 | `--read_labels` | Read the identifier next to each lithic and name the crop with it. RapidOCR is necessary; see [Installation](../installation.md#step-4-install-pylithics) | on |
 | `--no_read_labels` | Do not read identifiers. Name the crops by box number only | off |
+| `--keep_text_boxes` | Keep a box that the reader finds to be writing, such as a framed specimen code. By default it is recorded in the manifest as `text` and not cut | off |
 
 ### PDF Options
 
@@ -451,7 +454,7 @@ pylithics-pages --data_dir pylithics/data --debug
 
 # Start again with corrections for each page
 pylithics-pages --data_dir pylithics/data \
-    --overrides ./corrections.csv --debug
+    --debug
 
 # Cut a folder of scans that is not a project, and give the output folder
 pylithics-pages --data_dir /mnt/archive/plates --output_dir ~/work/lyon

@@ -33,6 +33,11 @@ import numpy as np
 
 from .geometry import BBox, union
 
+# The corrections file a project holds. The command writes it empty when it is
+# missing and reads it by default when it is there.
+CORRECTIONS_FILENAME = 'corrections.csv'
+CORRECTIONS_COLUMNS = ['page_id', 'expect', 'join', 'split']
+
 # Ink-free runs shorter than this many pixels are not a usable cut line.
 _MIN_SPLIT_RUN = 3
 # Grayscale value below which a pixel counts as ink when finding a cut.
@@ -75,6 +80,37 @@ class PageOverride:
         if self.splits:
             kinds.append('split')
         return '+'.join(kinds)
+
+
+def project_corrections(data_dir: str, given: Optional[str]) -> Optional[str]:
+    """
+    Return the corrections file to read: the one given, else the project's own when present.
+
+    A project's own file is ``corrections.csv`` in ``data_dir``.
+    """
+    if given:
+        return given
+    own = os.path.join(data_dir, CORRECTIONS_FILENAME)
+    if os.path.isfile(own):
+        logging.info("Reading the corrections in %s", own)
+        return own
+    return None
+
+
+def write_empty_corrections(data_dir: str) -> Optional[str]:
+    """
+    Write an empty ``corrections.csv`` with its header into the project, when there is none.
+
+    Returns the path written, or None when the file was already there.
+    """
+    path = os.path.join(data_dir, CORRECTIONS_FILENAME)
+    if os.path.exists(path):
+        return None
+    with open(path, 'w', newline='', encoding='utf-8') as handle:
+        csv.writer(handle).writerow(CORRECTIONS_COLUMNS)
+    logging.info("Wrote an empty %s in %s. To correct a page, write a row there and "
+                 "start the command again.", CORRECTIONS_FILENAME, data_dir)
+    return path
 
 
 def load_overrides(path: Optional[str]) -> Dict[str, PageOverride]:

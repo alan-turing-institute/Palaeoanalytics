@@ -65,6 +65,7 @@ MANIFEST_COLUMNS = [
     'label_candidates', 'stroke_width_px', 'upscale_factor',
     'scale_score', 'scale_method',
     'source_pdf', 'source_page', 'render_dpi', 'dpi_source', 'source_filters',
+    'text_read',
 ]
 
 # Manifest names for the source colour mode. Pillow's own names are
@@ -113,6 +114,7 @@ class ManifestRow:
     render_dpi: str = ''
     dpi_source: str = ''
     source_filters: str = ''
+    text_read: str = ''
 
 
 def prepare_output_dir(output_dir: str) -> List[Dict[str, str]]:
@@ -160,6 +162,8 @@ def remove_page_output(
     """
     removed = set()
     for row in previous:
+        if not row.get('output_crop_id'):
+            continue   # a text row has no crop
         folder = (
             IMAGES_DIRNAME if row['image_type'] == 'artefact'
             else SCALES_DIRNAME
@@ -210,21 +214,22 @@ def export_page(
     taken: Optional[Dict[str, str]] = None,
     orphans: Optional[List[str]] = None,
     bar_scores: Optional[Sequence[float]] = None,
+    text_boxes: Optional[Sequence] = None,
 ) -> List[ManifestRow]:
     """
     Write every crop for one page and return its manifest rows.
 
     ``boxes`` are the artefact boxes in reading order and ``bars`` the
-    scale bars. ``padding`` is the whitespace kept around each crop.
+    scale bars; ``padding`` is the whitespace kept around each crop.
     ``correction_applied`` goes on every row unless ``box_corrections``
-    gives one entry per box. ``component_counts`` maps a box index to
-    the ink blobs it groups, ``identifiers`` holds the read for each box
-    (a read one names its crop), and ``working`` is recorded on every
-    row. ``taken`` maps each crop name written earlier in this run to
-    its page; ``orphans`` is extended with each crop file of an earlier
-    run that this page replaced because it had no manifest row.
-    ``bar_scores`` gives the classifier's score for each bar, in order;
-    without it the bars were chosen by the rules.
+    gives one entry per box. ``component_counts`` maps a box index to its
+    ink blobs, ``identifiers`` holds the read for each box (a read one
+    names its crop), ``working`` is recorded on every row. ``taken`` maps
+    each crop name written earlier in this run to its page; ``orphans``
+    is extended with each orphan crop file this page replaced.
+    ``bar_scores`` are the classifier's scores for the bars, in order;
+    without them the rules chose. ``text_boxes`` are the boxes the reader
+    found to be writing: each gets a ``text`` row and no crop.
 
     Raises
     ------
@@ -239,9 +244,26 @@ def export_page(
     rows = _export_artefacts(page, boxes, output_dir, padding,
                              component_counts or {}, corrections, identifiers)
     rows.extend(_export_scale_bars(page, bars, output_dir, padding, bar_scores))
+    rows.extend(_text_rows(page, text_boxes or []))
     _record_resolution(rows, working)
     logging.info("%s: %d artefact(s), %d scale bar(s)",
                  os.path.basename(page.path), len(boxes), len(bars))
+    return rows
+
+
+def _text_rows(page: PageImage, text_boxes: Sequence) -> List[ManifestRow]:
+    """Return a manifest row for each box that was writing, with no crop."""
+    rows = []
+    for text in text_boxes:
+        x0, y0, x1, y1 = (int(v) for v in text.box)
+        rows.append(ManifestRow(
+            output_crop_id='', image_type='text',
+            input_page_id=os.path.basename(page.path), crop_id_index='',
+            x0=x0, y0=y0, x1=x1, y1=y1, width_px=x1 - x0, height_px=y1 - y0,
+            dpi=f"{page.dpi[0]:g}" if page.dpi else '',
+            colour_mode=_COLOUR_MODE_NAMES.get(page.mode, page.mode),
+            n_components=0, correction_applied='', text_read=text.text,
+        ))
     return rows
 
 
