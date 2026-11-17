@@ -47,7 +47,7 @@ DEBUG_DIRNAME = 'pages_debug'
 MANIFEST_FILENAME = 'pages_manifest.csv'
 METADATA_FILENAME = 'meta_data.csv'
 
-METADATA_COLUMNS = ['image_id', 'scale_id', 'scale', 'flag']
+METADATA_COLUMNS = ['image_id', 'scale_id', 'scale', 'flag', 'ignore_box']
 # Flags written to meta_data.csv. The analysis reports a flagged row
 # and runs it like any other, so the user knows which crops to examine.
 NO_SCALE_FLAG = 'no_scale'
@@ -65,7 +65,7 @@ MANIFEST_COLUMNS = [
     'label_candidates', 'stroke_width_px', 'upscale_factor',
     'scale_score', 'scale_method',
     'source_pdf', 'source_page', 'render_dpi', 'dpi_source', 'source_filters',
-    'text_read',
+    'text_read', 'hidden',
 ]
 
 # Manifest names for the source colour mode. Pillow's own names are
@@ -115,6 +115,8 @@ class ManifestRow:
     dpi_source: str = ''
     source_filters: str = ''
     text_read: str = ''
+    hidden: str = ''          # what was hidden in the crop: ``caption 1; scale bar 1``
+    ignore_box: str = ''      # the identifier's box in the crop, for meta_data.csv only
 
 
 def prepare_output_dir(output_dir: str) -> List[Dict[str, str]]:
@@ -215,6 +217,7 @@ def export_page(
     orphans: Optional[List[str]] = None,
     bar_scores: Optional[Sequence[float]] = None,
     text_boxes: Optional[Sequence] = None,
+    hide=None,
 ) -> List[ManifestRow]:
     """
     Write every crop for one page and return its manifest rows.
@@ -227,9 +230,9 @@ def export_page(
     names its crop), ``working`` is recorded on every row. ``taken`` maps
     each crop name written earlier in this run to its page; ``orphans``
     is extended with each orphan crop file this page replaced.
-    ``bar_scores`` are the classifier's scores for the bars, in order;
-    without them the rules chose. ``text_boxes`` are the boxes the reader
-    found to be writing: each gets a ``text`` row and no crop.
+    ``bar_scores`` are the classifier's scores for the bars; ``text_boxes``
+    get a ``text`` row and no crop; ``hide`` paints the page's text over
+    in each artefact crop (``hiding.make_hider``).
 
     Raises
     ------
@@ -242,13 +245,22 @@ def export_page(
     if orphans is not None:
         orphans.extend(found)
     rows = _export_artefacts(page, boxes, output_dir, padding,
-                             component_counts or {}, corrections, identifiers)
+                             component_counts or {}, corrections, identifiers, hide)
     rows.extend(_export_scale_bars(page, bars, output_dir, padding, bar_scores))
     rows.extend(_text_rows(page, text_boxes or []))
     _record_resolution(rows, working)
     logging.info("%s: %d artefact(s), %d scale bar(s)",
                  os.path.basename(page.path), len(boxes), len(bars))
     return rows
+
+
+def skipped_row(page_name: str) -> ManifestRow:
+    """Return the manifest row of a page marked ``expect=0``: nothing cut, the decision kept."""
+    return ManifestRow(
+        output_crop_id='', image_type='skipped', input_page_id=page_name, crop_id_index='',
+        x0=0, y0=0, x1=0, y1=0, width_px=0, height_px=0, dpi='', colour_mode='',
+        n_components=0, correction_applied='expect=0',
+    )
 
 
 def _text_rows(page: PageImage, text_boxes: Sequence) -> List[ManifestRow]:
@@ -335,6 +347,7 @@ def _export_artefacts(
     counts: Dict[int, int],
     corrections: Sequence[str],
     identifiers: Sequence[Identifier],
+    hide=None,
 ) -> List[ManifestRow]:
     """Write the artefact crops, named from the plate where read."""
     rows = []
@@ -344,6 +357,7 @@ def _export_artefacts(
             _artefact_name(page.stem, index, identifier),
             'artefact', str(index), padding,
             counts.get(index - 1, 1), corrections[index - 1],
+            hide=hide, identifier=identifier,
         )
         row.label = identifier.label
         row.label_source = identifier.source
@@ -412,10 +426,15 @@ def _write_crop(
     padding: int,
     n_components: int,
     correction_applied: str,
+    hide=None,
+    identifier: Optional[Identifier] = None,
 ) -> ManifestRow:
-    """Cut one crop from the source array and save it."""
+    """Cut one crop from the source array, hide the page's text in it when asked, save it."""
     x0, y0, x1, y1 = clamp_box(box, padding, page.width, page.height)
     crop = page.array[y0:y1, x0:x1]
+    hidden = None
+    if hide is not None:
+        crop, hidden = hide(crop, (x0, y0), tuple(box), identifier)
 
     destination = os.path.join(output_dir, subdir, crop_id)
     image = Image.fromarray(crop, mode=page.mode)
@@ -434,6 +453,8 @@ def _write_crop(
         colour_mode=_COLOUR_MODE_NAMES.get(page.mode, page.mode),
         n_components=n_components,
         correction_applied=correction_applied,
+        hidden=hidden.text if hidden else '',
+        ignore_box=hidden.ignore_text if hidden else '',
     )
 
 
@@ -470,7 +491,7 @@ def write_manifest(rows: Sequence, output_dir: str, quiet: bool = False) -> str:
     path = os.path.join(output_dir, MANIFEST_FILENAME)
     with open(path, 'w', newline='', encoding='utf-8') as handle:
         writer = csv.DictWriter(
-            handle, fieldnames=MANIFEST_COLUMNS, restval='',
+            handle, fieldnames=MANIFEST_COLUMNS, restval='', extrasaction='ignore',
         )
         writer.writeheader()
         for row in rows:
@@ -510,8 +531,9 @@ def write_metadata(
         _read_metadata(path) if os.path.isfile(path)
         else (list(METADATA_COLUMNS), [])
     )
-    if 'flag' not in fieldnames:
-        fieldnames.append('flag')
+    for column in ('flag', 'ignore_box'):
+        if column not in fieldnames:
+            fieldnames.append(column)
     new = {
         row.output_crop_id: _metadata_row(
             row, scales_by_page.get(row.input_page_id, []), uncertain or set()
@@ -587,6 +609,7 @@ def _metadata_row(
         'scale_id': scale_id,
         'scale': '',
         'flag': _FLAG_SEPARATOR.join(flags),
+        'ignore_box': row.ignore_box,
     }
 
 

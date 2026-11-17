@@ -839,6 +839,25 @@ class TestBarCaptions:
         """Continuité's "18" sat 45px above and left of its scale."""
         assert not grouping_module._is_bar_caption([340, 940, 364, 962], self.BAR)
 
+    def test_a_caption_far_from_the_bar_does_not_widen_its_crop(self):
+        classified = grouping_module.Classified(
+            bars=[[100, 1000, 500, 1014]],
+            bar_captions=[[520, 1000, 580, 1030], [300, 700, 400, 800]],
+        )
+        bars = grouping_module.build_scale_bars(classified, {'include_caption': True}, 3000)
+        # the caption beside the bar joins its crop; the mark far above does not
+        assert bars == [[100, 1000, 580, 1030]]
+
+    def test_a_joined_caption_does_not_extend_the_reach_to_the_next_mark(self):
+        """Each caption is measured against the bar itself, so joins cannot chain outward."""
+        classified = grouping_module.Classified(
+            bars=[[763, 1135, 970, 1149]],                               # a 207 x 14 bar
+            bar_captions=[[841, 1159, 852, 1178], [861, 1163, 895, 1178],  # "5 cm" below it
+                          [944, 874, 1121, 1006], [567, 888, 687, 996]],  # flakes above
+        )
+        bars = grouping_module.build_scale_bars(classified, {'include_caption': True}, 2552)
+        assert bars == [[763, 1135, 970, 1178]]
+
     def test_lithic_mark_well_above_is_not(self):
         assert not grouping_module._is_bar_caption([600, 900, 612, 920], self.BAR)
 
@@ -1262,6 +1281,11 @@ class TestOverrides:
         with pytest.raises(FileNotFoundError):
             overrides_module.load_overrides("/nonexistent/fixes.csv")
 
+    def test_expect_zero_marks_a_page_as_skipped(self):
+        assert overrides_module.PageOverride(expect=0).skipped
+        assert not overrides_module.PageOverride(expect=0).is_empty
+        assert not overrides_module.PageOverride(expect=3).skipped
+
     def test_no_path_means_no_corrections(self):
         assert overrides_module.load_overrides(None) == {}
 
@@ -1475,7 +1499,7 @@ class TestMetadataFile:
         write_metadata([_row("p_01.png", "artefact", "p.png")], str(tmp_path))
         with open(tmp_path / "meta_data.csv", newline="") as handle:
             assert next(csv.reader(handle)) == [
-                "image_id", "scale_id", "scale", "flag"
+                "image_id", "scale_id", "scale", "flag", "ignore_box"
             ]
 
     def test_one_scale_on_the_page_is_linked_with_no_flag(self, tmp_path):
@@ -1534,9 +1558,9 @@ class TestMetadataFile:
         with open(tmp_path / "meta_data.csv", newline="") as handle:
             table = list(csv.reader(handle))
         assert table == [
-            ["image_id", "scale_id", "scale", "flag"],
-            ["my_flake.png", "sc_001", "50", ""],
-            ["p_01.png", "p_scale_bar.png", "", ""],
+            ["image_id", "scale_id", "scale", "flag", "ignore_box"],
+            ["my_flake.png", "sc_001", "50", "", ""],
+            ["p_01.png", "p_scale_bar.png", "", "", ""],
         ]
 
     def test_a_row_cut_again_keeps_its_typed_scale(self, tmp_path):
@@ -1616,6 +1640,31 @@ class TestPipeline:
         assert len(rows) == before - 1
         assert any(r['correction_applied'] == 'join' for r in rows)
         assert corrections.read_text().count('\n') == 2     # the file is not overwritten
+
+    def test_expect_zero_cuts_nothing_and_removes_the_earlier_crops(self, tmp_path, pages_dir):
+        project = os.path.dirname(pages_dir)
+        assert main(["--data_dir", project]) == 0
+        assert os.listdir(tmp_path / "images")                   # the first run cut the plate
+        rows_text = "page_id,expect,join,split\nsample_plate.png,0,,\n"
+        (tmp_path / "corrections.csv").write_text(rows_text)
+        assert main(["--data_dir", project]) == 0
+        assert os.listdir(tmp_path / "images") == [] and os.listdir(tmp_path / "scales") == []
+        rows = read_manifest(tmp_path)
+        assert [r['image_type'] for r in rows] == ['skipped']
+        assert rows[0]['correction_applied'] == 'expect=0'
+        assert _read_metadata(tmp_path) == {}
+
+    def test_a_page_taken_out_of_the_project_is_forgotten(self, tmp_path, pages_dir, caplog):
+        project = os.path.dirname(pages_dir)
+        assert main(["--data_dir", project]) == 0
+        (tmp_path / "images" / "old_plate_box_01.png").write_bytes(b"")
+        with open(tmp_path / "pages_manifest.csv", "a", newline="") as handle:
+            handle.write("old_plate_box_01.png,artefact,old_plate.png" + "," * 27 + "\n")
+        with caplog.at_level(logging.INFO):
+            assert main(["--data_dir", project]) == 0
+        assert not (tmp_path / "images" / "old_plate_box_01.png").exists()
+        assert all(r['input_page_id'] != 'old_plate.png' for r in read_manifest(tmp_path))
+        assert "no longer in the project" in caplog.text
 
     def test_a_given_overrides_file_wins_over_the_project_file(self, tmp_path):
         (tmp_path / "corrections.csv").write_text("page_id,expect,join,split\n")

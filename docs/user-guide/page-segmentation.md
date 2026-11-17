@@ -293,7 +293,7 @@ A rendered page is a page like the others. Its `page_id` in the
 corrections CSV is the PNG file name, for example `report_p004.png`, and
 its overlay is `pages_debug/report_p004.png`.
 
-## The pixels do not change
+## The pixels do not change, with one exception
 
 The command cuts each crop from the source image. The crop has the DPI
 and the colour mode of the source. No denoising, contrast change or
@@ -303,6 +303,26 @@ This is necessary. The `pylithics` analysis does those steps. If
 PyLithics does the steps two times, a measurement from a crop is not
 comparable with a measurement from a single-artefact scan. The command uses a threshold
 to find the ink. It does not keep the result.
+
+The one exception is the page's text. A crop is the artefact's box with
+a margin, and the margin can take in a caption, a legend key, the end
+of a scale bar or a neighbour's identifier. `pylithics` would measure
+each of them as a surface. So the command hides them in the crop: it
+paints each piece over with the paper value of the crop, by the piece's
+own ink, never its box, and never a piece inside the artefact's own box
+or a flaking arrow. The page itself is not changed. The manifest column
+`hidden` says what was hidden in each crop.
+
+The crop's own identifier stays, so the crop still shows which lithic
+it is. Its box goes into `meta_data.csv` in the column `ignore_box`,
+and `pylithics` sets that box to paper before it looks for contours. A
+crop moved out of its project loses that, and the identifier is then
+measured.
+
+- `--keep_text` keeps every pixel of the page in the crop.
+- `--hide_identifiers` hides the identifier too, and writes no `ignore_box`.
+- The settings are `hide_text` and `hide_identifiers` under
+  `page_segmentation.export` in `config.yaml`.
 
 If the lines of a page are thin, the command finds the ink on a
 larger working copy of the page. The crops are still cut from the
@@ -333,7 +353,7 @@ source page.
 | Column | Meaning |
 |---|---|
 | `output_crop_id` | The filename of the crop in `images/` or `scales/`. |
-| `image_type` | `artefact`, `scale_bar`, or `text` for a box that the reader found to be writing and did not cut. |
+| `image_type` | `artefact`, `scale_bar`, `text` for a box that the reader found to be writing and did not cut, or `skipped` for a page marked `expect=0`. |
 | `input_page_id` | The filename of the plate in `pages/`, or of the rendered page in `pages_rendered/`. |
 | `crop_id_index` | The box number of the crop on the debug overlay, in reading order. The same number as in `_box_NN`. Empty for a scale bar. |
 | `x0, y0, x1, y1` | The box of the crop on the source page, in pixels. |
@@ -354,6 +374,7 @@ source page.
 | `source_pdf` | For a page rendered from a PDF file: the name of the file. Empty for a scanned page. |
 | `source_page` | For a page rendered from a PDF file: the page number in the file, from 1. |
 | `text_read` | For a `text` row: the text the reader read in the box. |
+| `hidden` | What was hidden in an artefact crop, for example `caption 1; scale bar 1`. Empty when nothing was. See [The pixels do not change](#the-pixels-do-not-change-with-one-exception). |
 | `render_dpi` | For a page rendered from a PDF file: the resolution of the render. See [PDF input](#pdf-input). |
 | `dpi_source` | For a page rendered from a PDF file: `derived` from an image on the page, or `selected` by `--pdf_dpi`. |
 | `source_filters` | For a page rendered from a PDF file: the compression of the images on the page, separated by `;`. `DCTDecode` is JPEG. |
@@ -373,6 +394,7 @@ hand (see [Metadata Setup](metadata-setup.md)), plus a `flag` column.
 | `scale_id` | The scale bar crop from the same page, when the page has exactly one. |
 | `scale` | Empty. Fill in the length of the bar, in millimetres. |
 | `flag` | Empty when the row is ready. If not, what you must examine. It does not stop the analysis. |
+| `ignore_box` | The box of the identifier kept in the crop, as `x0 y0 x1 y1` in the crop's pixels. `pylithics` sets it to paper before the analysis. Several boxes are separated by `;`. Empty when there is none. |
 
 The flags:
 
@@ -400,28 +422,48 @@ examined the row.
 
 Page layouts differ between illustrators and publishers. Some pages
 come out wrong. Do not change the distance settings for one page. Write
-the correction in a CSV file:
+the correction in `corrections.csv`.
+
+1. Run the command once with the overlays:
+   ```bash
+   pylithics-pages --data_dir my_project --debug
+   ```
+   The run writes an empty `corrections.csv` into the project folder,
+   next to `pages/`.
+2. Open `pages_debug/<page>.png` for the page that is wrong. Each box
+   has a number.
+3. Add one row for that page to `corrections.csv`. Leave the columns
+   you do not need empty.
+4. Run the command again, with nothing else to pass:
+   ```bash
+   pylithics-pages --data_dir my_project
+   ```
+   The pages in the file are cut with their corrections. The other
+   pages do not change. The manifest shows `join`, `split` or `expect`
+   in `correction_applied` for each crop that a correction made.
+
+The columns:
+
+| Column | Value |
+|---|---|
+| `page_id` | The page file name with its extension. For a PDF, the rendered PNG, for example `report_p004.png`. |
+| `join` | Boxes to merge, with a plus: `1+2`. Several pairs: `1+2 5+6`. |
+| `split` | One box to cut at its widest empty column: `3`. |
+| `expect` | The number of artefacts on the page. The command changes its distances to reach it. Use `join` or `expect` for a page, not both. `0` means the page holds no artefacts: nothing is cut from it, its crops from an earlier run are removed, and the manifest keeps a `skipped` row for it. Use it for the title page, a map or a text page of a PDF. |
+
+Example: skip pages 1 and 3, merge boxes 1 and 2 on page 4, and cut box 3 on page 7.
 
 ```csv
 page_id,expect,join,split
-plate_014.jpg,4,,
-plate_015.jpg,,3+4,
-plate_021.jpg,,,2
+report_p001.png,0,,
+report_p003.png,0,,
+report_p004.png,,1+2,
+report_p007.png,,,3
 ```
 
-| Column | Effect |
-|---|---|
-| `expect` | The number of artefacts on the page. The command changes the distances until it finds this number. |
-| `join` | Merge two boxes, for example `3+4`. Separate more than one pair with a space. |
-| `split` | Cut one box into two boxes at its widest empty column. |
-
-The first run writes this file empty, with its header, as
-`corrections.csv` in the project folder. Every later run reads it
-from there. The box numbers are the numbers on the `--debug` overlay.
-The procedure is: start the command with `--debug`, read the numbers,
-write the rows in `corrections.csv`, start the command again. To use a
-file elsewhere, give its path with `--overrides`. Pages that are not in
-the file are cut again with no correction.
+Keep the same distance options for the debug run and the corrected
+run. A different `--gap` can change the box numbers. To use a
+corrections file elsewhere, give its path with `--overrides`.
 
 !!! warning "Write the CSV file with a spreadsheet or a CSV writer"
     Page filenames often contain commas. Then `page_id` must be in
@@ -459,6 +501,8 @@ Every run cuts every plate in `pages/`. The rules:
 | A plate cut before | Cut again. Its crops, its manifest rows and its rows in `meta_data.csv` are replaced. The scale values that you typed stay. |
 | A new plate | Cut. Its crops and rows are added. |
 | A crop that the new run does not make | Removed, with its row. |
+| A page marked `expect=0` in `corrections.csv` | Nothing is cut. Its crops and rows from an earlier run are removed. |
+| A page file or a PDF taken out of `pages/` | Its crops and rows from an earlier run are removed. The run says which pages. |
 | Your own images, scale images and rows | Never changed. |
 | A crop file that an earlier run left without a manifest row | Replaced. The run reports the number at the end. |
 | Two pages with the same name and different extensions | They give the same crop names. The second page is not written, and the message names the first. Rename one. The exit code is 1. |
@@ -495,10 +539,14 @@ The command applies these rules in this order.
 - The solid blocks or the dashes of a segmented bar on one line are
   one candidate.
 - The command cuts a thick bar from the raw ink when the ink of the
-  caption touches the bar. It exports the bar with its caption.
+  caption touches the bar. It exports the bar with its caption. When
+  the ink that touches the bar is a drawing, many times the size of the
+  bar, it exports the bar alone.
 - The size limits are in the configuration: `min_long_side`,
   `max_long_side` and `max_short_side`. Each is a fraction of the
-  longer side of the page.
+  longer side of the page. `max_long_side` is `0.5`: no scale bar on
+  130 labelled pages is wider than 0.44 of its page, and the rule under
+  the running header of a journal page is 0.88.
 
 **2. The candidates that the command rejects before the score**
 
@@ -527,7 +575,7 @@ It gives the candidate a score from 0 to 1. It measures:
 - If the box of a drawing contains the candidate, and its position on
   the page.
 
-A candidate with a score at or above the threshold (default `0.4`)
+A candidate with a score at or above the threshold (default `0.6`)
 is a scale bar. The other candidates keep the role that the rules
 give them.
 

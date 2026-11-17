@@ -17,6 +17,16 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
 
 ### Fixed
 
+- **A page-wide rule is not a scale bar (`pylithics-pages`).** On a journal
+  article the rule under the running header, 0.88 of the page wide, scored
+  just above the threshold on every page. `scale_bars.classifier.max_long_side`
+  falls from `0.9` to `0.5`: no labelled bar is wider than 0.44 of its page.
+  The classifier threshold rises from `0.4` to `0.6`, and the model is
+  retrained with 771 labelled candidates from the article's pages: held out
+  on 153 pages, 2 false bars and 16 missed of 168, against 13 and 11 at 0.4.
+  A caption joins a bar's crop only within three bar heights of it, and a bar
+  fused with a drawing is exported alone.
+
 - **A scar that holds an arrow is no longer cortex (`pylithics`).** The stippling
   test was a density of small ink pieces with no count, so in a scar under
   5,000 pixels one piece passed it, and an arrow is one piece. Cortex now needs
@@ -60,6 +70,22 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
 - **`.gitignore`** cut to the rules this project uses.
 
 ### Added
+
+- **A page with no artefacts, and a page taken away (`pylithics-pages`).**
+  `expect=0` in `corrections.csv` marks a page as holding no artefacts: nothing
+  is cut, its earlier crops are removed, and the manifest keeps a `skipped`
+  row. A page file or a PDF taken out of `pages/` has its earlier crops and
+  rows removed, and the run names the pages.
+
+- **The page's text is hidden in each crop (`pylithics-pages`).** A crop's margin
+  took in captions, legend keys, scale bar ink and other identifiers, and
+  `pylithics` measured them as surfaces. They are now painted over with the
+  crop's paper value, by each piece's own ink, never a piece inside the
+  artefact's box or a flaking arrow; the page is not changed. The manifest
+  column `hidden` says what was hidden. The crop's own identifier stays and
+  its box goes to `meta_data.csv` as `ignore_box`, which `pylithics` sets to
+  paper before the analysis. `--keep_text` keeps every pixel;
+  `--hide_identifiers` hides the identifier too.
 
 - **The corrections file is part of the project (`pylithics-pages`).** The first
   run writes `corrections.csv` with its header into the project folder, and

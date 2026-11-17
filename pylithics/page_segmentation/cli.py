@@ -27,6 +27,7 @@ from .detection import (
     load_page,
 )
 from .export import (
+    skipped_row,
     DEBUG_DIRNAME,
     ManifestRow,
     export_page,
@@ -49,6 +50,7 @@ from .grouping import ScaleContext, classify_components, group_components, readi
 from .identifiers import PageReads, assign_reads, read_page, report_identifiers
 from .scale_classifier import ModelUnavailable, load_model
 from .text_boxes import find_text_boxes
+from .hiding import make_hider
 from .regroup import JOIN, SPLIT, refine_boxes
 from .logging_setup import setup_logging
 
@@ -132,12 +134,26 @@ procedure:
        pylithics-pages --data_dir ./plates --output_dir ./artefacts
 
 correct a page:
-  Write the corrections in a CSV file. Use one row for each page. Use
-  the box numbers shown on the overlay:
-    join=3+4     merge box 3 and box 4
-    split=2      cut box 2 into two boxes
-    expect=5     set the number of artefacts on the page to 5
-  Pages that are not in the CSV file do not change.
+  1. Run once with --debug. The run writes an empty corrections.csv
+     into the project folder.
+  2. Open pages_debug/<page>.png. Each box has a number.
+  3. Add one row for the page to corrections.csv. Columns:
+       page_id   the page file name with its extension (for a PDF, the
+                 rendered PNG, for example report_p004.png)
+       join      boxes to merge: 1+2. Several pairs: 1+2 5+6
+       split     one box to cut at its widest empty column: 3
+       expect    the number of artefacts on the page; the command
+                 changes its distances to reach it. 0 means the page
+                 holds no artefacts: nothing is cut, earlier crops go
+     Leave the columns you do not need empty. Use join or expect for
+     a page, not both. Example, to merge boxes 1 and 2 on page 4:
+       page_id,expect,join,split
+       report_p004.png,,1+2,
+  4. Run again, with nothing else to pass. The pages in the file are
+     cut with their corrections; the others do not change.
+  Keep the same distance options for the debug run and the corrected
+  run, or the box numbers change. A page name with a comma needs
+  quotation marks; a spreadsheet writes them for you.
 
   If all pages from one publication show the same error, change a
   distance:
@@ -175,7 +191,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     logging.info("Writing output to %s", args.output_dir)
 
     try:
-        config, pages, corrections, previous, rendered = _prepare(args, pages_dir)
+        config, pages, corrections, previous, rendered, forgotten = _prepare(args, pages_dir)
     except (FileNotFoundError, NotADirectoryError, PdfSupportMissing, ValueError) as exc:
         logging.error("%s", exc)
         return 1
@@ -188,6 +204,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "start the command again to cut the remaining pages."
         )
         return 130
+    run.removed |= forgotten
     _write_tables(run, previous, config, args.output_dir)
     overrides_module.write_empty_corrections(args.data_dir)
 
@@ -238,7 +255,33 @@ def _prepare(args: argparse.Namespace, pages_dir: str) -> Tuple:
         corrections, [os.path.basename(p) for p in pages]
     )
     previous = prepare_output_dir(args.output_dir)
-    return config, pages, corrections, previous, rendered_by_name(rendered)
+    previous, forgotten = _forget_missing_sources(previous, pages, pdfs, args.output_dir)
+    return config, pages, corrections, previous, rendered_by_name(rendered), forgotten
+
+
+def _forget_missing_sources(
+    previous: Sequence[Dict[str, str]], pages: Sequence[str], pdfs: Sequence[str],
+    output_dir: str,
+) -> Tuple[List[Dict[str, str]], set]:
+    """
+    Drop the rows of pages whose source is no longer in the project; remove their crops.
+
+    A page file taken out of ``pages/``, or a PDF taken out, leaves crops
+    and rows behind otherwise. A page of a PDF that is still there is
+    kept, whether or not this run renders it.
+    """
+    present = {os.path.basename(p) for p in pages} | {os.path.basename(p) for p in pdfs}
+    kept, gone = [], []
+    for row in previous:
+        source = row.get('source_pdf') or row['input_page_id']
+        (kept if source in present else gone).append(row)
+    removed = remove_page_output(output_dir, gone)
+    if gone:
+        names = sorted({r['input_page_id'] for r in gone})
+        shown = ', '.join(names[:5]) + (' ...' if len(names) > 5 else '')
+        logging.info("%d page(s) are no longer in the project; their %d crop(s) are removed: %s",
+                     len(names), len(removed), shown)
+    return kept, removed
 
 
 def _render_pdfs(pdfs: Sequence[str], args: argparse.Namespace, config: Dict) -> List[RenderedPage]:
@@ -310,38 +353,56 @@ def _process_pages(
         for path in pages:
             name = os.path.basename(path)
             advance(name)
-            try:
-                page = load_page(path)
-                if page is None:
-                    continue
-                run.removed |= remove_page_output(
-                    args.output_dir, by_page.get(name, [])
-                )
-                run.recut.add(name)
-                taken = {r.output_crop_id: r.input_page_id for r in run.rows}
-                rows = _process_page(
-                    page, corrections.get(name), config, args, padding, taken, run.orphans
-                )
-                _record_source(rows, (rendered or {}).get(name))
-                run.rows.extend(rows)
-            except FileExistsError as exc:
-                run.failed.append(name)
-                logging.error("%s: not cut. %s", name, exc)
-            except (OSError, ValueError) as exc:
-                logging.error("Page not read, %s: %s", name, exc)
-            except Exception as exc:  # noqa: BLE001 - one page must not stop the batch
-                run.failed.append(name)
-                logging.error("%s: not cut. %s: %s", name, type(exc).__name__, exc)
-                logging.debug("Trace for %s", name, exc_info=True)
+            override = corrections.get(name)
+            if override is not None and override.skipped:
+                _skip_page(run, name, by_page.get(name, []), args.output_dir)
+            else:
+                _cut_page(run, path, name, override, config, args, padding, by_page)
+            _record_source(run.rows, (rendered or {}).get(name), name)
             _checkpoint(run, previous, config, args.output_dir)
     return run
 
 
-def _record_source(rows: Sequence[ManifestRow], source: Optional[RenderedPage]) -> None:
+def _skip_page(run: RunResult, name: str, previous_rows: Sequence[Dict[str, str]],
+               output_dir: str) -> None:
+    """Cut nothing from a page marked ``expect=0``; remove what an earlier run cut from it."""
+    run.removed |= remove_page_output(output_dir, previous_rows)
+    run.recut.add(name)
+    run.rows.append(skipped_row(name))
+    logging.info("%s: no artefacts (expect=0); nothing cut%s", name,
+                 ', the earlier crops removed' if previous_rows else '')
+
+
+def _cut_page(run: RunResult, path: str, name: str, override, config: Dict,
+              args: argparse.Namespace, padding: int, by_page: Dict) -> None:
+    """Cut one page, replacing what a previous run cut from it; a failure is reported."""
+    try:
+        page = load_page(path)
+        if page is None:
+            return
+        run.removed |= remove_page_output(args.output_dir, by_page.get(name, []))
+        run.recut.add(name)
+        taken = {r.output_crop_id: r.input_page_id for r in run.rows}
+        run.rows.extend(_process_page(page, override, config, args, padding, taken, run.orphans))
+    except FileExistsError as exc:
+        run.failed.append(name)
+        logging.error("%s: not cut. %s", name, exc)
+    except (OSError, ValueError) as exc:
+        logging.error("Page not read, %s: %s", name, exc)
+    except Exception as exc:  # noqa: BLE001 - one page must not stop the batch
+        run.failed.append(name)
+        logging.error("%s: not cut. %s: %s", name, type(exc).__name__, exc)
+        logging.debug("Trace for %s", name, exc_info=True)
+
+
+def _record_source(rows: Sequence[ManifestRow], source: Optional[RenderedPage],
+                   name: Optional[str] = None) -> None:
     """Write the PDF page a rendered page came from on every row of that page."""
     if source is None:
         return
     for row in rows:
+        if name is not None and row.input_page_id != name:
+            continue
         row.source_pdf = source.source_pdf
         row.source_page = str(source.source_page)
         row.render_dpi = f"{source.dpi:g}"
@@ -428,8 +489,9 @@ def _process_page(
         components, (page.width, page.height), config, context
     )
     _report_candidates(page, context)
-    reads = _read_page(page, components, boxes, bars, raw, closed, config, masks.working,
-                       context)
+    classified = _classify(page, components, config, context)
+    reads = _read_page(page, components, classified, boxes, bars, raw, closed, config,
+                       masks.working)
     boxes, tags = refine_boxes(
         boxes, reads, components, (page.width, page.height), config
     )
@@ -448,7 +510,7 @@ def _process_page(
         page, boxes, bars, args.output_dir, padding, '',
         _count_components(boxes, components), identifiers, corrections,
         masks.working, taken, orphans, context.bar_scores if context else None,
-        text_boxes=text,
+        text_boxes=text, hide=make_hider(components, classified, reads, config.get('export', {})),
     )
 
 
@@ -528,15 +590,19 @@ def _uncertain_scales(rows: Sequence[ManifestRow], config: Dict) -> set:
     }
 
 
-def _read_page(page, components, boxes, bars, raw, closed, config, working,
-               context=None) -> PageReads:
-    """Read the plate's identifiers, with their positions."""
+def _classify(page, components, config, context=None):
+    """Classify the page's ink pieces once more, for the reader and the hiding step."""
     grouping = config.get('grouping', {})
-    classified = classify_components(
+    return classify_components(
         components, page.width, page.height,
         grouping.get('min_area', 0.0004), config.get('scale_bars', {}),
         config.get('text_rejection', {}), context,
     )
+
+
+def _read_page(page, components, classified, boxes, bars, raw, closed, config,
+               working) -> PageReads:
+    """Read the plate's identifiers, with their positions."""
     return read_page(
         page, components, classified, boxes, bars, raw, closed,
         config.get('identifiers', {}), working,
@@ -665,6 +731,10 @@ def _resolve_config(args: argparse.Namespace) -> Dict:
     export = dict(config.get('export', {}))
     if args.padding is not None:
         export['padding'] = args.padding
+    if getattr(args, 'keep_text', False):
+        export['hide_text'] = False
+    if getattr(args, 'hide_identifiers', False):
+        export['hide_identifiers'] = True
 
     bars = dict(config.get('scale_bars', {}))
     if args.disable_scale_bars:
@@ -793,9 +863,11 @@ def _log_summary(
     artefacts = sum(1 for r in rows if r.image_type == 'artefact')
     bars = sum(1 for r in rows if r.image_type == 'scale_bar')
     texts = sum(1 for r in rows if r.image_type == 'text')
+    skipped = sum(1 for r in rows if r.image_type == 'skipped')
     logging.info(
-        "Done: %d page(s) -> %d artefact(s), %d scale bar(s), %d text box(es) not cut, in %s",
-        page_count, artefacts, bars, texts, output_dir,
+        "Done: %d page(s) -> %d artefact(s), %d scale bar(s), %d text box(es) not cut, "
+        "%d page(s) skipped (expect=0), in %s",
+        page_count, artefacts, bars, texts, skipped, output_dir,
     )
     cut_before = {r['input_page_id'] for r in previous} & run.recut
     if cut_before:
@@ -922,6 +994,17 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
         help='Keep a box that the reader finds to be writing, such as a framed '
              'specimen code. By default such a box is recorded in the manifest as '
              'text and no crop is written for it.'
+    )
+    group.add_argument(
+        '--keep_text', action='store_true',
+        help='Keep the page\'s text in each artefact crop: captions, legend keys, '
+             'scale bar ink, other identifiers. By default they are hidden, painted '
+             'over with the paper value of the crop; the crop\'s own identifier stays.'
+    )
+    group.add_argument(
+        '--hide_identifiers', action='store_true',
+        help='Hide the crop\'s own identifier too. By default it stays, and its box '
+             'is written to meta_data.csv so that pylithics does not analyse it.'
     )
     group.add_argument(
         '--read_labels', dest='read_labels', action='store_true',

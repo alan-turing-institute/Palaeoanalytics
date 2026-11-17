@@ -515,3 +515,34 @@ class TestRunsAndFusedBars:
         result.drawings = [view]
         grouping._captions_among_drawings(result, 700, 1000)
         assert result.drawings == [view] and result.bar_captions == []
+
+
+@pytest.mark.unit
+class TestFusedBarCrop:
+    """A bar cut from a fused blob exports the blob only when the blob is a bar plus caption."""
+
+    @staticmethod
+    def _candidate(long_strip):
+        raw = np.zeros((400, 600), np.uint8)
+        raw[200:212, 100:350] = 255                       # the bar, 250 x 12
+        if long_strip:
+            raw[205:215, 352:560] = 255                   # a long strip of ink, closed to it
+        else:
+            raw[216:230, 150:170] = 255                   # a caption glyph below it
+            raw[216:230, 180:200] = 255
+        x1 = 560 if long_strip else 350
+        blob = grouping.Component(box=[100, 200, x1, 230], width=x1 - 100, height=30,
+                                  ink=int((raw[200:230, 100:x1] > 0).sum()))
+        settings = {'min_aspect_ratio': 2.5, 'max_short_side': 0.08, 'min_long_side': 0.03,
+                    'max_long_side': 0.5}
+        return grouping._fused_bar(0, [blob], raw, 600, 400, settings)
+
+    def test_a_bar_with_its_caption_exports_the_blob(self):
+        found = self._candidate(long_strip=False)
+        assert found and found[0].box == [100, 200, 350, 212]
+        assert found[0].crop == [100, 200, 350, 230]
+
+    def test_a_bar_fused_with_much_more_ink_exports_the_bar_alone(self):
+        found = self._candidate(long_strip=True)
+        assert found and found[0].box == [100, 200, 350, 212]
+        assert found[0].crop == found[0].box

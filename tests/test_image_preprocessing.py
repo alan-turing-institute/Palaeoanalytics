@@ -14,6 +14,8 @@ from pylithics.image_processing.importer import (
     apply_contrast_normalization,
     apply_grayscale_conversion,
     execute_preprocessing_pipeline,
+    parse_ignore_boxes,
+    blank_boxes,
     invert_image,
     morphological_closing,
     perform_thresholding,
@@ -432,3 +434,41 @@ def test_pipeline_on_800x600_image_completes_under_five_seconds(sample_config):
 
     assert result is not None
     assert elapsed < 5.0, f"pipeline took {elapsed:.2f}s (limit 5s)"
+
+
+@pytest.mark.unit
+class TestIgnoreBoxes:
+    """The identifier box that pylithics-pages recorded is blanked before the threshold."""
+
+    def test_the_metadata_value_parses_to_boxes(self):
+        assert parse_ignore_boxes("5 6 20 30") == [(5, 6, 20, 30)]
+        assert parse_ignore_boxes("5 6 20 30;40 41 50 60") == [(5, 6, 20, 30), (40, 41, 50, 60)]
+        assert parse_ignore_boxes("") == [] and parse_ignore_boxes(None) == []
+
+    def test_a_bad_value_is_skipped_with_a_warning(self, caplog):
+        with caplog.at_level("WARNING"):
+            assert parse_ignore_boxes("5 6 20") == []
+        assert "ignore_box" in caplog.text
+
+    def test_the_box_takes_the_paper_value(self):
+        gray = np.full((50, 50), 230, dtype=np.uint8)
+        gray[10:20, 10:20] = 0                      # the identifier
+        gray[30:40, 30:40] = 0                      # the lithic
+        out = blank_boxes(gray, [(10, 10, 20, 20)])
+        assert (out[10:20, 10:20] == 230).all() and (out[30:40, 30:40] == 0).all()
+        assert (gray[10:20, 10:20] == 0).all()      # the input is not changed
+
+    def test_the_pipeline_drops_the_ink_in_the_box(self, tmp_path):
+        image = np.full((120, 160), 255, dtype=np.uint8)
+        cv2.rectangle(image, (30, 30), (130, 100), 0, 2)      # a lithic outline
+        cv2.putText(image, '3', (135, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.8, 0, 2)
+        path = str(tmp_path / "crop.png")
+        Image.fromarray(image).save(path, dpi=(300, 300))
+        config = {'thresholding': {'method': 'otsu'}, 'normalization': {'enabled': False},
+                  'grayscale_conversion': {'enabled': True},
+                  'working_resolution': {'enabled': False}}
+        with_glyph = execute_preprocessing_pipeline(path, config)
+        without = execute_preprocessing_pipeline(path, config, ignore_boxes=[(132, 30, 160, 60)])
+        assert (with_glyph.image[30:60, 132:160] > 0).any()
+        assert not (without.image[30:60, 132:160] > 0).any()
+        assert (without.image[30:100, 30:130] > 0).any()

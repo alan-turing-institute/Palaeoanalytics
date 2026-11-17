@@ -52,7 +52,8 @@ class PageOverride:
     Attributes
     ----------
     expect : int, optional
-        Target artefact count.
+        Target artefact count. Zero means the page holds no artefacts:
+        nothing is cut from it and its earlier crops are removed.
     joins : list of list of int
         Groups of 1-based box indices to merge.
     splits : list of int
@@ -62,6 +63,11 @@ class PageOverride:
     expect: Optional[int] = None
     joins: List[List[int]] = field(default_factory=list)
     splits: List[int] = field(default_factory=list)
+
+    @property
+    def skipped(self) -> bool:
+        """Report whether the page is marked as holding no artefacts (``expect=0``)."""
+        return self.expect == 0
 
     @property
     def is_empty(self) -> bool:

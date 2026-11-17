@@ -107,7 +107,7 @@ from PIL import Image
 from typing import Optional, Dict, Any, Tuple
 
 from pylithics.image_processing.config import get_config_manager
-from pylithics.image_processing.importer import execute_preprocessing_pipeline
+from pylithics.image_processing.importer import execute_preprocessing_pipeline, parse_ignore_boxes
 from pylithics.image_processing.image_analysis import (
     debug_dir_for,
     process_and_save_contours,
@@ -849,6 +849,7 @@ class PyLithicsApplication:
         try:
             processed = execute_preprocessing_pipeline(
                 image_path, self.config_manager.config,
+                parse_ignore_boxes((scale_data or {}).get('ignore_box', '')),
             )
             if processed is None:
                 logging.error(f"Preprocessing error for {image_id}")

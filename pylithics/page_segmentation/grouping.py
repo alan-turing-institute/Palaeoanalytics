@@ -121,6 +121,14 @@ _CAPTION_MAX_WIDTH_GLYPHS = 1.5
 # least this share of its ink.
 _FUSED_MAX_SHORT = 0.08
 _FUSED_MIN_SHARE = 0.5
+# A fused blob is exported whole (bar plus caption) only when it is no bigger than
+# this many times the bar's own box; a blob fused with a drawing exports the bar alone.
+_FUSED_CROP_RATIO = 4.0
+# A caption joins a bar's crop only within this many bar heights of the bar, never
+# less than this fraction of the page width: a caption sits against its bar, and a
+# small drawing taken for a caption further off must not widen the crop.
+_CAPTION_UNION_REACH = 3.0
+_CAPTION_UNION_FLOOR = 0.03
 # A run of several pieces is a segmented bar only when every piece is
 # a block: this much ink in its box. Outlined surface views set in a
 # row are not.
@@ -572,8 +580,10 @@ def _fused_bar(
 
     A thick bar with "2 cm" set against it closes into one component of
     no bar's proportions. In the raw ink the bar is one piece, holding
-    most of the blob's ink. That piece is the candidate; the whole blob
-    is its crop, so the caption is exported with it.
+    most of the blob's ink. That piece is the candidate. The whole blob
+    is its crop when the blob is little more than the bar, so the caption
+    is exported with it; a blob that closing fused with a drawing exports
+    the bar's own box, not the drawing.
     """
     component = components[index]
     if min(component.width, component.height) > _FUSED_MAX_SHORT * max(width, height):
@@ -592,8 +602,9 @@ def _fused_bar(
                       width=w, height=h, ink=area)
     if not _bar_shaped(piece, width, height, settings):
         return []
-    return [Candidate(indices=[index], box=piece.box, upright=h > w,
-                      crop=list(component.box))]
+    blob_area = component.width * component.height
+    crop = list(component.box) if blob_area <= _FUSED_CROP_RATIO * w * h else list(piece.box)
+    return [Candidate(indices=[index], box=piece.box, upright=h > w, crop=crop)]
 
 
 def _block_runs(
@@ -2507,8 +2518,11 @@ def build_scale_bars(
     Assemble scale bar boxes, optionally including their captions.
 
     The caption states the bar's real-world length, so including it
-    makes the exported crop independently readable. Captions are always
-    withheld from artefact crops regardless of this setting.
+    makes the exported crop independently readable. A caption joins only
+    the bar it sits against, within ``_CAPTION_UNION_REACH`` bar heights;
+    a mark taken for a caption further away does not widen the crop.
+    Captions are always withheld from artefact crops regardless of this
+    setting.
 
     Parameters
     ----------
@@ -2531,11 +2545,16 @@ def build_scale_bars(
     if not bar_config.get('include_caption', True) or not bars:
         return bars
 
-    for caption in classified.bar_captions:
+    originals = list(bars)   # a caption is measured against the bar itself, not the
+    for caption in classified.bar_captions:                  # box grown by earlier captions
         nearest = min(
-            range(len(bars)), key=lambda k: box_distance(caption, bars[k])
+            range(len(originals)), key=lambda k: box_distance(caption, originals[k])
         )
-        bars[nearest] = union(bars[nearest], caption)
+        bar = originals[nearest]
+        reach = max(_CAPTION_UNION_REACH * min(box_width(bar), box_height(bar)),
+                    _CAPTION_UNION_FLOOR * page_width)
+        if box_distance(caption, bar) <= reach:
+            bars[nearest] = union(bars[nearest], caption)
     return bars
 
 

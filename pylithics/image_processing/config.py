@@ -365,6 +365,8 @@ _PAGE_SEGMENTATION_DEFAULTS: Dict[str, Any] = {
     'export': {
         'padding': 10,
         'manifest': True,
+        'hide_text': True,
+        'hide_identifiers': False,
     },
     'pdf': {
         'rasterise_dpi': 300.0,
@@ -379,12 +381,12 @@ _PAGE_SEGMENTATION_DEFAULTS: Dict[str, Any] = {
         'classifier': {
             'enabled': True,
             'model': 'scale_bar_classifier.json',
-            'threshold': 0.4,
+            'threshold': 0.6,
             'uncertain_band': 0.15,
             'min_aspect_ratio': 2.5,
             'max_short_side': 0.08,
             'min_long_side': 0.03,
-            'max_long_side': 0.9,
+            'max_long_side': 0.5,
         },
     },
     'text_rejection': {

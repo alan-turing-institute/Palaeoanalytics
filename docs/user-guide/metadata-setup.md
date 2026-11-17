@@ -32,6 +32,7 @@ The metadata CSV file has these columns:
 | `scale_id` | The filename of the scale image | No* | `scale_001.png` |
 | `scale` | The length of the scale bar, in millimetres | No* | `50` |
 | `flag` | Written by `pylithics-pages`. A note for you to examine. It does not stop the analysis. | No | `several_scales` |
+| `ignore_box` | Written by `pylithics-pages`. A region of the image, `x0 y0 x1 y1` in pixels, that the analysis sets to paper before it looks for contours: the identifier kept in the crop. | No | `212 8 231 30` |
 
 *Necessary for scale bar calibration. Not necessary for pixel
 measurements. A row with no `scale` value can only be measured in

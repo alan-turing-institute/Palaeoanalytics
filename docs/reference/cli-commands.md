@@ -412,6 +412,8 @@ All distances are fractions of the page width or the page height. The same value
 | `--read_labels` | Read the identifier next to each lithic and name the crop with it. RapidOCR is necessary; see [Installation](../installation.md#step-4-install-pylithics) | on |
 | `--no_read_labels` | Do not read identifiers. Name the crops by box number only | off |
 | `--keep_text_boxes` | Keep a box that the reader finds to be writing, such as a framed specimen code. By default it is recorded in the manifest as `text` and not cut | off |
+| `--keep_text` | Keep the page's text in each artefact crop. By default captions, legend keys, scale bar ink and other identifiers are hidden, painted over with the crop's paper value; the crop's own identifier stays | off |
+| `--hide_identifiers` | Hide the crop's own identifier too. By default it stays and its box is written to `meta_data.csv`, which `pylithics` blanks before the analysis | off |
 
 ### PDF Options
 
@@ -436,7 +438,7 @@ The `identifiers` section of `config.yaml` sets `reach`, the distance in glyph h
 
 The `working_resolution` section sets when a page is upscaled for detection. See [Working Resolution](../user-guide/working-resolution.md).
 
-The `scale_bars.classifier` section controls how a scale bar is decided. `enabled` turns the classifier off (default `true`); the rules then decide. `threshold` is the score at or above which a candidate is a scale bar (default `0.4`). `uncertain_band` is the distance from the threshold within which the page's artefacts get the flag `scale_uncertain` (default `0.15`). `min_aspect_ratio`, `max_short_side`, `min_long_side` and `max_long_side` set the shape of a candidate; the three side limits are fractions of the page's longer side. See [How a scale bar is decided](../user-guide/page-segmentation.md#how-a-scale-bar-is-decided).
+The `scale_bars.classifier` section controls how a scale bar is decided. `enabled` turns the classifier off (default `true`); the rules then decide. `threshold` is the score at or above which a candidate is a scale bar (default `0.6`). `uncertain_band` is the distance from the threshold within which the page's artefacts get the flag `scale_uncertain` (default `0.15`). `min_aspect_ratio`, `max_short_side`, `min_long_side` and `max_long_side` set the shape of a candidate; the three side limits are fractions of the page's longer side. See [How a scale bar is decided](../user-guide/page-segmentation.md#how-a-scale-bar-is-decided).
 
 The `identifiers.regroup` section lets the identifiers correct the grouping: a box that holds several identifiers is cut into one box for each, and a box that holds none joins the labelled box next to it. `enabled` turns the rules off (default `true`). `join_gap` is the distance a box looks for its neighbour, as a fraction of page width (default `0.12`). See [How identifiers correct the grouping](../user-guide/page-segmentation.md#how-identifiers-correct-the-grouping).
 

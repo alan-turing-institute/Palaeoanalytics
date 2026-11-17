@@ -10,7 +10,7 @@ import logging
 import math
 import os
 from dataclasses import dataclass
-from typing import Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple
 
 import cv2
 import numpy as np
@@ -529,30 +529,59 @@ class Preprocessed:
             self.working = self.image
 
 
+def parse_ignore_boxes(text: Optional[str]) -> List[Tuple[int, int, int, int]]:
+    """
+    Return the boxes of a metadata ``ignore_box`` value: ``x0 y0 x1 y1``, several with ``;``.
+
+    A value that does not parse gives no boxes and a warning, not an error.
+    """
+    boxes = []
+    for part in (text or '').split(';'):
+        if not part.strip():
+            continue
+        try:
+            x0, y0, x1, y1 = (int(float(v)) for v in part.split())
+        except ValueError:
+            logging.warning("The ignore_box value %r is not four numbers; not used", part)
+            continue
+        boxes.append((x0, y0, x1, y1))
+    return boxes
+
+
+def blank_boxes(gray: np.ndarray, boxes: List[Tuple[int, int, int, int]]) -> np.ndarray:
+    """
+    Return the grey image with each box set to the paper value, its most frequent light grey.
+
+    The boxes are the identifier beside a lithic, which the page command
+    kept in the crop for the reader and recorded for the analysis to skip.
+    """
+    if not boxes:
+        return gray
+    light = gray[gray >= 128]
+    paper = int(np.bincount(light.ravel(), minlength=256).argmax()) if light.size else 255
+    result = gray.copy()
+    for x0, y0, x1, y1 in boxes:
+        result[max(y0, 0):max(y1, 0), max(x0, 0):max(x1, 0)] = paper
+    return result
+
+
 def execute_preprocessing_pipeline(
-    image_path: str, config: Dict
+    image_path: str, config: Dict,
+    ignore_boxes: Optional[List[Tuple[int, int, int, int]]] = None,
 ) -> Optional[Preprocessed]:
     """
     Preprocess an image through the complete pipeline.
 
-    Read, grayscale, contrast normalisation; then the working
-    resolution: the normalised image is measured and, when its strokes
-    are too thin, a working copy is upscaled. Threshold, inversion and
-    closing run on that copy with kernels scaled by the factor, made
-    smaller when the measured stroke width at that copy's scale says
-    so, and the binary result is returned to the source pixel grid. The
-    working copy's binary is kept beside it for arrow detection.
+    Read, grayscale, contrast normalisation; then the working resolution:
+    the normalised image is measured and, when its strokes are too thin,
+    a working copy is upscaled. Threshold, inversion and closing run on
+    that copy with kernels scaled by the factor, made smaller when the
+    measured stroke width says so, and the binary result is returned to
+    the source pixel grid. The working copy's binary is kept beside it
+    for arrow detection. ``ignore_boxes`` are regions set to paper before
+    the threshold: the identifier that ``pylithics-pages`` kept in the crop.
 
-    Parameters
-    ----------
-    image_path : str
-        Path to the image file.
-    config : dict
-        Configuration dictionary.
-
-    Returns
-    -------
-    Preprocessed or None : the binary image with its factor, or None on failure.
+    Returns ``Preprocessed`` (the binary image with its factor), or None on failure.
     """
     dpi_scale = calculate_dpi_scale_factor(get_image_dpi(image_path), config)
     image = read_image_from_path(image_path)
@@ -561,6 +590,7 @@ def execute_preprocessing_pipeline(
     gray = apply_grayscale_conversion(image, config)
     if gray is None:
         return None
+    gray = blank_boxes(gray, ignore_boxes or [])
     normalized = apply_contrast_normalization(gray, config)
     if normalized is None:
         return None

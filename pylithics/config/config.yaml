@@ -337,6 +337,15 @@ page_segmentation:
                     # bounding box, DPI, and colour mode. Required for
                     # reproducible research; disable only for quick tests.
 
+    hide_text: true  # Hide the page's text in each artefact crop: captions,
+                     # legend keys, scale bar ink and other identifiers are
+                     # painted over with the crop's paper value. The page is
+                     # not changed. CLI flag: --keep_text sets this off.
+    hide_identifiers: false  # Hide the crop's own identifier too. By default
+                             # it stays and its box goes to meta_data.csv
+                             # (ignore_box), which pylithics blanks before
+                             # analysis. CLI flag: --hide_identifiers.
+
   pdf:
     # A PDF file in pages/ is rendered to one PNG for each page, in
     # pages_rendered/. A page that holds a raster image renders at the
@@ -368,7 +377,9 @@ page_segmentation:
                      # model and export the ones above the threshold.
                      # false: the rules above decide, as before.
       model: scale_bar_classifier.json  # File under pylithics/models/, or a path
-      threshold: 0.4  # A score at or above this is a scale bar
+      threshold: 0.6  # A score at or above this is a scale bar. Held out on
+                      # 153 labelled pages: 2 false bars and 16 missed of 168,
+                      # against 13 and 11 at 0.4.
       uncertain_band: 0.15  # A score within this of the threshold flags the
                             # artefacts paired with the bar: scale_uncertain
       min_aspect_ratio: 2.5  # A candidate is at least this many times longer
@@ -376,7 +387,9 @@ page_segmentation:
       max_short_side: 0.08  # ... and its short side is at most this fraction
                             # of the longer page dimension
       min_long_side: 0.03  # ... and its long side spans at least this
-      max_long_side: 0.9   # and at most this fraction of the page
+      max_long_side: 0.5   # and at most this fraction of the page. No bar on
+                           # 130 labelled pages is wider than 0.44; the rule
+                           # under a journal's running header is 0.88.
 
   text_rejection:
     enabled: true  # Discard captions, legend text and legend keys before
