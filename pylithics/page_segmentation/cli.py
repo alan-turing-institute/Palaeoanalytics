@@ -84,13 +84,13 @@ debug overlay: <page>_box_07.png. The manifest records the method and
 the reason.
 
 The command does not change the pixels of the lithic. Each crop has the
-DPI and the colour mode of the source page. No denoising, contrast
-change or thresholding is applied. The pylithics analysis does those
-steps. The one change is to the page's text: the crop file is written
-with captions, legend keys, scale bar ink and other identifiers hidden
-under the paper colour (--keep_text keeps them). pylithics analyses
-the crop file as it is. It does not hide text itself. So a change to
-these options shows only after you cut the pages again.
+DPI and the colour mode of the source page. The command does no
+denoising, no contrast change and no thresholding. The pylithics
+analysis does those steps. The one change is to the text of the page.
+In the crop file, the command hides captions, legend keys, scale bar
+ink and other identifiers under the paper colour. --keep_text keeps
+them. pylithics analyses the crop file as it is, and does not hide
+text. After you change these options, cut the pages again.
 
 --data_dir is a project folder. The two commands share it:
 
@@ -101,24 +101,25 @@ these options shows only after you cut the pages again.
 
     images/          one crop for each artefact
     scales/          one crop for each scale bar
-    pages_manifest.csv     one row for each crop: where it was cut, its identifier
+    pages_manifest.csv     one row for each crop: its position on the page, its identifier
     meta_data.csv    one row for each artefact: its scale bar, and a flag
 
 meta_data.csv is the file that pylithics reads. The scale column (the
-printed length of the bar, in millimetres) is empty. Fill it in. A row
-with a flag has a problem for you to examine: no scale bar on the page,
-several scale bars, a scale bar with a low score, or no identifier.
-pylithics analyses the row like any other, in pixels when the scale is
-empty, and reports the flags at the end. Remove the flag when the row
-is correct.
+printed length of the bar, in millimetres) is empty. Type the value in
+each row. A row with a flag has a problem for you to examine: no scale
+bar on the page, several scale bars, a scale bar with a low score, or
+no identifier. pylithics analyses a flagged row as it analyses the
+other rows. If the scale is empty, it measures in pixels. At the end,
+it reports the flags. Remove the flag when the row is correct.
 
-Every run cuts every plate in pages/. A plate cut before is cut again,
-and its crops and rows are replaced. The scale values that you typed
-stay. A new plate is added. Images and rows that you put in the project
-yourself do not change. A crop file that an earlier run left without a
-manifest row is replaced, and the run reports the number. Two pages
-with the same name and different extensions give the same crop names:
-the second is not written. Rename one.
+Each run cuts all the plates in pages/. If an earlier run cut a plate,
+this run cuts it again and replaces its crops and rows. The scale
+values that you typed stay. The run adds each new plate. Images and
+rows that you put in the project yourself do not change. If an earlier
+run left a crop file with no manifest row, this run replaces the file
+and reports the number. Two pages with the same name and different
+extensions give the same crop names. The command does not write the
+crops of the second page. Rename one of the pages.
 """
 
 EPILOG = """
@@ -131,42 +132,44 @@ procedure:
      purple box, with its score beside it. A grey box is a mark that
      the command rejected. Each green identifier must match the number
      on the plate.
-  4. Correct each page that is wrong (see below): write a row in
-     <project>/corrections.csv, which the first run wrote empty. Then
-     start the command again:
+  4. Correct each page that is wrong (see "correct a page" below). Write
+     a row in <project>/corrections.csv. The first run writes this file
+     with no rows. Then start the command again:
        pylithics-pages --data_dir <project>
-  5. Open <project>/meta_data.csv. Fill in the scale column. Correct each
-     flagged row. Then remove its flag.
+  5. Open <project>/meta_data.csv. Type the scale values in the scale
+     column. Correct each flagged row. Then remove its flag.
   6. Analyse the crops:
        pylithics --data_dir <project>
      pylithics reads the crop files as pylithics-pages wrote them. After
      a change to the pages, the corrections or the options, run
      pylithics-pages again before pylithics.
 
-  To send the crops to a different folder, give --output_dir:
+  To write the crops to a different folder, give --output_dir:
        pylithics-pages --data_dir ./plates --output_dir ./artefacts
 
 correct a page:
-  1. Run once with --debug. The run writes an empty corrections.csv
-     into the project folder.
+  1. Run the command one time with --debug. The run writes an empty
+     corrections.csv into the project folder.
   2. Open pages_debug/<page>.png. Each box has a number.
   3. Add one row for the page to corrections.csv. Columns:
        page_id   the page file name with its extension (for a PDF, the
                  rendered PNG, for example report_p004.png)
-       join      boxes to merge: 1+2. Several pairs: 1+2 5+6
+       join      boxes to join: 1+2. Several pairs: 1+2 5+6
        split     one box to cut at its widest empty column: 3
-       expect    the number of artefacts on the page; the command
-                 changes its distances to reach it. 0 means the page
-                 holds no artefacts: nothing is cut, earlier crops go
+       expect    the number of artefacts on the page. The command
+                 changes its distances to get this number. 0 means
+                 that the page has no artefacts. The command cuts
+                 nothing and removes the earlier crops.
      Leave the columns you do not need empty. Use join or expect for
-     a page, not both. Example, to merge boxes 1 and 2 on page 4:
+     a page, not both. Example, to join boxes 1 and 2 on page 4:
        page_id,expect,join,split
        report_p004.png,,1+2,
-  4. Run again, with nothing else to pass. The pages in the file are
-     cut with their corrections; the others do not change.
-  Keep the same distance options for the debug run and the corrected
-  run, or the box numbers change. A page name with a comma needs
-  quotation marks; a spreadsheet writes them for you.
+  4. Run the command again with no other options. The command cuts
+     the pages in the file with their corrections. The other pages do
+     not change.
+  Use the same distance options for the debug run and the corrected
+  run. If you do not, the box numbers change. Put a page name that has
+  a comma in quotation marks. A spreadsheet writes them for you.
 
   If all pages from one publication show the same error, change a
   distance:
@@ -214,8 +217,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         run = _process_pages(pages, corrections, config, args, previous, console, rendered)
     except KeyboardInterrupt:
         logging.error(
-            "Stopped. The manifest names every crop written so far; "
-            "start the command again to cut the remaining pages."
+            "The command stopped. The manifest names each crop that it wrote. "
+            "Start the command again to cut the remaining pages."
         )
         return 130
     run.removed |= forgotten
@@ -245,7 +248,7 @@ def _project_folder_exists(args: argparse.Namespace) -> bool:
         return True
     setup_logging(_console_level(args))
     logging.error("The folder %s does not exist. Give --data_dir the project folder "
-                  "that holds pages/, or a folder of page images.", args.data_dir)
+                  "that contains pages/, or a folder of page images.", args.data_dir)
     return False
 
 
@@ -294,8 +297,8 @@ def _forget_missing_sources(
     if gone:
         names = sorted({r['input_page_id'] for r in gone})
         shown = ', '.join(names[:5]) + (' ...' if len(names) > 5 else '')
-        logging.info("%d page(s) are no longer in the project; their %d crop(s) are removed: %s",
-                     len(names), len(removed), shown)
+        logging.info("%d page(s) are no longer in the project. The command removed their "
+                     "%d crop(s): %s", len(names), len(removed), shown)
     return kept, removed
 
 
@@ -403,7 +406,7 @@ def _cut_page(run: RunResult, path: str, name: str, override, config: Dict,
         run.failed.append(name)
         logging.error("%s: not cut. %s", name, exc)
     except (OSError, ValueError) as exc:
-        logging.error("Page not read, %s: %s", name, exc)
+        logging.error("%s: not read. %s", name, exc)
     except Exception as exc:  # noqa: BLE001 - one page must not stop the batch
         run.failed.append(name)
         logging.error("%s: not cut. %s: %s", name, type(exc).__name__, exc)
@@ -809,7 +812,7 @@ def _list_pages(data_dir: str) -> Tuple[List[str], List[str]]:
         When the input directory does not exist.
     """
     if not os.path.isdir(data_dir):
-        raise NotADirectoryError(f"Input directory not found: {data_dir}")
+        raise NotADirectoryError(f"The folder {data_dir} does not exist.")
 
     pages, pdfs, skipped = [], [], []
     for name in sorted(os.listdir(data_dir)):
@@ -827,7 +830,8 @@ def _list_pages(data_dir: str) -> Tuple[List[str], List[str]]:
     if not pages and not pdfs:
         logging.warning(
             "No page images in %s. Put the plates in a pages/ folder inside the project "
-            "folder. The formats read are %s and PDF.", data_dir, ', '.join(PAGE_EXTENSIONS),
+            "folder. The command reads these formats: %s and PDF.", data_dir,
+            ', '.join(PAGE_EXTENSIONS),
         )
     else:
         logging.info("Found %d page(s) and %d PDF file(s) in %s", len(pages), len(pdfs),
@@ -840,7 +844,7 @@ def _report_skipped(skipped: Sequence[str]) -> None:
     for name in skipped:
         extension = os.path.splitext(name)[1] or 'no extension'
         logging.warning(
-            "  not supported (%s): %s. The formats read are %s and PDF.",
+            "  not supported (%s): %s. The command reads these formats: %s and PDF.",
             extension, name, ', '.join(PAGE_EXTENSIONS),
         )
 
@@ -877,18 +881,19 @@ def _log_summary(
     cut_before = {r['input_page_id'] for r in previous} & run.recut
     if cut_before:
         logging.info(
-            "%d page(s) were cut before; their crops were replaced.", len(cut_before)
+            "An earlier run cut %d page(s). This run replaced their crops.",
+            len(cut_before)
         )
     if run.orphans:
         logging.warning(
-            "%d crop file(s) left by an earlier run had no manifest row "
-            "and were replaced.", len(run.orphans),
+            "%d crop file(s) left by an earlier run had no manifest row. "
+            "This run replaced them.", len(run.orphans),
         )
     upscaled = {r.input_page_id for r in rows if int(r.upscale_factor or 1) > 1}
     if upscaled:
         logging.info(
-            "%d page(s) upscaled for detection. The crops are at the source "
-            "size; see upscale_factor in pages_manifest.csv.", len(upscaled),
+            "The command upscaled %d page(s) for detection. The crops are at the "
+            "source size. See upscale_factor in pages_manifest.csv.", len(upscaled),
         )
     split = sum(SPLIT in r.correction_applied for r in rows)
     joined = sum(JOIN in r.correction_applied for r in rows)
@@ -926,8 +931,8 @@ def _add_required_args(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group('NECESSARY ARGUMENTS')
     group.add_argument(
         '--data_dir', required=True, metavar='PATH',
-        help='The project directory that contains pages/. You can also '
-             'give a folder of pages directly.'
+        help='The project folder that contains pages/. You can also '
+             'give a folder of page images.'
     )
     group.add_argument(
         '--output_dir', metavar='PATH',
@@ -973,7 +978,7 @@ def _add_grouping_args(parser: argparse.ArgumentParser) -> None:
         help='A CSV file of corrections, one row for each page. '
              'Columns: page_id, expect, join, split. Use the box numbers '
              'shown by --debug. Default: corrections.csv in the project '
-             'folder, which the command writes empty when it is missing.'
+             'folder. If this file is missing, the command writes an empty one.'
     )
 
 
@@ -996,27 +1001,28 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
     )
     group.add_argument(
         '--keep_text_boxes', action='store_true',
-        help='Keep a box that the reader finds to be writing, such as a framed '
-             'specimen code. By default such a box is recorded in the manifest as '
-             'text and no crop is written for it.'
+        help='Keep a box that the command identifies as text, for example a framed '
+             'specimen code. By default, the manifest records such a box as text, and '
+             'the command writes no crop for it.'
     )
     group.add_argument(
         '--keep_text', action='store_true',
-        help='Keep the page\'s text in each artefact crop: captions, legend keys, '
-             'scale bar ink, other identifiers. By default they are hidden, painted '
-             'over with the paper value of the crop; the crop\'s own identifier stays.'
+        help='Keep the text of the page in each artefact crop: captions, legend keys, '
+             'scale bar ink and other identifiers. By default, the command hides them '
+             'under the paper colour of the crop. The identifier of the crop stays.'
     )
     group.add_argument(
         '--hide_identifiers', action='store_true',
-        help='Hide the crop\'s own identifier too. By default it stays, and its box '
-             'is written to meta_data.csv so that pylithics does not analyse it.'
+        help='Also hide the identifier of the crop. By default, the identifier stays. '
+             'The command writes its box to meta_data.csv, and pylithics does not '
+             'analyse that box.'
     )
     group.add_argument(
         '--read_labels', dest='read_labels', action='store_true',
         default=None,
         help='Read the identifier printed next to each lithic and name '
              'the crop {page}_figure_{label}.png. This is the default. '
-             'RapidOCR is necessary; see the installation page.'
+             'RapidOCR is necessary. See the installation page.'
     )
     group.add_argument(
         '--no_read_labels', dest='read_labels', action='store_false',
@@ -1029,9 +1035,9 @@ def _add_pdf_args(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group('PDF OPTIONS')
     group.add_argument(
         '--pdf_dpi', type=float, metavar='DPI',
-        help='The resolution for a PDF page that holds no raster image, in '
-             'dots per inch (default: 300). A page that holds a raster image '
-             'renders at the resolution of that image.'
+        help='The resolution for a PDF page that contains no raster image, in '
+             'dots per inch (default: 300). The command renders a page that '
+             'contains a raster image at the resolution of that image.'
     )
     group.add_argument(
         '--pdf_pages', metavar='LIST',

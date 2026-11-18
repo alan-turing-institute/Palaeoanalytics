@@ -2,8 +2,8 @@
 
 ## Overview
 
-The analysis writes all its output to `results/` in your project
-folder (`--data_dir`). This page gives each output file and how to read
+The analysis writes all its files to `results/` in your project
+folder (`--data_dir`). This page gives each file and how to read
 it.
 
 ## The output directory
@@ -20,6 +20,8 @@ my_project/results/
 ├── artifact_001_voronoi.png       # The Voronoi diagram (dorsal surfaces only)
 ├── artifact_002_labeled.png
 ├── artifact_002_voronoi.png
+├── artifact_002_voronoi_cells.png # Only with --voronoi_images voronoi: the cells only
+├── artifact_002_convex_hull.png   # Only with --voronoi_images hull: the convex hull only
 └── json/                          # Only with --export_json
     ├── artifact_001.json
     └── artifact_002.json
@@ -28,8 +30,8 @@ my_project/results/
 ### Debug output
 
 The debug flags write images that show what each step found. All of
-them follow one rule: **the folder is named after the flag that made
-it, and the file is named after the source image.**
+them follow one rule: **the folder has the name of the flag that made
+it, and the file has the name of the source image.**
 
 ```
 my_project/results/
@@ -50,11 +52,12 @@ boxes, scale bars and identifiers.
 At the end of a run, each command names the debug folders that it
 wrote.
 
-`run_summary.json` is a small summary of the analysis: the time, the
-number of images, the number of images with no errors, one entry for
-each image, the metadata rows that carry a flag, and the images left
-out because they have no scale value and you answered `n` to the
-pixels question. The dashboard reads it for the numbers on its Overview
+`run_summary.json` is a small summary of the analysis. It gives the
+time, the number of images, the number of images with no errors, and
+one entry for each image. It also gives the metadata rows that carry a
+flag. It also lists the images that have no scale value, if you answered
+`n` to the pixels question. The analysis did not include these images.
+The dashboard reads it for the numbers on its Overview
 tab. Images with errors are not in `processed_metrics.csv`, so the
 dashboard cannot count them from the CSV. The command writes a new
 `run_summary.json` for each analysis. If you do not use the dashboard,
@@ -63,8 +66,8 @@ structure is simple.
 
 `review.csv` lists the items to examine after the analysis: one row
 for each image or surface that a check found. The columns are `check`,
-`image_id`, `item`, `value`, `reason` and `what_to_do`. The reason is
-written from the numbers of the row. When nothing needs examination, the
+`image_id`, `item`, `value`, `reason` and `what_to_do`. PyLithics
+writes the reason from the numbers of the row. When nothing needs examination, the
 file has the header only. The dashboard's Review page shows the same
 rows. See the review checks in
 [Troubleshooting](troubleshooting.md#dashboard-review-checks).
@@ -136,19 +139,19 @@ pixels when it is not. The column `calibration_method` shows which.
 | `is_cortex` | bool | `True` for a child row that is cortex |
 | `cortex_area` | mm² or px² | The area of the cortex |
 | `cortex_percentage` | 0–100 | The cortex area as a percentage of the surface area |
-| `cortex_source` | `stippling` or `letter` | Which test found the cortex: the stippling, or a letter such as C drawn in the scar. A scar found by a letter is cortex over its whole area. `NA` on other rows |
+| `cortex_source` | `stippling` or `letter` | Which test found the cortex: the stippling, or a letter such as C drawn in the scar. When the letter test finds a scar, the cortex covers the whole area of the scar. `NA` on other rows. On the row of a platform, lateral or ventral view, the cortex columns mean that the view is cortex: a letter on the view, in no scar, marks the whole view. A letter on the dorsal view outside every scar does not count |
 
 ### Arrows
 
 | Column | Units | Description |
 |--------|-------|-------------|
-| `has_arrow` | bool | `True` if an arrow was found |
+| `has_arrow` | bool | `True` if PyLithics found an arrow |
 | `arrow_angle` | degrees | The angle in the PyLithics frame. See the note below |
 | `arrow_score` | 0–1 | The score of the classifier for the arrow. Present when stage 2, the classifier, decided. Empty when stage 1, the notch method, decided |
 
 !!! note "Arrow angle"
-    `arrow_angle` is in a 0–360° frame like a compass, but the frame
-    is turned. An arrow that points down in the image is `0`. An arrow
+    `arrow_angle` uses a 0–360° frame like a compass, but the frame
+    has a different rotation. An arrow that points down in the image is `0`. An arrow
     that points right is `270`. Use `arrow_angle` to compare scars in
     the same image.
 
@@ -160,14 +163,14 @@ pixels when it is not. The column `calibration_method` shows which.
 
 ### Scale calibration
 
-These columns are present when scale bar calibration was tried:
+These columns are present when PyLithics tried scale bar calibration:
 
 | Column | Description |
 |--------|-------------|
 | `calibration_method` | `scale_bar` (millimetres) or `pixels` (no calibration) |
-| `pixels_per_mm` | The factor used (empty when the calibration was not possible) |
+| `pixels_per_mm` | The factor that PyLithics used (empty when the calibration was not possible) |
 | `scale_confidence` | The confidence of the scale bar measurement (0–1) |
-| `upscale_factor` | The factor of the working copy the ink was found on: 1, 2, 3 or 4. Measurements are in input pixels for every value. See [Working Resolution](working-resolution.md). |
+| `upscale_factor` | The factor of the working copy on which PyLithics found the ink: 1, 2, 3 or 4. For every value, the measurements are in the pixels of the original image. See [Working Resolution](working-resolution.md). |
 
 ## The images
 
@@ -179,9 +182,9 @@ These columns are present when scale bar calibration was tried:
 
 The source image with the contours, the labels and the arrows drawn on it.
 To remove some of the labels, use `--hide_labels`. The kinds are
-`surfaces`, `scars`, `cortex` and `arrows`; `all` removes every label.
+`surfaces`, `scars`, `cortex` and `arrows`. `all` removes every label.
 Give more than one kind in one list, with commas and no spaces. Give the
-option once; a second one replaces the first. For example,
+option one time. A second option replaces the first. For example,
 `--hide_labels surfaces,scars,cortex` leaves the outlines, the centroid
 dots and the arrow angles, and no other label. The same setting is
 `visualization.labels` in `config.yaml`.
@@ -217,7 +220,8 @@ A Voronoi tessellation of the dorsal scar centroids, with the convex hull.
 
 - One cell for each centroid, cut at the edge of the dorsal surface
 - The axes are in millimetres when the scale calibration is correct, and in pixels when it is not
-- The convex hull is drawn around all centroids
+- PyLithics draws the convex hull around all centroids
+- With `--voronoi_images`, PyLithics also writes the cells only (`{image_stem}_voronoi_cells.png`) or the convex hull only (`{image_stem}_convex_hull.png`). See [Voronoi Analysis](voronoi-analysis.md#the-cells-and-the-convex-hull-as-separate-images)
 
 </div>
 
@@ -330,7 +334,7 @@ dorsal$features[[1]]
 ## The log: `pylithics.log`
 
 The log has the full trace of each step for each image. The screen
-output does not change this. Each analysis **replaces the previous
+messages do not change this. Each analysis **replaces the previous
 log**. The file always shows the most recent analysis only. To keep a
 history, copy the file between analyses, or set a different `log_file`
 in `config.yaml`.
@@ -343,21 +347,21 @@ in `config.yaml`.
 
 **Lines to search for:**
 
-- `Output directory:` — where the analysis wrote its results
+- `Results folder:` — where the analysis wrote its results
 - `<image_id> · <px/mm>` — the summary line for one image at INFO (for example `awbari.png · 25.20 px/mm`)
-- `pixels (no scale given)` — the image was analysed in pixels by design
-- `pixels (scale bar not found — see the log)` — a scale was given, but the scale bar was not found. A `[WARNING] The scale image … is missing` or `No scale bar found in …` line comes before it
+- `pixels (no scale given)` — PyLithics analysed the image in pixels because the metadata gives no scale. This is the expected result
+- `pixels (no scale bar found; see the log)` — the metadata gives a scale, but PyLithics did not find the scale bar. A `[WARNING] The scale image … is missing` or `No scale bar found in …` line comes before it
 - `images analysed with no errors.` — the summary line at the end of the batch
 - `[WARNING]` / `[ERROR]` — all messages above the default screen level
 
 A log with no errors:
 
 ```
-2026-06-19 10:33:15 [INFO] Config: default
-2026-06-19 10:33:15 [INFO] Data directory: pylithics/data
+2026-06-19 10:33:15 [INFO] Configuration file: default
+2026-06-19 10:33:15 [INFO] Project folder: pylithics/data
 2026-06-19 10:33:15 [INFO] Metadata file: pylithics/data/meta_data.csv
 2026-06-19 10:33:15 [INFO] The input is correct
-2026-06-19 10:33:15 [INFO] Output directory: pylithics/data/processed
+2026-06-19 10:33:15 [INFO] Results folder: pylithics/data/results
 2026-06-19 10:33:15 [DEBUG] Starting batch processing of 5 images
 2026-06-19 10:33:15 [DEBUG] Processing image: awbari.png
 ... (per-step DEBUG trace for awbari) ...

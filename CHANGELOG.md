@@ -16,6 +16,10 @@ directory is renamed `results/`.
 alone will not create it. Reinstall with `pip install . --upgrade`.
 
 ### Fixed
+- **Labels on the labelled image are inside their outline.** A curved scar, such as a
+  crescent of cortex along an edge, has its centroid outside the shape, and its dot
+  and label were drawn there. The dot is now at the point deepest inside the outline
+  when the centroid is outside it. The centroid in the CSV does not change.
 - **The scale is measured on the bar, not on its caption.** `pylithics` took the
   bounding box of every dark pixel in the scale image, and the caption that
   `pylithics-pages` keeps in the crop ("cm", "5 cm") lay inside it: on the test
@@ -104,6 +108,22 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
 - **`.gitignore`** cut to the rules this project uses.
 
 ### Added
+- **The Voronoi cells and the convex hull as separate images (`pylithics`).**
+  `--voronoi_images` (setting `voronoi_analysis.images`) chooses any of `combined` (the
+  default, as before: `_voronoi.png`), `voronoi` (the cells only:
+  `_voronoi_cells.png`) and `hull` (the convex hull only: `_convex_hull.png`). The three
+  share the frame and the axes. The measurements do not change. The dashboard shows
+  the first image that exists.
+- **A letter on a view, and a frame around a letter (`pylithics`).** A C on a platform,
+  lateral or ventral view, in no scar, now makes the whole view cortex; the view's row
+  carries the cortex columns. A C on the dorsal view outside every scar does not count.
+  A thin rectangle drawn around a letter is removed before the scars are found, so
+  it is no longer a scar and the letter counts for the scar it sits in. `--keep_frames`
+  keeps it. On the test project: page 31's cortex is the whole band (17.3 percent of
+  the dorsal, not the 3.4 percent of the frame); pages 32 and 34 have cortical platforms.
+- **The size rules for the views are in the docs.** Image Requirements has a new
+  section, "Views and their sizes", with the rule for each view type. The Review
+  page's step for an unclassified surface points to it.
 - **A letter C in a scar marks it as cortex (`pylithics`).** Some illustrators mark
   cortex with the letter C, not stippling, and those scars were reported as ordinary
   scars. Each small mark inside a scar is now read with RapidOCR's recognizer; a mark

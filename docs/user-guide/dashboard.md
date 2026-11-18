@@ -4,7 +4,7 @@ PyLithics has a dashboard for the results of a batch. It opens in your
 browser. It reads the `processed_metrics.csv` that the analysis writes.
 No other setup is necessary.
 
-The analysis writes its output to `<data_dir>/results/`. To open the
+The analysis writes its results to `<data_dir>/results/`. To open the
 dashboard for a previous analysis, give `--explore` the folder that
 contains the `processed_metrics.csv` that you want to see. The folder
 can have any name. You can keep more than one analysis, each in its
@@ -64,10 +64,11 @@ The numbers of the assemblage. A filter at the top of the page (surface
 type and calibration method) applies to all charts on the page. The
 page has four tabs:
 
-**Size & shape.** A raincloud plot of `aspect_ratio` for each surface
-type, a lollipop plot of `perimeter` for each lithic, a scatter plot of
-length and width (with a colour for each surface type), and a scatter
-plot of convex-hull area and total area for shape regularity.
+**Size & shape.** Four charts:
+- *Raincloud plot* — `aspect_ratio` for each surface type.
+- *Lollipop plot* — `perimeter` for each lithic.
+- *Scatter plot* — length and width, with a colour for each surface type.
+- *Scatter plot* — convex-hull area and total area, for shape regularity.
 
 **Symmetry.** Two charts, for dorsal surfaces only:
 - *Signed asymmetry* — the horizontal and vertical offset of each dorsal centroid. Right of the y axis is a right offset. Above the x axis is a top offset. (0, 0) is perfect symmetry.
@@ -98,8 +99,9 @@ One lithic. Select an image in the list to see:
 - All CSV rows for the image, in a table that you can sort
 - The JSON file for the lithic (if you used `--export_json`), as a tree
 
-The labelled image and the Voronoi diagram are shown in a 700×700
-square, so the two panels always have the same size on the screen.
+The dashboard shows the labelled image and the Voronoi diagram in a
+700×700 square. Because of this, the two panels always have the same size on the
+screen.
 The PNG files on the disk do not change.
 
 ### 4. Review
@@ -132,7 +134,7 @@ It exports the full dashboard, not one page.
 |---|---|---|
 | `CSV` | `pylithics_test_lithics_report.csv` | The Review rows: `check`, `image_id`, `item`, `value`, `reason`, `what_to_do`. |
 | `HTML` | `pylithics_test_lithics_report.html` | Overview, Distributions and Review in one file. The charts stay interactive. The file opens with no network. |
-| `PDF` | `pylithics_test_lithics_report.pdf` | The same contents. The charts are drawn again with Matplotlib from the same data. |
+| `PDF` | `pylithics_test_lithics_report.pdf` | The same contents. PyLithics draws the charts again with Matplotlib, from the same data. |
 
 If you give `--explore` a results folder that has a different name, the
 run name is the name of that folder.

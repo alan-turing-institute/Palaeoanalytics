@@ -9,13 +9,14 @@ ventral, platform and lateral surfaces, and the flake scars on each
 surface. It writes the measurements to CSV files and to one JSON file
 for each lithic.
 
-The pipeline has these steps: image preprocessing (normalisation,
-greyscale conversion, thresholding, morphological closing), contour
-extraction, surface classification, Voronoi tessellation of the scar
-centroids, convex-hull analysis, and arrow-direction detection.
+The pipeline has these steps: image preprocessing, contour extraction,
+surface classification, Voronoi tessellation of the scar centroids,
+convex-hull analysis and arrow-direction detection. Image preprocessing
+has four parts: normalisation, greyscale conversion, thresholding and
+morphological closing.
 PyLithics does not use template matching or trained machine-learning
 models. It calculates each measurement from the contour geometry. The
-same input gives the same result each time.
+same images and settings give the same result each time.
 
 ## Functions
 
@@ -67,7 +68,7 @@ same input gives the same result each time.
 - **Time**: measurements that take hours by hand take minutes
 - **Consistency**: no differences between observers
 - **Scale**: you can analyse a full assemblage
-- **Reproducibility**: the same input gives the same result
+- **Reproducibility**: the same images and settings give the same result
 
 ### For archaeological science
 - **Quantitative analysis**: numbers, not only descriptions
@@ -94,8 +95,8 @@ options.
 
 ## Support and contributions
 
-PyLithics is in active development. Contributions from the
-archaeological and computer-science communities are welcome.
+PyLithics is in active development. We welcome contributions from the
+archaeological and computer-science communities.
 
 - **Issues**: report a bug or ask for a function on [GitHub](https://github.com/alan-turing-institute/Palaeoanalytics/issues)
 - **Contributions**: see the [Contributing Guidelines](https://github.com/alan-turing-institute/Palaeoanalytics/blob/main/CONTRIBUTING.md)

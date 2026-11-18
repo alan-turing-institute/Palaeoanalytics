@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from pylithics.image_processing.modules.dashboard.data import CHECKS, review_items
+from pylithics.image_processing.modules.dashboard.data import CHECKS, link_docs, review_items
 
 
 def render(bundle: dict) -> None:
@@ -18,7 +18,7 @@ def render(bundle: dict) -> None:
         st.subheader(f"{check['title']}: {len(rows)}")
         st.markdown(check["meaning"])
         st.markdown("**What to do**\n\n" + "\n".join(
-            f"{n}. {step}" for n, step in enumerate(check["steps"], 1)))
+            f"{n}. {link_docs(step)}" for n, step in enumerate(check["steps"], 1)))
         st.dataframe(rows[["image_id", "item", "value", "reason"]],
                      hide_index=True, use_container_width=True)
     if clear:

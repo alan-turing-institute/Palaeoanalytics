@@ -22,8 +22,8 @@ _STAGE_ERRORS = (
 )
 
 from .config import (
-    get_config_manager, get_data_export_config, get_symmetry_analysis_config,
-    get_voronoi_analysis_config,
+    get_config_manager, get_cortex_detection_config, get_data_export_config,
+    get_symmetry_analysis_config, get_voronoi_analysis_config,
 )
 from .modules.contour_extraction import (
     extract_contours_with_hierarchy,
@@ -45,9 +45,10 @@ from .modules.cortex_detection import (
 from .modules.symmetry_analysis import analyze_dorsal_symmetry
 from .modules.voronoi_analysis import (
     calculate_voronoi_points,
-    visualize_voronoi_diagram
+    write_voronoi_images
 )
 from .modules.arrow_integration import integrate_arrows
+from .modules.letter_frames import remove_letter_frames
 from .modules.visualization import (
     visualize_contours_with_hierarchy,
     save_measurements_to_csv
@@ -111,6 +112,8 @@ def process_and_save_contours(
     try:
         logging.debug(f"Starting analysis for image: {image_id}")
         image_stem = os.path.splitext(image_id)[0]
+        inverted_image, working_image = _without_letter_frames(
+            inverted_image, working_image, upscale_factor, image_id)
 
         contours, hierarchy, sorted_contours = _extract_and_sort_contours(
             inverted_image, image_id, output_dir
@@ -157,6 +160,22 @@ def process_and_save_contours(
     # prevents a single bad image from aborting a multi-image batch run.
     except Exception:
         logging.exception(f"Critical error analyzing image {image_id}")
+
+
+def _without_letter_frames(inverted_image, working_image, upscale_factor, image_id):
+    """
+    Erase a thin frame drawn around a letter before the scars are traced.
+
+    A frame is a closed outline and would become a scar; see
+    ``letter_frames``. ``cortex_detection.frames.enabled`` (command line:
+    ``--keep_frames``) turns this off.
+    """
+    settings = get_cortex_detection_config().get('frames', {})
+    cleaned, working, frames = remove_letter_frames(
+        inverted_image, working_image, upscale_factor or 1, settings)
+    if frames:
+        logging.info(f"{image_id}: {len(frames)} frame(s) around a letter taken out")
+    return cleaned, working
 
 
 def _extract_and_sort_contours(inverted_image, image_id, output_dir):
@@ -622,12 +641,10 @@ def _generate_visualizations(
 
     try:
         if voronoi_data is not None:
-            voronoi_path = os.path.join(
-                output_dir, f"{image_id}_voronoi.png"
-            )
-            visualize_voronoi_diagram(
-                voronoi_data, inverted_image,
-                voronoi_path, conversion_factor
+            kinds = get_voronoi_analysis_config(config).get('images', ['combined'])
+            write_voronoi_images(
+                voronoi_data, inverted_image, output_dir, image_id,
+                conversion_factor, kinds,
             )
     except _STAGE_ERRORS:
         logging.exception("Error in Voronoi visualization")

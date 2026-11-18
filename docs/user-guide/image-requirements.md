@@ -15,8 +15,8 @@ specifications and the drawing conventions that give the best results.
 
 ### Resolution
 - **Best**: 300 DPI. This is the best balance of quality and speed.
-- **Tested**: PyLithics is tested from 75 DPI to 600 DPI.
-- **High resolution**: 600 DPI or more operates well for line drawings with the default settings.
+- **Tested**: the PyLithics tests use images from 75 DPI to 600 DPI.
+- **High resolution**: with the default settings, PyLithics operates well on line drawings at 600 DPI or more.
 - **Recommended**: 300–600 DPI for archaeological illustrations.
 
 !!! tip "DPI"
@@ -57,7 +57,7 @@ PyLithics gives the best results with:
 
 ### Illustration conventions
 
-PyLithics is set for flakes.
+The PyLithics settings are for flakes.
 
 #### Surfaces
 - **Dorsal surface**: the main view, with the scars
@@ -82,7 +82,7 @@ and proportion. These are necessary for an accurate analysis.
 **The orientation rules:**
 
 1. **Vertical axis**: perpendicular to the striking platform
-2. **Scale**: lithics are usually drawn at 1:1
+2. **Scale**: illustrators usually draw lithics at 1:1
 3. **Main view**: usually the dorsal surface
 4. **Other views**: the adjacent surfaces, turned 90 degrees from the main view
 5. **Same orientation**: all views keep the same relative position
@@ -116,6 +116,22 @@ For the best results, the images must be like this:
 - Complete outlines
 - One style
 
+## Views and their sizes
+
+PyLithics finds the type of each view from its size. Draw all views of one
+lithic at the same scale. Then each view must agree with these rules:
+
+| View | Size rule |
+|---|---|
+| Dorsal and ventral | The two faces are within 10 percent of each other in length, width and area. Of the two, the face with more scars is the dorsal face. |
+| Platform | Shorter and narrower than the dorsal view. |
+| Lateral | The same length as the dorsal view, within 10 percent, with a different width. |
+
+A view that agrees with none of these rules is `Unclassified` in the results.
+The dashboard's Review page lists it, with its sizes against the dorsal view.
+The 10 percent is the `tolerance` setting under `surface_classification` in
+`config.yaml`.
+
 ## Example images
 
 PyLithics has five sample images. They have these properties, which
@@ -145,7 +161,7 @@ problem for the PyLithics computer vision:
 **Why arrows are better:**
 
 - **Direction**: an arrow gives one clear direction of force
-- **Detection**: PyLithics is set for arrows
+- **Detection**: the PyLithics settings are for arrows
 - **Contours**: arrows do not prevent the detection of surface and scar boundaries
 - **Measurement**: arrows let PyLithics measure the flaking angle
 

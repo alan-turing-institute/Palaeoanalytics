@@ -43,7 +43,7 @@ The command:
 5. Writes the results to `pylithics/data/results/`
 
 `pylithics/data` is a **project folder**. Each project has the same
-layout, and `--data_dir` is the only path that you type:
+layout. `--data_dir` is the only path that you type:
 
 ```
 my_project/
@@ -59,10 +59,10 @@ three for you. See [Working from Published Plates](page-segmentation.md).
 page's text already hidden. After a change on the page side, cut the pages
 again before you analyse.
 
-When the command stops, the output folder contains
-`processed_metrics.csv`, and one `*_labeled.png` and one
-`*_voronoi.png` for each image that was analysed. To analyse the images
-and open the dashboard with one command, add `--explore`:
+When the command stops, the `results/` folder contains
+`processed_metrics.csv`. It also contains one `*_labeled.png` and one
+`*_voronoi.png` for each image that PyLithics analysed. To analyse the
+images and open the dashboard with one command, add `--explore`:
 
 ```bash
 pylithics --data_dir pylithics/data --explore
@@ -70,12 +70,12 @@ pylithics --data_dir pylithics/data --explore
 
 ### What the screen shows
 
-PyLithics shows a progress bar during a batch, and one line for each
-image. The end of the line shows the calibration of that image:
+PyLithics shows a progress bar during a batch. It also shows one line
+for each image. The end of the line shows the calibration of that image:
 
-- `awbari.png · 25.20 px/mm` — a scale bar was found. The measurements are in millimetres.
-- `image.png · pixels (no scale given)` — the measurements are in pixels. There is no scale in the metadata, or `--force_pixels` was used.
-- `image.png · pixels (scale bar not found — see the log)` — a scale was given, but the scale bar was not found. The log gives the reason as a `WARNING`.
+- `awbari.png · 25.20 px/mm` — PyLithics found a scale bar. The measurements are in millimetres.
+- `image.png · pixels (no scale given)` — the measurements are in pixels. There is no scale in the metadata, or you used `--force_pixels`.
+- `image.png · pixels (no scale bar found; see the log)` — the metadata gives a scale, but PyLithics did not find the scale bar. The log gives the reason as a `WARNING`.
 
 At the end, one summary line gives the log path. The path is
 `<data_dir>/results/pylithics.log`:
@@ -108,18 +108,18 @@ pylithics --data_dir <project> [options]
 
 ### Rows with no scale, and rows with a flag
 
-A row with no `scale` value can only be measured in **pixels**. Before
+PyLithics can measure a row with no `scale` value only in **pixels**. Before
 the batch starts, the command counts those rows and asks once:
 
 ```
-257 of 316 rows in meta_data.csv have no value in the scale column: the printed length of the scale bar, in mm, which you type. 257 of them name a scale bar image in scale_id; that is not enough on its own. Measure them in pixels? [y/N]
+257 of 316 rows in meta_data.csv have no value in the scale column. This value is the printed length of the scale bar, in mm. You type it. 257 of them name a scale bar image in scale_id. The scale value is also necessary. Measure them in pixels? [y/N]
 ```
 
-- `y`: all images are analysed. The images with no scale value are in
+- `y`: PyLithics analyses all images. The images with no scale value are in
   pixels. Their screen line says so, and the CSV column
   `calibration_method` says `pixels`.
-- `n`, or Enter: only the images with a scale value are analysed. The
-  others are named in a count at the end. Fill in the scale and start
+- `n`, or Enter: PyLithics analyses only the images with a scale value. A
+  count at the end names the other images. Fill in the scale and start
   the command again.
 
 The command does not ask when no person can answer. In a script, a
@@ -132,7 +132,7 @@ writes it. A flag does not stop the analysis. The row runs like any
 other. At the end, one line gives the count for each flag:
 
 ```
-45 row(s) in the metadata have a flag: no_scale 25, several_scales 20. The images were analysed. Examine each row in meta_data.csv.
+45 row(s) in the metadata have a flag: no_scale 25, several_scales 20. PyLithics analysed the images. Examine each row in meta_data.csv.
 ```
 
 The log lists each flagged row. See
@@ -228,8 +228,8 @@ pylithics --data_dir ./data --workers 1
 pylithics --data_dir ./data --workers 4
 ```
 
-Sequential and parallel analyses give identical CSV and JSON output.
-The decrease in time increases with the batch size. A batch of 5 images
+Sequential and parallel analyses give identical CSV and JSON files.
+The time decrease is larger for a larger batch. A batch of 5 images
 shows a small difference. A batch of 100 images or more is
 approximately N times faster on N cores.
 
@@ -249,8 +249,8 @@ for the JSON schema.
 ### The dashboard
 
 Add `--explore` to open the [PyLithics Dashboard](dashboard.md) in
-your browser. With `--data_dir`, the command does the analysis first
-and then opens the dashboard for the new output. With a path,
+your browser. With `--data_dir`, the command does the analysis first.
+Then it opens the dashboard for the new results. With a path,
 `--explore` opens the dashboard for that folder and does no analysis.
 The folder can have any name and can be in any place.
 
@@ -309,13 +309,13 @@ flowchart TD
 Read the illustrations. Make sure that the format and the resolution are correct.
 
 **B. Scale calibration**
-Find the scale bar and calculate the pixels for each millimetre. The bar is the largest piece of ink in the scale image and the solid blocks in line with it, so a caption, a numeral, a speck or a frame beside the bar is not measured. With a `scale_box` in `meta_data.csv` the search starts inside that box. If there is no usable scale image, use pixel measurements.
+Find the scale bar and calculate the pixels for each millimetre. The bar is the largest piece of ink in the scale image, plus the solid blocks in line with it. Because of this, PyLithics does not measure a caption, a numeral, a speck or a frame next to the bar. With a `scale_box` in `meta_data.csv`, the search starts inside that box. If there is no usable scale image, use pixel measurements.
 
 **C. Noise removal and contrast change**
 Remove scan noise and make the lines clearer.
 
 **D. Thresholding**
-Change the image to black and white. The default `auto` method finds the threshold from the image and keeps it between `threshold_value` and `threshold_ceiling`, so grey lines are kept and a grey-filled surface stays open. The other methods are `simple`, `otsu` and `adaptive`. The blur before the threshold and the closing after it are sized from the measured line width of the drawing.
+Change the image to black and white. The default `auto` method finds the threshold from the image. It keeps the threshold between `threshold_value` and `threshold_ceiling`. Because of this, grey lines stay in the image, and a grey-filled surface stays open. The other methods are `simple`, `otsu` and `adaptive`. PyLithics sets the size of the blur before the threshold, and of the closing after it, from the measured line width of the drawing.
 
 **E. Contour extraction**
 Find the object boundaries as a parent–child hierarchy (surfaces and scars).
@@ -323,8 +323,8 @@ Find the object boundaries as a parent–child hierarchy (surfaces and scars).
 **F. Surface classification**
 Identify the dorsal, ventral, platform and lateral surfaces. The two faces of a flake
 are the outlines of the same size. The dorsal face is the one with more scars inside
-it; when the counts are equal, the larger. The platform is the smallest outline, and
-the lateral view is as long as the dorsal face but of a different width.
+it. When the counts are equal, the dorsal face is the larger face. The platform is the
+smallest outline. The lateral view is as long as the dorsal face, but its width is different.
 
 **G. Calculate the metrics**
 Measure the dimensions, areas, aspect ratios and shape properties.

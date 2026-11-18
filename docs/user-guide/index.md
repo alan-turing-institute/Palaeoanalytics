@@ -47,7 +47,7 @@ The files that PyLithics writes:
 - The scale calibration columns
 - The labelled images
 - The Voronoi diagrams
-- The log files and debug output
+- The log files and the debug files
 - The arrow detection results
 
 ### [Dashboard](dashboard.md)

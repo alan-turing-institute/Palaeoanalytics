@@ -179,3 +179,15 @@ class TestExportNames:
         run = tmp_path / "tanzania_run_2025"
         run.mkdir()
         assert report.export_filename(run, "html") == "tanzania_run_2025_report.html"
+
+
+@pytest.mark.unit
+def test_the_size_rules_are_a_link_on_the_page_and_plain_in_the_csv(run):
+    from pylithics.image_processing.modules.dashboard.data import link_docs
+    step = CHECKS["unclassified_surfaces"]["steps"][1]
+    assert "](https://" in link_docs(step) and "#views-and-their-sizes" in link_docs(step)
+    items = review_items(run["metrics"], run["run_summary"])
+    assert "https://" not in report.report_csv(items)
+    counts = overview_counts(run["metrics"], run["run_summary"])
+    assert 'href="https://alan-turing-institute.github.io/Palaeoanalytics/user-guide/' \
+        'image-requirements/#views-and-their-sizes"' in report.report_html(run, counts, items)

@@ -273,6 +273,16 @@ def test_per_image_image_paths_resolves_existing_files(tmp_path):
     assert paths["json"] == processed / "json" / "awbari.json"
 
 
+@pytest.mark.unit
+def test_per_image_image_paths_falls_back_to_the_cells_or_the_hull(tmp_path):
+    (tmp_path / "awbari_convex_hull.png").write_bytes(b"\x89PNG")
+    paths = per_image_image_paths(tmp_path, "awbari.png")
+    assert paths["voronoi"] == tmp_path / "awbari_convex_hull.png"
+    assert paths["voronoi_title"] == "Convex hull"
+    (tmp_path / "awbari_voronoi_cells.png").write_bytes(b"\x89PNG")
+    assert per_image_image_paths(tmp_path, "awbari.png")["voronoi_title"] == "Voronoi diagram"
+
+
 # ---------------------------------------------------------------------------
 # overview_counts
 # ---------------------------------------------------------------------------
@@ -449,4 +459,4 @@ def test_per_image_image_paths_returns_none_for_missing(tmp_path):
 
     paths = per_image_image_paths(processed, "missing.png")
 
-    assert paths == {"labeled": None, "voronoi": None, "json": None}
+    assert paths == {"labeled": None, "voronoi": None, "voronoi_title": None, "json": None}

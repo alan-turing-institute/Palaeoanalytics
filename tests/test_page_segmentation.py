@@ -1477,14 +1477,14 @@ class TestOutputSafety:
         before = sorted(os.listdir(out / "images"))
         manifest_before = read_manifest(out)
         meta = _fill_scales(out)
-        assert "were cut before" not in caplog.text
+        assert "An earlier run cut" not in caplog.text
 
         assert run_prep(pages_dir, out) == 0
 
         assert sorted(os.listdir(out / "images")) == before
         assert read_manifest(out) == manifest_before
         assert (out / "meta_data.csv").read_text() == meta
-        assert "1 page(s) were cut before; their crops were replaced." in caplog.text
+        assert "An earlier run cut 1 page(s). This run replaced their crops." in caplog.text
 
     def test_added_pages_are_cut_and_appended(self, tmp_path, pages_dir, plate_path):
         """Adding a plate adds its crops. The rest is cut again, unchanged."""

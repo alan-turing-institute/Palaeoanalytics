@@ -53,7 +53,7 @@ def render(bundle: dict) -> None:
         else:
             st.info(f"There is no labelled image for {image_id}.")
     with right:
-        st.subheader("Voronoi diagram")
+        st.subheader(paths["voronoi_title"] or "Voronoi diagram")
         if paths["voronoi"]:
             st.image(_letterbox(paths["voronoi"]), use_container_width=True)
         else:

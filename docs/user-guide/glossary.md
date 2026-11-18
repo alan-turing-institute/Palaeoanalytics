@@ -67,7 +67,7 @@ These columns are in the Dorsal parent row when the dorsal surface has scars.
 
 ## Symmetry
 
-Calculated from the binary mask of the Dorsal parent contour, divided at its centroid.
+PyLithics calculates these values from the binary mask of the Dorsal parent contour. It divides the mask at its centroid.
 
 **top_area**, **bottom_area**, **left_area**, **right_area**
 : The filled area on each side of the centroid.
@@ -89,7 +89,7 @@ Calculated from the binary mask of the Dorsal parent contour, divided at its cen
 : `True` if the texture analysis classified a child contour as cortex. `False` if not.
 
 **cortex_area**
-: The area of the cortex. Only meaningful when `is_cortex` is `True`.
+: The area of the cortex. This value has a meaning only when `is_cortex` is `True`.
 
 **cortex_percentage**
 : The cortex area as a percentage of the parent surface area.
@@ -97,7 +97,7 @@ Calculated from the binary mask of the Dorsal parent contour, divided at its cen
 ## Arrows
 
 **has_arrow**
-: `True` if an arrow was found for this scar.
+: `True` if PyLithics found an arrow for this scar.
 
 **arrow_angle**
 : The angle of the arrow in the PyLithics frame, like a compass. An arrow that points down in the image is `0°`. An arrow that points right is `270°`. Use it to compare scars in the same image.
@@ -112,7 +112,7 @@ Calculated from the binary mask of the Dorsal parent contour, divided at its cen
 These columns are present when the pipeline had calibration metadata.
 
 **calibration_method**
-: `scale_bar` when a scale image was found and measured. `pixels` when there was no calibration.
+: `scale_bar` when PyLithics found and measured a scale image. `pixels` when there was no calibration.
 
 **pixels_per_mm**
 : The factor that changes pixel measurements to millimetres.
@@ -129,7 +129,7 @@ These columns are present when the pipeline had calibration metadata.
 : The upper surface of the flake. It shows the scars of previous removals.
 
 **Ventral**
-: The lower surface, made when the flake was detached. It is usually smooth, with the bulb of percussion.
+: The lower surface. It forms at the detachment of the flake. It is usually smooth, with the bulb of percussion.
 
 **Platform**
 : The prepared striking surface of the core. It is a small surface at the proximal end.
@@ -151,7 +151,7 @@ These columns are present when the pipeline had calibration metadata.
 **cortex N**
 : A child contour that the texture analysis classified as cortex (numbered in sequence).
 
-Platform child contours are not in the output. They are usually the boundaries of empty space, not morphological features.
+PyLithics does not write platform child contours. They are usually the boundaries of empty space, not morphological features.
 
 ## Image-processing terms
 
@@ -159,7 +159,7 @@ Platform child contours are not in the output. They are usually the boundaries o
 : The image resolution. PyLithics uses fixed kernels by default from 75 to 600 DPI. `--enable_dpi_scaling` sets the kernel sizes from the DPI, for scans with noise.
 
 **Thresholding**
-: The change of a greyscale image to a black-and-white image. PyLithics has `auto` (the default: the Otsu value kept between `threshold_value` and `threshold_ceiling`, raised above the floor only when the grey it adds is thin), `simple` (a fixed value), `otsu` (an automatic division into two tones, with no limits) and `adaptive` (a value for each region).
+: The change of a greyscale image to a black-and-white image. PyLithics has four methods. `auto` is the default. It keeps the Otsu value between `threshold_value` and `threshold_ceiling`. It raises the value above the floor only when the grey that this adds is thin. `simple` uses a fixed value. `otsu` divides the image automatically into two tones, with no limits. `adaptive` uses a value for each region.
 
 **Contour**
 : The boundary line around an object in the black-and-white image.
@@ -176,7 +176,7 @@ Platform child contours are not in the output. They are usually the boundaries o
 : The sequence of operations in tool production.
 
 **Reduction sequence**
-: The order in which the flakes were removed during knapping.
+: The order of flake removal during knapping.
 
 **Debitage**
 : The waste flakes from tool manufacture.
@@ -200,7 +200,7 @@ Platform child contours are not in the output. They are usually the boundaries o
 
 ## Usual values for stone tools
 
-Use these values to examine your output:
+Use these values to examine your results:
 
 | Quantity | Usual range | Most flakes |
 |----------|-------------|-------------|

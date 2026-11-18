@@ -178,7 +178,7 @@ def _draw_contours_and_centroids(
         color, text = _get_contour_style(metrics[i])
         cv2.drawContours(labeled, [cnt], -1, color, 2)
 
-        cx, cy = _compute_centroid(cnt)
+        cx, cy = _label_anchor(cnt)
         radius = (CENTROID_RADIUS_SURFACE
                   if color == COLOR_SURFACE
                   else CENTROID_RADIUS)
@@ -208,6 +208,27 @@ def _compute_centroid(contour: np.ndarray) -> Tuple[int, int]:
         return int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
     x, y, w, h = cv2.boundingRect(contour)
     return x + w // 2, y + h // 2
+
+
+def _label_anchor(contour: np.ndarray) -> Tuple[int, int]:
+    """
+    Return the point where a contour's dot and label are drawn: inside the contour.
+
+    The centroid when it lies inside the contour. A curved shape, such as a
+    crescent of cortex along an edge, has its centroid in the hollow of the
+    curve, outside the shape; then the point deepest inside the shape, the
+    farthest from its edge, is used. Only the overlay uses this point; the
+    centroid in the CSV does not change.
+    """
+    cx, cy = _compute_centroid(contour)
+    if cv2.pointPolygonTest(contour, (float(cx), float(cy)), False) > 0:
+        return cx, cy
+    x, y, w, h = cv2.boundingRect(contour)
+    mask = np.zeros((h + 2, w + 2), np.uint8)
+    cv2.drawContours(mask, [contour - (x - 1, y - 1)], -1, 255, cv2.FILLED)
+    depth = cv2.distanceTransform(mask, cv2.DIST_L2, 5)
+    row, col = np.unravel_index(int(np.argmax(depth)), depth.shape)
+    return int(col + x - 1), int(row + y - 1)
 
 
 def _find_non_overlapping_position(

@@ -238,6 +238,12 @@ class TestDebugFlagOverrides:
         assert self._overrides_for("--no_cortex_letter") == {
             "cortex_detection.letter.enabled": False,
         }
+        assert self._overrides_for("--keep_frames") == {
+            "cortex_detection.frames.enabled": False,
+        }
+        assert self._overrides_for("--voronoi_images", "voronoi,hull") == {
+            "voronoi_analysis.images": ["voronoi", "hull"],
+        }
         assert self._overrides_for("--hide_labels", "surfaces,cortex") == {
             "visualization.labels": {
                 "surfaces": False, "scars": True, "cortex": False, "arrows": True,

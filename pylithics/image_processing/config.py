@@ -234,6 +234,7 @@ def get_cortex_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]
         'enabled': True,
         'min_stipple_pieces': 3,            # Fewer small pieces of ink than this is not cortex
         'letter': {'enabled': True, 'letters': ['C'], 'min_confidence': 0.8},
+        'frames': {'enabled': True, 'max_line_ratio': 0.5},
         'stippling_density_threshold': 0.2, # Minimum density of small dots/stipples per 1000 pixels
                                             # Higher values = more restrictive cortex detection
                                             # Lower values = more sensitive cortex detection
@@ -327,6 +328,7 @@ def get_voronoi_analysis_config(
         'enabled': True,
         'padding_factor': 0.02,
         'min_distance_threshold': 5.0,
+        'images': ['combined'],
     })
 
 

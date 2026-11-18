@@ -390,3 +390,22 @@ def test_csv_save_handles_one_thousand_rows_under_five_seconds():
 
     assert len(df) == 1000
     assert elapsed < 5.0, f"save took {elapsed:.2f}s (limit 5s)"
+
+
+@pytest.mark.unit
+class TestLabelAnchor:
+    """The dot and the label of a contour are drawn inside it."""
+
+    def test_a_convex_shape_keeps_its_centroid(self):
+        from pylithics.image_processing.modules.visualization import _label_anchor
+        square = np.array([[[10, 10]], [[50, 10]], [[50, 50]], [[10, 50]]], np.int32)
+        assert _label_anchor(square) == (30, 30)
+
+    def test_a_crescent_gets_a_point_inside_it(self):
+        from pylithics.image_processing.modules.visualization import _label_anchor
+        canvas = np.zeros((200, 200), np.uint8)
+        cv2.ellipse(canvas, (100, 100), (80, 80), 0, -90, 90, 255, 20)   # a thick C turned right
+        contours, _ = cv2.findContours(canvas, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        crescent = max(contours, key=cv2.contourArea)
+        x, y = _label_anchor(crescent)
+        assert cv2.pointPolygonTest(crescent, (float(x), float(y)), False) > 0

@@ -310,3 +310,36 @@ def test_a_dotted_override_reaches_a_nested_setting():
     manager.update_value('cortex_detection', 'letter.enabled', False)
     assert manager.config['cortex_detection']['letter']['enabled'] is False
     assert 'letter.enabled' not in manager.config['cortex_detection']
+
+
+@pytest.mark.unit
+class TestCortexLetterOnAView:
+    """A letter on a platform, lateral or ventral view, in no scar, makes the view cortex."""
+
+    @staticmethod
+    def _view(surface):
+        contour, ink = _scar_with_mark()
+        view = {'parent': 'v', 'scar': 'v', 'surface_type': surface,
+                'contour': contour.tolist(), 'area': 10000}
+        return view, ink
+
+    def test_a_platform_with_a_c_is_cortex_over_its_whole_area(self):
+        view, ink = self._view('Platform')
+        with patch(READER_PATH, return_value=_reader('C', 0.93)):
+            cortex_module._letter_on_views([view], [], (ink, 1), _config())
+        assert view['is_cortex'] and view['cortex_area'] == 10000
+        assert view['cortex_percentage'] == 100.0 and view['cortex_source'] == 'letter'
+
+    def test_a_letter_inside_a_scar_of_the_view_does_not_count_for_the_view(self):
+        view, ink = self._view('Lateral')
+        scar = {'parent': 'v', 'scar': 'e1',
+                'contour': [[50, 50], [90, 50], [90, 90], [50, 90]]}      # holds the C
+        with patch(READER_PATH, return_value=_reader('C', 0.93)):
+            cortex_module._letter_on_views([view], [scar], (ink, 1), _config())
+        assert 'is_cortex' not in view
+
+    def test_a_letter_on_the_dorsal_view_outside_its_scars_is_ignored(self):
+        view, ink = self._view('Dorsal')
+        with patch(READER_PATH, return_value=_reader('C', 0.93)):
+            cortex_module._letter_on_views([view], [], (ink, 1), _config())
+        assert 'is_cortex' not in view

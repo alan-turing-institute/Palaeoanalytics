@@ -169,8 +169,9 @@ This command:
 - Makes the `pylithics` and `pylithics-pages` commands available
 
 !!! note "An environment with the plain OpenCV build"
-    If `opencv-python-headless` or `opencv-python` is already installed,
-    remove it first. Two builds of OpenCV cannot be installed together.
+    If `opencv-python-headless` or `opencv-python` is already in your
+    environment, remove it first. You cannot install two builds of OpenCV
+    together.
 
     ```bash
     pip uninstall opencv-python-headless opencv-python
@@ -186,8 +187,8 @@ pip install --no-deps "rapidocr_onnxruntime>=1.3,<2"
 ```
 
 The second command has `--no-deps` on purpose. RapidOCR asks for the
-plain OpenCV package by name. That package and the contrib package that
-PyLithics uses cannot be installed together. The first command installs
+plain OpenCV package by name. You cannot install that package together
+with the contrib package that PyLithics uses. The first command installs
 the other packages that RapidOCR needs.
 
 To read PDF files in `pages/`, install the `pdf` extra too:
@@ -257,12 +258,12 @@ Then it gives the address of the release notes:
 PyLithics is updated to v2.1.0. Release notes: https://github.com/alan-turing-institute/Palaeoanalytics/releases/tag/v2.1.0
 ```
 
-Answer `n`, or press Enter, to continue without the update. You are
-asked again the next day.
+Answer `n`, or press Enter, to continue without the update. PyLithics
+asks you again the next day.
 
-The check is silent when there is no network. It does not ask in a
-script, where nobody can answer. There it gives the command to update
-by hand. A clone on another branch is not told.
+The check shows no message when there is no network. It does not ask
+in a script, where nobody can answer. There it gives the command to
+update by hand. A clone on another branch gets no message.
 
 To switch the check off, set `update_check.enabled: false` in
 `config.yaml`, or set the environment variable
@@ -283,8 +284,8 @@ pip install .
 
 ## Build the documentation on your computer
 
-The documentation tools are installed with PyLithics. To build the
-documentation and show it in your browser:
+The PyLithics installation includes the documentation tools. To build
+the documentation and show it in your browser:
 
 ```bash
 # The documentation is at http://127.0.0.1:8000
@@ -292,8 +293,8 @@ pylithics --docs
 ```
 
 !!! tip "Documentation tools"
-    MkDocs and its dependencies are installed with PyLithics. No other
-    installation is necessary.
+    The PyLithics installation includes MkDocs and its dependencies. No
+    other installation is necessary.
 
 ## Installation problems
 
@@ -372,7 +373,7 @@ rm -rf palaeo/  # On Windows: rmdir /s palaeo
 
 ## Next steps
 
-PyLithics is installed. Now:
+The installation is complete. Now:
 
 1. [Prepare your images](user-guide/image-requirements.md)
 2. [Prepare the metadata](user-guide/metadata-setup.md)

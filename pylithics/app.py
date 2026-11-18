@@ -105,7 +105,7 @@ from datetime import datetime
 import subprocess
 import time
 from PIL import Image
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, List, Tuple
 
 from pylithics.image_processing.config import get_config_manager
 from pylithics.image_processing.importer import execute_preprocessing_pipeline, parse_ignore_boxes
@@ -114,6 +114,7 @@ from pylithics.image_processing.image_analysis import (
     process_and_save_contours,
 )
 from pylithics.image_processing.utils import format_duration, progress_columns, read_metadata
+from pylithics.image_processing.modules.voronoi_analysis import parse_voronoi_kinds
 from pylithics.image_processing.modules.scale_calibration import get_calibration_factor
 
 
@@ -255,7 +256,7 @@ def _parse_scale(scale_value, image_id: str) -> Optional[float]:
         return float(scale_value) if scale_value else None
     except (ValueError, TypeError):
         logging.warning(
-            f"The scale for {image_id} is not valid. Pixel measurements are used."
+            f"The scale for {image_id} is not valid. PyLithics measures this image in pixels."
         )
         return None
 
@@ -288,7 +289,7 @@ def _calibration_suffix(
     if method == "scale_bar" and conversion_factor:
         return f"{conversion_factor:.2f} px/mm"
     if method == "pixels_detection_failed":
-        return "pixels (scale bar not found — see the log)"
+        return "pixels (no scale bar found; see the log)"
     return "pixels (no scale given)"
 
 
@@ -517,7 +518,7 @@ def _resolve_worker_count(workers_arg, n_images: int) -> int:
         n = int(workers_arg)
     except (TypeError, ValueError):
         logging.warning(
-            "The --workers value %r is not valid. One worker is used.",
+            "The --workers value %r is not valid. PyLithics uses one worker.",
             workers_arg,
         )
         return 1
@@ -789,27 +790,27 @@ class PyLithicsApplication:
         """
         # Check data directory
         if not os.path.exists(data_dir):
-            logging.error(f"Data directory does not exist: {data_dir}")
+            logging.error(f"The folder {data_dir} does not exist.")
             return False
 
         images_dir = resolve_images_dir(data_dir)
         if not os.path.exists(images_dir):
             logging.error(
-                f"There is no images/ directory in {data_dir}, and the "
-                f"directory contains no images"
+                f"There is no images/ folder in {data_dir}, and the "
+                f"folder contains no images."
             )
             return False
 
         # Check metadata file
         if not os.path.exists(meta_file):
-            logging.error(f"Metadata file does not exist: {meta_file}")
+            logging.error(f"The metadata file {meta_file} does not exist.")
             return False
 
         # Validate metadata format
         try:
             metadata = read_metadata(meta_file)
             if not metadata:
-                logging.error("The metadata file is empty or not valid")
+                logging.error("The metadata file is empty or not valid.")
                 return False
 
             # Check required columns
@@ -817,14 +818,14 @@ class PyLithicsApplication:
             first_entry = metadata[0]
             for col in required_columns:
                 if col not in first_entry:
-                    logging.error(f"Column missing in the metadata: {col}")
+                    logging.error(f"The metadata has no {col} column.")
                     return False
 
         except (FileNotFoundError, KeyError, ValueError) as e:
-            logging.error(f"Error reading metadata file: {e}")
+            logging.error(f"Cannot read the metadata file: {e}")
             return False
 
-        logging.info("The input is correct")
+        logging.info("The input is correct.")
         return True
 
     def process_single_image(self,
@@ -864,7 +865,7 @@ class PyLithicsApplication:
         image_path = _resolve_image_path(images_dir, image_id)
         if image_path is None:
             logging.error(
-                f"Image file does not exist: {os.path.join(images_dir, image_id)}"
+                f"The image file {os.path.join(images_dir, image_id)} does not exist."
             )
             return False
 
@@ -876,7 +877,7 @@ class PyLithicsApplication:
                 parse_ignore_boxes((scale_data or {}).get('ignore_box', '')),
             )
             if processed is None:
-                logging.error(f"Preprocessing error for {image_id}")
+                logging.error(f"Error in the preprocessing of {image_id}.")
                 return False
             processed_image = processed.image
 
@@ -926,10 +927,10 @@ class PyLithicsApplication:
             return True
 
         except (FileNotFoundError, ValueError, IOError) as e:
-            logging.error(f"Error processing {image_id}: {e}")
+            logging.error(f"Error in the analysis of {image_id}: {e}")
             return False
         except Exception:
-            logging.exception(f"Unexpected error processing {image_id}")
+            logging.exception(f"Error in the analysis of {image_id}.")
             return False
 
     def _write_threshold_debug(
@@ -1052,7 +1053,7 @@ class PyLithicsApplication:
         processed_dir = resolve_output_dir(data_dir)
         logging.info(f"Reading images from {images_dir}")
         os.makedirs(processed_dir, exist_ok=True)
-        logging.info(f"Output directory: {processed_dir}")
+        logging.info(f"Results folder: {processed_dir}")
         return images_dir, processed_dir
 
     def _rows_to_analyse(self, metadata: list, meta_file: str) -> Tuple[list, list]:
@@ -1079,19 +1080,20 @@ class PyLithicsApplication:
         linked = sum(1 for e in without if (e.get('scale_id') or '').strip())
         notice = (
             f"{len(without)} of {len(metadata)} rows in {os.path.basename(meta_file)} "
-            f"have no value in the scale column: the printed length of the scale bar, "
-            f"in mm, which you type. "
-            + (f"{linked} of them name a scale bar image in scale_id; that is not enough "
-               f"on its own. " if linked else "")
+            f"have no value in the scale column. This value is the printed length of "
+            f"the scale bar, in mm. You type it. "
+            + (f"{linked} of them name a scale bar image in scale_id. The scale value "
+               f"is also necessary. " if linked else "")
         )
         if not sys.stdin.isatty():
-            logging.warning(f"{notice} They are measured in pixels.")
+            logging.warning(f"{notice} PyLithics measures them in pixels.")
             return metadata, []
         if _ask_yes_no(f"{notice} Measure them in pixels? [y/N] "):
             return metadata, []
 
         logging.warning(
-            f"{len(without)} rows with no value in the scale column are not analysed. "
+            f"PyLithics does not analyse the {len(without)} rows with no value in the "
+            f"scale column. "
             f"Type the printed length of each scale bar, in mm, in the scale column of "
             f"{meta_file}. Then start the command again."
         )
@@ -1313,8 +1315,8 @@ class PyLithicsApplication:
                 )
         if results.get('not_analysed'):
             logging.warning(
-                f"{len(results['not_analysed'])} images with no scale value "
-                f"not analysed."
+                f"PyLithics did not analyse {len(results['not_analysed'])} images "
+                f"with no scale value."
             )
         self._log_flagged_rows(results.get('flagged', []))
         self._log_debug_folders(results.get('output_dir', ''))
@@ -1330,7 +1332,7 @@ class PyLithicsApplication:
             if os.path.isdir(path):
                 logging.info(f"{label} debug images: {path}")
             else:
-                logging.info(f"No {label.lower()} debug images were written.")
+                logging.info(f"PyLithics wrote no {label.lower()} debug images.")
 
     @staticmethod
     def _log_flagged_rows(flagged: list) -> None:
@@ -1344,7 +1346,7 @@ class PyLithicsApplication:
         summary = ', '.join(f"{flag} {n}" for flag, n in sorted(counts.items()))
         logging.warning(
             f"{len(flagged)} row(s) in the metadata have a flag: {summary}. "
-            f"The images were analysed. Examine each row in meta_data.csv."
+            f"PyLithics analysed the images. Examine each row in meta_data.csv."
         )
         for entry in flagged:
             logging.debug(f"  flagged: {entry['image_id']}: {entry['flag']}")
@@ -1382,11 +1384,11 @@ def create_argument_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             'Related command:\n'
-            '  pylithics-pages   Cut the scanned plates in <data_dir>/pages/ into\n'
-            '                    one image for each artefact, with the page\'s text\n'
-            '                    hidden, ready for this command. This command reads\n'
-            '                    those images as they are: after a change on the page\n'
-            '                    side, run pylithics-pages again first.\n'
+            '  pylithics-pages   Cuts the scanned plates in <data_dir>/pages/ into\n'
+            '                    one image for each artefact, and hides the text of\n'
+            '                    the page. This command analyses those images as they\n'
+            '                    are. If you change the pages, run pylithics-pages\n'
+            '                    again before this command.\n'
             '                    See: pylithics-pages --help\n\n'
             'Use --docs to open the full documentation.'
         )
@@ -1419,8 +1421,8 @@ def _add_required_args(parser: argparse.ArgumentParser) -> None:
         '--meta_file', required=False, metavar='FILE',
         help='The metadata CSV file (columns: image_id, scale_id, scale, '
              'flag). Default: <data_dir>/meta_data.csv. If some rows have '
-             'no scale value, the command asks once whether to measure '
-             'those images in pixels. Flags are reported.'
+             'no scale value, the command asks one time if it must measure '
+             'those images in pixels. The command reports the flags.'
     )
 
 
@@ -1461,7 +1463,7 @@ def _add_processing_args(parser: argparse.ArgumentParser) -> None:
         '--workers', default='auto', metavar='N',
         help='The number of parallel worker processes for a batch. '
              '"auto" (default) uses cpu_count - 1, with a maximum of 8 '
-             'and a maximum of the batch size. "1" uses one process; use '
+             'and a maximum of the batch size. "1" uses one process. Use '
              'it to find a problem with one image. A positive integer '
              'sets the count. The images and the CSV are identical in '
              'parallel and in sequential mode.'
@@ -1523,7 +1525,7 @@ def _add_scale_args(parser: argparse.ArgumentParser) -> None:
     )
     group.add_argument(
         '--scale_debug', action='store_true',
-        help='Write the scale image with the bar that was found to '
+        help='Write the scale image with the bar that PyLithics found to '
              'results/scale_debug/.'
     )
     group.add_argument(
@@ -1547,14 +1549,20 @@ def _add_cortex_args(parser: argparse.ArgumentParser) -> None:
     )
     group.add_argument(
         '--min_stipple_pieces', type=int, metavar='N',
-        help='A scar is cortex only when it holds at least N small pieces of ink '
+        help='A scar is cortex only when it contains at least N small pieces of ink '
              '(default: 3). One or two pieces are an arrow or a numeral.'
     )
     group.add_argument(
+        '--keep_frames', action='store_true',
+        help='Keep a thin rectangle drawn around a letter. By default PyLithics '
+             'removes it before it finds the scars, because the rectangle is not '
+             'a scar. A rectangle with thick lines, or with no letter, stays.'
+    )
+    group.add_argument(
         '--no_cortex_letter', action='store_true',
-        help='Do not read a letter in a scar as cortex. By default a scar that holds '
-             'the letter C is cortex: some illustrators mark cortex with a C. The '
-             'letters are set in cortex_detection.letter.letters.'
+        help='Do not read a letter in a scar as cortex. By default, a scar that '
+             'contains the letter C is cortex. Some illustrators mark cortex with a C. '
+             'Set the letters in cortex_detection.letter.letters.'
     )
 
 
@@ -1581,8 +1589,25 @@ def _add_surface_analysis_args(parser: argparse.ArgumentParser) -> None:
     )
     group.add_argument(
         '--disable_voronoi_analysis', action='store_true',
-        help='Set Voronoi and convex hull analysis off. No Voronoi image is written.'
+        help='Set Voronoi and convex hull analysis off. PyLithics writes no Voronoi image.'
     )
+    group.add_argument(
+        '--voronoi_images', type=_voronoi_kinds_arg, metavar='KINDS',
+        help=(
+            'The Voronoi images to write: combined (the cells with the convex hull '
+            'over them, the default), voronoi (the cells only), hull (the convex hull '
+            'only). To write more than one, use commas and no spaces. Example: '
+            '--voronoi_images voronoi,hull writes two images with no overlay.'
+        )
+    )
+
+
+def _voronoi_kinds_arg(value: str) -> List[str]:
+    """Parse ``--voronoi_images`` for argparse, with a clear message for a bad kind."""
+    try:
+        return parse_voronoi_kinds(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def _label_kinds_arg(value: str) -> Dict[str, bool]:
@@ -1612,10 +1637,10 @@ def _add_output_args(parser: argparse.ArgumentParser) -> None:
         '--hide_labels', type=_label_kinds_arg, metavar='KINDS',
         help=(
             'Do not draw these labels on the labelled image: surfaces, scars, '
-            'cortex, arrows, or "all". Give more than one kind in one list, with '
-            'commas and no spaces: --hide_labels surfaces,scars,cortex keeps only '
-            'the arrow angles. Give the option once; a second one replaces the '
-            'first. The outlines and the centroid dots stay.'
+            'cortex, arrows, or "all". To hide more than one kind, use commas and '
+            'no spaces. Example: --hide_labels surfaces,scars,cortex shows only '
+            'the arrow angles. Give the option one time. A second option replaces '
+            'the first. The outlines and the centroid dots stay on the image.'
         )
     )
 
@@ -1628,7 +1653,7 @@ def _add_explore_args(parser: argparse.ArgumentParser) -> None:
         help=(
             'Open the dashboard. With no PATH: do the analysis, then open '
             'the dashboard for <data_dir>/results/. With PATH: open the '
-            'dashboard for that results folder. No analysis.'
+            'dashboard for that results folder, with no analysis.'
         )
     )
 
@@ -1665,9 +1690,26 @@ def show_config_help() -> None:
       2. Change the values that you want
       3. Give the file with --config_file path/to/your/config.yaml
 
-    The main sections: thresholding, working_resolution, arrow_detection,
-    cortex_detection, scar_complexity, logging, contour_filtering,
-    data_export, page_segmentation
+    The sections of the file:
+      Image preparation   dpi_processing, grayscale_conversion, normalization,
+                          thresholding, morphological_closing, working_resolution
+      Contours            contour_filtering, surface_classification
+      Detection           arrow_detection, arrow_integration, cortex_detection
+                          (stippling, the letter C, frames around a letter)
+      Measurements        scale_calibration, symmetry_analysis, lateral_analysis,
+                          voronoi_analysis (also the images to write),
+                          scar_complexity
+      Results             visualization, data_export, logging
+      Other               update_check, page_segmentation (pylithics-pages)
+
+    Example: write the Voronoi cells and the convex hull as two images.
+      voronoi_analysis:
+        images: [voronoi, hull]
+
+    Common mistakes:
+      - The file has tabs. YAML needs spaces.
+      - A key is spelled differently from config.yaml. PyLithics ignores it.
+      - A command-line option is also given. The option wins for that run.
 
     Full documentation: pylithics --docs
     """)
@@ -1702,6 +1744,18 @@ def show_examples_help() -> None:
       pylithics --data_dir ./project \\
           --export_json
 
+    The Voronoi cells and the convex hull as two images, with no overlay:
+      pylithics --data_dir ./project \\
+          --voronoi_images voronoi,hull
+
+    Only the arrow angles on the labelled images:
+      pylithics --data_dir ./project \\
+          --hide_labels surfaces,scars,cortex
+
+    Cortex from stippling only (no letter C, and keep frames around letters):
+      pylithics --data_dir ./project \\
+          --no_cortex_letter --keep_frames
+
     Analyse, then open the dashboard:
       pylithics --data_dir ./project --explore
 
@@ -1720,27 +1774,32 @@ def show_troubleshooting_help() -> None:
     =========================
 
     Common problems:
-    - "Directory does not exist": examine the --data_dir path
-    - "Column missing": the CSV must have image_id, scale_id, scale
-    - "images have no scale value. Measure them in pixels?": y analyses
-      all images, in pixels where there is no scale. n analyses only the
-      images with a scale value. Fill in the scale column of
-      meta_data.csv, then start the command again.
+    - "The folder ... does not exist": examine the --data_dir path.
+    - "The metadata has no ... column": the CSV must have image_id,
+      scale_id and scale.
+    - "rows in meta_data.csv have no value in the scale column.
+      Measure them in pixels?":
+        Type y to analyse all the images. PyLithics measures the images
+        with no scale value in pixels.
+        Type n to analyse only the images with a scale value.
+        To measure in mm, type the scale values in meta_data.csv.
+        Then start the command again.
     - "row(s) in the metadata have a flag": examine those rows in
-      meta_data.csv. Their images were analysed.
-    - Contours not correct: use --threshold_method otsu
-    - Slow analysis: use --disable_arrow_detection
-    - Arrow problems: use --arrow_debug --log_level DEBUG
+      meta_data.csv. PyLithics analysed their images.
+    - The contours are not correct: use --threshold_method otsu
+    - The analysis is slow: use --disable_arrow_detection
+    - The arrows are not correct: use --arrow_debug --log_level DEBUG
 
     Debug output:
       pylithics --data_dir ./data \\
           --log_level DEBUG --threshold_debug --scale_debug --arrow_debug
 
-    Each flag writes to its own folder in results/, and the run names
-    the folders at the end:
+    Each flag writes to its own folder in results/. At the end, the
+    command shows the names of the folders:
       results/threshold_debug/<image>.png       the black-and-white image
-      results/scale_debug/<scale image>.png     the bar that was found
-      results/arrow_debug/<image>/<scar>.png    the arrow found, and .txt
+      results/scale_debug/<scale image>.png     the bar that PyLithics found
+      results/arrow_debug/<image>/<scar>.png    the arrow that PyLithics found,
+                                                and a .txt file
     pylithics-pages --debug writes pages_debug/<page>.png in the project.
 
     The log: <data_dir>/results/pylithics.log
@@ -1754,7 +1813,7 @@ def launch_docs_server() -> None:
     try:
         print("\nStarting the documentation server...")
         print("URL: http://127.0.0.1:8000/Palaeoanalytics/")
-        print("Press Ctrl+C to stop\n")
+        print("Push Ctrl+C to stop the server.\n")
 
         try:
             subprocess.run(
@@ -1815,7 +1874,7 @@ def _apply_config_overrides(
 
     if overrides:
         app.update_configuration(**overrides)
-        logging.info(f"Configuration changes applied: {overrides}")
+        logging.info(f"Changes to the configuration: {overrides}")
 
 
 def _apply_scale_overrides(
@@ -1841,6 +1900,8 @@ def _apply_cortex_overrides(
         overrides['cortex_detection.min_stipple_pieces'] = pieces
     if getattr(args, 'no_cortex_letter', False):
         overrides['cortex_detection.letter.enabled'] = False
+    if getattr(args, 'keep_frames', False):
+        overrides['cortex_detection.frames.enabled'] = False
 
     sensitivity = getattr(args, 'cortex_sensitivity', None)
     if sensitivity == 'low':
@@ -1872,6 +1933,8 @@ def _apply_surface_analysis_overrides(
         overrides['symmetry_analysis.enabled'] = False
     if getattr(args, 'disable_voronoi_analysis', False):
         overrides['voronoi_analysis.enabled'] = False
+    if getattr(args, 'voronoi_images', None):
+        overrides['voronoi_analysis.images'] = args.voronoi_images
 
 
 def _apply_dpi_overrides(
@@ -1965,8 +2028,8 @@ def main() -> int:
         # import time before the first real INFO line scrolls past it.
         _clear_startup_notice()
 
-        logging.info(f"Config: {args.config_file or 'default'}")
-        logging.info(f"Data directory: {args.data_dir}")
+        logging.info(f"Configuration file: {args.config_file or 'default'}")
+        logging.info(f"Project folder: {args.data_dir}")
 
         if args.meta_file:
             logging.info(f"Metadata file: {args.meta_file}")
@@ -1974,7 +2037,7 @@ def main() -> int:
                 args.data_dir, args.meta_file, args.show_thresholded_images,
             )
             if not results['success']:
-                logging.error("The batch stopped with an error")
+                logging.error("The batch stopped with an error.")
                 return 1
 
         if explore:
@@ -1982,7 +2045,7 @@ def main() -> int:
         return 0
 
     except KeyboardInterrupt:
-        logging.info("Stopped by the user")
+        logging.info("The user stopped the command.")
         return 1
     except (FileNotFoundError, ValueError) as e:
         logging.error(f"Input error: {e}")
@@ -2010,7 +2073,7 @@ def _resolve_inputs(args: argparse.Namespace, explore: bool) -> bool:
         return False
     if not os.path.isdir(args.data_dir):
         print(f"Error: the folder {args.data_dir} does not exist. Give --data_dir the "
-              f"project folder that holds images/ and {METADATA_FILENAME}.")
+              f"project folder that contains images/ and {METADATA_FILENAME}.")
         print("Use 'pylithics --help' or 'pylithics --docs'.")
         return False
     if not args.meta_file:

@@ -18,8 +18,8 @@ millimetres.
     └── meta_data.csv    which scale goes with which image
     ```
 
-    The folder can have any name and can be anywhere. The three names
-    inside it cannot change. PyLithics writes the analysis to a fourth
+    The folder can have any name and can be anywhere. You cannot
+    change the three names inside it. PyLithics writes the analysis to a fourth
     item, `results/`, in the same folder.
 
 ## The CSV file
@@ -32,19 +32,19 @@ The metadata CSV file has these columns:
 | `scale_id` | The filename of the scale image | No* | `scale_001.png` |
 | `scale` | The length of the scale bar, in millimetres | No* | `50` |
 | `flag` | Written by `pylithics-pages`. A note for you to examine. It does not stop the analysis. | No | `several_scales` |
-| `ignore_box` | Written by `pylithics-pages`. A region of the image, `x0 y0 x1 y1` in pixels, that the analysis sets to paper before it looks for contours: the identifier kept in the crop. | No | `212 8 231 30` |
-| `scale_box` | Written by `pylithics-pages`. The box of the bar in the scale image, `x0 y0 x1 y1` in pixels, without its caption. The analysis starts its search for the bar inside it. With or without it, the bar is the largest piece of ink and the solid blocks in line with it, never a caption. | No | `10 10 217 24` |
+| `ignore_box` | Written by `pylithics-pages`. A region of the image, `x0 y0 x1 y1` in pixels. The analysis sets this region to paper before it looks for contours. The region is the identifier that stays in the crop. | No | `212 8 231 30` |
+| `scale_box` | Written by `pylithics-pages`. The box of the bar in the scale image, `x0 y0 x1 y1` in pixels. The box does not include the caption. The analysis starts its search for the bar inside this box. With or without the box, the bar is the largest piece of ink and the solid blocks in line with it. The bar is never a caption. | No | `10 10 217 24` |
 
 *Necessary for scale bar calibration. Not necessary for pixel
-measurements. A row with no `scale` value can only be measured in
-pixels. `pylithics` asks once before it does that.
+measurements. For a row with no `scale` value, PyLithics can measure
+only in pixels. `pylithics` asks once before it does that.
 
 Name the file `meta_data.csv` and keep it in the project folder. Then
-`pylithics --data_dir <project>` finds it. A file with another name or
-place needs `--meta_file`.
+`pylithics --data_dir <project>` finds it. For a file with a different
+name or location, use `--meta_file`.
 
-`pylithics-pages` writes this file for you when you start from
-published plates, with the `flag` column filled in. See
+When you start from published plates, `pylithics-pages` writes this
+file for you. It fills in the `flag` column. See
 [meta_data.csv](page-segmentation.md#meta_datacsv).
 
 ## Calibration methods
@@ -77,8 +77,8 @@ PyLithics has two calibration methods:
 
 ### One scale for many images
 
-One scale image can serve many artefacts, if the artefacts were all
-drawn at the same scale:
+You can use one scale image for many artefacts, if all the artefacts
+have the same drawing scale:
 
 ```csv
 image_id,scale_id,scale
@@ -166,8 +166,8 @@ Good filenames operate on all operating systems and prevent errors:
 - Very long names: `artifact_from_excavation_unit_4_level_3_find_number_127.png` → can be longer than the system limit
 
 **Note**: These names do not stop PyLithics. But they can cause
-unexpected results, or make quotation marks necessary in commands, or
-cause confusion when you find a problem.
+unexpected results. They can make quotation marks necessary in
+commands. They can make a problem more difficult to find.
 
 !!! tip "Recommended"
     Use underscores, not spaces. Keep the names short but clear. Use
@@ -180,7 +180,7 @@ cause confusion when you find a problem.
     adds a Byte Order Mark (BOM), a character that you cannot see. The
     BOM prevents PyLithics from reading the column headers.
 
-**The error**: `Column missing in the metadata: image_id` (when the column is there)
+**The error**: `The metadata has no image_id column.` (when the column is there)
 
 **Procedure**:
 
@@ -210,12 +210,12 @@ Examples:
 
 ### A scale bar with no value
 
-If the value of the scale bar is not printed:
+If the publication does not give the value of the scale bar:
 
 1. Find a known measurement in the publication
 2. Measure that dimension on the artefact
 3. Calculate the scale value from the ratio
-4. Make sure with more than one measurement
+4. Make sure of the value with more than one measurement
 
 ### No scale image
 
@@ -243,9 +243,9 @@ pylithics --data_dir ./artifacts --disable_scale_calibration
     cannot compare images from different sources. You cannot read the
     measurements in real-world units.
 
-!!! note "The calibration method in the output"
+!!! note "The calibration method in the results"
     PyLithics writes the calibration method of each image in the
-    output CSV (the column `calibration_method`: `scale_bar` or
+    CSV file of results (the column `calibration_method`: `scale_bar` or
     `pixels`). Use it to make sure that the measurements are correct.
 
     The pipeline has **three** calibration states. It writes them as
@@ -253,12 +253,13 @@ pylithics --data_dir ./artifacts --disable_scale_calibration
 
     | Internal state              | CSV value    | Meaning                                                                                          |
     | --------------------------- | ------------ | ------------------------------------------------------------------------------------------------ |
-    | `scale_bar`                 | `scale_bar`  | A scale image was given and the scale bar was found. The measurements are in millimetres.        |
-    | `pixels_no_scale`           | `pixels`     | No scale image was given (or `--force_pixels` or `--disable_scale_calibration` was used).         |
-    | `pixels_detection_failed`   | `pixels`     | A scale image was given but PyLithics did not find the scale bar. The measurements are in pixels. The log gives the reason as a `WARNING`. |
+    | `scale_bar`                 | `scale_bar`  | You gave a scale image and PyLithics found the scale bar. The measurements are in millimetres.    |
+    | `pixels_no_scale`           | `pixels`     | You gave no scale image, or you used `--force_pixels` or `--disable_scale_calibration`.           |
+    | `pixels_detection_failed`   | `pixels`     | You gave a scale image, but PyLithics did not find the scale bar. The measurements are in pixels. The log gives the reason as a `WARNING`. |
 
     If the CSV shows `pixels` for a lithic that has a scale, read the
-    `WARNING` in the log to find which of the two pixel cases applies.
+    `WARNING` in the log. It tells you which of the two pixel cases
+    applies.
 
 ## Next steps
 

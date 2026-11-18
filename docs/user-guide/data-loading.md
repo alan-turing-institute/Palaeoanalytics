@@ -1,23 +1,23 @@
 # Read PyLithics Output in Python, R and SPSS
 
-This page shows how to read the two output formats that PyLithics
+This page shows how to read the two file formats that PyLithics
 writes:
 
 - **`processed_metrics.csv`** — a long-format table, with one row for each contour (a surface, a scar, a cortex area or an edge). PyLithics always writes it.
 - **One JSON file for each lithic** — in `results/json/<image_id>.json`. PyLithics writes them only with `--export_json`.
 
-Use the CSV for an analysis across an assemblage (each lithic and each
-feature in one data frame). Use the JSON for the nested structure of
-one lithic (for example, to go through the surfaces and the features
-of one artefact, or for a web page for one lithic).
+Use the CSV for an analysis across an assemblage, with each lithic and
+each feature in one data frame. Use the JSON for the nested structure of
+one lithic. For example, use it to go through the surfaces and the
+features of one artefact, or for a web page for one lithic.
 
 ## CSV: one row for each contour
 
 ### Parent and child rows
 
-Each row is a **parent** (a classified surface: Dorsal, Ventral,
-Platform or Lateral) or a **child** (a feature on that surface: a scar,
-an edge or a cortex area). Two columns show which:
+Each row is a **parent** or a **child**. A parent is a classified
+surface: Dorsal, Ventral, Platform or Lateral. A child is a feature on
+that surface: a scar, an edge or a cortex area. Two columns show which:
 
 - `surface_type` — the surface: `Dorsal`, `Ventral`, `Platform`, `Lateral` or `Unclassified`
 - `surface_feature` — for a parent row, the same value as `surface_type`. For a child row, the feature: `scar 1`, `edge 1`, `cortex 1` and so on.
@@ -90,7 +90,7 @@ the file and then changes those columns to numeric.
 
 1. Select **File > Import Data > CSV Data**.
 2. Select `processed_metrics.csv` and click **Open**.
-3. In the dialog, make sure that these options are set:
+3. In the dialog, make sure that the options have these values:
     - **First line contains variable names**: on
     - **Delimiter between values**: comma
     - **Decimal symbol**: period

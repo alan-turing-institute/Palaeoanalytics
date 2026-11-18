@@ -252,25 +252,65 @@ def _convex_hull_metrics(hull) -> Dict[str, float]:
 
 # --------------- Visualization ---------------
 
+# The Voronoi images: ``--voronoi_images`` / ``voronoi_analysis.images``.
+VORONOI_IMAGE_KINDS = ('combined', 'voronoi', 'hull')
+IMAGE_SUFFIXES = {
+    'combined': '_voronoi.png',         # cells, hull line and centroids: the default
+    'voronoi': '_voronoi_cells.png',    # cells and centroids, no hull
+    'hull': '_convex_hull.png',         # hull, lightly filled, and centroids, no cells
+}
+_TITLES = {
+    'combined': "Voronoi Diagram with Convex Hull",
+    'voronoi': "Voronoi Diagram",
+    'hull': "Convex Hull of the Scar Centroids",
+}
+
+
+def parse_voronoi_kinds(value) -> List[str]:
+    """
+    Return the Voronoi image kinds named in a comma list or a list, in their usual order.
+
+    Raises ``ValueError`` for a kind that is not ``combined``, ``voronoi``
+    or ``hull``.
+    """
+    names = value.split(',') if isinstance(value, str) else list(value or [])
+    kinds = {str(kind).strip().lower() for kind in names if str(kind).strip()}
+    unknown = sorted(kinds - set(VORONOI_IMAGE_KINDS))
+    if unknown or not kinds:
+        raise ValueError(
+            f"Unknown Voronoi image kind(s) {', '.join(unknown) or '(none)'}. "
+            f"Use one or more of {', '.join(VORONOI_IMAGE_KINDS)}, with commas and no spaces."
+        )
+    return [kind for kind in VORONOI_IMAGE_KINDS if kind in kinds]
+
+
+def write_voronoi_images(
+    voronoi_data: Dict, inverted_image: np.ndarray, output_dir: str, stem: str,
+    conversion_factor: Optional[float] = None, kinds=('combined',),
+) -> List[str]:
+    """Write one image for each kind as ``<stem><suffix>``; return the paths."""
+    paths = []
+    for kind in parse_voronoi_kinds(kinds):
+        path = os.path.join(output_dir, f"{stem}{IMAGE_SUFFIXES[kind]}")
+        visualize_voronoi_diagram(voronoi_data, inverted_image, path, conversion_factor, kind)
+        paths.append(path)
+    return paths
+
+
 def visualize_voronoi_diagram(
     voronoi_data: Dict,
     inverted_image: np.ndarray,
     output_path: str,
-    conversion_factor: Optional[float] = None
+    conversion_factor: Optional[float] = None,
+    kind: str = 'combined',
 ) -> None:
     """
-    Visualize Voronoi diagram and convex hull on dorsal surface.
+    Draw the Voronoi cells, the convex hull, or both, on the dorsal surface.
 
-    Parameters
-    ----------
-    voronoi_data : dict
-        Output from calculate_voronoi_points().
-    inverted_image : np.ndarray
-        Inverted binary thresholded image.
-    output_path : str
-        Path to save the visualization.
-    conversion_factor : float, optional
-        Pixels per mm. If provided, axes show millimeters.
+    ``kind`` is ``combined`` (cells, hull line and centroids), ``voronoi``
+    (cells and centroids) or ``hull`` (the hull lightly filled, and the
+    centroids). All three share the frame and the axes, so they line up.
+    ``conversion_factor`` is pixels per mm; with it the axes are in mm.
     """
     original = cv2.bitwise_not(inverted_image)
     background = cv2.cvtColor(original, cv2.COLOR_GRAY2RGB)
@@ -278,12 +318,14 @@ def visualize_voronoi_diagram(
     fig, ax = plt.subplots(figsize=(10, 10))
     ax.imshow(background)
 
-    _draw_voronoi_patches(ax, voronoi_data)
-    _draw_convex_hull(ax, voronoi_data)
+    if kind in ('combined', 'voronoi'):
+        _draw_voronoi_patches(ax, voronoi_data)
+    if kind in ('combined', 'hull'):
+        _draw_convex_hull(ax, voronoi_data, filled=(kind == 'hull'))
     _draw_centroids(ax, voronoi_data)
     _set_plot_bounds(ax, voronoi_data, conversion_factor)
 
-    ax.set_title("Voronoi Diagram with Convex Hull")
+    ax.set_title(_TITLES[kind])
     ax.legend()
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -324,14 +366,16 @@ def _draw_voronoi_patches(ax, voronoi_data: Dict) -> None:
     ax.add_collection(collection)
 
 
-def _draw_convex_hull(ax, voronoi_data: Dict) -> None:
-    """Overlay the convex hull on the plot."""
+def _draw_convex_hull(ax, voronoi_data: Dict, filled: bool = False) -> None:
+    """Draw the convex hull line; with ``filled``, shade its inside lightly too."""
     hull = voronoi_data['convex_hull']
     if hull.is_empty:
         return
 
     if hull.geom_type == 'Polygon':
         coords = np.array(hull.exterior.coords)
+        if filled:
+            ax.fill(coords[:, 0], coords[:, 1], color="black", alpha=0.12, linewidth=0)
         ax.plot(
             coords[:, 0], coords[:, 1],
             color="black", linewidth=2, label="Convex Hull"

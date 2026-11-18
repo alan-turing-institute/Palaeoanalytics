@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 
-from pylithics.image_processing.modules.dashboard.data import CHECKS, REVIEW_COLUMNS
+from pylithics.image_processing.modules.dashboard.data import CHECKS, REVIEW_COLUMNS, link_docs
 
 REVIEW_FILENAME = "review.csv"
 _PAGE = (11.69, 8.27)           # A4 landscape, inches
@@ -230,7 +230,8 @@ def _review_html(items: pd.DataFrame) -> str:
         if rows.empty:
             clear.append(check["title"])
             continue
-        steps = "".join(f"<li>{_e(step)}</li>" for step in check["steps"])
+        steps = "".join(f"<li>{link_docs(_e(step), as_html=True)}</li>"
+                        for step in check["steps"])
         table = "".join(
             "<tr>" + "".join(f"<td>{_e(str(r[c]))}</td>" for c in ("image_id", "item",
                                                                    "value", "reason"))

@@ -1,7 +1,7 @@
 # Troubleshooting
 
 This page gives the most common problems with PyLithics. If your
-problem is not here, read `pylithics.log` in the output directory to
+problem is not here, read `pylithics.log` in the results folder to
 find the error. Then [open a GitHub
 issue](https://github.com/alan-turing-institute/Palaeoanalytics/issues)
 with the lines from the log.
@@ -49,7 +49,7 @@ pip install .
 
 ### Virtual environment
 
-**Problem**: The virtual environment does not activate, or the installed packages are not found
+**Problem**: The virtual environment does not activate, or Python does not find the installed packages
 
 **Procedure**:
 
@@ -129,7 +129,7 @@ artifact_001.png,scale_001.png,10
 The `scale` column is in **millimetres**. Common errors:
 
 - The scale value is in centimetres, not millimetres
-- The wrong scale image is connected to the artefact
+- The metadata connects the wrong scale image to the artefact
 - `scale_id` is missing or empty
 
 You can also use pixel measurements and no calibration:
@@ -180,16 +180,16 @@ defaults. Compare the spelling of each flag with `pylithics --help`.
 
 ### Arrow detection
 
-**Problem**: Arrows are not found, or marks that are not arrows are found
+**Problem**: PyLithics does not find arrows, or it finds marks that are not arrows
 
-**Write the debug output**:
+**Write the debug files**:
 
 ```bash
 pylithics --data_dir ./data \
     --arrow_debug --log_level DEBUG
 ```
 
-**Examine the debug output** in `results/arrow_debug/<image>/`. Each mark that was tried has a `.png` and a `.txt`, named by its scar and its number in that scar, for example `scar_3_mark_1.png`. The `.png` shows the scar at the working resolution with the direction found, green when the mark is an arrow and orange when it is not. The `.txt` shows the tests of stage 1, the stage that decided (`triangle`, `triangle turned` when the model turned the direction, `model`, `ink inside`, `too short` or `no model`), the scores and the measurements.
+**Examine the debug files** in `results/arrow_debug/<image>/`. Each mark that PyLithics tried has a `.png` and a `.txt`. The file name gives the scar and the number of the mark in that scar, for example `scar_3_mark_1.png`. The `.png` shows the scar at the working resolution with the direction found. The direction is green when the mark is an arrow and orange when it is not. The `.txt` shows the tests of stage 1, the stage that decided, the scores and the measurements. The stage that decided is `triangle`, `triangle turned` (when the model turned the direction), `model`, `ink inside`, `too short` or `no model`.
 
 **Adjust the settings in `config.yaml`**:
 
@@ -201,11 +201,11 @@ arrow_detection:
     threshold: 0.5  # Decrease the value to find more arrows with stage 2. Increase it to find fewer marks that are not arrows.
 ```
 
-Only a mark inside a recognised scar is tried. A mark that touches the outline of its scar is part of the outline and is not found. A scar with a broken outline is not recognised, so the arrows in it are not found. The scars of a ventral or platform surface have no row in the results, so the arrows in them are not found.
+PyLithics tries only a mark inside a recognised scar. A mark that touches the outline of its scar is part of the outline, and PyLithics does not find it. PyLithics does not recognise a scar with a broken outline, so it does not find the arrows in it. The scars of a ventral or platform surface have no row in the results, so PyLithics does not find the arrows in them.
 
 ### Cortex detection
 
-**Problem**: Too few or too many cortex areas are found
+**Problem**: PyLithics finds too few or too many cortex areas
 
 ```bash
 # Increase the sensitivity
@@ -218,19 +218,29 @@ pylithics --data_dir ./data --cortex_sensitivity low
 pylithics --data_dir ./data --disable_cortex_detection
 ```
 
-**Problem**: A scar that holds an arrow or a numeral is marked as cortex, and its arrow is not found
+**Problem**: PyLithics marks a scar that holds an arrow or a numeral as cortex, and does not find its arrow
 
 **Cause**: Cortex is stippling, many small pieces of ink. A scar is cortex only when it holds at least `min_stipple_pieces` of them (default 3). A larger value makes the test stricter
 **Procedure**: `pylithics --data_dir ./data --min_stipple_pieces 4`, or set `cortex_detection.min_stipple_pieces` in `config.yaml`
 
-**Problem**: A scar marked with the letter C is not cortex, or a scar with a letter is cortex when it should not be
+**Problem**: A scar with the letter C is not cortex, or PyLithics incorrectly marks a scar with a letter as cortex
 
-**Cause**: Some illustrators mark a cortex scar with the letter C. PyLithics reads each small mark inside a scar with RapidOCR. A scar is cortex when a mark reads as one of the letters in `cortex_detection.letter.letters` (default `C`) at a confidence of 0.8 or more. The column `cortex_source` says `letter` for these scars. Without RapidOCR the letter is not read, and the log says so once
+**Cause**: Some illustrators mark a cortex scar with the letter C. PyLithics reads each small mark inside a scar with RapidOCR. A scar is cortex when a mark reads as one of the letters in `cortex_detection.letter.letters` (default `C`) at a confidence of 0.8 or more. The column `cortex_source` says `letter` for these scars. Without RapidOCR, PyLithics does not read the letter, and the log tells you this one time
 **Procedure**:
 
 1. To read the letter, install the reader: `pip install '.[ocr]'`.
 2. To add a letter that your illustrator used, set `letters: ["C", "K"]` under `cortex_detection.letter` in `config.yaml`.
 3. To stop the letter test, run `pylithics --data_dir ./data --no_cortex_letter`.
+
+A letter on a platform, lateral or ventral view, in no scar, makes the whole view cortex. A letter on the dorsal view outside every scar does not count.
+
+**Problem**: A thin rectangle around a letter is a scar in the results
+
+**Cause**: Some illustrators draw a thin rectangle around a label. The rectangle is a closed outline. PyLithics removes a thin rectangle that holds one letter before it finds the scars. A rectangle with lines more than half as thick as the drawing lines stays, because PyLithics reads it as a scar. The log gives each rectangle that PyLithics removed.
+**Procedure**:
+
+1. To keep all rectangles, run `pylithics --data_dir ./data --keep_frames`.
+2. To remove rectangles with thicker lines, set a larger `max_line_ratio` under `cortex_detection.frames` in `config.yaml`.
 
 ### The analysis is slow
 
@@ -288,9 +298,9 @@ grep ERROR <data_dir>/results/pylithics.log
 **Problem**: The measurements do not agree with what you expect
 
 1. Make sure that the `scale` column in the metadata is in millimetres
-2. Examine the labelled image to make sure that the correct contour was found
+2. Examine the labelled image to make sure that PyLithics found the correct contour
 3. Compare the measurements with the known measurements in the publication
-4. Examine the CSV column `calibration_method`. `pixels` means that no change to millimetres was applied
+4. Examine the CSV column `calibration_method`. `pixels` means that PyLithics did not change the measurements to millimetres
 
 ```python
 import pandas as pd
@@ -323,7 +333,7 @@ The dashboard's Review page and `results/review.csv` use these checks. Each row 
 **Procedure**:
 
 1. Open the labelled image of the lithic. Find the outline with the label Unclassified.
-2. If the outline is a view of the lithic, its size in the drawing does not agree with the dorsal view. You cannot correct this in PyLithics. Use the result as it is, or redraw the image/s to meet size requirements.
+2. If the outline is a view of the lithic, its size in the drawing does not agree with the dorsal view. You cannot correct this in PyLithics. Use the result as it is, or draw the views again to agree with the size rules in [Image Requirements: Views and their sizes](image-requirements.md#views-and-their-sizes).
 3. If the outline is not part of the lithic, for example text, a number or a mark, remove it from the image. Then run the analysis again.
 
 ### Zero-scar lithics
@@ -431,13 +441,13 @@ sudo yum install python3-devel opencv-devel
 
 ### "rows in meta_data.csv have no value in the scale column. Measure them in pixels?"
 
-**Cause**: Some rows in `meta_data.csv` have no value in the `scale` column. That column holds the length of the scale bar in millimetres, which you type. The `scale_id` column names the scale image; it is not enough on its own. Those images can only be measured in pixels
-**Procedure**: Answer `y` to analyse all images, in pixels where there is no scale. Answer `n` to analyse only the images with a scale. Then fill in the `scale` column and start the command again. See [Basic Usage](basic-usage.md#rows-with-no-scale-and-rows-with-a-flag)
+**Cause**: Some rows in `meta_data.csv` have no value in the `scale` column. That column holds the length of the scale bar in millimetres. You type this value. The `scale_id` column names the scale image. It is not sufficient alone. PyLithics can measure those images only in pixels
+**Procedure**: Answer `y` to analyse all images, in pixels where there is no scale. Answer `n` to analyse only the images with a scale. Then type the values in the `scale` column and start the command again. See [Basic Usage](basic-usage.md#rows-with-no-scale-and-rows-with-a-flag)
 
 ### "rows with no value in the scale column are not analysed"
 
 **Cause**: You answered `n` to the question above
-**Procedure**: Fill in the `scale` column of `meta_data.csv` for those images. `run_summary.json` lists them. Start the command again
+**Procedure**: Type the values in the `scale` column of `meta_data.csv` for those images. `run_summary.json` lists them. Start the command again
 
 ### "PyLithics vN.N.N is available"
 
@@ -446,8 +456,8 @@ sudo yum install python3-devel opencv-devel
 
 ### "row(s) in the metadata have a flag"
 
-**Cause**: `pylithics-pages` put a flag on those rows in `meta_data.csv`. The images were analysed
-**Procedure**: Examine each flagged row (the log names them). Fill in the scale, correct the row, remove the flag. See [meta_data.csv](page-segmentation.md#meta_datacsv)
+**Cause**: `pylithics-pages` put a flag on those rows in `meta_data.csv`. PyLithics analysed the images
+**Procedure**: Examine each row that has a flag (the log names them). Type the scale. Correct the row. Remove the flag. See [meta_data.csv](page-segmentation.md#meta_datacsv)
 
 ### "FileNotFoundError"
 
@@ -456,13 +466,13 @@ sudo yum install python3-devel opencv-devel
 
 ### "the folder ... does not exist"
 
-**Cause**: The folder given to `--data_dir` is not there. Both commands stop before they write anything. A frequent cause is a space at the end of the folder name, which the Finder does not show
+**Cause**: The folder that you gave to `--data_dir` is not there. Both commands stop before they write anything. A frequent cause is a space at the end of the folder name, which the Finder does not show
 **Procedure**: Compare the name in the message with the name of the folder. Correct the name, or rename the folder. Then start the command again
 
 ### "No page images in ..."
 
-**Cause**: `pylithics-pages` found no page image and no PDF file in the folder. The run completes with no crops. The pages go in a `pages/` folder inside the project folder
-**Procedure**: Put the plates in `<project>/pages/`. The formats read are `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp` and PDF. Then start the command again
+**Cause**: `pylithics-pages` found no page image and no PDF file in the folder. The run completes with no crops. The pages must be in a `pages/` folder inside the project folder
+**Procedure**: Put the plates in `<project>/pages/`. The command reads these formats: `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp` and PDF. Then start the command again
 
 ### "ValueError: could not convert string to float"
 
@@ -476,7 +486,7 @@ sudo yum install python3-devel opencv-devel
 
 ### "ImportError: No module named 'cv2'"
 
-**Cause**: OpenCV is not installed
+**Cause**: The installation does not include OpenCV
 **Procedure**: `pip install opencv-python-headless`
 
 ### "yaml.scanner.ScannerError"

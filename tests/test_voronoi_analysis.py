@@ -316,3 +316,59 @@ def test_voronoi_with_fifty_points_completes_under_ten_seconds():
 
     assert result["voronoi_metrics"]["num_cells"] == 51
     assert elapsed < 10.0, f"took {elapsed:.1f}s (limit 10s)"
+
+
+# ---------------------------------------------------------------------------
+# The chosen images: combined, cells alone, hull alone
+# ---------------------------------------------------------------------------
+
+
+def _pipeline_result():
+    metrics = [
+        _dorsal_parent(centroid=(100, 150), contour=_rect_contour(50, 100, 150, 200)),
+        _dorsal_scar("scar 1", (80, 130)),
+        _dorsal_scar("scar 2", (120, 170)),
+        _dorsal_scar("scar 3", (90, 160)),
+    ]
+    inverted = np.zeros((250, 200), dtype=np.uint8)
+    return calculate_voronoi_points(metrics, inverted, padding_factor=0.05), inverted
+
+
+@pytest.mark.unit
+class TestVoronoiImages:
+
+    def test_the_default_writes_the_combined_image_only(self, tmp_path):
+        from pylithics.image_processing.modules.voronoi_analysis import write_voronoi_images
+        result, inverted = _pipeline_result()
+        paths = write_voronoi_images(result, inverted, str(tmp_path), "awbari")
+        assert [os.path.basename(p) for p in paths] == ["awbari_voronoi.png"]
+        assert sorted(os.listdir(tmp_path)) == ["awbari_voronoi.png"]
+
+    def test_cells_and_hull_are_two_images_with_no_overlay(self, tmp_path, monkeypatch):
+        from pylithics.image_processing.modules import voronoi_analysis as va
+        drawn = []
+        monkeypatch.setattr(va, "_draw_voronoi_patches",
+                            lambda ax, data: drawn.append("cells"))
+        monkeypatch.setattr(va, "_draw_convex_hull",
+                            lambda ax, data, filled=False: drawn.append(f"hull filled={filled}"))
+        result, inverted = _pipeline_result()
+        paths = va.write_voronoi_images(result, inverted, str(tmp_path), "awbari",
+                                        kinds="voronoi,hull")
+        assert [os.path.basename(p) for p in paths] == [
+            "awbari_voronoi_cells.png", "awbari_convex_hull.png"]
+        assert drawn == ["cells", "hull filled=True"]      # one each, never together
+
+    def test_kinds_are_checked_and_put_in_order(self):
+        from pylithics.image_processing.modules.voronoi_analysis import parse_voronoi_kinds
+        assert parse_voronoi_kinds("hull,combined") == ["combined", "hull"]
+        assert parse_voronoi_kinds(["voronoi"]) == ["voronoi"]
+        with pytest.raises(ValueError, match="combined, voronoi, hull"):
+            parse_voronoi_kinds("cells")
+
+    def test_the_measurements_do_not_depend_on_the_images(self, tmp_path):
+        from pylithics.image_processing.modules.voronoi_analysis import write_voronoi_images
+        result, inverted = _pipeline_result()
+        before = dict(result["voronoi_metrics"]), dict(result["convex_hull_metrics"])
+        write_voronoi_images(result, inverted, str(tmp_path), "awbari",
+                             kinds=["combined", "voronoi", "hull"])
+        assert (result["voronoi_metrics"], result["convex_hull_metrics"]) == before

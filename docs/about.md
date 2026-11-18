@@ -2,7 +2,7 @@
 
 ## The project
 
-PyLithics started as part of the [Palaeoanalytics project](https://www.turing.ac.uk/research/research-projects/palaeoanalytics) (now complete), a collaboration between The Alan Turing Institute and the University of Cambridge, led by Professor Robert Foley. After that project, the development of PyLithics continued as part of the British Academy project "Transitions in early stone tool technologies: a computer vision and machine learning approach", led by Dr Jason Gellis. These projects apply machine learning and computer vision to archaeological research. They measure prehistoric stone tools from 2D illustrations.
+PyLithics started as part of the [Palaeoanalytics project](https://www.turing.ac.uk/research/research-projects/palaeoanalytics), which is now complete. This project was a collaboration between The Alan Turing Institute and the University of Cambridge. Professor Robert Foley led it. After that project, the development of PyLithics continued as part of a British Academy project. Dr Jason Gellis leads this project. Its title is "Transitions in early stone tool technologies: a computer vision and machine learning approach". These projects apply machine learning and computer vision to archaeological research. They measure prehistoric stone tools from 2D illustrations.
 
 ## Research uses
 
@@ -25,8 +25,8 @@ PyLithics supports these types of archaeological research:
 PyLithics follows the principles of open science:
 
 - **Open source**: all code is free under GPL v3.0
-- **Documented methods**: the algorithms are fully documented
-- **Reproducible research**: the analysis parameters are recorded, and you can share them
+- **Documented methods**: the documentation describes all the algorithms
+- **Reproducible research**: PyLithics records the analysis parameters, and you can share them
 - **The community**: the users guide the development
 
 ## The team
@@ -37,7 +37,7 @@ PyLithics follows the principles of open science:
 - [jg760@cam.ac.uk](mailto:jg760@cam.ac.uk)
 - [@JasonGellis](https://github.com/JasonGellis)
 
-Dr Gellis leads the development of PyLithics. His expertise is in computer vision, machine learning and archaeological methods. He has been part of the project at all stages. He now leads the development as part of his British Academy research. His research is at the meeting point of computational methods and archaeological science.
+Dr Gellis leads the development of PyLithics. His expertise is in computer vision, machine learning and archaeological methods. He has been part of the project at all stages. He now leads the development as part of his British Academy research. His research connects computational methods and archaeological science.
 
 **Prof. Robert Foley**
 
@@ -63,11 +63,11 @@ The national academy of the UK for the humanities and social sciences. It funds 
 The national institute of the UK for data science and artificial intelligence. It gave computational expertise and infrastructure for the Palaeoanalytics project.
 
 ### University of Cambridge
-The Leverhulme Centre for Human Evolutionary Studies (LCHES) gives archaeological expertise and access to large lithic collections, for the development and validation of the methods in both phases of the project.
+The Leverhulme Centre for Human Evolutionary Studies (LCHES) gives archaeological expertise and access to large lithic collections. These help the development and validation of the methods in both phases of the project.
 
 ## Funding
 
-This research is supported by:
+These institutions support this research:
 
 - The British Academy
 - The Alan Turing Institute
@@ -98,7 +98,7 @@ https://doi.org/10.5281/zenodo.303727518
 
 ## Contributions
 
-Contributions from the archaeological and computational communities are welcome:
+We welcome contributions from the archaeological and computational communities:
 
 ### How to contribute
 

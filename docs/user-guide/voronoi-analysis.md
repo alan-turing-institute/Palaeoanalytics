@@ -61,6 +61,30 @@ pylithics --data_dir ./data --config_file ./no_voronoi.yaml
 - The centroid points
 - The axes in millimetres when the scale calibration is correct, and in pixels when it is not
 
+### The cells and the convex hull as separate images
+
+In the default image the convex hull is on the Voronoi cells. To see one of them
+without the other, give `--voronoi_images`:
+
+| Value | File | Contents |
+|---|---|---|
+| `combined` | `{image_stem}_voronoi.png` | The cells, the convex hull and the centroids. This is the default. |
+| `voronoi` | `{image_stem}_voronoi_cells.png` | The cells and the centroids. No convex hull. |
+| `hull` | `{image_stem}_convex_hull.png` | The convex hull, with a light fill, and the centroids. No cells. |
+
+```bash
+# The cells and the convex hull as two images
+pylithics --data_dir ./data --voronoi_images voronoi,hull
+
+# All three images
+pylithics --data_dir ./data --voronoi_images combined,voronoi,hull
+```
+
+The three images have the same frame and the same axes, so you can put them side by
+side. The measurements do not change. The setting is `images` under `voronoi_analysis`
+in `config.yaml`. The dashboard's Per-Lithic Detail page shows the first image that
+exists, in this sequence: combined, cells, hull.
+
 ### CSV columns
 
 When the Voronoi analysis is possible for an image, these columns are
@@ -233,7 +257,7 @@ plt.show()
 **No Voronoi diagrams**:
 - Make sure that the surfaces have 3 scars or more
 - Make sure that `voronoi_analysis.enabled` is `true` in the configuration
-- Make sure that you can write to the output directory
+- Make sure that you can write to the results directory
 
 **Cell areas that are not plausible**:
 - Make sure that the scale in the metadata is correct

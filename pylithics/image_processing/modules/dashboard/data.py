@@ -376,17 +376,33 @@ def per_image_image_paths(
     processed_dir: Path, image_id: str,
 ) -> Dict[str, Optional[Path]]:
     """
-    Resolve the labeled image, voronoi diagram, and JSON file for ``image_id``.
+    Resolve the labeled image, a Voronoi image, and the JSON file for ``image_id``.
 
-    Each value is the absolute path or None if that artifact doesn't exist.
+    Each value is the absolute path or None if that file does not exist. The
+    Voronoi image is the first that exists of the combined image, the cells
+    alone and the hull alone; ``voronoi_title`` names it.
     """
     stem = os.path.splitext(image_id)[0]
     candidates = {
         "labeled": processed_dir / f"{stem}_labeled.png",
-        "voronoi": processed_dir / f"{stem}_voronoi.png",
         "json": processed_dir / "json" / f"{stem}.json",
     }
-    return {k: (p if p.exists() else None) for k, p in candidates.items()}
+    found = {k: (p if p.exists() else None) for k, p in candidates.items()}
+    found["voronoi"], found["voronoi_title"] = None, None
+    for suffix, title in VORONOI_IMAGES:          # the first image that exists
+        path = processed_dir / f"{stem}{suffix}"
+        if path.exists():
+            found["voronoi"], found["voronoi_title"] = path, title
+            break
+    return found
+
+
+# The Voronoi images, in the order the Per-Lithic Detail page looks for them.
+VORONOI_IMAGES = (
+    ("_voronoi.png", "Voronoi diagram with convex hull"),
+    ("_voronoi_cells.png", "Voronoi diagram"),
+    ("_convex_hull.png", "Convex hull"),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -516,6 +532,24 @@ def _as_bool(series: pd.Series) -> pd.Series:
 
 REVIEW_COLUMNS = ["check", "image_id", "item", "value", "reason", "what_to_do"]
 
+# Docs sections that the check text names. The Review page and the HTML report
+# show each name as a link; review.csv keeps the plain name.
+DOCS_URL = "https://alan-turing-institute.github.io/Palaeoanalytics/"
+DOC_LINKS = {
+    "Image Requirements: Views and their sizes":
+        DOCS_URL + "user-guide/image-requirements/#views-and-their-sizes",
+    "Troubleshooting": DOCS_URL + "user-guide/troubleshooting/",
+}
+
+
+def link_docs(text: str, as_html: bool = False) -> str:
+    """Return the text with each docs section it names as a Markdown or HTML link."""
+    for name, url in DOC_LINKS.items():
+        if name in text:
+            link = f'<a href="{url}">{name}</a>' if as_html else f"[{name}]({url})"
+            return text.replace(name, link, 1)
+    return text
+
 # One entry for each Overview check, in the order of the tiles. The Overview
 # help text, the Review page, the report and review.csv all use this text.
 CHECKS = {
@@ -541,7 +575,8 @@ CHECKS = {
             "label Unclassified.",
             "If the outline is a view of the lithic, its size in the drawing does "
             "not agree with the dorsal view. You cannot correct this in PyLithics. "
-            "Use the result as it is.",
+            "Use the result as it is, or draw the views again to agree with the "
+            "size rules in Image Requirements: Views and their sizes.",
             "If the outline is not part of the lithic, for example text, a number "
             "or a mark, remove it from the image. Then run the analysis again.",
         ],

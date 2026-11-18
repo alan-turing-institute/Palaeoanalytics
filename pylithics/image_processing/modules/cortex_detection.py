@@ -61,22 +61,19 @@ def detect_cortex_in_child_contours(
         logging.debug("Cortex detection is disabled in configuration")
         return metrics
 
-    logging.debug("Starting cortex detection in child contours")
-
     try:
         parents = [m for m in metrics if m["parent"] == m["scar"]]
         children = [m for m in metrics if m["parent"] != m["scar"]]
 
         parent_areas = {p.get("scar", ""): p.get("area", 0) for p in parents}
-        parent_surface = {
-            p.get("scar", ""): p.get("surface_type", "Unknown") for p in parents
-        }
+        parent_surface = {p.get("scar", ""): p.get("surface_type", "Unknown") for p in parents}
 
         letters_on = (working, factor) if working is not None else (inverted_image, 1)
         cortex_children, non_cortex_children = _classify_cortex_children(
             children, inverted_image, config, letters_on
         )
         _label_cortex_children(cortex_children, parent_areas)
+        _letter_on_views(parents, children, letters_on, config)
         renumbered = _renumber_non_cortex_children(
             non_cortex_children, parent_surface
         )
@@ -124,15 +121,43 @@ def _classify_cortex_children(
     return cortex, non_cortex
 
 
+LETTER_VIEWS = ("Platform", "Lateral", "Ventral")
+
+
+def _letter_on_views(
+    parents: List[Dict[str, Any]], children: List[Dict[str, Any]],
+    letters_on: "tuple", config: Dict[str, Any],
+) -> None:
+    """
+    Mark a platform, lateral or ventral view as cortex when a letter lies on it.
+
+    The letter must lie in no scar of the view. The whole view is cortex.
+    A letter on the dorsal view outside every scar is ignored.
+    """
+    for view in parents:
+        if view.get("surface_type") not in LETTER_VIEWS or not view.get("contour"):
+            continue
+        scars = [np.array(c["contour"], dtype=np.int32) for c in children
+                 if c.get("parent") == view.get("scar") and c.get("contour")]
+        outline = np.array(view["contour"], dtype=np.int32)
+        if _letter_in_scar(outline, *letters_on, config, outside=scars):
+            area = view.get("area", 0)
+            view.update(is_cortex=True, cortex_area=area, cortex_percentage=100.0,
+                        cortex_source="letter")
+            logging.debug(f"{view.get('surface_type')} view is cortex by a letter")
+
+
 def _letter_in_scar(
     contour: np.ndarray, ink: np.ndarray, factor: int, config: Dict[str, Any],
+    outside: "List[np.ndarray] | None" = None,
 ) -> bool:
     """
     Report whether a mark inside the scar reads as a cortex letter.
 
     A mark counts when the reader returns one line, that line is one of
     the configured letters (case ignored), and its confidence is at least
-    ``min_confidence``.
+    ``min_confidence``. A mark whose centre lies in one of the ``outside``
+    contours (the scars of a view) is not read: it belongs to that scar.
     """
     settings = {**DEFAULT_LETTER, **(config.get('letter') or {})}
     if not settings.get('enabled', True):
@@ -144,11 +169,20 @@ def _letter_in_scar(
     from .arrow_integration import marks_in_scar
     marks = marks_in_scar(contour, ink, factor)
     for mark in marks.contours:
+        if outside and _centre_in(mark, marks, outside):
+            continue
         text, score = _read_mark(reader, marks.ink, mark)
         if text.upper() in letters and score >= float(settings.get('min_confidence', 0.8)):
             logging.debug(f"Cortex letter {text!r} read at {score:.2f}")
             return True
     return False
+
+
+def _centre_in(mark: np.ndarray, marks, contours: "List[np.ndarray]") -> bool:
+    """Say whether the mark's centre, on the source grid, lies in one of the contours."""
+    x, y, w, h = cv2.boundingRect(mark)
+    cx, cy = marks.to_source((x + w / 2.0, y + h / 2.0))
+    return any(cv2.pointPolygonTest(c, (float(cx), float(cy)), False) >= 0 for c in contours)
 
 
 def _read_mark(reader, ink: np.ndarray, mark: np.ndarray) -> "tuple[str, float]":
