@@ -116,6 +116,47 @@ class TestClassifyParentContours:
 
 
 @pytest.mark.unit
+class TestDorsalIsTheFaceWithTheScars:
+    """Of two faces of similar size, the one with more child contours is dorsal."""
+
+    @staticmethod
+    def _types(metrics):
+        return {m["parent"]: m["surface_type"] for m in metrics if m["parent"] == m["scar"]}
+
+    def test_the_smaller_face_with_scars_is_dorsal(self):
+        metrics = [
+            _parent("plain", 100.0, 60.0, 5000.0),
+            _parent("scarred", 98.0, 61.0, 4950.0),
+            _child("scarred", "s1", 100.0),
+            _child("scarred", "s2", 80.0),
+            _child("scarred", "s3", 60.0),
+        ]
+        classify_parent_contours(metrics)
+        assert self._types(metrics) == {"scarred": "Dorsal", "plain": "Ventral"}
+
+    def test_equal_counts_fall_back_to_area(self):
+        metrics = [
+            _parent("big", 100.0, 60.0, 5000.0),
+            _parent("small", 98.0, 61.0, 4950.0),
+            _child("big", "a", 50.0),
+            _child("small", "b", 50.0),
+        ]
+        classify_parent_contours(metrics)
+        assert self._types(metrics) == {"big": "Dorsal", "small": "Ventral"}
+
+    def test_a_small_outline_with_children_is_not_dorsal(self):
+        metrics = [
+            _parent("face", 100.0, 60.0, 5000.0),
+            _parent("platform", 30.0, 20.0, 500.0),
+            _child("platform", "p1", 10.0),
+            _child("platform", "p2", 10.0),
+        ]
+        classify_parent_contours(metrics)
+        types = self._types(metrics)
+        assert types["face"] == "Dorsal" and types["platform"] == "Platform"
+
+
+@pytest.mark.unit
 class TestToleranceSensitivity:
     """One parameterized test replaces three with identical setup."""
 

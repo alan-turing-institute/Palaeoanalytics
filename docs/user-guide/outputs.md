@@ -15,6 +15,7 @@ my_project/results/
 ├── processed_metrics.csv          # The metrics for all images
 ├── pylithics.log                  # The log, for a person to read
 ├── run_summary.json               # A summary of the analysis, for a program to read
+├── review.csv                     # The items to examine, with the reason and what to do
 ├── artifact_001_labeled.png       # The labelled image
 ├── artifact_001_voronoi.png       # The Voronoi diagram (dorsal surfaces only)
 ├── artifact_002_labeled.png
@@ -60,6 +61,14 @@ dashboard cannot count them from the CSV. The command writes a new
 it is not necessary to read it. Other programs can read it too. Its
 structure is simple.
 
+`review.csv` lists the items to examine after the analysis: one row
+for each image or surface that a check found. The columns are `check`,
+`image_id`, `item`, `value`, `reason` and `what_to_do`. The reason is
+written from the numbers of the row. When nothing needs examination, the
+file has the header only. The dashboard's Review page shows the same
+rows. See the review checks in
+[Troubleshooting](troubleshooting.md#dashboard-review-checks).
+
 ## The main output: `processed_metrics.csv`
 
 One CSV holds one row for each surface and each scar, for all the
@@ -71,7 +80,7 @@ PyLithics writes. A missing value is `NA`.
 | Column | Description |
 |--------|-------------|
 | `image_id` | The filename of the source image |
-| `surface_type` | `Dorsal`, `Ventral`, `Platform`, `Lateral` or `Unclassified` |
+| `surface_type` | `Dorsal`, `Ventral`, `Platform`, `Lateral` or `Unclassified`. Of two outlines of the same size, the one with more scars is `Dorsal` |
 | `surface_feature` | For a surface row, the surface name (for example `Dorsal`). For a child row, the scar, edge or cortex label (for example `scar 1`, `edge 2`, `cortex 1`) |
 | `scar_count` | The number of scars on the dorsal surface (on the Dorsal surface row only) |
 
@@ -127,6 +136,7 @@ pixels when it is not. The column `calibration_method` shows which.
 | `is_cortex` | bool | `True` for a child row that is cortex |
 | `cortex_area` | mm² or px² | The area of the cortex |
 | `cortex_percentage` | 0–100 | The cortex area as a percentage of the surface area |
+| `cortex_source` | `stippling` or `letter` | Which test found the cortex: the stippling, or a letter such as C drawn in the scar. A scar found by a letter is cortex over its whole area. `NA` on other rows |
 
 ### Arrows
 

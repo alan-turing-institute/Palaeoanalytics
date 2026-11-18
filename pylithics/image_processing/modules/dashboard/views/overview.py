@@ -3,7 +3,7 @@
 import streamlit as st
 
 from pylithics.image_processing.modules.dashboard.data import (
-    LOW_SCALE_CONFIDENCE_THRESHOLD,
+    CHECKS,
     overview_counts,
 )
 
@@ -14,7 +14,7 @@ def render(bundle: dict) -> None:
 
     st.header("Overview")
     if df.empty and bundle.get("run_summary") is None:
-        st.info("No metrics found in processed_metrics.csv.")
+        st.info("processed_metrics.csv has no metrics.")
         return
 
     counts = overview_counts(df, run_summary=bundle.get("run_summary"))
@@ -43,8 +43,7 @@ def _render_pipeline_row(counts: dict) -> None:
             "Successful",
             counts["successful"],
             help_text=(
-                "Lithics whose pipeline run wrote at least one row to "
-                "processed_metrics.csv."
+                "Lithics with one or more rows in processed_metrics.csv."
             ),
             zero_is_good=False,
         )
@@ -53,30 +52,21 @@ def _render_pipeline_row(counts: dict) -> None:
         _good_only_metric(
             "Failed",
             counts["failed"],
-            help_text=(
-                "Images listed in metadata that did not produce metrics. "
-                "See pylithics.log for the underlying error."
-            ),
+            help_text=CHECKS["failed"]["meaning"] + " See the Review page.",
         )
 
     with cols[2]:
         _good_only_metric(
             "Unclassified surfaces",
             counts["unclassified_surfaces"],
-            help_text=(
-                "Parent contours that PyLithics could not assign to "
-                "Dorsal, Ventral, Platform, or Lateral."
-            ),
+            help_text=CHECKS["unclassified_surfaces"]["meaning"] + " See the Review page.",
         )
 
     with cols[3]:
         _good_only_metric(
             "Zero-scar lithics",
             counts["zero_scar_lithics"],
-            help_text=(
-                "Lithics whose dorsal surface has no detected scars. Often "
-                "indicates a thresholding or contour-detection issue."
-            ),
+            help_text=CHECKS["zero_scar_lithics"]["meaning"] + " See the Review page.",
         )
 
 
@@ -93,44 +83,28 @@ def _render_calibration_row(counts: dict) -> None:
         _good_only_metric(
             "Low-confidence scales",
             counts["low_confidence_scales"],
-            help_text=(
-                "Lithics whose scale-bar detection produced a confidence "
-                f"below {LOW_SCALE_CONFIDENCE_THRESHOLD:g}. Review these "
-                "before trusting their measurements."
-            ),
+            help_text=CHECKS["low_confidence_scales"]["meaning"] + " See the Review page.",
         )
 
     with cols[1]:
         _good_only_metric(
             "Pixel-only",
             counts["pixel_only_lithics"],
-            help_text=(
-                "Lithics whose measurements are in pixels, not millimetres. "
-                "If you intended to use scale-bar calibration, these likely "
-                "had no usable scale image."
-            ),
+            help_text=CHECKS["pixel_only_lithics"]["meaning"] + " See the Review page.",
         )
 
     with cols[2]:
         _good_only_metric(
             "Mixed DPI",
             counts["mixed_dpi"],
-            help_text=(
-                "Number of distinct DPI values across the batch. Anything "
-                "above 1 indicates inconsistent scanning. Drop scans of the "
-                "outliers and rescan if pixel-only mode is in use."
-            ),
+            help_text=CHECKS["mixed_dpi"]["meaning"] + " See the Review page.",
         )
 
     with cols[3]:
         _good_only_metric(
             "Missing DPI",
             counts["missing_dpi"],
-            help_text=(
-                "Images whose source files contained no DPI metadata. "
-                "PyLithics processes them with default settings, but "
-                "DPI-aware scaling is degraded for these lithics."
-            ),
+            help_text=CHECKS["missing_dpi"]["meaning"] + " See the Review page.",
         )
 
 
@@ -149,12 +123,12 @@ def _render_counts_row(counts: dict) -> None:
     cols[3].metric(
         "Scars with arrows",
         counts["scars_with_arrows"],
-        help="Scars on dorsal surfaces with a detected directional arrow.",
+        help="Dorsal scars with a flaking arrow.",
     )
     cols[4].metric(
         "Cortex regions",
         counts["cortex_regions"],
-        help="Child contours flagged as cortex by texture analysis.",
+        help="Scars that are cortex, from the stippling or from a letter such as C.",
     )
 
 

@@ -122,7 +122,7 @@ def process_and_save_contours(
             sorted_contours, hierarchy, contours, inverted_image
         )
 
-        _run_cortex_detection(metrics, inverted_image)
+        _run_cortex_detection(metrics, inverted_image, working_image, upscale_factor)
         metrics = _run_arrow_detection(
             metrics, sorted_contours, inverted_image, image_dpi,
             debug_dir_for(output_dir, 'arrow', image_id),
@@ -286,7 +286,8 @@ def _calculate_and_classify(
     return metrics
 
 
-def _run_cortex_detection(metrics, inverted_image) -> None:
+def _run_cortex_detection(metrics, inverted_image, working_image=None,
+                          upscale_factor=1) -> None:
     """
     Detect cortex in child contours.
 
@@ -296,9 +297,12 @@ def _run_cortex_detection(metrics, inverted_image) -> None:
         Metric dictionaries to update in place.
     inverted_image : numpy.ndarray
         Inverted binary image.
+    working_image, upscale_factor
+        The working copy and its factor, where a cortex letter is read.
     """
     try:
-        detect_cortex_in_child_contours(metrics, inverted_image)
+        detect_cortex_in_child_contours(
+            metrics, inverted_image, working_image, upscale_factor or 1)
         cortex_stats = calculate_total_cortex_metrics(metrics)
 
         if cortex_stats["cortex_count"] > 0:
@@ -606,14 +610,12 @@ def _generate_visualizations(
     """
     try:
         viz_contours = _build_visualization_contours(metrics)
-        arrow_contours = sorted_contours.get("nested_children", [])
-
         viz_path = os.path.join(
             output_dir, f"{image_id}_labeled.png"
         )
         visualize_contours_with_hierarchy(
             viz_contours, hierarchy, metrics,
-            inverted_image, viz_path, arrow_contours, config
+            inverted_image, viz_path, config=config,
         )
     except _STAGE_ERRORS:
         logging.exception("Error in visualization")

@@ -16,6 +16,16 @@ directory is renamed `results/`.
 alone will not create it. Reinstall with `pip install . --upgrade`.
 
 ### Fixed
+- **The scale is measured on the bar, not on its caption.** `pylithics` took the
+  bounding box of every dark pixel in the scale image, and the caption that
+  `pylithics-pages` keeps in the crop ("cm", "5 cm") lay inside it: on the test
+  project 32 of 35 scales measured 6 percent too long, one 12.5 percent, and
+  every millimetre value was that much too small. `pylithics-pages` now records
+  the bar's own box in `pages_manifest.csv` and `meta_data.csv` (`scale_box`),
+  and `pylithics` starts its search there. The bar is the largest piece of ink by
+  pixel count and the solid blocks in line with it, as thick and at least half as
+  long, a missing block apart at most; a caption, a numeral, a speck or a frame
+  around the scale is left out.
 
 - **A page-wide rule is not a scale bar (`pylithics-pages`).** On a journal
   article the rule under the running header, 0.88 of the page wide, scored
@@ -59,6 +69,30 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
   `--disable_voronoi_analysis` do the same for one run.
 
 ### Changed
+- **Both commands give their run time.** The closing line says how long the run took,
+  on the screen and in the log: "35/35 images analysed with no errors in 1 min 12 s",
+  "Done in 9 s: 4 page(s) -> ...". The progress bars show the elapsed time first and
+  shorten the file name, never the times, in a narrow terminal.
+- **The dashboard text is in Simplified Technical English.** The chart explanations,
+  the messages and the check text are rewritten to the ASD-STE100 rules. The error
+  for a missing results folder now gives the correct command,
+  `pylithics --explore <results folder>`. The cortex tile says that a letter such as C
+  also marks cortex.
+- **The overlay outlines every detected arrow.** The outline was looked for among
+  the nested contours of the crop and drawn only when one held the arrow's
+  points, so most arrows found on the working copy had none. Each arrow now
+  carries the outline of the mark the detector measured, in source pixels, and
+  the overlay draws that.
+- **The dorsal face is the one with the scars.** The two faces of a flake are
+  drawn at the same size, and the largest outline won by a few pixels; on the
+  test PDF the plain face was called dorsal and every scar was dropped. Of the
+  outlines within the tolerance of the largest, the one with more child contours
+  is now dorsal; area decides only when the counts are equal. The ventral test
+  measures the tolerance against the larger of the two outlines.
+- **The scale question says what is missing (`pylithics`).** The question asked
+  when rows have no scale value now says that the value is the printed length
+  of the bar, in millimetres, typed by the user, and that a `scale_id` alone is
+  not enough, so a project cut by `pylithics-pages` is not read as "no scales".
 - **Dependencies** — `requirements.txt` lists only what the package needs to run.
   The test tools (`pytest`, `pytest-cov`, `psutil`, `pyflakes`, `pydocstyle`) are
   the `dev` extra and the documentation tools (`mkdocs`, `mkdocs-material`,
@@ -70,6 +104,23 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
 - **`.gitignore`** cut to the rules this project uses.
 
 ### Added
+- **A letter C in a scar marks it as cortex (`pylithics`).** Some illustrators mark
+  cortex with the letter C, not stippling, and those scars were reported as ordinary
+  scars. Each small mark inside a scar is now read with RapidOCR's recognizer; a mark
+  that reads as one of `cortex_detection.letter.letters` (default `C`) at 0.8 or more
+  makes the scar cortex over its whole area. New column `cortex_source`: `stippling`
+  or `letter`. `--no_cortex_letter` turns the test off. On the test project the eight
+  lettered scars of eight drawings became cortex; no arrow was read as a letter.
+- **A Review page and a dashboard export (`--explore`).** The Overview marked a
+  tile `⚠ Review` and gave no more. The new Review page has one section for each
+  check: what it means, what to do as numbered steps, and a table of the images
+  with the value found and the reason in numbers ("Width 771 against the dorsal's
+  858, 10.1% apart. The tolerance is 10%."). The Overview help uses the same text.
+  `Export dashboard`, in the sidebar, writes the full dashboard as CSV (the Review
+  rows), HTML (interactive charts, opens with no network) or PDF (charts drawn with
+  Matplotlib, no new dependency), in the dashboard's colours. Every analysis writes `results/review.csv`. A
+  scale bar measured from its `scale_box` has confidence 0.95, so a correct bar is
+  no longer marked for review because it is short and thick.
 
 - **A page with no artefacts, and a page taken away (`pylithics-pages`).**
   `expect=0` in `corrections.csv` marks a page as holding no artefacts: nothing
@@ -80,8 +131,12 @@ alone will not create it. Reinstall with `pip install . --upgrade`.
 - **The page's text is hidden in each crop (`pylithics-pages`).** A crop's margin
   took in captions, legend keys, scale bar ink and other identifiers, and
   `pylithics` measured them as surfaces. They are now painted over with the
-  crop's paper value, by each piece's own ink, never a piece inside the
-  artefact's box or a flaking arrow; the page is not changed. The manifest
+  crop's paper value, by each piece's own ink with a two pixel margin for the
+  grey edge of print, never a flaking arrow, and inside the artefact's box only
+  text; a line of text is painted as a band; the page is not changed. A heading
+  in large type, whose letters stay apart at closing, is now recognised as a
+  line of text when eight or more glyphs sit on one baseline, so no artefact
+  box grows over it. The manifest
   column `hidden` says what was hidden. The crop's own identifier stays and
   its box goes to `meta_data.csv` as `ignore_box`, which `pylithics` sets to
   paper before the analysis. `--keep_text` keeps every pixel;

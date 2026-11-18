@@ -142,6 +142,14 @@ _CAPTION_LINE_WIDTH = 0.06
 # Annotations further than this fraction of page width from any artefact
 # are left out rather than dragged into a distant crop.
 _ANNOTATION_REACH = 0.06
+# A line of text set in large type, a figure heading or a page title,
+# does not fuse at closing: its letters stay apart and each one is filed
+# as a label glyph. A run of this many dense glyphs on one baseline, each
+# within two glyph heights of the next, is a line of text. No identifier
+# has as many glyphs, and the identifiers of a row of lithics are a
+# lithic's width apart.
+_TEXT_LINE_MIN_GLYPHS = 8
+_TEXT_LINE_MAX_GAP = 2.0
 # A view overlapping vertically by less than this fraction is not a
 # side-by-side neighbour.
 _SIDE_BY_SIDE_OVERLAP = 0.3
@@ -441,6 +449,7 @@ def classify_components(
         result.labels, result.bars, components
     )
     _captions_among_drawings(result, width, height)
+    _lines_of_label_glyphs(result, components)
     return result
 
 
@@ -1719,6 +1728,69 @@ def _captions_among_drawings(result: Classified, width: int, height: int) -> Non
                 changed = True
 
 
+def _lines_of_label_glyphs(result: Classified, components: Sequence[Component]) -> None:
+    """
+    Move a row of label glyphs that reads as a line of text to the captions.
+
+    Dense glyphs are sorted by their left edge, and a chain is grown
+    while each glyph shares its baseline with the chain's last glyph and
+    sits within ``_TEXT_LINE_MAX_GAP`` glyph heights of it. A chain of
+    ``_TEXT_LINE_MIN_GLYPHS`` or more is text, with any sparse glyph set
+    on its baseline; its boxes leave the labels, so no artefact box grows
+    over it and the crop hides it.
+    """
+    density = {tuple(c.box): c.density for c in components}
+    glyphs = sorted(
+        (b for b in result.labels if density.get(tuple(b), 1.0) >= _MIN_CAPTION_DENSITY),
+        key=lambda b: b[0],
+    )
+    chain: List[BBox] = []
+    lines: List[List[BBox]] = []
+    for box in glyphs + [None]:
+        if chain and (box is None or not _continues_line(chain[-1], box)):
+            if len(chain) >= _TEXT_LINE_MIN_GLYPHS:
+                lines.append(chain)
+            chain = []
+        if box is not None:
+            chain.append(box)
+    for line in lines:
+        strays = _pieces_on_line(result, line)
+        logging.debug("A line of %d label glyphs is text", len(line) + len(strays))
+        taken = line + strays
+        result.text.append(_line_box(taken))
+        result.labels = [b for b in result.labels if b not in taken]
+        result.dashes = [d for d in result.dashes if d[1] not in taken]
+
+
+def _pieces_on_line(result: Classified, line: Sequence[BBox]) -> List[BBox]:
+    """
+    Return the other pieces set on a line of text.
+
+    A sparse glyph (an F, a slash) is too thin to start a line, and a
+    stem (an i, an l, a 1) was filed as a connector dash. Each joins the
+    line it sits on.
+    """
+    others = [b for b in result.labels if b not in line] + [d for _, d in result.dashes]
+    return [
+        box for box in others
+        if any(_continues_line(glyph, box) or _continues_line(box, glyph) for glyph in line)
+    ]
+
+
+def _line_box(pieces: Sequence[BBox]) -> List[int]:
+    """Return the box that holds every piece of a line of text."""
+    return [min(b[0] for b in pieces), min(b[1] for b in pieces),
+            max(b[2] for b in pieces), max(b[3] for b in pieces)]
+
+
+def _continues_line(last: BBox, box: BBox) -> bool:
+    """Say whether a glyph follows the last one on the same line of text."""
+    height = max(box_height(last), box_height(box), 1)
+    on_baseline = vertical_overlap(last, box) >= 0.5 * min(box_height(last), box_height(box))
+    close = box[0] - last[2] <= _TEXT_LINE_MAX_GAP * height
+    return on_baseline and close
+
+
 def _split_bar_captions(
     labels: Sequence[BBox], bars: Sequence[BBox], components: Sequence[Component]
 ) -> Tuple[List[BBox], List[BBox]]:
@@ -2511,6 +2583,20 @@ def _is_same_bar(a: BBox, b: BBox, limit: float) -> bool:
     )
 
 
+def bare_scale_bars(
+    classified: Classified, bar_config: Dict, page_width: int
+) -> List[BBox]:
+    """
+    Return the box of each scale bar itself, with no caption.
+
+    This is the box the analysis measures the bar in; the crop box from
+    :func:`build_scale_bars` can be wider by the caption.
+    """
+    if not bar_config.get('enabled', True):
+        return []
+    return merge_bar_segments(classified.bars, page_width)
+
+
 def build_scale_bars(
     classified: Classified, bar_config: Dict, page_width: int
 ) -> List[BBox]:
@@ -2538,10 +2624,7 @@ def build_scale_bars(
     list of BBox
         One box per scale bar.
     """
-    if not bar_config.get('enabled', True):
-        return []
-
-    bars = merge_bar_segments(classified.bars, page_width)
+    bars = bare_scale_bars(classified, bar_config, page_width)
     if not bar_config.get('include_caption', True) or not bars:
         return bars
 

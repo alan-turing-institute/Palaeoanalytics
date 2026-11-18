@@ -163,8 +163,8 @@ def load_processed(processed_dir: str) -> Dict[str, Any]:
     csv_path = processed_path / "processed_metrics.csv"
     if not csv_path.exists():
         raise FileNotFoundError(
-            f"processed_metrics.csv not found at {csv_path}. "
-            "Run analysis first (provide --meta_file)."
+            f"There is no processed_metrics.csv at {csv_path}. "
+            "Do the analysis first."
         )
 
     metrics = pd.read_csv(csv_path)
@@ -337,6 +337,41 @@ def dorsal_scars(df: pd.DataFrame) -> pd.DataFrame:
     return _dorsal_scar_rows(df)
 
 
+def scar_summary(df: pd.DataFrame) -> pd.DataFrame:
+    """Build a per-lithic aggregate: dorsal area, count, coverage, mean / sd scar size."""
+    parents_d = df[
+        (df["surface_type"] == "Dorsal")
+        & (df["surface_feature"] == "Dorsal")
+    ]
+    scars = dorsal_scars(df)
+    if parents_d.empty or scars.empty:
+        return pd.DataFrame()
+
+    parent_view = (
+        parents_d[["image_id", "total_area", "scar_count"]]
+        .rename(columns={
+            "total_area": "dorsal_area",
+            "scar_count": "num_scars",
+        })
+    )
+    scar_agg = (
+        scars.groupby("image_id")["total_area"]
+        .agg(total_scar_area="sum", mean_scar_area="mean", sd_scar_area="std")
+        .reset_index()
+    )
+    out = parent_view.merge(scar_agg, on="image_id", how="left").dropna(
+        subset=["dorsal_area", "num_scars"],
+    )
+    out["coverage_pct"] = (
+        out["total_scar_area"] / out["dorsal_area"]
+    ).clip(0, 1) * 100
+    out["cv"] = out["sd_scar_area"] / out["mean_scar_area"]
+    out["calibration_method"] = parents_d.set_index("image_id").reindex(
+        out["image_id"]
+    )["calibration_method"].values
+    return out
+
+
 def per_image_image_paths(
     processed_dir: Path, image_id: str,
 ) -> Dict[str, Optional[Path]]:
@@ -473,3 +508,254 @@ def _as_bool(series: pd.Series) -> pd.Series:
     if series.dtype == bool:
         return series
     return series.astype(str).str.strip().str.lower().eq("true")
+
+
+# ---------------------------------------------------------------------------
+# Review — what to examine, why, and what to do
+# ---------------------------------------------------------------------------
+
+REVIEW_COLUMNS = ["check", "image_id", "item", "value", "reason", "what_to_do"]
+
+# One entry for each Overview check, in the order of the tiles. The Overview
+# help text, the Review page, the report and review.csv all use this text.
+CHECKS = {
+    "failed": {
+        "title": "Failed",
+        "meaning": "Images listed in meta_data.csv that gave no metrics.",
+        "steps": [
+            "Open pylithics.log in the results folder and find the image.",
+            "Correct the image, or its row in meta_data.csv.",
+            "Run the analysis again.",
+        ],
+    },
+    "unclassified_surfaces": {
+        "title": "Unclassified surfaces",
+        "meaning": (
+            "PyLithics cannot name these outlines as a dorsal, ventral, platform or "
+            "lateral surface from their size. A ventral surface must be within 10 "
+            "percent of the dorsal surface in length, width and area (the tolerance "
+            "setting)."
+        ),
+        "steps": [
+            "Open the labelled image of the lithic. Find the outline with the "
+            "label Unclassified.",
+            "If the outline is a view of the lithic, its size in the drawing does "
+            "not agree with the dorsal view. You cannot correct this in PyLithics. "
+            "Use the result as it is.",
+            "If the outline is not part of the lithic, for example text, a number "
+            "or a mark, remove it from the image. Then run the analysis again.",
+        ],
+    },
+    "zero_scar_lithics": {
+        "title": "Zero-scar lithics",
+        "meaning": "Lithics whose dorsal face holds no scar.",
+        "steps": [
+            "Open the labelled image of the lithic.",
+            "If the dorsal face is plain in the drawing, the result is correct.",
+            "If scar lines are broken or missing, see Troubleshooting for the "
+            "threshold settings.",
+        ],
+    },
+    "low_confidence_scales": {
+        "title": "Low-confidence scales",
+        "meaning": (
+            f"Scale bars with a confidence below {LOW_SCALE_CONFIDENCE_THRESHOLD:g}. "
+            "Without a scale_box the confidence is the length of the bar divided by "
+            "its thickness, divided by 10. A short, thick bar gets a low value even "
+            "when it is measured correctly. A bar measured from a scale_box gets 0.95."
+        ),
+        "steps": [
+            "Open the scale image named in scale_id.",
+            "Make sure that the measured length is the bar alone, with no caption "
+            "and no frame.",
+            "If it is, the value stands. To record the box of the bar, cut the "
+            "pages again with pylithics-pages.",
+        ],
+    },
+    "pixel_only_lithics": {
+        "title": "Pixel-only",
+        "meaning": "Lithics measured in pixels, not millimetres.",
+        "steps": [
+            "Open meta_data.csv and find the row of the image.",
+            "Type the printed length of the bar, in mm, in the scale column.",
+            "Make sure that the scale image named in scale_id is in scales/.",
+            "Run the analysis again.",
+        ],
+    },
+    "mixed_dpi": {
+        "title": "Mixed DPI",
+        "meaning": (
+            "Images with a DPI that is different from most of the batch. You cannot "
+            "compare pixel measurements from images with different DPI values."
+        ),
+        "steps": [
+            "Scan the listed images again at the DPI of the batch.",
+            "As an alternative, calibrate each image with a scale bar.",
+        ],
+    },
+    "missing_dpi": {
+        "title": "Missing DPI",
+        "meaning": (
+            "Images whose files have no DPI tag. PyLithics uses the default settings "
+            "for them. Thus the sizes that use the DPI are less accurate."
+        ),
+        "steps": [
+            "Save the image again with its DPI.",
+            "As an alternative, calibrate the image with a scale bar.",
+        ],
+    },
+}
+
+
+def review_items(
+    df: pd.DataFrame,
+    run_summary: Optional[Dict[str, Any]] = None,
+    tolerance: float = 0.1,
+) -> pd.DataFrame:
+    """
+    Return one row for each item that an Overview check marks for review.
+
+    Columns are ``REVIEW_COLUMNS``. ``reason`` is written from the row's own
+    numbers; ``what_to_do`` is the check's procedure. ``tolerance`` is the
+    surface rule's, to say why a surface is unclassified. A clean run gives
+    an empty frame with the columns.
+    """
+    summary = run_summary or {}
+    rows = (
+        _failed_items(summary)
+        + _unclassified_items(df, tolerance)
+        + _zero_scar_items(df)
+        + _low_confidence_items(df)
+        + _pixel_only_items(df)
+        + _dpi_items(summary)
+    )
+    for row in rows:
+        row["what_to_do"] = " ".join(
+            f"{n}. {step}" for n, step in enumerate(CHECKS[row["check"]]["steps"], 1)
+        )
+        row["check"] = CHECKS[row["check"]]["title"]
+    return pd.DataFrame(rows, columns=REVIEW_COLUMNS)
+
+
+def _item(check: str, image_id: str, item: str, value: str, reason: str) -> Dict[str, str]:
+    """Build one review row; ``what_to_do`` is added by :func:`review_items`."""
+    return {"check": check, "image_id": image_id, "item": item,
+            "value": value, "reason": reason}
+
+
+def _failed_items(summary: Dict[str, Any]) -> list:
+    """Return the images that gave no metrics, with the reason the run recorded."""
+    return [
+        _item("failed", entry.get("image_id", ""), "image", "",
+              f"{entry.get('reason', 'Processing failed')}. The error is in pylithics.log.")
+        for entry in summary.get("failed") or [] if isinstance(entry, dict)
+    ]
+
+
+def _unclassified_items(df: pd.DataFrame, tolerance: float) -> list:
+    """Return each unclassified surface, with how far it is from the dorsal's size."""
+    parents = _parent_rows(df)
+    if parents.empty:
+        return []
+    items = []
+    for _, row in parents[parents["surface_type"] == "Unclassified"].iterrows():
+        same = parents[parents["image_id"] == row["image_id"]]
+        dorsal = same[same["surface_type"] == "Dorsal"]
+        where = ""
+        if {"centroid_x", "centroid_y"} <= set(row.index):
+            where = f" at ({row['centroid_x']:.0f}, {row['centroid_y']:.0f})"
+        value = ", ".join(f"{k.split('_')[-1]} {_num(row.get(k))}" for k in _SIZE_KEYS)
+        reason = (_size_reason(row, dorsal.iloc[0], tolerance) if not dorsal.empty
+                  else "The image has no dorsal surface to compare it with.")
+        taken = [t for t in ("Ventral", "Platform", "Lateral")
+                 if t in set(same["surface_type"])]
+        if taken:
+            reason += f" The image already has: {', '.join(taken)}."
+        items.append(_item("unclassified_surfaces", row["image_id"],
+                           f"Unclassified{where}", value, reason))
+    return items
+
+
+_SIZE_KEYS = ("technical_length", "technical_width", "total_area")
+
+
+def _size_reason(row: pd.Series, dorsal: pd.Series, tolerance: float) -> str:
+    """Say which sizes differ from the dorsal's by more than the tolerance, and by how much."""
+    parts = []
+    for key in _SIZE_KEYS:
+        a, b = pd.to_numeric(row.get(key), errors="coerce"), pd.to_numeric(
+            dorsal.get(key), errors="coerce")
+        if pd.isna(a) or pd.isna(b) or max(a, b) == 0:
+            continue
+        apart = abs(a - b) / max(a, b)
+        if apart > tolerance:
+            name = key.split("_")[-1]
+            parts.append(f"{name} {_num(a)} against the dorsal's {_num(b)}, {apart:.1%} apart")
+    if not parts:
+        return (f"It is within {tolerance:.0%} of the dorsal in length, width and area. "
+                "Another outline already has that surface type.")
+    return "; ".join(parts).capitalize() + f". The tolerance is {tolerance:.0%}."
+
+
+def _zero_scar_items(df: pd.DataFrame) -> list:
+    """Return the lithics whose dorsal face reports no scar."""
+    if df.empty or "scar_count" not in df.columns:
+        return []
+    parents = _parent_rows(df)
+    dorsal = parents[parents["surface_type"] == "Dorsal"]
+    zero = dorsal[pd.to_numeric(dorsal["scar_count"], errors="coerce").fillna(-1) == 0]
+    return [_item("zero_scar_lithics", image_id, "Dorsal", "0",
+                  "The dorsal face holds no scar contour.")
+            for image_id in zero["image_id"].unique()]
+
+
+def _low_confidence_items(df: pd.DataFrame) -> list:
+    """Return the images whose scale confidence is below the threshold."""
+    if df.empty or "scale_confidence" not in df.columns:
+        return []
+    confidence = pd.to_numeric(df["scale_confidence"], errors="coerce")
+    low = df[confidence.notna() & (confidence < LOW_SCALE_CONFIDENCE_THRESHOLD)]
+    items = []
+    for image_id, rows in low.groupby("image_id", sort=True):
+        value = float(pd.to_numeric(rows["scale_confidence"]).min())
+        items.append(_item(
+            "low_confidence_scales", image_id, "scale bar", f"{value:.2f}",
+            f"The bar is {value * 10:.1f} times as long as it is thick.",
+        ))
+    return items
+
+
+def _pixel_only_items(df: pd.DataFrame) -> list:
+    """Return the images measured in pixels."""
+    if df.empty or "calibration_method" not in df.columns:
+        return []
+    pixels = df[df["calibration_method"] == "pixels"]
+    return [_item("pixel_only_lithics", image_id, "image", "pixels",
+                  "PyLithics did not use a scale. The row has no scale value, or the "
+                  "scale image is missing or has no bar.")
+            for image_id in pixels["image_id"].unique()]
+
+
+def _dpi_items(summary: Dict[str, Any]) -> list:
+    """Return the images whose DPI is missing, or differs from most of the batch."""
+    entries = [e for e in summary.get("successful") or [] if isinstance(e, dict)]
+    known = [e.get("dpi") for e in entries if e.get("dpi") is not None]
+    usual = pd.Series(known).mode().iloc[0] if known else None
+    items = []
+    for entry in entries:
+        dpi = entry.get("dpi")
+        if dpi is None:
+            items.append(_item("missing_dpi", entry.get("image_id", ""), "image", "",
+                               "The file carries no DPI tag."))
+        elif len(set(known)) > 1 and dpi != usual:
+            items.append(_item("mixed_dpi", entry.get("image_id", ""), "image",
+                               f"{_num(dpi)} dpi", f"Most images are {_num(usual)} dpi."))
+    return items
+
+
+def _num(value: Any) -> str:
+    """Write a number without needless decimals: 820, 0.77, 494454."""
+    number = pd.to_numeric(value, errors="coerce")
+    if pd.isna(number):
+        return ""
+    return f"{number:.0f}" if float(number).is_integer() or abs(number) >= 100 else f"{number:.2f}"

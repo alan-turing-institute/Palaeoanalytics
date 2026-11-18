@@ -154,6 +154,10 @@ class TestIntegrateArrows:
         assert row["arrow_back"] == marks.to_source((100, 40))
         assert row["arrow_tip"] == marks.to_source((220, 40))
         assert row["arrow_tip"][0] - row["arrow_back"][0] == 30
+        # the mark's outline comes along in source pixels, for the overlay
+        expected = marks.contour_to_source(marks.contours[0])
+        assert np.array_equal(row["arrow_contour"], expected)
+        assert expected.reshape(-1, 2).max(axis=0).tolist() <= [canvas.shape[1], canvas.shape[0]]
 
     def test_a_cortex_scar_is_not_tried(self):
         canvas, surface, scar = _drawing()

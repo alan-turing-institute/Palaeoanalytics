@@ -47,7 +47,8 @@ def classify_parent_contours(
     for parent in parents:
         parent["surface_type"] = None
 
-    dorsal = _identify_dorsal(parents)
+    children = _child_counts(metrics)
+    dorsal = _identify_dorsal(parents, children, tolerance)
     if dorsal is None:
         return metrics
 
@@ -80,15 +81,49 @@ def classify_parent_contours(
     return metrics
 
 
-def _identify_dorsal(parents: List[Dict]) -> Optional[Dict]:
-    """Identify the dorsal surface (largest area)."""
-    try:
-        dorsal = max(parents, key=lambda p: p["area"])
-        dorsal["surface_type"] = "Dorsal"
-        return dorsal
-    except ValueError:
+def _child_counts(metrics: List[Dict]) -> Dict[str, int]:
+    """Count the child contours of each parent: scars, arrows, cortex pieces."""
+    counts: Dict[str, int] = {}
+    for m in metrics:
+        if m["parent"] != m["scar"]:
+            counts[m["parent"]] = counts.get(m["parent"], 0) + 1
+    return counts
+
+
+def _identify_dorsal(
+    parents: List[Dict], children: Dict[str, int], tolerance: float
+) -> Optional[Dict]:
+    """
+    Identify the dorsal surface.
+
+    The dorsal face carries the scars of earlier removals; the ventral
+    face is one plain fracture surface. So among the largest outline and
+    its peers of similar size, the one with the most child contours is
+    dorsal. Area decides only when the counts are equal: two faces drawn
+    side by side differ in area by a few pixels, and that difference
+    must not decide.
+    """
+    if not parents:
         logging.error("No dorsal surface found.")
         return None
+    largest = max(parents, key=lambda p: p["area"])
+    peers = [p for p in parents if p is largest or _similar(p, largest, tolerance)]
+    dorsal = max(peers, key=lambda p: (children.get(p["parent"], 0), p["area"]))
+    if dorsal is not largest:
+        logging.debug(
+            "Dorsal is the outline with %d child contours, not the largest with %d.",
+            children.get(dorsal["parent"], 0), children.get(largest["parent"], 0),
+        )
+    dorsal["surface_type"] = "Dorsal"
+    return dorsal
+
+
+def _similar(a: Dict, b: Dict, tolerance: float) -> bool:
+    """Say whether two outlines agree in length, width and area within the tolerance."""
+    return all(
+        abs(a[key] - b[key]) <= tolerance * max(a[key], b[key])
+        for key in ("technical_length", "technical_width", "area")
+    )
 
 
 def _identify_ventral(
@@ -96,32 +131,13 @@ def _identify_ventral(
     dorsal: Dict,
     tolerance: float
 ) -> Optional[Dict]:
-    """Identify the ventral surface (similar to dorsal)."""
+    """Identify the ventral surface: the outline of the dorsal's size."""
     for parent in parents:
         if parent["surface_type"] is not None:
             continue
-
-        d_len = dorsal["technical_length"]
-        d_wid = dorsal["technical_width"]
-        d_area = dorsal["area"]
-
-        len_match = (
-            abs(parent["technical_length"] - d_len)
-            <= tolerance * d_len
-        )
-        wid_match = (
-            abs(parent["technical_width"] - d_wid)
-            <= tolerance * d_wid
-        )
-        area_match = (
-            abs(parent["area"] - d_area)
-            <= tolerance * d_area
-        )
-
-        if len_match and wid_match and area_match:
+        if _similar(parent, dorsal, tolerance):
             parent["surface_type"] = "Ventral"
             return parent
-
     return None
 
 

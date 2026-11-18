@@ -37,7 +37,7 @@ def visualize_contours_with_hierarchy(
     metrics: List[Dict],
     inverted_image: np.ndarray,
     output_path: str,
-    arrow_contours: Optional[List[np.ndarray]] = None,
+    arrow_contours: Optional[List[np.ndarray]] = None,   # unused; kept for callers
     config: Optional[Dict] = None
 ) -> None:
     """
@@ -56,7 +56,8 @@ def visualize_contours_with_hierarchy(
     output_path : str
         File path for the labeled image.
     arrow_contours : list, optional
-        Grandchild contours containing detected arrows.
+        Not used. Each arrow's outline comes with its metric row as
+        ``arrow_contour``, from the detector.
     config : dict, optional
         Configuration dictionary.
     """
@@ -64,7 +65,7 @@ def visualize_contours_with_hierarchy(
     labeled = cv2.cvtColor(original, cv2.COLOR_GRAY2BGR)
 
     labels = label_switches(config)
-    _draw_arrow_contours(labeled, metrics, arrow_contours)
+    _draw_arrow_contours(labeled, metrics)
     contour_info = _draw_contours_and_centroids(
         labeled, contours, metrics
     )
@@ -132,39 +133,18 @@ def _get_contour_style(metric: Dict) -> Tuple[Tuple, str]:
     return COLOR_UNKNOWN, scar
 
 
-def _draw_arrow_contours(
-    labeled: np.ndarray,
-    metrics: List[Dict],
-    arrow_contours: Optional[List[np.ndarray]]
-) -> None:
+def _draw_arrow_contours(labeled: np.ndarray, metrics: List[Dict]) -> None:
     """
-    Draw grandchild contour outlines for detected arrows.
+    Outline each detected arrow with the mark the detector measured.
 
-    Parameters
-    ----------
-    labeled : ndarray
-        BGR image to draw on.
-    metrics : list
-        Metric dicts with arrow coordinates.
-    arrow_contours : list or None
-        Grandchild contours to check.
+    The outline is the mark's own contour, in source pixels, carried on
+    the metric row as ``arrow_contour``. Every arrow gets one, whichever
+    stage found it.
     """
-    if not arrow_contours:
-        return
-
-    arrow_points = []
     for m in metrics:
-        if m.get("has_arrow") and m.get("arrow_back") and m.get("arrow_tip"):
-            arrow_points.extend([m["arrow_back"], m["arrow_tip"]])
-
-    for contour in arrow_contours:
-        for pt in arrow_points:
-            point = (int(pt[0]), int(pt[1]))
-            if cv2.pointPolygonTest(contour, point, False) >= 0:
-                cv2.drawContours(
-                    labeled, [contour], -1, COLOR_ARROW, 2
-                )
-                break
+        contour = m.get("arrow_contour")
+        if m.get("has_arrow") and contour is not None and len(contour) >= 3:
+            cv2.drawContours(labeled, [np.asarray(contour, dtype=np.int32)], -1, COLOR_ARROW, 2)
 
 
 def _draw_contours_and_centroids(
@@ -678,6 +658,7 @@ def _build_csv_row(
             else "NA"
         ),
         "is_cortex": metric.get("is_cortex", False),
+        "cortex_source": metric.get("cortex_source", "") if metric.get("is_cortex") else "",
         "has_arrow": metric.get("has_arrow", False),
     }
     for source_key, column in _CSV_PASSTHROUGH_FIELDS:
@@ -735,7 +716,7 @@ def _build_column_order(
         "vertical_symmetry", "horizontal_symmetry",
     ]
     lateral = ["lateral_convexity"]
-    cortex = ["is_cortex", "cortex_area", "cortex_percentage"]
+    cortex = ["is_cortex", "cortex_area", "cortex_percentage", "cortex_source"]
     complexity = ["scar_complexity"]
     arrows = ["has_arrow", "arrow_angle"]
 

@@ -235,6 +235,9 @@ class TestDebugFlagOverrides:
         assert self._overrides_for("--min_stipple_pieces", "5") == {
             "cortex_detection.min_stipple_pieces": 5,
         }
+        assert self._overrides_for("--no_cortex_letter") == {
+            "cortex_detection.letter.enabled": False,
+        }
         assert self._overrides_for("--hide_labels", "surfaces,cortex") == {
             "visualization.labels": {
                 "surfaces": False, "scars": True, "cortex": False, "arrows": True,
@@ -538,3 +541,24 @@ class TestConfigFileIsRead:
             assert get_config_manager().config["working_resolution"]["enabled"] is False
         finally:
             clear_config_cache()
+
+
+@pytest.mark.unit
+class TestRunTime:
+    """Both commands close with the run time, written for a person."""
+
+    @pytest.mark.parametrize("seconds, text", [
+        (0.4, "0 s"), (8, "8 s"), (72, "1 min 12 s"), (3599, "59 min 59 s"),
+        (3725, "1 h 2 min"),
+    ])
+    def test_duration_is_written_for_a_person(self, seconds, text):
+        from pylithics.image_processing.utils import format_duration
+        assert format_duration(seconds) == text
+
+    def test_the_time_columns_never_shrink(self):
+        from pylithics.image_processing.utils import progress_columns
+        columns = progress_columns("Processing", "image")
+        name = columns[-1].get_table_column()
+        assert name.ratio == 1 and name.overflow == "ellipsis"      # the file name gives way
+        for timer in (columns[2], columns[5]):
+            assert timer.get_table_column().no_wrap and timer.get_table_column().ratio is None

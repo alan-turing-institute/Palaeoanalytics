@@ -55,6 +55,9 @@ my_project/
 
 If you start from published plates, `pylithics-pages` writes the first
 three for you. See [Working from Published Plates](page-segmentation.md).
+`pylithics` analyses the crop files as `pylithics-pages` wrote them, with the
+page's text already hidden. After a change on the page side, cut the pages
+again before you analyse.
 
 When the command stops, the output folder contains
 `processed_metrics.csv`, and one `*_labeled.png` and one
@@ -109,7 +112,7 @@ A row with no `scale` value can only be measured in **pixels**. Before
 the batch starts, the command counts those rows and asks once:
 
 ```
-257 of 316 rows in meta_data.csv have an empty scale column (the length of the scale bar in mm). Measure them in pixels? [y/N]
+257 of 316 rows in meta_data.csv have no value in the scale column: the printed length of the scale bar, in mm, which you type. 257 of them name a scale bar image in scale_id; that is not enough on its own. Measure them in pixels? [y/N]
 ```
 
 - `y`: all images are analysed. The images with no scale value are in
@@ -306,7 +309,7 @@ flowchart TD
 Read the illustrations. Make sure that the format and the resolution are correct.
 
 **B. Scale calibration**
-Find the scale bar and calculate the pixels for each millimetre. If there is no usable scale image, use pixel measurements.
+Find the scale bar and calculate the pixels for each millimetre. The bar is the largest piece of ink in the scale image and the solid blocks in line with it, so a caption, a numeral, a speck or a frame beside the bar is not measured. With a `scale_box` in `meta_data.csv` the search starts inside that box. If there is no usable scale image, use pixel measurements.
 
 **C. Noise removal and contrast change**
 Remove scan noise and make the lines clearer.
@@ -318,7 +321,10 @@ Change the image to black and white. The default `auto` method finds the thresho
 Find the object boundaries as a parent–child hierarchy (surfaces and scars).
 
 **F. Surface classification**
-Identify the dorsal, ventral, platform and lateral surfaces by their relative size.
+Identify the dorsal, ventral, platform and lateral surfaces. The two faces of a flake
+are the outlines of the same size. The dorsal face is the one with more scars inside
+it; when the counts are equal, the larger. The platform is the smallest outline, and
+the lateral view is as long as the dorsal face but of a different width.
 
 **G. Calculate the metrics**
 Measure the dimensions, areas, aspect ratios and shape properties.

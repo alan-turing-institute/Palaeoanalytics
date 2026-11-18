@@ -529,11 +529,14 @@ class Preprocessed:
             self.working = self.image
 
 
-def parse_ignore_boxes(text: Optional[str]) -> List[Tuple[int, int, int, int]]:
+def parse_ignore_boxes(
+    text: Optional[str], name: str = 'ignore_box'
+) -> List[Tuple[int, int, int, int]]:
     """
-    Return the boxes of a metadata ``ignore_box`` value: ``x0 y0 x1 y1``, several with ``;``.
+    Return the boxes of a metadata box value: ``x0 y0 x1 y1``, several with ``;``.
 
-    A value that does not parse gives no boxes and a warning, not an error.
+    ``name`` is the column, for the message. A value that does not parse
+    gives no boxes and a warning, not an error.
     """
     boxes = []
     for part in (text or '').split(';'):
@@ -542,7 +545,7 @@ def parse_ignore_boxes(text: Optional[str]) -> List[Tuple[int, int, int, int]]:
         try:
             x0, y0, x1, y1 = (int(float(v)) for v in part.split())
         except ValueError:
-            logging.warning("The ignore_box value %r is not four numbers; not used", part)
+            logging.warning("The %s value %r is not four numbers; not used", name, part)
             continue
         boxes.append((x0, y0, x1, y1))
     return boxes

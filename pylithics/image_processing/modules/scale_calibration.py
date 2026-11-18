@@ -2,21 +2,38 @@
 Scale bar calibration module for PyLithics.
 
 This module provides functionality to detect and measure scale bars in images
-to calculate pixel-to-millimeter conversion factors. It implements a simple
-bounding box approach that works with various scale bar styles.
+to calculate pixel-to-millimeter conversion factors.
+
+The scale image holds the bar and, when ``pylithics-pages`` cut it, the
+caption that states its length. The measure is the bar alone. With a
+``scale_box`` from the metadata the bar is seeded inside that box. The
+bar is the largest piece of ink and the solid blocks in line with it:
+the blocks of a segmented bar, never a caption, a numeral or a speck.
 """
 
 import cv2
 import numpy as np
 import logging
 import os
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Sequence, Tuple
 
-
-
+from ..importer import parse_ignore_boxes
 
 SCALE_DIRNAME = 'scales'
 SCALE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp']
+# A separate piece is a block of the bar when it is as thick as the seed
+# block within this fraction, at least this fraction of its length, solid
+# to this density, and no further from the chain than this many seed
+# lengths. The blocks of a segmented bar are all one thickness and one
+# length, filled, and a missing open block apart. A numeral as tall as the
+# bar is thick (a "5" after it) is hollow; a frame is hollow; a speck is
+# short; a caption below the bar is not across its axis.
+THICKNESS_TOLERANCE = 0.2
+SEGMENT_MIN_LENGTH = 0.5
+SEGMENT_MIN_DENSITY = 0.8
+SEGMENT_MAX_GAP = 1.5
+# A bar measured from the box pylithics-pages recorded is the bar: high, not certain.
+BOXED_CONFIDENCE = 0.95
 
 
 def _find_scale_image(image_path: str, scale_id: str):
@@ -56,17 +73,21 @@ def _find_scale_image(image_path: str, scale_id: str):
 
 
 def detect_scale_bar(
-    scale_image_path: str, config: Dict, debug_dir: Optional[str] = None
+    scale_image_path: str, config: Dict, debug_dir: Optional[str] = None,
+    scale_box: Optional[Tuple[int, int, int, int]] = None,
 ) -> Optional[Tuple[int, float]]:
     """
-    Detect and measure scale bar in scale image.
+    Measure the scale bar in a scale image.
 
-    Handles various scale bar styles: simple lines, segmented bars, bars with tick marks.
-    Measures the full extent including all elements (segments, ticks, brackets).
+    Handles solid bars, segmented bars and ruled bars with ticks. With a
+    ``scale_box`` (from ``meta_data.csv``, in the image's pixels) the bar
+    is measured inside that box; without one, see :func:`bar_box`.
 
     Args:
         scale_image_path: Path to the scale bar image
         config: Configuration dictionary for scale detection
+        debug_dir: Folder for the debug image, or None
+        scale_box: The bar's box in the image, or None
 
     Returns:
         tuple[int, float]: (scale_length_pixels, confidence_score) or None if failed
@@ -81,30 +102,14 @@ def detect_scale_bar(
         # Threshold to binary (scale bars are typically black on white)
         _, binary = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY_INV)
 
-        # Find all non-zero (black) pixels
-        points = cv2.findNonZero(binary)
-        if points is None:
+        box = bar_box(binary, scale_box)
+        if box is None:
             logging.warning(f"No black pixels in the scale image: {scale_image_path}")
             return None
-
-        # Get bounding box of all black elements
-        x, y, w, h = cv2.boundingRect(points)
-
-        # Measure longest dimension (width or height)
-        scale_length_pixels = max(w, h)
-
-        # Calculate confidence based on aspect ratio
-        # Good scale bars are typically much longer in one dimension
-        aspect_ratio = max(w, h) / max(min(w, h), 1)  # Avoid division by zero
-        confidence = min(1.0, aspect_ratio / 10.0)  # Higher aspect ratio = higher confidence
-
-        logging.debug(f"Scale bar detected: {scale_length_pixels} pixels, "
-                      f"confidence: {confidence:.2f}, dimensions: {w}x{h}")
-
         if config.get('debug_output', False) and debug_dir:
-            save_debug_image(scale_image_path, binary, x, y, w, h, debug_dir)
-
-        return scale_length_pixels, confidence
+            save_debug_image(scale_image_path, binary, *box, debug_dir)
+        length, confidence = _length_and_confidence(box)
+        return length, (BOXED_CONFIDENCE if scale_box is not None else confidence)
 
     except (cv2.error, ValueError, IOError) as e:
         logging.error(
@@ -112,6 +117,101 @@ def detect_scale_bar(
             f"{scale_image_path}: {e}"
         )
         return None
+
+
+def _length_and_confidence(box: Tuple[int, int, int, int]) -> Tuple[int, float]:
+    """
+    Return the bar's length, its long side, and a confidence from its aspect ratio.
+
+    A bar is much longer than it is thick; ten times as long gives 1.0.
+    """
+    _, _, w, h = box
+    length = max(w, h)
+    confidence = min(1.0, length / max(min(w, h), 1) / 10.0)
+    logging.debug(f"Scale bar detected: {length} pixels, "
+                  f"confidence: {confidence:.2f}, dimensions: {w}x{h}")
+    return length, confidence
+
+
+def bar_box(
+    binary: np.ndarray, scale_box: Optional[Tuple[int, int, int, int]] = None
+) -> Optional[Tuple[int, int, int, int]]:
+    """
+    Return the bar's bounding box ``(x, y, w, h)`` in a binary scale image, or None.
+
+    The bar is seeded by the largest connected piece of ink, by pixel
+    count, and grown by the solid blocks in line with it: each as thick
+    as the seed within ``THICKNESS_TOLERANCE``, at least
+    ``SEGMENT_MIN_LENGTH`` of its length, overlapping it across the axis,
+    and no further from the chain than ``SEGMENT_MAX_GAP`` seed lengths,
+    the space of a missing open block. A caption, a numeral, a speck or
+    a frame drawn around the scale fails one of these and is left out.
+    With ``scale_box`` the seed is taken inside that box, where the bar
+    is; the blocks are still gathered from the whole image, so a bar the
+    box cut short is measured whole.
+    """
+    count, _, stats, _ = cv2.connectedComponentsWithStats(binary)
+    if count <= 1:
+        return None
+    pieces = [tuple(int(v) for v in stats[i, :5]) for i in range(1, count)]
+    seed = _seed_piece(pieces, scale_box)
+    if scale_box is not None:
+        logging.debug("Scale bar seeded inside scale_box %s", scale_box)
+    chain = _grow_chain(seed, [p for p in pieces if p is not seed and _is_segment_of(p, seed)])
+    if len(chain) < len(pieces):
+        logging.debug("Scale bar: %d of %d ink pieces left out as not part of the bar",
+                      len(pieces) - len(chain), len(pieces))
+    return _union(chain)
+
+
+def _seed_piece(pieces: Sequence[Sequence[int]], scale_box) -> Sequence[int]:
+    """Return the piece with the most ink, among those centred in the box when given."""
+    inside = pieces
+    if scale_box is not None:
+        x0, y0, x1, y1 = scale_box
+        inside = [p for p in pieces
+                  if x0 <= p[0] + p[2] / 2 <= x1 and y0 <= p[1] + p[3] / 2 <= y1] or pieces
+    return max(inside, key=lambda p: p[4])
+
+
+def _is_segment_of(piece: Sequence[int], seed: Sequence[int]) -> bool:
+    """Say whether a piece is a solid block of the seed's thickness, in line with it."""
+    horizontal = seed[2] >= seed[3]
+    along, across = (2, 3) if horizontal else (3, 2)
+    pos = 1 if horizontal else 0
+    overlaps = piece[pos] < seed[pos] + seed[across] and seed[pos] < piece[pos] + piece[across]
+    as_thick = abs(piece[across] - seed[across]) <= THICKNESS_TOLERANCE * seed[across]
+    long_enough = piece[along] >= SEGMENT_MIN_LENGTH * seed[along]
+    solid = piece[4] >= SEGMENT_MIN_DENSITY * piece[2] * piece[3]
+    return overlaps and as_thick and long_enough and solid
+
+
+def _grow_chain(seed: Sequence[int], blocks: Sequence[Sequence[int]]) -> list:
+    """Return the seed and the blocks reachable from it along the axis, gap by gap."""
+    horizontal = seed[2] >= seed[3]
+    pos, length = (0, 2) if horizontal else (1, 3)
+    reach = SEGMENT_MAX_GAP * seed[length]
+    start, end = seed[pos], seed[pos] + seed[length]
+    chain = [seed]
+    for block in sorted(blocks, key=lambda b: b[pos]):          # rightwards, then leftwards
+        if block[pos] >= end and block[pos] - end <= reach:
+            chain.append(block)
+            end = block[pos] + block[length]
+    for block in sorted(blocks, key=lambda b: -(b[pos] + b[length])):
+        block_end = block[pos] + block[length]
+        if block_end <= start and start - block_end <= reach:
+            chain.append(block)
+            start = block[pos]
+    return chain
+
+
+def _union(pieces: Sequence[Sequence[int]]) -> Tuple[int, int, int, int]:
+    """Return the box ``(x, y, w, h)`` that holds every piece."""
+    x0 = min(p[0] for p in pieces)
+    y0 = min(p[1] for p in pieces)
+    x1 = max(p[0] + p[2] for p in pieces)
+    y1 = max(p[1] + p[3] for p in pieces)
+    return x0, y0, x1 - x0, y1 - y0
 
 
 def save_debug_image(scale_image_path: str, binary_image: np.ndarray,
@@ -170,6 +270,27 @@ def calculate_conversion_factor(scale_pixels: int, scale_mm: float) -> float:
     return pixels_per_mm
 
 
+def _measure_scale(
+    image_path: str, scale_data: Dict, config: Dict, debug_dir: Optional[str]
+) -> Optional[Tuple[int, float]]:
+    """Find the scale image named in the metadata row and measure its bar, or warn."""
+    scale_image_path = _find_scale_image(image_path, scale_data['scale_id'])
+    if scale_image_path is None:
+        logging.warning(
+            f"The scale image '{scale_data['scale_id']}' is missing from the "
+            f"scales/ directory near {os.path.dirname(image_path)}"
+        )
+        return None
+    boxes = parse_ignore_boxes(scale_data.get('scale_box', ''), 'scale_box')
+    result = detect_scale_bar(
+        scale_image_path, config.get('scale_calibration', {}), debug_dir,
+        boxes[0] if boxes else None,
+    )
+    if result is None:
+        logging.warning(f"No scale bar found in {scale_image_path}")
+    return result
+
+
 def get_calibration_factor(
     image_path: str, scale_data: Dict, config: Dict, debug_dir: Optional[str] = None
 ) -> Tuple[Optional[float], str, Optional[float]]:
@@ -204,26 +325,9 @@ def get_calibration_factor(
         return None, "pixels_no_scale", None
 
     try:
-        scale_image_path = _find_scale_image(
-            image_path, scale_data['scale_id']
-        )
-        if scale_image_path is None:
-            logging.warning(
-                f"The scale image '{scale_data['scale_id']}' is missing from the "
-                f"scales/ directory near {os.path.dirname(image_path)}"
-            )
-            return None, "pixels_detection_failed", None
-
-        # Detect and measure scale bar
-        result = detect_scale_bar(
-            scale_image_path, config.get('scale_calibration', {}), debug_dir
-        )
+        result = _measure_scale(image_path, scale_data, config, debug_dir)
         if result is None:
-            logging.warning(
-                f"No scale bar found in {scale_image_path}"
-            )
             return None, "pixels_detection_failed", None
-
         scale_pixels, confidence = result
         scale_mm = float(scale_data['scale'])
         pixels_per_mm = calculate_conversion_factor(scale_pixels, scale_mm)

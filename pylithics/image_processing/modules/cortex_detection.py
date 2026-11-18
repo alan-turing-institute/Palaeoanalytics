@@ -11,10 +11,26 @@ Stippling is many small pieces of ink. A scar needs at least
 ``min_stipple_pieces`` of them (default 3) before the density, variance
 and edge tests are asked: one or two pieces are an arrow, a numeral or a
 dot, and a small scar that holds an arrow passed the density test alone.
+
+Some illustrators mark a cortex scar with a letter, usually C, instead of
+or beside the stippling. A scar is also cortex when one of its marks (the
+pieces of ink wholly inside it) reads as one of ``letter.letters``. The
+letter speaks for the whole scar, so its whole area is the cortex area.
+The reader is RapidOCR, the ``ocr`` extra; without it the letter test is
+skipped and the log says so once. ``cortex_source`` records which test
+decided: ``stippling`` or ``letter``.
 """
 
 DEFAULT_MIN_STIPPLE_PIECES = 3
 STIPPLE_MAX_AREA = 50   # a piece of ink up to this many pixels counts as a stipple
+DEFAULT_LETTER = {'enabled': True, 'letters': ['C'], 'min_confidence': 0.8}
+# A mark is scaled to this height and read by the recognizer alone. RapidOCR's text
+# detector finds no line in one lone letter; its recognizer reads a cut-out C at
+# 0.93 at this height and less well when the glyph is larger (0.54 at 96 px).
+_READ_HEIGHT = 32
+_READ_PAD = 12          # paper around the mark, so the reader sees a whole glyph
+_reader = None
+_reader_missing_reported = False
 
 import cv2
 import numpy as np
@@ -25,14 +41,16 @@ from ..config import get_cortex_detection_config
 
 def detect_cortex_in_child_contours(
     metrics: List[Dict[str, Any]],
-    inverted_image: np.ndarray
+    inverted_image: np.ndarray,
+    working: "np.ndarray | None" = None,
+    factor: int = 1,
 ) -> List[Dict[str, Any]]:
     """
     Detect cortex in child contours and relabel them by surface type.
 
-    Args:
-        metrics: Contour metrics with surface classification.
-        inverted_image: Inverted binary image for texture analysis.
+    ``inverted_image`` is the binary image for the texture test; ``working``
+    and ``factor`` are the working copy where the letter test reads the
+    marks, as the arrow detector does.
 
     Returns:
         Updated metrics with cortex areas relabelled and non-cortex children
@@ -54,8 +72,9 @@ def detect_cortex_in_child_contours(
             p.get("scar", ""): p.get("surface_type", "Unknown") for p in parents
         }
 
+        letters_on = (working, factor) if working is not None else (inverted_image, 1)
         cortex_children, non_cortex_children = _classify_cortex_children(
-            children, inverted_image, config
+            children, inverted_image, config, letters_on
         )
         _label_cortex_children(cortex_children, parent_areas)
         renumbered = _renumber_non_cortex_children(
@@ -77,8 +96,10 @@ def _classify_cortex_children(
     children: List[Dict[str, Any]],
     inverted_image: np.ndarray,
     config: Dict[str, Any],
+    letters_on: "tuple | None" = None,
 ) -> "tuple[List[Dict[str, Any]], List[Dict[str, Any]]]":
-    """Split children into (cortex, non-cortex) based on texture analysis."""
+    """Split children into (cortex, non-cortex) by stippling, then by a cortex letter."""
+    letters_on = letters_on or (inverted_image, 1)
     cortex, non_cortex = [], []
     for child in children:
         if not child.get("contour"):
@@ -91,11 +112,78 @@ def _classify_cortex_children(
 
         contour_array = np.array(child["contour"], dtype=np.int32)
         if _detect_cortex_texture(contour_array, inverted_image, config):
-            cortex.append(child)
-            logging.debug(f"Detected cortex in child: {child.get('scar', 'unknown')}")
+            child["cortex_source"] = "stippling"
+        elif _letter_in_scar(contour_array, *letters_on, config):
+            child["cortex_source"] = "letter"
         else:
             non_cortex.append(child)
+            continue
+        cortex.append(child)
+        logging.debug(f"Detected cortex in child {child.get('scar', 'unknown')} "
+                      f"by {child['cortex_source']}")
     return cortex, non_cortex
+
+
+def _letter_in_scar(
+    contour: np.ndarray, ink: np.ndarray, factor: int, config: Dict[str, Any],
+) -> bool:
+    """
+    Report whether a mark inside the scar reads as a cortex letter.
+
+    A mark counts when the reader returns one line, that line is one of
+    the configured letters (case ignored), and its confidence is at least
+    ``min_confidence``.
+    """
+    settings = {**DEFAULT_LETTER, **(config.get('letter') or {})}
+    if not settings.get('enabled', True):
+        return False
+    letters = {str(letter).strip().upper() for letter in settings.get('letters', [])}
+    reader = _load_reader() if letters else None
+    if reader is None:
+        return False
+    from .arrow_integration import marks_in_scar
+    marks = marks_in_scar(contour, ink, factor)
+    for mark in marks.contours:
+        text, score = _read_mark(reader, marks.ink, mark)
+        if text.upper() in letters and score >= float(settings.get('min_confidence', 0.8)):
+            logging.debug(f"Cortex letter {text!r} read at {score:.2f}")
+            return True
+    return False
+
+
+def _read_mark(reader, ink: np.ndarray, mark: np.ndarray) -> "tuple[str, float]":
+    """Read one mark: dark ink on paper, enlarged and padded. Return its text and score."""
+    x, y, w, h = cv2.boundingRect(mark)
+    glyph = np.zeros((h, w), dtype=np.uint8)
+    cv2.drawContours(glyph, [mark - (x, y)], 0, 255, cv2.FILLED)
+    glyph = np.where((glyph > 0) & (ink[y:y + h, x:x + w] > 0), 0, 255).astype(np.uint8)
+    scale = _READ_HEIGHT / max(h, 1)
+    glyph = cv2.resize(glyph, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    glyph = cv2.copyMakeBorder(glyph, _READ_PAD, _READ_PAD, _READ_PAD, _READ_PAD,
+                               cv2.BORDER_CONSTANT, value=255)
+    result, _ = reader(cv2.cvtColor(glyph, cv2.COLOR_GRAY2RGB),
+                       use_det=False, use_cls=False, use_rec=True)
+    if not result or len(result) != 1:
+        return "", 0.0
+    text, score = result[0][-2], result[0][-1]
+    return "".join(ch for ch in str(text) if ch.isalnum()), float(score)
+
+
+def _load_reader():
+    """Load RapidOCR once per process; report its absence once."""
+    global _reader, _reader_missing_reported
+    if _reader is not None:
+        return _reader
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+    except ImportError:
+        if not _reader_missing_reported:
+            logging.info("RapidOCR is not installed, so a letter in a scar is not read as "
+                         "cortex. Install it with: pip install '.[ocr]'")
+            _reader_missing_reported = True
+        return None
+    _reader = RapidOCR()
+    return _reader
 
 
 def _label_cortex_children(

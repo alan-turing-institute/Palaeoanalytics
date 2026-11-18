@@ -116,6 +116,11 @@ class Marks:
             int(round((point[1] + self.origin[1]) / self.factor)),
         )
 
+    def contour_to_source(self, contour: np.ndarray) -> np.ndarray:
+        """Return a crop contour in source pixels, in OpenCV's shape."""
+        shifted = contour.reshape(-1, 2).astype(float) + self.origin
+        return np.round(shifted / self.factor).astype(np.int32).reshape(-1, 1, 2)
+
 
 def marks_in_scar(scar: np.ndarray, ink: np.ndarray, factor: int = 1) -> Marks:
     """
@@ -165,7 +170,7 @@ def _best_arrow(
             contour, entry, marks.ink, image_dpi, marks.factor,
         )
         if result:
-            results.append(result)
+            results.append({**result, 'arrow_contour': marks.contour_to_source(contour)})
     if not results:
         return None
     best = max(results, key=lambda r: (r.get('stage') == 'triangle', r.get('score') or 0.0))
@@ -187,6 +192,7 @@ def _apply_arrow_result(metric: Dict, result: Dict) -> None:
         "arrow_angle": round(result["compass_angle"], 0),
         "arrow_tip": result["arrow_tip"],
         "arrow_back": result["arrow_back"],
+        "arrow_contour": result.get("arrow_contour"),   # the mark's outline, for the overlay
     })
     if result.get("score") is not None:
         metric["arrow_score"] = result["score"]

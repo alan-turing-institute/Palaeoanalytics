@@ -13,10 +13,11 @@ if str(_PKG_ROOT) not in sys.path:
     sys.path.insert(0, str(_PKG_ROOT))
 
 from pylithics.image_processing.modules.dashboard.data import (  # noqa: E402
-    load_processed,
+    load_processed, overview_counts, review_items,
 )
+from pylithics.image_processing.modules.dashboard import report  # noqa: E402
 from pylithics.image_processing.modules.dashboard.views import (  # noqa: E402
-    overview, distributions, per_lithic,
+    overview, distributions, per_lithic, review,
 )
 from pylithics.image_processing.modules.dashboard.runner import (  # noqa: E402
     DATA_DIR_ENV,
@@ -27,7 +28,35 @@ PAGES = {
     "Overview": overview.render,
     "Distributions": distributions.render,
     "Per-Lithic Detail": per_lithic.render,
+    "Review": review.render,
 }
+
+
+@st.cache_data(show_spinner="Building the report…")
+def _cached_reports(processed_dir: str, csv_mtime: float, summary_mtime: float) -> dict:
+    """Build the three export files once for each version of the results."""
+    bundle = _cached_load(processed_dir, csv_mtime, summary_mtime)
+    counts = overview_counts(bundle["metrics"], bundle.get("run_summary"))
+    items = review_items(bundle["metrics"], bundle.get("run_summary"), review._tolerance())
+    return {
+        "csv": report.report_csv(items),
+        "html": report.report_html(bundle, counts, items),
+        "pdf": report.report_pdf(bundle, counts, items),
+    }
+
+
+def _render_export(processed_dir: str, csv_mtime: float, summary_mtime: float) -> None:
+    """Offer the whole dashboard as CSV, HTML and PDF, from the sidebar."""
+    st.sidebar.subheader("Export dashboard")
+    if not (st.sidebar.button("Prepare export") or st.session_state.get("export_ready")):
+        st.sidebar.caption("Overview, Distributions and Review in one file.")
+        return
+    st.session_state["export_ready"] = True
+    files = _cached_reports(processed_dir, csv_mtime, summary_mtime)
+    for kind, mime in (("csv", "text/csv"), ("html", "text/html"), ("pdf", "application/pdf")):
+        st.sidebar.download_button(kind.upper(), files[kind],
+                                   file_name=report.export_filename(processed_dir, kind),
+                                   mime=mime, key=f"export_{kind}", use_container_width=True)
 
 
 @st.cache_data(show_spinner=False)
@@ -56,8 +85,8 @@ def main() -> None:
     data_dir = _resolve_data_dir()
     if data_dir is None:
         st.error(
-            "No data directory was provided. Launch the dashboard with "
-            "`pylithics --data_dir <path> --explore`."
+            "The command gave no results folder. Start the dashboard with "
+            "`pylithics --explore <results folder>`."
         )
         return
 
@@ -65,8 +94,8 @@ def main() -> None:
     csv_path = processed_dir / "processed_metrics.csv"
     if not csv_path.exists():
         st.error(
-            f"processed_metrics.csv not found in {processed_dir}. "
-            "Point --data_dir at the folder that contains it."
+            f"There is no processed_metrics.csv in {processed_dir}. "
+            "Give --explore the folder that contains it."
         )
         return
 
@@ -83,6 +112,8 @@ def main() -> None:
         return
 
     page_name = st.sidebar.radio("Page", list(PAGES.keys()))
+    st.sidebar.markdown("---")
+    _render_export(str(processed_dir), csv_path.stat().st_mtime, summary_mtime)
     st.sidebar.markdown("---")
     st.sidebar.caption(f"Data: `{data_dir}`")
     st.sidebar.caption(f"Lithics: {bundle['metrics']['image_id'].nunique()}")

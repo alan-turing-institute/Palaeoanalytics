@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from pylithics.image_processing.modules.scale_calibration import (
+    bar_box,
     calculate_conversion_factor,
     detect_scale_bar,
     get_calibration_factor,
@@ -97,6 +98,91 @@ class TestDetectScaleBar:
         assert 0.0 <= confidence <= 1.0
 
 
+def _binary(shape):
+    return np.zeros(shape, dtype=np.uint8)
+
+
+def _fill(binary, x0, y0, x1, y1):
+    binary[y0:y1, x0:x1] = 255
+
+
+class TestBarBox:
+    """The measure is the bar alone, with or without a recorded box."""
+
+    def test_with_a_box_the_caption_outside_it_is_not_measured(self):
+        binary = _binary((400, 100))
+        _fill(binary, 30, 10, 60, 40)            # "cm" above the bar
+        _fill(binary, 20, 60, 80, 360)           # a vertical bar, 300 px
+        assert bar_box(binary, (15, 55, 85, 365)) == (20, 60, 60, 300)
+        assert bar_box(binary) == (20, 60, 60, 300)
+
+    def test_separate_blocks_with_a_caption_above(self):
+        binary = _binary((120, 400))
+        for x0 in (20, 120, 220):                # three blocks of one thickness
+            _fill(binary, x0, 60, x0 + 50, 80)
+        _fill(binary, 120, 20, 135, 45)          # "5"
+        _fill(binary, 145, 25, 175, 45)          # "cm"
+        assert bar_box(binary) == (20, 60, 250, 20)
+
+    def test_a_rule_with_ticks_and_numerals(self):
+        binary = _binary((100, 400))
+        _fill(binary, 20, 60, 320, 64)           # the rule
+        for x0 in (20, 170, 316):
+            _fill(binary, x0, 50, x0 + 4, 64)    # ticks attached to the rule
+        _fill(binary, 15, 20, 30, 40)            # "0" above the first tick
+        _fill(binary, 300, 20, 330, 40)          # "10" above the last
+        assert bar_box(binary) == (20, 50, 300, 14)
+
+    def test_a_speck_beside_a_solid_bar_is_left_out(self):
+        binary = _binary((100, 400))
+        _fill(binary, 20, 40, 320, 60)
+        _fill(binary, 350, 45, 354, 49)
+        assert bar_box(binary) == (20, 40, 300, 20)
+
+    def test_a_frame_around_the_scale_does_not_win_by_size(self):
+        binary = _binary((400, 200))
+        _fill(binary, 10, 10, 190, 390)          # a thin frame
+        binary[14:386, 14:186] = 0               # hollow
+        _fill(binary, 60, 80, 140, 380)          # the bar inside it
+        assert bar_box(binary) == (60, 80, 80, 300)
+
+    def test_a_box_that_took_in_the_frame_and_caption_still_gives_the_bar(self):
+        binary = _binary((400, 200))
+        _fill(binary, 10, 10, 190, 390)
+        binary[14:386, 14:186] = 0               # a frame around everything
+        _fill(binary, 70, 30, 130, 60)           # "cm" inside the frame
+        _fill(binary, 60, 80, 140, 380)          # the bar
+        assert bar_box(binary, (10, 10, 190, 390)) == (60, 80, 80, 300)
+
+    def test_a_numeral_as_tall_as_the_bar_is_thick_is_not_a_block(self):
+        binary = _binary((100, 500))
+        for x0 in (20, 120, 220):
+            _fill(binary, x0, 40, x0 + 50, 60)   # three blocks, 20 thick
+        _fill(binary, 300, 40, 330, 44)          # a hollow "5": top bar,
+        _fill(binary, 300, 44, 304, 50)          # left stem,
+        _fill(binary, 300, 50, 330, 54)          # middle bar,
+        _fill(binary, 326, 54, 330, 60)          # right stem, bottom bar
+        _fill(binary, 300, 56, 330, 60)
+        assert bar_box(binary) == (20, 40, 250, 20)
+        assert bar_box(binary, (15, 35, 275, 65)) == (20, 40, 250, 20)
+
+    def test_a_block_the_box_cut_short_is_still_measured(self):
+        binary = _binary((100, 400))
+        for x0 in (20, 120, 220):
+            _fill(binary, x0, 40, x0 + 50, 60)
+        assert bar_box(binary, (110, 35, 280, 65)) == (20, 40, 250, 20)   # box misses block one
+
+    def test_a_block_too_far_along_the_axis_is_another_mark(self):
+        binary = _binary((100, 600))
+        _fill(binary, 20, 40, 120, 60)
+        _fill(binary, 170, 40, 270, 60)          # one gap on: a block
+        _fill(binary, 500, 40, 600, 60)          # two and a half lengths on: not
+        assert bar_box(binary) == (20, 40, 250, 20)
+
+    def test_no_ink_gives_none(self):
+        assert bar_box(_binary((50, 50))) is None
+
+
 class TestCalculateConversionFactor:
     """Tests for calculate_conversion_factor."""
 
@@ -170,6 +256,18 @@ class TestGetCalibrationFactor:
         assert method == "scale_bar"
         assert factor == pytest.approx(200 / 50.0, abs=0.1)
         assert 0.0 <= confidence <= 1.0
+
+    def test_scale_box_in_the_metadata_bounds_the_measure(self, tmp_path):
+        image = np.full((50, 300), 255, dtype=np.uint8)
+        cv2.rectangle(image, (20, 20), (220, 30), color=0, thickness=-1)   # the bar, 200 px
+        cv2.rectangle(image, (240, 15), (280, 35), color=0, thickness=-1)  # "cm", as thick
+        path = str(tmp_path / "bar_with_caption.png")
+        cv2.imwrite(path, image)
+        artifact = self._make_layout(tmp_path, "sc.png", path)
+        with_box = {"scale_id": "sc.png", "scale": "50", "scale_box": "15 15 230 35"}
+        factor, method, confidence = get_calibration_factor(artifact, with_box, {})
+        assert method == "scale_bar" and factor == pytest.approx(201 / 50.0, abs=0.05)
+        assert confidence == 0.95
 
     def test_resolves_scale_id_without_extension(self, tmp_path):
         synthetic = _make_horizontal_bar_image(tmp_path, length_px=100)

@@ -114,6 +114,10 @@ scar_complexity:
 cortex_detection:
   enabled: true
   min_stipple_pieces: 3
+  letter:
+    enabled: true          # --no_cortex_letter sets it to false
+    letters: ["C"]         # the letters that mean cortex; case is ignored
+    min_confidence: 0.8
   stippling_density_threshold: 0.2
   texture_variance_threshold: 100
   edge_density_threshold: 0.05
@@ -242,6 +246,7 @@ pylithics --data_dir ./data --disable_scale_calibration
 | `--disable_cortex_detection` | Set cortex detection off | on |
 | `--cortex_sensitivity {low,medium,high}` | The detection sensitivity | `medium` |
 | `--min_stipple_pieces N` | A scar is cortex only when it holds at least N small pieces of ink. One or two pieces are an arrow or a numeral | `3` |
+| `--no_cortex_letter` | Do not read a letter in a scar as cortex. By default a scar that holds the letter C is cortex, because some illustrators mark cortex with a C. The letters are in `cortex_detection.letter.letters`. Needs the `ocr` extra | on |
 
 ```bash
 pylithics --data_dir ./data --cortex_sensitivity high

@@ -254,6 +254,12 @@ cortex_detection:
                          # cortex. One or two pieces are an arrow, a numeral or a
                          # dot. Command line: --min_stipple_pieces
 
+  letter:                  # A letter drawn in a scar that marks it as cortex.
+    enabled: true          # Read the marks in each scar. Command line:
+                           # --no_cortex_letter sets this to false.
+    letters: ["C"]         # The letters that mean cortex. Case is ignored.
+    min_confidence: 0.8    # A read below this confidence is not used.
+
   # Detection sensitivity parameters
   # Lower values make detection more sensitive (detect more cortex)
   # Higher values make detection more restrictive (detect less cortex)

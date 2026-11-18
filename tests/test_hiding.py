@@ -138,6 +138,34 @@ class TestHideInCrop:
         assert not _ink_left(result, origin, glyph)
 
 
+    def test_text_inside_the_artefact_box_is_hidden_but_a_label_there_is_not(self):
+        """A heading the box grew over is text, so it goes; an arrow in the box stays."""
+        page, pieces, classified, reads, identifier = _page()
+        grown = (50, 100, 260, 260)                           # the box holds caption and legend
+        hide = hiding.make_hider(list(pieces.values()), classified, reads, {})
+        crop, origin = _crop(page, grown, pad=20)
+        result, hidden = hide(crop, origin, grown, identifier)
+        assert not _ink_left(result, origin, pieces['caption'])
+        assert not _ink_left(result, origin, pieces['legend'])
+        assert _ink_left(result, origin, pieces['arrow'])
+        assert _ink_left(result, origin, pieces['lithic'])
+        assert hidden.counts['caption'] == 2
+
+    def test_a_text_line_s_band_takes_specks_and_the_halo_but_keeps_lithic_ink(self):
+        page, pieces, classified, reads, identifier = _page()
+        page[238, 100] = 0                                    # a speck 2 px above the caption
+        page[247, 190] = 90                                   # a grey fringe pixel beside it
+        classified.text[0] = [60, 200, 205, 255]              # the line box reaches the outline
+        components = list(pieces.values())
+        hide = hiding.make_hider(components, classified, reads, {})
+        crop, origin = _crop(page, pieces['lithic'].box, pad=60)
+        result, _ = hide(crop, origin, tuple(pieces['lithic'].box), identifier)
+        assert result[238 - origin[1], 100 - origin[0]] == PAPER
+        assert result[247 - origin[1], 190 - origin[0]] == PAPER
+        assert not _ink_left(result, origin, pieces['caption'])
+        assert _ink_left(result, origin, pieces['lithic'])    # its bottom edge lies in the band
+
+
 @pytest.mark.unit
 class TestPaperValue:
 

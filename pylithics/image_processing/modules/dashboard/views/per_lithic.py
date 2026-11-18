@@ -32,12 +32,12 @@ def render(bundle: dict) -> None:
 
     st.header("Per-Lithic Detail")
     if df.empty:
-        st.info("No metrics found in processed_metrics.csv.")
+        st.info("processed_metrics.csv has no metrics.")
         return
 
     image_ids = sorted(df["image_id"].dropna().unique().tolist())
     if not image_ids:
-        st.info("No image_ids found.")
+        st.info("The data has no image_id values.")
         return
 
     image_id = st.selectbox("Select a lithic", image_ids)
@@ -47,17 +47,17 @@ def render(bundle: dict) -> None:
 
     left, right = st.columns(2)
     with left:
-        st.subheader("Labeled image")
+        st.subheader("Labelled image")
         if paths["labeled"]:
             st.image(_letterbox(paths["labeled"]), use_container_width=True)
         else:
-            st.info(f"No labeled image found for {image_id}.")
+            st.info(f"There is no labelled image for {image_id}.")
     with right:
         st.subheader("Voronoi diagram")
         if paths["voronoi"]:
             st.image(_letterbox(paths["voronoi"]), use_container_width=True)
         else:
-            st.info(f"No Voronoi diagram found for {image_id}.")
+            st.info(f"There is no Voronoi diagram for {image_id}.")
 
     st.subheader("Metric rows")
     display_rows = rows.rename(columns={c: label(c) for c in rows.columns})

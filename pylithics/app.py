@@ -103,6 +103,7 @@ import logging
 import os
 from datetime import datetime
 import subprocess
+import time
 from PIL import Image
 from typing import Optional, Dict, Any, Tuple
 
@@ -112,7 +113,7 @@ from pylithics.image_processing.image_analysis import (
     debug_dir_for,
     process_and_save_contours,
 )
-from pylithics.image_processing.utils import read_metadata
+from pylithics.image_processing.utils import format_duration, progress_columns, read_metadata
 from pylithics.image_processing.modules.scale_calibration import get_calibration_factor
 
 
@@ -338,6 +339,29 @@ def _write_run_summary(
         logging.debug("Wrote run summary to %s", summary_path)
     except OSError as e:
         logging.warning("Cannot write the run summary: %s", e)
+
+
+def _write_review(processed_dir: str, config: Dict[str, Any]) -> None:
+    """
+    Write ``results/review.csv``: what the dashboard's Review page lists.
+
+    One row for each item to examine, with the reason and what to do. A
+    clean run writes the header alone. A failure here is logged and does
+    not stop the run: the metrics are already written.
+    """
+    try:
+        from pylithics.image_processing.modules.dashboard.data import (
+            load_processed, review_items,
+        )
+        from pylithics.image_processing.modules.dashboard.report import write_review_csv
+        bundle = load_processed(processed_dir)
+        tolerance = float(config.get('surface_classification', {}).get('tolerance', 0.1))
+        items = review_items(bundle["metrics"], bundle.get("run_summary"), tolerance)
+        path = write_review_csv(items, processed_dir)
+        if len(items):
+            logging.info(f"{len(items)} item(s) to review: {path}")
+    except (OSError, ValueError, KeyError, FileNotFoundError) as e:
+        logging.warning(f"Cannot write review.csv: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -998,6 +1022,7 @@ class PyLithicsApplication:
         )
         results = _new_batch_results(metadata, flagged_rows(metadata), processed_dir)
         results['not_analysed'] = not_analysed
+        started = time.monotonic()     # after the pixels question: only the analysis
         logging.debug(f"Starting batch processing of {len(metadata)} images")
 
         workers = _resolve_worker_count(self.workers_arg, len(metadata))
@@ -1013,8 +1038,10 @@ class PyLithicsApplication:
         else:
             self._run_batch_loop(metadata, images_dir, processed_dir, results)
 
+        results['seconds'] = time.monotonic() - started
         self._log_batch_summary(results)
         _write_run_summary(processed_dir, images_dir, results, metadata)
+        _write_review(processed_dir, self.config_manager.config)
 
         return results
 
@@ -1049,9 +1076,13 @@ class PyLithicsApplication:
         if not without or not calibration.get('enabled', True):
             return metadata, []
 
+        linked = sum(1 for e in without if (e.get('scale_id') or '').strip())
         notice = (
             f"{len(without)} of {len(metadata)} rows in {os.path.basename(meta_file)} "
-            f"have an empty scale column (the length of the scale bar in mm)."
+            f"have no value in the scale column: the printed length of the scale bar, "
+            f"in mm, which you type. "
+            + (f"{linked} of them name a scale bar image in scale_id; that is not enough "
+               f"on its own. " if linked else "")
         )
         if not sys.stdin.isatty():
             logging.warning(f"{notice} They are measured in pixels.")
@@ -1060,8 +1091,9 @@ class PyLithicsApplication:
             return metadata, []
 
         logging.warning(
-            f"{len(without)} rows with an empty scale column are not analysed. "
-            f"Type the length of each scale bar in mm in the scale column of {meta_file}."
+            f"{len(without)} rows with no value in the scale column are not analysed. "
+            f"Type the printed length of each scale bar, in mm, in the scale column of "
+            f"{meta_file}. Then start the command again."
         )
         left_out = {id(e) for e in without}
         kept = [e for e in metadata if id(e) not in left_out]
@@ -1079,19 +1111,10 @@ class PyLithicsApplication:
         use_progress = sys.stdout.isatty()
 
         if use_progress:
-            from rich.progress import (
-                BarColumn, MofNCompleteColumn, Progress, SpinnerColumn,
-                TextColumn, TimeElapsedColumn, TimeRemainingColumn,
-            )
+            from rich.progress import Progress
 
             with Progress(
-                SpinnerColumn(style="cyan"),
-                TextColumn("[cyan]Processing[/]"),
-                BarColumn(),
-                MofNCompleteColumn(),
-                TextColumn("[dim]{task.fields[image]}[/]"),
-                TimeElapsedColumn(),
-                TimeRemainingColumn(),
+                *progress_columns("Processing", "image"),
                 console=self.rich_console,
             ) as progress:
                 task = progress.add_task(
@@ -1164,18 +1187,9 @@ class PyLithicsApplication:
 
         try:
             if use_progress:
-                from rich.progress import (
-                    BarColumn, MofNCompleteColumn, Progress, SpinnerColumn,
-                    TextColumn, TimeElapsedColumn, TimeRemainingColumn,
-                )
+                from rich.progress import Progress
                 with Progress(
-                    SpinnerColumn(style="cyan"),
-                    TextColumn(f"[cyan]Processing ({workers} workers)[/]"),
-                    BarColumn(),
-                    MofNCompleteColumn(),
-                    TextColumn("[dim]{task.fields[image]}[/]"),
-                    TimeElapsedColumn(),
-                    TimeRemainingColumn(),
+                    *progress_columns("Processing", "image"),     # workers: line above
                     console=self.rich_console,
                 ) as progress:
                     task = progress.add_task(
@@ -1281,13 +1295,14 @@ class PyLithicsApplication:
         done = results['processed_successfully']
         log_path = self.log_file_path or "the log file"
         console_only = {"console_only": True}
+        took = f" in {format_duration(results['seconds'])}" if 'seconds' in results else ""
         if total > 0 and done == total:
-            logging.info(f"{done}/{total} images analysed with no errors.")
+            logging.info(f"{done}/{total} images analysed with no errors{took}.")
             logging.info(
                 f"See the log at {log_path}", extra=console_only,
             )
         else:
-            logging.info(f"{done}/{total} images analysed with no errors.")
+            logging.info(f"{done}/{total} images analysed with no errors{took}.")
             logging.info(
                 f"See the log at {log_path} for the errors.",
                 extra=console_only,
@@ -1368,7 +1383,10 @@ def create_argument_parser() -> argparse.ArgumentParser:
         epilog=(
             'Related command:\n'
             '  pylithics-pages   Cut the scanned plates in <data_dir>/pages/ into\n'
-            '                    one image for each artefact, ready for this command.\n'
+            '                    one image for each artefact, with the page\'s text\n'
+            '                    hidden, ready for this command. This command reads\n'
+            '                    those images as they are: after a change on the page\n'
+            '                    side, run pylithics-pages again first.\n'
             '                    See: pylithics-pages --help\n\n'
             'Use --docs to open the full documentation.'
         )
@@ -1531,6 +1549,12 @@ def _add_cortex_args(parser: argparse.ArgumentParser) -> None:
         '--min_stipple_pieces', type=int, metavar='N',
         help='A scar is cortex only when it holds at least N small pieces of ink '
              '(default: 3). One or two pieces are an arrow or a numeral.'
+    )
+    group.add_argument(
+        '--no_cortex_letter', action='store_true',
+        help='Do not read a letter in a scar as cortex. By default a scar that holds '
+             'the letter C is cortex: some illustrators mark cortex with a C. The '
+             'letters are set in cortex_detection.letter.letters.'
     )
 
 
@@ -1815,6 +1839,8 @@ def _apply_cortex_overrides(
     pieces = getattr(args, 'min_stipple_pieces', None)
     if pieces is not None:
         overrides['cortex_detection.min_stipple_pieces'] = pieces
+    if getattr(args, 'no_cortex_letter', False):
+        overrides['cortex_detection.letter.enabled'] = False
 
     sensitivity = getattr(args, 'cortex_sensitivity', None)
     if sensitivity == 'low':

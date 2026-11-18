@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from pylithics.image_processing.modules import visualization
 from pylithics.image_processing.modules.visualization import (
     save_measurements_to_csv,
     visualize_contours_with_hierarchy,
@@ -138,6 +139,23 @@ class TestVisualizeContoursWithHierarchy:
         nonwhite_with = np.sum(np.any(rendered_with < 250, axis=-1))
         nonwhite_without = np.sum(np.any(rendered_without < 250, axis=-1))
         assert nonwhite_with > nonwhite_without
+
+    def test_the_arrow_s_own_outline_is_drawn(self):
+        """The overlay outlines the mark the detector measured, in the arrow colour."""
+        contour = _square_contour(origin=(20, 20), side=60)
+        hierarchy = np.array([[-1, -1, -1, -1]])
+        outline = np.array([[[40, 240]], [[260, 240]], [[260, 250]], [[40, 250]]], dtype=np.int32)
+        with_outline = _scar_metric(has_arrow=True, arrow_back=(50, 245), arrow_tip=(250, 245),
+                                    arrow_angle=90.0, arrow_contour=outline)
+        without = _scar_metric(has_arrow=True, arrow_back=(50, 245), arrow_tip=(250, 245),
+                               arrow_angle=90.0)
+        colour = np.array(visualization.COLOR_ARROW, dtype=np.uint8)
+
+        def arrow_pixels(metric):
+            rendered = self._run_and_load([contour], hierarchy, [metric], image_shape=(300, 300))
+            return int(np.all(rendered == colour, axis=-1).sum())
+
+        assert arrow_pixels(with_outline) > arrow_pixels(without)
 
     def test_creates_missing_output_directory(self):
         contour = _square_contour()

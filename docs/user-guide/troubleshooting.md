@@ -223,6 +223,15 @@ pylithics --data_dir ./data --disable_cortex_detection
 **Cause**: Cortex is stippling, many small pieces of ink. A scar is cortex only when it holds at least `min_stipple_pieces` of them (default 3). A larger value makes the test stricter
 **Procedure**: `pylithics --data_dir ./data --min_stipple_pieces 4`, or set `cortex_detection.min_stipple_pieces` in `config.yaml`
 
+**Problem**: A scar marked with the letter C is not cortex, or a scar with a letter is cortex when it should not be
+
+**Cause**: Some illustrators mark a cortex scar with the letter C. PyLithics reads each small mark inside a scar with RapidOCR. A scar is cortex when a mark reads as one of the letters in `cortex_detection.letter.letters` (default `C`) at a confidence of 0.8 or more. The column `cortex_source` says `letter` for these scars. Without RapidOCR the letter is not read, and the log says so once
+**Procedure**:
+
+1. To read the letter, install the reader: `pip install '.[ocr]'`.
+2. To add a letter that your illustrator used, set `letters: ["C", "K"]` under `cortex_detection.letter` in `config.yaml`.
+3. To stop the letter test, run `pylithics --data_dir ./data --no_cortex_letter`.
+
 ### The analysis is slow
 
 **Problem**: The analysis takes too long
@@ -293,6 +302,79 @@ print("Area range:", df['total_area'].min(), "-", df['total_area'].max())
 print("Calibration methods:", df['calibration_method'].value_counts())
 ```
 
+## Dashboard review checks
+
+The dashboard's Review page and `results/review.csv` use these checks. Each row gives the reason in numbers.
+
+### Failed
+
+**Cause**: Images listed in meta_data.csv that gave no metrics.
+
+**Procedure**:
+
+1. Open pylithics.log in the results folder and find the image.
+2. Correct the image, or its row in meta_data.csv.
+3. Run the analysis again.
+
+### Unclassified surfaces
+
+**Cause**: PyLithics cannot name these outlines as a dorsal, ventral, platform or lateral surface from their size. A ventral surface must be within 10 percent of the dorsal surface in length, width and area (the tolerance setting).
+
+**Procedure**:
+
+1. Open the labelled image of the lithic. Find the outline with the label Unclassified.
+2. If the outline is a view of the lithic, its size in the drawing does not agree with the dorsal view. You cannot correct this in PyLithics. Use the result as it is, or redraw the image/s to meet size requirements.
+3. If the outline is not part of the lithic, for example text, a number or a mark, remove it from the image. Then run the analysis again.
+
+### Zero-scar lithics
+
+**Cause**: Lithics whose dorsal face holds no scar.
+
+**Procedure**:
+
+1. Open the labelled image of the lithic.
+2. If the dorsal face is plain in the drawing, the result is correct.
+3. If scar lines are broken or missing, see Troubleshooting for the threshold settings.
+
+### Low-confidence scales
+
+**Cause**: Scale bars with a confidence below 0.8. Without a scale_box the confidence is the length of the bar divided by its thickness, divided by 10. A short, thick bar gets a low value even when it is measured correctly. A bar measured from a scale_box gets 0.95.
+
+**Procedure**:
+
+1. Open the scale image named in scale_id.
+2. Make sure that the measured length is the bar alone, with no caption and no frame.
+3. If it is, the value stands. To record the box of the bar, cut the pages again with pylithics-pages.
+
+### Pixel-only
+
+**Cause**: Lithics measured in pixels, not millimetres.
+
+**Procedure**:
+
+1. Open meta_data.csv and find the row of the image.
+2. Type the printed length of the bar, in mm, in the scale column.
+3. Make sure that the scale image named in scale_id is in scales/.
+4. Run the analysis again.
+
+### Mixed DPI
+
+**Cause**: Images with a DPI that is different from most of the batch. You cannot compare pixel measurements from images with different DPI values.
+
+**Procedure**:
+
+1. Scan the listed images again at the DPI of the batch.
+2. As an alternative, calibrate each image with a scale bar.
+
+### Missing DPI
+
+**Cause**: Images whose files have no DPI tag. PyLithics uses the default settings for them. Thus the sizes that use the DPI are less accurate.
+
+**Procedure**:
+
+1. Save the image again with its DPI.
+2. As an alternative, calibrate the image with a scale bar.
+
 ## Operating systems
 
 ### macOS
@@ -347,12 +429,12 @@ sudo yum install python3-devel opencv-devel
 
 ## Error messages
 
-### "rows in meta_data.csv have an empty scale column. Measure them in pixels?"
+### "rows in meta_data.csv have no value in the scale column. Measure them in pixels?"
 
 **Cause**: Some rows in `meta_data.csv` have no value in the `scale` column. That column holds the length of the scale bar in millimetres, which you type. The `scale_id` column names the scale image; it is not enough on its own. Those images can only be measured in pixels
 **Procedure**: Answer `y` to analyse all images, in pixels where there is no scale. Answer `n` to analyse only the images with a scale. Then fill in the `scale` column and start the command again. See [Basic Usage](basic-usage.md#rows-with-no-scale-and-rows-with-a-flag)
 
-### "rows with an empty scale column are not analysed"
+### "rows with no value in the scale column are not analysed"
 
 **Cause**: You answered `n` to the question above
 **Procedure**: Fill in the `scale` column of `meta_data.csv` for those images. `run_summary.json` lists them. Start the command again

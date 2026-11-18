@@ -120,7 +120,11 @@ list.
 
 The first test is on shape, before the grouping. A word is many
 letter-sized pieces of ink on one baseline. It is discarded and never
-exported.
+exported. A heading set in large type does not fuse into one word, so
+each letter is a separate piece. A row of eight or more such pieces on
+one baseline, each close to the next, is a line of text and is
+discarded too. The identifiers of a row of lithics are a lithic's width
+apart, so they do not make a line.
 
 The second test is on reading, after the grouping. A framed code passes
 the shape test, because the frame is one piece that holds most of the
@@ -307,11 +311,16 @@ to find the ink. It does not keep the result.
 The one exception is the page's text. A crop is the artefact's box with
 a margin, and the margin can take in a caption, a legend key, the end
 of a scale bar or a neighbour's identifier. `pylithics` would measure
-each of them as a surface. So the command hides them in the crop: it
+each of them as a surface. So `pylithics-pages` hides them in the crop
+file it writes. `pylithics` does not hide text: it analyses each crop
+file as it is. The command
 paints each piece over with the paper value of the crop, by the piece's
-own ink, never its box, and never a piece inside the artefact's own box
-or a flaking arrow. The page itself is not changed. The manifest column
-`hidden` says what was hidden in each crop.
+own ink with a margin of two pixels for the grey edge of print, and
+never a flaking arrow. A line of text is painted as a band, so the dot
+of an i and the specks of print go with it. The lithic's ink is kept
+wherever it lies. Inside the artefact's own box only text is painted,
+never a label glyph. The page itself is not changed. The manifest
+column `hidden` says what was hidden in each crop.
 
 The crop's own identifier stays, so the crop still shows which lithic
 it is. Its box goes into `meta_data.csv` in the column `ignore_box`,
@@ -371,6 +380,7 @@ source page.
 | `upscale_factor` | The factor of the working copy the page was detected on: 1, 2, 3 or 4. See [Working Resolution](working-resolution.md). |
 | `scale_score` | For a scale bar: the score of the classifier, from 0 to 1. See [Scale bars](#scale-bars). Empty for an artefact. |
 | `scale_method` | For a scale bar: `classifier`, or `rules` when the classifier is off. |
+| `scale_box` | For a scale bar: the box of the bar itself in the crop, as `x0 y0 x1 y1` in the crop's pixels, without its caption. Also written to `meta_data.csv`. |
 | `source_pdf` | For a page rendered from a PDF file: the name of the file. Empty for a scanned page. |
 | `source_page` | For a page rendered from a PDF file: the page number in the file, from 1. |
 | `text_read` | For a `text` row: the text the reader read in the box. |
@@ -395,6 +405,7 @@ hand (see [Metadata Setup](metadata-setup.md)), plus a `flag` column.
 | `scale` | Empty. Fill in the length of the bar, in millimetres. |
 | `flag` | Empty when the row is ready. If not, what you must examine. It does not stop the analysis. |
 | `ignore_box` | The box of the identifier kept in the crop, as `x0 y0 x1 y1` in the crop's pixels. `pylithics` sets it to paper before the analysis. Several boxes are separated by `;`. Empty when there is none. |
+| `scale_box` | The box of the bar in the scale image named in `scale_id`, as `x0 y0 x1 y1` in that image's pixels, without its caption. `pylithics` starts its search for the bar inside it. Empty when the row has no single scale. |
 
 The flags:
 
@@ -524,6 +535,8 @@ does not put a scale bar in an artefact crop. It finds these styles:
   each end.
 
 If a caption such as `5 cm` is next to the bar, the crop includes it.
+The caption is not measured: the manifest and `meta_data.csv` record
+the bar's own box in `scale_box`, and `pylithics` measures the bar from it.
 
 ### How a scale bar is decided
 
@@ -619,5 +632,10 @@ Fill in `meta_data.csv`. Then start the analysis on the project:
 ```bash
 pylithics --data_dir my_project
 ```
+
+`pylithics` reads the crop files as `pylithics-pages` wrote them. It
+does not cut, hide or correct anything itself. After a change to the
+pages, to `corrections.csv` or to a `pylithics-pages` option, run
+`pylithics-pages` again, then `pylithics`.
 
 See [Basic Usage](basic-usage.md) for the analysis step.

@@ -219,3 +219,94 @@ class TestCortexDetectionIntegration:
             # Parent should remain unchanged
             parent = next(r for r in result if r['parent'] == r['scar'])
             assert parent['surface_type'] == 'Dorsal'
+
+# ---------------------------------------------------------------------------
+# The letter C
+# ---------------------------------------------------------------------------
+
+import cv2  # noqa: E402
+
+from pylithics.image_processing.modules import cortex_detection as cortex_module  # noqa: E402
+
+READER_PATH = 'pylithics.image_processing.modules.cortex_detection._load_reader'
+
+
+def _scar_with_mark():
+    """A 100 px square scar outline on a binary image, with one small mark inside it."""
+    ink = np.zeros((140, 140), np.uint8)
+    cv2.rectangle(ink, (20, 20), (120, 120), 255, 2)
+    cv2.ellipse(ink, (70, 70), (10, 14), 0, 40, 320, 255, 3)     # a drawn C
+    contour = np.array([[20, 20], [120, 20], [120, 120], [20, 120]], np.int32)
+    return contour, ink
+
+
+def _reader(text, score):
+    """A stand-in for RapidOCR's recognizer: it always reads ``text`` at ``score``."""
+    def read(image, use_det=True, use_cls=True, use_rec=True):
+        assert use_det is False                         # a lone glyph: recognizer only
+        return [[text, score]], None
+    return read
+
+
+def _config(**letter):
+    return {'letter': {**cortex_module.DEFAULT_LETTER, **letter}}
+
+
+@pytest.mark.unit
+class TestCortexLetter:
+    """A scar that holds the letter C is cortex: some illustrators mark cortex so."""
+
+    def test_a_scar_holding_a_c_is_cortex(self):
+        contour, ink = _scar_with_mark()
+        with patch(READER_PATH, return_value=_reader('C', 0.93)):
+            assert cortex_module._letter_in_scar(contour, ink, 1, _config())
+
+    def test_a_lower_case_c_counts_too(self):
+        contour, ink = _scar_with_mark()
+        with patch(READER_PATH, return_value=_reader('c', 0.9)):
+            assert cortex_module._letter_in_scar(contour, ink, 1, _config())
+
+    def test_other_letters_count_only_when_listed(self):
+        contour, ink = _scar_with_mark()
+        with patch(READER_PATH, return_value=_reader('B', 0.95)):
+            assert not cortex_module._letter_in_scar(contour, ink, 1, _config())
+            assert cortex_module._letter_in_scar(contour, ink, 1, _config(letters=['C', 'B']))
+
+    def test_an_arrow_read_as_a_numeral_is_not_cortex(self):
+        contour, ink = _scar_with_mark()
+        with patch(READER_PATH, return_value=_reader('1', 0.95)):
+            assert not cortex_module._letter_in_scar(contour, ink, 1, _config())
+
+    def test_a_weak_read_does_not_count(self):
+        contour, ink = _scar_with_mark()
+        with patch(READER_PATH, return_value=_reader('C', 0.7)):
+            assert not cortex_module._letter_in_scar(contour, ink, 1, _config())
+
+    def test_without_the_reader_the_test_is_skipped(self):
+        contour, ink = _scar_with_mark()
+        with patch(READER_PATH, return_value=None):
+            assert not cortex_module._letter_in_scar(contour, ink, 1, _config())
+
+    def test_switched_off_the_reader_is_not_asked(self):
+        contour, ink = _scar_with_mark()
+        with patch(READER_PATH) as load:
+            assert not cortex_module._letter_in_scar(contour, ink, 1, _config(enabled=False))
+            load.assert_not_called()
+
+    def test_the_lettered_scar_is_labelled_cortex_by_letter(self):
+        contour, ink = _scar_with_mark()
+        child = {'parent': 'p', 'scar': 's', 'contour': contour.tolist(), 'area': 10000}
+        config = {'min_stipple_pieces': 3, **_config()}
+        with patch(READER_PATH, return_value=_reader('C', 0.93)):
+            cortex, rest = cortex_module._classify_cortex_children([child], ink, config)
+        assert cortex == [child] and rest == []
+        assert child['cortex_source'] == 'letter'
+
+
+@pytest.mark.unit
+def test_a_dotted_override_reaches_a_nested_setting():
+    from pylithics.image_processing.config import ConfigurationManager
+    manager = ConfigurationManager()
+    manager.update_value('cortex_detection', 'letter.enabled', False)
+    assert manager.config['cortex_detection']['letter']['enabled'] is False
+    assert 'letter.enabled' not in manager.config['cortex_detection']

@@ -207,6 +207,8 @@ def _build_feature(child: Dict) -> Dict[str, Any]:
         feature[_csv_to_json_key(field)] = _clean(child.get(field))
 
     feature["is_cortex"] = bool(child.get("is_cortex", False))
+    if child.get("cortex_source"):
+        feature["cortex_source"] = child["cortex_source"]
     feature["has_arrow"] = bool(child.get("has_arrow", False))
 
     for key in _OPTIONAL_ARROW_FIELDS:

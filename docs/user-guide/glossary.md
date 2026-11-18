@@ -10,7 +10,7 @@ terms in the documentation. The entries are in the order of the CSV.
 : The filename of the source image.
 
 **surface_type**
-: The classification of a parent surface: `Dorsal`, `Ventral`, `Platform`, `Lateral` or `Unclassified`.
+: The classification of a parent surface: `Dorsal`, `Ventral`, `Platform`, `Lateral` or `Unclassified`. Of two outlines of the same size, the one with more scars is `Dorsal`.
 
 **surface_feature**
 : For a parent row, the surface name (for example `Dorsal`). For a child row, the feature label from the cortex detection: `scar N`, `edge N` or `cortex N`.

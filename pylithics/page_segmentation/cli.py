@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 import logging
 import os
 import sys
+import time
 from contextlib import contextmanager
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -18,6 +19,8 @@ from pylithics.image_processing.config import (
     get_config_manager,
     get_page_segmentation_config,
 )
+
+from pylithics.image_processing.utils import format_duration, progress_columns
 
 from . import overrides as overrides_module
 from .detection import (
@@ -46,7 +49,9 @@ from .pdf_input import (
     render_pdf,
     rendered_by_name,
 )
-from .grouping import ScaleContext, classify_components, group_components, reading_order
+from .grouping import (
+    ScaleContext, bare_scale_bars, classify_components, group_components, reading_order,
+)
 from .identifiers import PageReads, assign_reads, read_page, report_identifiers
 from .scale_classifier import ModelUnavailable, load_model
 from .text_boxes import find_text_boxes
@@ -78,9 +83,14 @@ one identifier for a crop, it names the crop by its box number on the
 debug overlay: <page>_box_07.png. The manifest records the method and
 the reason.
 
-The command does not change the pixels. Each crop has the DPI and the
-colour mode of the source page. No denoising, contrast change or
-thresholding is applied. The pylithics analysis does those steps.
+The command does not change the pixels of the lithic. Each crop has the
+DPI and the colour mode of the source page. No denoising, contrast
+change or thresholding is applied. The pylithics analysis does those
+steps. The one change is to the page's text: the crop file is written
+with captions, legend keys, scale bar ink and other identifiers hidden
+under the paper colour (--keep_text keeps them). pylithics analyses
+the crop file as it is. It does not hide text itself. So a change to
+these options shows only after you cut the pages again.
 
 --data_dir is a project folder. The two commands share it:
 
@@ -129,6 +139,9 @@ procedure:
      flagged row. Then remove its flag.
   6. Analyse the crops:
        pylithics --data_dir <project>
+     pylithics reads the crop files as pylithics-pages wrote them. After
+     a change to the pages, the corrections or the options, run
+     pylithics-pages again before pylithics.
 
   To send the crops to a different folder, give --output_dir:
        pylithics-pages --data_dir ./plates --output_dir ./artefacts
@@ -187,6 +200,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     pages_dir = _resolve_paths(args)
 
     console = setup_logging(_console_level(args), args.output_dir)
+    started = time.monotonic()
     logging.info("Reading pages from %s", pages_dir)
     logging.info("Writing output to %s", args.output_dir)
 
@@ -209,7 +223,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     overrides_module.write_empty_corrections(args.data_dir)
 
     debug = args.debug or config.get('debug', {}).get('enabled', False)
-    _log_summary(run, previous, len(pages), args.output_dir, debug)
+    _log_summary(run, previous, len(pages), args.output_dir, debug,
+                 time.monotonic() - started)
     if run.failed:
         logging.error("%d page(s) not cut: %s. See %s for the reason.", len(run.failed),
                       ', '.join(run.failed), os.path.join(args.output_dir, 'pylithics-pages.log'))
@@ -432,21 +447,9 @@ def _page_progress(pages: Sequence[str], console):
         yield lambda name: None
         return
 
-    from rich.progress import (
-        BarColumn, MofNCompleteColumn, Progress, SpinnerColumn,
-        TextColumn, TimeElapsedColumn, TimeRemainingColumn,
-    )
+    from rich.progress import Progress
 
-    with Progress(
-        SpinnerColumn(style="cyan"),
-        TextColumn("[cyan]Splitting pages[/]"),
-        BarColumn(),
-        MofNCompleteColumn(),
-        TextColumn("[dim]{task.fields[page]}[/]"),
-        TimeElapsedColumn(),
-        TimeRemainingColumn(),
-        console=console,
-    ) as progress:
+    with Progress(*progress_columns("Splitting pages", "page"), console=console) as progress:
         task = progress.add_task(
             "splitting", total=len(pages), page="",
         )
@@ -511,6 +514,7 @@ def _process_page(
         _count_components(boxes, components), identifiers, corrections,
         masks.working, taken, orphans, context.bar_scores if context else None,
         text_boxes=text, hide=make_hider(components, classified, reads, config.get('export', {})),
+        bar_boxes=bare_scale_bars(classified, config.get('scale_bars', {}), page.width),
     )
 
 
@@ -856,7 +860,7 @@ def _console_level(args: argparse.Namespace) -> int:
 
 def _log_summary(
     run: RunResult, previous: Sequence[Dict[str, str]], page_count: int,
-    output_dir: str, debug: bool = False,
+    output_dir: str, debug: bool = False, seconds: Optional[float] = None,
 ) -> None:
     """Report what the run produced, what it replaced, and where the overlays are."""
     rows = run.rows
@@ -865,8 +869,9 @@ def _log_summary(
     texts = sum(1 for r in rows if r.image_type == 'text')
     skipped = sum(1 for r in rows if r.image_type == 'skipped')
     logging.info(
-        "Done: %d page(s) -> %d artefact(s), %d scale bar(s), %d text box(es) not cut, "
+        "Done%s: %d page(s) -> %d artefact(s), %d scale bar(s), %d text box(es) not cut, "
         "%d page(s) skipped (expect=0), in %s",
+        f" in {format_duration(seconds)}" if seconds is not None else "",
         page_count, artefacts, bars, texts, skipped, output_dir,
     )
     cut_before = {r['input_page_id'] for r in previous} & run.recut

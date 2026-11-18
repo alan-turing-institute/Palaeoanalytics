@@ -1,8 +1,11 @@
 """Distributions page — assemblage metrics organised into thematic tabs."""
 
+import contextlib
+import threading
+
 import plotly.express as px
 import plotly.graph_objects as go
-import streamlit as st
+import streamlit as _streamlit
 
 from pylithics.image_processing.modules.dashboard.data import (
     SURFACE_COLORS,
@@ -11,7 +14,36 @@ from pylithics.image_processing.modules.dashboard.data import (
     label,
     label_with_units,
     parent_rows,
+    scar_summary,
 )
+
+_target = threading.local()
+
+
+class _Surface:
+    """
+    Streamlit, or a recorder while the dashboard report is built in this thread.
+
+    The report shows the charts of this page. It runs the same functions
+    with a recorder in place of Streamlit, so the page and the report draw
+    one set of figures from one set of data.
+    """
+
+    def __getattr__(self, name):
+        return getattr(getattr(_target, "recorder", None) or _streamlit, name)
+
+
+st = _Surface()
+
+
+@contextlib.contextmanager
+def recording(recorder):
+    """Send this page's output to ``recorder`` in this thread, for the report."""
+    _target.recorder = recorder
+    try:
+        yield recorder
+    finally:
+        _target.recorder = None
 
 
 def render(bundle: dict) -> None:
@@ -20,38 +52,38 @@ def render(bundle: dict) -> None:
 
     st.header("Distributions")
     if df.empty:
-        st.info("No metrics found in processed_metrics.csv.")
+        st.info("processed_metrics.csv has no metrics.")
         return
 
     filtered = _apply_top_filters(df)
     if filtered.empty:
-        st.warning("No rows match the current filter.")
+        st.warning("No rows agree with the filter.")
         return
 
-    parents = parent_rows(filtered)
+    tabs = st.tabs([name for name, _ in TABS])
+    for tab, (_, draw) in zip(tabs, TABS):
+        with tab:
+            draw(filtered)
 
-    # size_tab, sym_tab, scar_tab, spatial_tab, cortex_tab = st.tabs([
-    #     "Size & shape", "Symmetry", "Scars", "Spatial", "Cortex",
-    # ])
-    size_tab, sym_tab, scar_tab, spatial_tab = st.tabs([
-        "Size & shape", "Symmetry", "Scars", "Spatial",
-    ])
 
-    with size_tab:
-        _render_size_tab(parents)
-    with sym_tab:
-        _render_symmetry_tab(parents)
-    with scar_tab:
-        _render_scars_tab(filtered)
-    with spatial_tab:
-        _render_spatial_tab(parents)
-    # with cortex_tab:
-    #     _render_cortex_tab(filtered)
+def render_all(df) -> None:
+    """Draw every tab in turn, unfiltered, with a heading for each: for the report."""
+    for name, draw in TABS:
+        st.header(name)
+        draw(df)
 
 
 # ---------------------------------------------------------------------------
 # Top-level filters (applied to every tab)
 # ---------------------------------------------------------------------------
+
+
+TABS = [
+    ("Size & shape", lambda df: _render_size_tab(parent_rows(df))),
+    ("Symmetry", lambda df: _render_symmetry_tab(parent_rows(df))),
+    ("Scars", lambda df: _render_scars_tab(df)),
+    ("Spatial", lambda df: _render_spatial_tab(parent_rows(df))),
+]
 
 
 def _apply_top_filters(df):
@@ -89,7 +121,7 @@ def _apply_top_filters(df):
 
 def _render_size_tab(parents) -> None:
     if parents.empty:
-        st.info("No parent surface rows in filtered data.")
+        st.info("The selection has no surface rows.")
         return
 
     st.subheader("Length × width")
@@ -116,11 +148,11 @@ def _render_size_tab(parents) -> None:
 def _aspect_ratio_raincloud(parents):
     """Draw a horizontal raincloud (violin + box + jittered points) per surface type."""
     if "aspect_ratio" not in parents.columns:
-        st.info("`aspect_ratio` column missing from filtered data.")
+        st.info("The data has no aspect_ratio column.")
         return
     points = parents.dropna(subset=["aspect_ratio", "surface_type"])
     if points.empty:
-        st.info("No aspect ratio values in the filtered selection.")
+        st.info("The selection has no aspect ratio values.")
         return
 
     canonical_order = ("Dorsal", "Ventral", "Platform", "Lateral")
@@ -247,11 +279,11 @@ def _hue_variants(rgb_str: str):
 def _perimeter_lollipop(parents):
     """Draw a lollipop chart: one stem + dot per parent surface, sorted by perimeter."""
     if "perimeter" not in parents.columns:
-        st.info("`perimeter` column missing from filtered data.")
+        st.info("The data has no perimeter column.")
         return
     points = parents.dropna(subset=["perimeter", "surface_type"]).copy()
     if points.empty:
-        st.info("No perimeter values in the filtered selection.")
+        st.info("The selection has no perimeter values.")
         return
 
     points = points.sort_values("perimeter").reset_index(drop=True)
@@ -308,7 +340,7 @@ def _perimeter_lollipop(parents):
 def _dim_scatter(parents, x_field, y_field, title=None):
     needed = {x_field, y_field, "surface_type"}
     if not needed.issubset(parents.columns):
-        st.info(f"Columns {x_field} / {y_field} missing from filtered data.")
+        st.info(f"The data has no {x_field} column or no {y_field} column.")
         return
     points = parents.dropna(subset=[x_field, y_field])
     if points.empty:
@@ -348,7 +380,8 @@ def _dim_scatter(parents, x_field, y_field, title=None):
 def _render_symmetry_tab(parents) -> None:
     dorsal = parents[parents["surface_type"] == "Dorsal"]
     if dorsal.empty:
-        st.info("No dorsal surfaces in the filtered data — symmetry is dorsal-only.")
+        st.info("The selection has no dorsal surfaces. "
+                "Symmetry is for dorsal surfaces only.")
         return
 
     cols = st.columns(2)
@@ -362,7 +395,7 @@ def _asymmetry_direction_scatter(dorsal):
     """Draw a signed asymmetry scatter that shows which way each artefact leans."""
     needed = {"top_area", "bottom_area", "left_area", "right_area", "image_id"}
     if not needed.issubset(dorsal.columns):
-        st.info("Quadrant area columns missing from filtered data.")
+        st.info("The data has no quadrant area columns.")
         return
 
     points = dorsal.dropna(
@@ -372,7 +405,7 @@ def _asymmetry_direction_scatter(dorsal):
     lr_sum = points["left_area"] + points["right_area"]
     points = points[(tb_sum > 0) & (lr_sum > 0)].copy()
     if points.empty:
-        st.info("No quadrant-area values in the filtered selection.")
+        st.info("The selection has no quadrant-area values.")
         return
 
     points["vertical_bias"] = (
@@ -459,14 +492,12 @@ def _asymmetry_direction_scatter(dorsal):
         f"Axis range: ±{axis_max:.2f} · "
         f"N: {n} dorsal surfaces"
     )
-    with st.expander("About this plot"):
+    with st.expander("About this chart"):
         st.write(
-            "Directional asymmetry of dorsal outlines relative to their "
-            "centroid. The x-axis shows left–right bias and the y-axis "
-            "shows top–bottom bias, calculated from the relative "
-            "distribution of dorsal area around the centroid. Points "
-            "near the origin are more symmetric; increasing distance "
-            "from the origin indicates stronger asymmetry."
+            "Each point is one dorsal surface. The horizontal axis shows the "
+            "left–right balance of the dorsal area around its centroid. The "
+            "vertical axis shows the top–bottom balance. A point near (0, 0) is "
+            "symmetrical. A point far from (0, 0) is less symmetrical."
         )
 
 
@@ -474,7 +505,7 @@ def _symmetry_ecdf(dorsal):
     """Draw paired ECDFs of vertical and horizontal symmetry on a single axis."""
     needed = {"vertical_symmetry", "horizontal_symmetry"}
     if not needed.issubset(dorsal.columns):
-        st.info("Symmetry columns missing from filtered data.")
+        st.info("The data has no symmetry columns.")
         return
 
     has_id = "image_id" in dorsal.columns
@@ -492,7 +523,7 @@ def _symmetry_ecdf(dorsal):
         .reset_index(drop=True)
     )
     if v_df.empty and h_df.empty:
-        st.info("No symmetry values in the filtered selection.")
+        st.info("The selection has no symmetry values.")
         return
 
     n_max = max(len(v_df), len(h_df))
@@ -582,18 +613,16 @@ def _symmetry_ecdf(dorsal):
     n = max(len(v_df), len(h_df))
     parts.append(f"N: {n} dorsal surfaces")
     st.caption(" · ".join(parts))
-    with st.expander("About this plot"):
+    with st.expander("About this chart"):
         st.write(
-            "This plot summarizes the distribution of symmetry scores "
-            "across all dorsal surfaces in the current selection. For "
-            "any symmetry value on the x-axis, the y-axis shows the "
-            "proportion of specimens with scores at or below that "
-            "value. Curves further to the right indicate greater "
-            "overall symmetry, while steeper curves indicate less "
-            "variation among specimens. Blue represents vertical "
-            "symmetry (top–bottom balance) and red represents "
-            "horizontal symmetry (left–right balance). Scores range "
-            "from 0 (maximally asymmetric) to 1 (perfectly symmetric)."
+            "Each curve shows the symmetry scores of the dorsal surfaces in the "
+            "selection. For a score on the horizontal axis, the curve gives the "
+            "proportion of surfaces with that score or a lower score. A score "
+            "of 1 is fully symmetrical, and a score of 0 is not symmetrical. A "
+            "curve to the right shows more symmetrical surfaces. A steep curve "
+            "shows surfaces with similar scores. The blue curve is the vertical "
+            "symmetry (top–bottom). The red curve is the horizontal symmetry "
+            "(left–right)."
         )
 
 
@@ -604,10 +633,10 @@ def _symmetry_ecdf(dorsal):
 
 def _render_scars_tab(df) -> None:
     if df.empty:
-        st.info("No data in the filtered selection.")
+        st.info("The selection has no data.")
         return
 
-    lithics = _build_scar_summary(df)
+    lithics = scar_summary(df)
     scars = dorsal_scars(df)
 
     st.subheader("Scarring relationships")
@@ -633,42 +662,6 @@ def _render_scars_tab(df) -> None:
 
     st.subheader("Scar-size variability")
     _scar_cv_vs_count(lithics)
-
-
-def _build_scar_summary(df):
-    """Build a per-lithic aggregate: dorsal area, count, coverage, mean / sd scar size."""
-    import pandas as pd
-    parents_d = df[
-        (df["surface_type"] == "Dorsal")
-        & (df["surface_feature"] == "Dorsal")
-    ]
-    scars = dorsal_scars(df)
-    if parents_d.empty or scars.empty:
-        return pd.DataFrame()
-
-    parent_view = (
-        parents_d[["image_id", "total_area", "scar_count"]]
-        .rename(columns={
-            "total_area": "dorsal_area",
-            "scar_count": "num_scars",
-        })
-    )
-    scar_agg = (
-        scars.groupby("image_id")["total_area"]
-        .agg(total_scar_area="sum", mean_scar_area="mean", sd_scar_area="std")
-        .reset_index()
-    )
-    out = parent_view.merge(scar_agg, on="image_id", how="left").dropna(
-        subset=["dorsal_area", "num_scars"],
-    )
-    out["coverage_pct"] = (
-        out["total_scar_area"] / out["dorsal_area"]
-    ).clip(0, 1) * 100
-    out["cv"] = out["sd_scar_area"] / out["mean_scar_area"]
-    out["calibration_method"] = parents_d.set_index("image_id").reindex(
-        out["image_id"]
-    )["calibration_method"].values
-    return out
 
 
 def _linear_fit_xy(x, y):
@@ -697,11 +690,11 @@ def _flag_outliers(x, y, n_sd: float = 2.0):
 def _scars_count_vs_area(lithics):
     """Draw a scatter of # scars vs. dorsal area, with linear fit and outlier halos."""
     if lithics.empty:
-        st.info("No scar counts in the filtered selection.")
+        st.info("The selection has no scar counts.")
         return
     pts = lithics.dropna(subset=["dorsal_area", "num_scars"])
     if pts.empty:
-        st.info("No scar counts in the filtered selection.")
+        st.info("The selection has no scar counts.")
         return
     x = pts["dorsal_area"].astype(float).values
     y = pts["num_scars"].astype(float).values
@@ -756,23 +749,23 @@ def _scars_count_vs_area(lithics):
         f"N: {len(pts)} lithics · "
         f"Outliers (> 2 SD): {int(outliers.sum())}"
     )
-    with st.expander("About this plot"):
+    with st.expander("About this chart"):
         st.write(
-            "Each dot is one lithic. The dashed line is the linear fit; "
-            "lithics circled in red sit more than two residual standard "
-            "deviations from that trend — they have unusually many or few "
-            "scars for their dorsal surface area."
+            "Each point is one lithic. The dashed line is the linear fit. A red "
+            "circle marks a lithic more than two standard deviations from the "
+            "line. That lithic has more scars or fewer scars than the line "
+            "gives for its dorsal area."
         )
 
 
 def _scars_coverage_vs_area(lithics):
     """Draw a scatter of scar-coverage % vs. dorsal surface area."""
     if lithics.empty:
-        st.info("No coverage data in the filtered selection.")
+        st.info("The selection has no coverage data.")
         return
     pts = lithics.dropna(subset=["dorsal_area", "coverage_pct"])
     if pts.empty:
-        st.info("No coverage data in the filtered selection.")
+        st.info("The selection has no coverage data.")
         return
     x = pts["dorsal_area"].astype(float).values
     y = pts["coverage_pct"].astype(float).values
@@ -812,25 +805,23 @@ def _scars_coverage_vs_area(lithics):
         f"N: {len(pts)} lithics · "
         f"Median coverage: {median_cov:.1f}%"
     )
-    with st.expander("About this plot"):
+    with st.expander("About this chart"):
         st.write(
-            "Coverage is the fraction of the dorsal surface taken up by "
-            "all scar polygons combined. Inter-scar ridges, the flake "
-            "margin, and small contour gaps between adjacent scars are "
-            "not counted as scar area, so coverage rarely reaches 100 % "
-            "even on fully-worked dorsals. For cortex specifically, see "
-            "the Cortex tab."
+            "Coverage is the percentage of the dorsal surface that the scars "
+            "occupy. The ridges between scars, the edge of the flake and small "
+            "gaps between scars are not scar area. Thus coverage is almost "
+            "always less than 100 percent."
         )
 
 
 def _scar_complexity_histogram(scars):
     """Draw the population-level histogram of scar complexity."""
     if scars.empty or "scar_complexity" not in scars.columns:
-        st.info("No scar complexity data in the filtered selection.")
+        st.info("The selection has no scar complexity data.")
         return
     values = scars["scar_complexity"].dropna().astype(float)
     if values.empty:
-        st.info("No scar complexity values in the filtered selection.")
+        st.info("The selection has no scar complexity values.")
         return
     mean = float(values.mean())
     fig = px.histogram(values)
@@ -856,11 +847,11 @@ def _scar_complexity_histogram(scars):
     _force_integer_yaxis(fig, len(values))
     st.plotly_chart(fig, use_container_width=True)
     st.caption(f"{_summary_caption(values)} scars")
-    with st.expander("About this plot"):
+    with st.expander("About this chart"):
         st.write(
-            "Complexity counts how many topological connections each scar "
-            "has to its neighbours on the surface. Higher values indicate "
-            "scars embedded in denser knapping networks."
+            "Complexity is the number of other scars that a scar touches on the "
+            "same surface. A high value shows a scar in a dense group of "
+            "removals."
         )
 
 
@@ -872,18 +863,18 @@ def _per_lithic_complexity_strip(scars):
     Lithics are ordered by median complexity.
     """
     if scars.empty or "scar_complexity" not in scars.columns:
-        st.info("No scar complexity data in the filtered selection.")
+        st.info("The selection has no scar complexity data.")
         return
     s = scars.dropna(subset=["scar_complexity"]).copy()
     if s.empty:
-        st.info("No scar complexity values in the filtered selection.")
+        st.info("The selection has no scar complexity values.")
         return
 
     counts = s.groupby("image_id").size()
     multi = counts[counts >= 2].index
     s = s[s["image_id"].isin(multi)]
     if s.empty:
-        st.info("No lithics with two or more scored scars.")
+        st.info("The selection has no lithic with two or more scored scars.")
         return
 
     medians = s.groupby("image_id")["scar_complexity"].median().sort_values()
@@ -943,31 +934,30 @@ def _per_lithic_complexity_strip(scars):
         f"{len(s)} scars across {len(multi)} lithics · "
         "circle size = number of scars at that complexity on each lithic"
     )
-    with st.expander("About this plot"):
+    with st.expander("About this chart"):
         st.write(
-            "Each column is one lithic. Each circle marks a complexity "
-            "value that occurs on that lithic, and the circle's size is "
-            "the number of scars on that lithic with that exact "
-            "complexity. A big circle at complexity 2 means the lithic "
-            "has many scars that each touch two other scars."
+            "Each column is one lithic. Each circle shows one complexity value "
+            "on that lithic. The size of the circle is the number of scars with "
+            "that value. For example, a large circle at 2 shows many scars that "
+            "each touch two other scars."
         )
         st.write(
-            "Lithics are ordered left-to-right by their median scar "
-            "complexity. Tall vertical spreads of circles mean a lithic "
-            "mixes simple and densely-connected scars; tight clusters "
-            "mean its scars all sit at similar connectivity levels."
+            "The lithics are in sequence from left to right by their median "
+            "complexity. A tall column shows a lithic with simple scars and "
+            "connected scars. A short column shows a lithic with scars of "
+            "similar complexity."
         )
 
 
 def _scar_size_ecdf(scars):
     """Draw the ECDF of per-scar total_area on a log x-axis."""
     if scars.empty or "total_area" not in scars.columns:
-        st.info("No scar-size data in the filtered selection.")
+        st.info("The selection has no scar-size data.")
         return
     values = scars[["image_id", "surface_feature", "total_area"]].dropna()
     values = values[values["total_area"] > 0]
     if values.empty:
-        st.info("No scar-size values in the filtered selection.")
+        st.info("The selection has no scar-size values.")
         return
     s = values.sort_values("total_area").reset_index(drop=True)
     s["cumulative"] = (s.index + 1) / len(s)
@@ -1001,24 +991,24 @@ def _scar_size_ecdf(scars):
         f"Median: {_fmt_number(s['total_area'].median())} · "
         f"N: {len(s)} scars"
     )
-    with st.expander("About this plot"):
+    with st.expander("About this chart"):
         st.write(
-            "ECDF of individual scar areas on a log-scaled x-axis. The y "
-            "value at any x reads as “the share of scars at or below this "
-            "area”. Log scaling spreads the small scars (which dominate "
-            "most assemblages) so the curve isn't squashed against zero."
+            "The curve shows the area of each scar. For an area on the "
+            "horizontal axis, the curve gives the proportion of scars with that "
+            "area or a smaller area. The horizontal axis has a logarithmic "
+            "scale. This scale makes the many small scars easy to see."
         )
 
 
 def _scar_aspect_ecdf(scars):
     """Draw the ECDF of per-scar aspect_ratio."""
     if scars.empty or "aspect_ratio" not in scars.columns:
-        st.info("No scar aspect-ratio data in the filtered selection.")
+        st.info("The selection has no scar aspect-ratio data.")
         return
     values = scars[["image_id", "surface_feature", "aspect_ratio"]].dropna()
     values = values[values["aspect_ratio"] > 0]
     if values.empty:
-        st.info("No scar aspect-ratio values in the filtered selection.")
+        st.info("The selection has no scar aspect-ratio values.")
         return
     s = values.sort_values("aspect_ratio").reset_index(drop=True)
     s["cumulative"] = (s.index + 1) / len(s)
@@ -1050,25 +1040,25 @@ def _scar_aspect_ecdf(scars):
         f"Median: {s['aspect_ratio'].median():.2f} · "
         f"N: {len(s)} scars"
     )
-    with st.expander("About this plot"):
+    with st.expander("About this chart"):
         st.write(
-            "ECDF of per-scar aspect ratio (longer / shorter side). A "
-            "value of 1 is square-ish; larger values are more elongated. "
-            "A steep early rise means most scars are roughly equant; "
-            "long right tails reveal assemblages with a minority of very "
-            "elongated removals."
+            "The curve shows the aspect ratio of each scar: the long side "
+            "divided by the short side. A value of 1 is a square shape. A "
+            "larger value is a longer, narrower shape. A steep curve near 1 "
+            "shows that most scars are almost square. A long tail to the right "
+            "shows some very long, narrow scars."
         )
 
 
 def _scar_cv_vs_count(lithics):
     """Draw a scatter of within-lithic scar-size variability (CV) vs. # scars."""
     if lithics.empty:
-        st.info("No scar-size variability data in the filtered selection.")
+        st.info("The selection has no scar-size variability data.")
         return
     pts = lithics.dropna(subset=["num_scars", "cv"])
     pts = pts[pts["num_scars"] >= 2]
     if pts.empty:
-        st.info("No lithics with two or more scars in the filtered selection.")
+        st.info("The selection has no lithic with two or more scars.")
         return
     base = SURFACE_COLORS.get("Dorsal", "rgb(94, 60, 153)")
 
@@ -1102,14 +1092,13 @@ def _scar_cv_vs_count(lithics):
         f"N: {len(pts)} lithics with ≥ 2 scars · "
         f"Median CV: {median_cv:.2f}"
     )
-    with st.expander("About this plot"):
+    with st.expander("About this chart"):
         st.write(
-            "Coefficient of variation captures how uniform a lithic's "
-            "scars are in size. CV near 0 means the scars are nearly all "
-            "the same size; CV above ~0.7 means the lithic mixes very "
-            "small and very large scars on the same surface. Plotting "
-            "against count separates monotonous reduction (low CV) from "
-            "mixed-strategy reduction (high CV)."
+            "The coefficient of variation (CV) shows the difference in size "
+            "between the scars of one lithic. A CV near 0 shows scars of almost "
+            "the same size. A CV of more than 0.7 shows very small scars and "
+            "very large scars on the same surface. The chart compares the CV "
+            "with the number of scars."
         )
 
 
@@ -1121,7 +1110,7 @@ def _scar_cv_vs_count(lithics):
 def _render_spatial_tab(parents) -> None:
     dorsal = parents[parents["surface_type"] == "Dorsal"]
     if dorsal.empty:
-        st.info("No dorsal surfaces in the filtered data.")
+        st.info("The selection has no dorsal surfaces.")
         return
 
     cols = st.columns(2)
@@ -1138,11 +1127,11 @@ def _render_spatial_tab(parents) -> None:
 
 def _voronoi_distribution(dorsal):
     if "voronoi_num_cells" not in dorsal.columns:
-        st.info("No Voronoi columns in filtered data.")
+        st.info("The data has no Voronoi columns.")
         return
     values = dorsal["voronoi_num_cells"].dropna().astype(float)
     if values.empty:
-        st.info("No Voronoi cell counts in the filtered selection.")
+        st.info("The selection has no Voronoi cell counts.")
         return
     fig = px.histogram(values)
     fig.update_traces(
@@ -1169,11 +1158,11 @@ def _voronoi_distribution(dorsal):
 def _hull_vs_dorsal_scatter(dorsal):
     needed = {"convex_hull_area", "total_area", "image_id"}
     if not needed.issubset(dorsal.columns):
-        st.info("Convex-hull columns missing from filtered data.")
+        st.info("The data has no convex hull columns.")
         return
     points = dorsal.dropna(subset=["convex_hull_area", "total_area"])
     if points.empty:
-        st.info("No hull / area values in the filtered selection.")
+        st.info("The selection has no hull / area values.")
         return
     fig = px.scatter(
         points,
@@ -1205,14 +1194,14 @@ def _hull_utilization_distribution(dorsal):
     """Draw a lollipop chart: one stick per lithic, height = hull/dorsal ratio."""
     needed = {"convex_hull_area", "total_area", "image_id"}
     if not needed.issubset(dorsal.columns):
-        st.info("Convex-hull columns missing from filtered data.")
+        st.info("The data has no convex hull columns.")
         return
     points = dorsal.dropna(
         subset=["convex_hull_area", "total_area", "image_id"],
     ).copy()
     points = points[points["total_area"] > 0]
     if points.empty:
-        st.info("No hull / area values in the filtered selection.")
+        st.info("The selection has no hull / area values.")
         return
 
     points["hull_ratio"] = (
@@ -1277,17 +1266,14 @@ def _hull_utilization_distribution(dorsal):
     st.caption(
         f"{_summary_caption(points['hull_ratio'])} dorsal surfaces"
     )
-    with st.expander("About this plot"):
+    with st.expander("About this chart"):
         st.write(
-            "Scar dispersion quantifies the spatial extent of dorsal "
-            "scar-centroid distribution. For each lithic, the area of "
-            "the convex hull enclosing scar centroids is expressed as a "
-            "proportion of dorsal surface area. Higher ratios indicate "
-            "a broader distribution of scar centres across the dorsal "
-            "surface; lower ratios indicate a more localized "
-            "concentration. Lithics are sorted from lowest to highest "
-            "ratio. The dashed line at 1.0 denotes the theoretical "
-            "upper limit."
+            "For each lithic, PyLithics draws the convex hull around the scar "
+            "centroids. The chart shows the hull area divided by the dorsal "
+            "area. A high value shows scar centres across all of the dorsal "
+            "surface. A low value shows scar centres in one area. The lithics "
+            "are in sequence from the lowest value to the highest value. The "
+            "dashed line at 1.0 is the maximum value."
         )
 
 
@@ -1311,7 +1297,7 @@ def _render_cortex_tab(df) -> None:
         )
 
     if cortex.empty:
-        st.info("No cortex regions detected in the filtered data.")
+        st.info("The selection has no cortex regions.")
         return
 
     st.subheader("Cortex percentage of dorsal surface")
@@ -1323,11 +1309,11 @@ def _render_cortex_tab(df) -> None:
 
 def _cortex_percentage_distribution(cortex):
     if "cortex_percentage" not in cortex.columns:
-        st.info("`cortex_percentage` column missing.")
+        st.info("The data has no cortex_percentage column.")
         return
     values = cortex["cortex_percentage"].dropna().astype(float)
     if values.empty:
-        st.info("No cortex-percentage values.")
+        st.info("The data has no cortex percentage values.")
         return
     fig = px.histogram(values, nbins=15, marginal="rug")
     fig.update_traces(
@@ -1349,11 +1335,11 @@ def _cortex_percentage_distribution(cortex):
 
 def _cortex_area_distribution(cortex):
     if "cortex_area" not in cortex.columns:
-        st.info("`cortex_area` column missing.")
+        st.info("The data has no cortex_area column.")
         return
     values = cortex["cortex_area"].dropna()
     if values.empty:
-        st.info("No cortex-area values.")
+        st.info("The data has no cortex area values.")
         return
     fig = px.histogram(cortex, x="cortex_area", nbins=15, marginal="rug",
                        labels={"cortex_area": label_with_units(cortex, "cortex_area")})

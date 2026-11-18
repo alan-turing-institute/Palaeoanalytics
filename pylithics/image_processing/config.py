@@ -145,10 +145,19 @@ class ConfigurationManager:
         self._config = copy.deepcopy(config)
 
     def update_value(self, section: str, key: str, value: Any) -> None:
-        """Update a configuration value at runtime."""
-        if section not in self._config:
-            self._config[section] = {}
-        self._config[section][key] = value
+        """
+        Update a configuration value at runtime.
+
+        A dotted ``key`` (``letter.enabled``) reaches into nested sections,
+        which are made when missing.
+        """
+        target = self._config.setdefault(section, {})
+        *parents, last = key.split('.')
+        for name in parents:
+            if not isinstance(target.get(name), dict):
+                target[name] = {}
+            target = target[name]
+        target[last] = value
         logging.info(f"Configuration changed: {section}.{key} = {value}")
 
 
@@ -224,6 +233,7 @@ def get_cortex_detection_config(config: Optional[Dict] = None) -> Dict[str, Any]
     return config.get('cortex_detection', {
         'enabled': True,
         'min_stipple_pieces': 3,            # Fewer small pieces of ink than this is not cortex
+        'letter': {'enabled': True, 'letters': ['C'], 'min_confidence': 0.8},
         'stippling_density_threshold': 0.2, # Minimum density of small dots/stipples per 1000 pixels
                                             # Higher values = more restrictive cortex detection
                                             # Lower values = more sensitive cortex detection

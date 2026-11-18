@@ -41,7 +41,7 @@ def launch_dashboard(processed_dir: str, port: int = DEFAULT_PORT) -> int:
     """
     app_path = Path(__file__).parent / "app.py"
     if not app_path.exists():  # pragma: no cover — install bug
-        logging.error("Dashboard entrypoint missing: %s", app_path)
+        logging.error("The dashboard file is missing: %s", app_path)
         return 1
 
     env = os.environ.copy()
@@ -61,9 +61,9 @@ def launch_dashboard(processed_dir: str, port: int = DEFAULT_PORT) -> int:
 
     url = f"http://localhost:{port}"
 
-    print("\nStarting PyLithics data explorer...", flush=True)
+    print("\nThe PyLithics dashboard starts.", flush=True)
     print(f"URL: {url}", flush=True)
-    print(" loading modules and PyLithics data",
+    print(" PyLithics reads the modules and the data.",
           flush=True)
 
     with open(log_path, "w") as log_file:
@@ -74,14 +74,14 @@ def launch_dashboard(processed_dir: str, port: int = DEFAULT_PORT) -> int:
         try:
             if not _wait_for_port("localhost", port, proc):
                 logging.error(
-                    "Dashboard did not start within %ds. "
-                    "Check %s for details.",
+                    "The dashboard did not start in %d s. "
+                    "Read %s for the cause.",
                     _STARTUP_TIMEOUT_SECONDS, log_path,
                 )
                 proc.terminate()
                 return 1
 
-            print(f"Dashboard ready — opening {url} in your browser.",
+            print(f"The dashboard is ready at {url}. Your browser opens it.",
                   flush=True)
             print("Press Ctrl+C in this terminal to stop.\n", flush=True)
             webbrowser.open(url)
@@ -121,7 +121,7 @@ def _wait_for_port(
             except OSError:
                 elapsed = time.time() - started
                 status.update(
-                    f"[cyan]Preparing dashboard...[/] "
+                    f"[cyan]The dashboard starts[/] "
                     f"({elapsed:4.1f}s)"
                 )
                 time.sleep(_POLL_INTERVAL_SECONDS)

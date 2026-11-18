@@ -33,6 +33,7 @@ The metadata CSV file has these columns:
 | `scale` | The length of the scale bar, in millimetres | No* | `50` |
 | `flag` | Written by `pylithics-pages`. A note for you to examine. It does not stop the analysis. | No | `several_scales` |
 | `ignore_box` | Written by `pylithics-pages`. A region of the image, `x0 y0 x1 y1` in pixels, that the analysis sets to paper before it looks for contours: the identifier kept in the crop. | No | `212 8 231 30` |
+| `scale_box` | Written by `pylithics-pages`. The box of the bar in the scale image, `x0 y0 x1 y1` in pixels, without its caption. The analysis starts its search for the bar inside it. With or without it, the bar is the largest piece of ink and the solid blocks in line with it, never a caption. | No | `10 10 217 24` |
 
 *Necessary for scale bar calibration. Not necessary for pixel
 measurements. A row with no `scale` value can only be measured in

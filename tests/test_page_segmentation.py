@@ -371,6 +371,21 @@ class TestScaleBarStyles:
         assert len(os.listdir(out / 'scales')) == 1
 
     @pytest.mark.parametrize('name', STYLES)
+    def test_scale_box_is_the_bar_inside_the_crop(self, tmp_path, name):
+        """
+        The manifest says where the bar is in its crop, in the crop's
+        pixels, so the analysis measures the bar and not the caption.
+        """
+        pages = self._page_with_scale(tmp_path, name)
+        out = tmp_path / f'out_{name}'
+        assert run_prep(pages, out) == 0
+        with open(out / 'pages_manifest.csv', newline='') as handle:
+            row = next(r for r in csv.DictReader(handle) if r['image_type'] == 'scale_bar')
+        x0, y0, x1, y1 = (int(v) for v in row['scale_box'].split())
+        assert 0 <= x0 < x1 <= int(row['width_px']) and 0 <= y0 < y1 <= int(row['height_px'])
+        assert (x1 - x0) * (y1 - y0) < int(row['width_px']) * int(row['height_px'])
+
+    @pytest.mark.parametrize('name', STYLES)
     def test_style_yields_no_artefacts(self, tmp_path, name):
         """
         A scale is never mistaken for a lithic.
@@ -553,6 +568,79 @@ class TestTextRejection:
         )
         assert classified.drawings == []
         assert classified.dashes == []
+
+
+@pytest.mark.unit
+class TestScaleBoxInMetadata:
+    """The bar's own box reaches meta_data.csv beside the scale it names."""
+
+    def test_bar_in_crop_is_in_crop_pixels(self):
+        crop = [100, 100, 400, 160]                 # bar with its caption
+        bars = [[100, 130, 400, 160], [900, 900, 950, 910]]
+        assert export_module._bar_in_crop(crop, bars, (90, 90)) == '10 40 310 70'
+        assert export_module._bar_in_crop(crop, [], (90, 90)) == ''
+
+    def test_metadata_row_carries_the_box_of_its_scale(self):
+        row = ManifestRow(output_crop_id='p_01.png', image_type='artefact',
+                          input_page_id='p.png', crop_id_index='01', x0=0, y0=0, x1=10,
+                          y1=10, width_px=10, height_px=10, dpi='', colour_mode='',
+                          n_components=1, correction_applied='')
+        made = export_module._metadata_row(
+            row, ['p_scale_bar.png'], set(), {'p_scale_bar.png': '10 40 310 70'})
+        assert made['scale_id'] == 'p_scale_bar.png' and made['scale_box'] == '10 40 310 70'
+        made = export_module._metadata_row(row, [], set(), {'p_scale_bar.png': '10 40 310 70'})
+        assert made['scale_box'] == ''
+
+
+@pytest.mark.unit
+class TestLinesOfLabelGlyphs:
+    """
+    A heading set in large type stays apart at closing, so each letter is
+    a label glyph. A run of them on one baseline is a line of text.
+    """
+
+    @staticmethod
+    def _glyph(x, y=500, w=25, h=40, density=0.4):
+        mask = np.zeros((h, w), bool)
+        mask[:, :max(1, int(round(w * density)))] = True
+        return Component(box=[x, y, x + w, y + h], width=w, height=h,
+                         ink=int(mask.sum()), mask=mask)
+
+    def _classified(self, components):
+        result = grouping_module.Classified(labels=[c.box for c in components])
+        grouping_module._lines_of_label_glyphs(result, components)
+        return result
+
+    def test_a_row_of_letters_becomes_one_text_box(self):
+        letters = [self._glyph(700 + 35 * k) for k in range(12)]
+        result = self._classified(letters)
+        assert result.labels == []
+        assert result.text == [[700, 500, 700 + 35 * 11 + 25, 540]]
+
+    def test_a_sparse_glyph_and_a_stem_on_the_line_join_it(self):
+        letters = [self._glyph(700 + 35 * k) for k in range(10)]
+        slash = self._glyph(700 + 35 * 10, density=0.1)        # too sparse to start a line
+        stem = [705 + 35 * 11, 500, 710 + 35 * 11, 540]         # an "l", filed as a dash
+        result = grouping_module.Classified(
+            labels=[c.box for c in letters + [slash]], dashes=[('v', stem)])
+        grouping_module._lines_of_label_glyphs(result, letters + [slash])
+        assert result.labels == [] and result.dashes == []
+        assert result.text[0][2] == stem[2]
+
+    def test_identifiers_of_a_row_of_lithics_stay_labels(self):
+        far_apart = [self._glyph(300 + 400 * k) for k in range(4)]   # a lithic's width apart
+        result = self._classified(far_apart)
+        assert result.text == [] and len(result.labels) == 4
+
+    def test_a_short_word_stays_a_label(self):
+        word = [self._glyph(700 + 35 * k) for k in range(5)]         # "Fig 3"
+        result = self._classified(word)
+        assert result.text == [] and len(result.labels) == 5
+
+    def test_arrows_do_not_make_a_line(self):
+        arrows = [self._glyph(700 + 35 * k, density=0.1) for k in range(12)]
+        result = self._classified(arrows)
+        assert result.text == [] and len(result.labels) == 12
 
 
 @pytest.mark.unit
@@ -1499,7 +1587,7 @@ class TestMetadataFile:
         write_metadata([_row("p_01.png", "artefact", "p.png")], str(tmp_path))
         with open(tmp_path / "meta_data.csv", newline="") as handle:
             assert next(csv.reader(handle)) == [
-                "image_id", "scale_id", "scale", "flag", "ignore_box"
+                "image_id", "scale_id", "scale", "flag", "ignore_box", "scale_box"
             ]
 
     def test_one_scale_on_the_page_is_linked_with_no_flag(self, tmp_path):
@@ -1558,9 +1646,9 @@ class TestMetadataFile:
         with open(tmp_path / "meta_data.csv", newline="") as handle:
             table = list(csv.reader(handle))
         assert table == [
-            ["image_id", "scale_id", "scale", "flag", "ignore_box"],
-            ["my_flake.png", "sc_001", "50", "", ""],
-            ["p_01.png", "p_scale_bar.png", "", "", ""],
+            ["image_id", "scale_id", "scale", "flag", "ignore_box", "scale_box"],
+            ["my_flake.png", "sc_001", "50", "", "", ""],
+            ["p_01.png", "p_scale_bar.png", "", "", "", ""],
         ]
 
     def test_a_row_cut_again_keeps_its_typed_scale(self, tmp_path):

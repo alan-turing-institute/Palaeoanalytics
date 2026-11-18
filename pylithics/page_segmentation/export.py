@@ -47,7 +47,7 @@ DEBUG_DIRNAME = 'pages_debug'
 MANIFEST_FILENAME = 'pages_manifest.csv'
 METADATA_FILENAME = 'meta_data.csv'
 
-METADATA_COLUMNS = ['image_id', 'scale_id', 'scale', 'flag', 'ignore_box']
+METADATA_COLUMNS = ['image_id', 'scale_id', 'scale', 'flag', 'ignore_box', 'scale_box']
 # Flags written to meta_data.csv. The analysis reports a flagged row
 # and runs it like any other, so the user knows which crops to examine.
 NO_SCALE_FLAG = 'no_scale'
@@ -65,7 +65,7 @@ MANIFEST_COLUMNS = [
     'label_candidates', 'stroke_width_px', 'upscale_factor',
     'scale_score', 'scale_method',
     'source_pdf', 'source_page', 'render_dpi', 'dpi_source', 'source_filters',
-    'text_read', 'hidden',
+    'text_read', 'hidden', 'scale_box',
 ]
 
 # Manifest names for the source colour mode. Pillow's own names are
@@ -117,6 +117,7 @@ class ManifestRow:
     text_read: str = ''
     hidden: str = ''          # what was hidden in the crop: ``caption 1; scale bar 1``
     ignore_box: str = ''      # the identifier's box in the crop, for meta_data.csv only
+    scale_box: str = ''       # for a scale bar: the bar itself in the crop, no caption
 
 
 def prepare_output_dir(output_dir: str) -> List[Dict[str, str]]:
@@ -218,6 +219,7 @@ def export_page(
     bar_scores: Optional[Sequence[float]] = None,
     text_boxes: Optional[Sequence] = None,
     hide=None,
+    bar_boxes: Optional[Sequence[BBox]] = None,
 ) -> List[ManifestRow]:
     """
     Write every crop for one page and return its manifest rows.
@@ -228,25 +230,24 @@ def export_page(
     gives one entry per box. ``component_counts`` maps a box index to its
     ink blobs, ``identifiers`` holds the read for each box (a read one
     names its crop), ``working`` is recorded on every row. ``taken`` maps
-    each crop name written earlier in this run to its page; ``orphans``
-    is extended with each orphan crop file this page replaced.
-    ``bar_scores`` are the classifier's scores for the bars; ``text_boxes``
-    get a ``text`` row and no crop; ``hide`` paints the page's text over
-    in each artefact crop (``hiding.make_hider``).
+    each crop name written earlier in this run to its page; ``orphans`` is
+    extended with each orphan crop file this page replaced. ``bar_scores``
+    are the classifier's scores for the bars; ``text_boxes`` get a ``text``
+    row and no crop; ``hide`` paints the page's text over in each artefact
+    crop (``hiding.make_hider``); ``bar_boxes`` are the bars without
+    captions, recorded as ``scale_box``.
 
-    Raises
-    ------
-    FileExistsError
-        When another page in this run wrote one of this page's crop names.
+    Raises ``FileExistsError`` when another page in this run wrote one of
+    this page's crop names.
     """
-    identifiers = identifiers or [Identifier() for _ in boxes]
-    corrections = list(box_corrections or [correction_applied] * len(boxes))
+    identifiers, corrections = (identifiers or [Identifier() for _ in boxes],
+                                list(box_corrections or [correction_applied] * len(boxes)))
     found = _claim_crop_names(page, bars, output_dir, identifiers, taken or {})
     if orphans is not None:
         orphans.extend(found)
     rows = _export_artefacts(page, boxes, output_dir, padding,
                              component_counts or {}, corrections, identifiers, hide)
-    rows.extend(_export_scale_bars(page, bars, output_dir, padding, bar_scores))
+    rows.extend(_export_scale_bars(page, bars, output_dir, padding, bar_scores, bar_boxes))
     rows.extend(_text_rows(page, text_boxes or []))
     _record_resolution(rows, working)
     logging.info("%s: %d artefact(s), %d scale bar(s)",
@@ -390,8 +391,15 @@ def _export_scale_bars(
     output_dir: str,
     padding: int,
     scores: Optional[Sequence[float]] = None,
+    bar_boxes: Optional[Sequence[BBox]] = None,
 ) -> List[ManifestRow]:
-    """Write the scale bar crops, recording how each was chosen."""
+    """
+    Write the scale bar crops, recording how each was chosen and where the bar is.
+
+    ``bar_boxes`` are the bars themselves, without captions; each crop's
+    ``scale_box`` is the bar inside it, in the crop's pixels, so that the
+    analysis measures the bar and not the caption.
+    """
     rows = []
     for index, bar in enumerate(bars, start=1):
         row = _write_crop(
@@ -399,6 +407,7 @@ def _export_scale_bars(
             _scale_bar_name(page.stem, index, len(bars)),
             'scale_bar', '', padding, 1, '',
         )
+        row.scale_box = _bar_in_crop(bar, bar_boxes or [], (row.x0, row.y0))
         if scores is not None:
             row.scale_score = f"{scores[index - 1]:.2f}"
             row.scale_method = 'classifier'
@@ -406,6 +415,19 @@ def _export_scale_bars(
             row.scale_method = 'rules'
         rows.append(row)
     return rows
+
+
+def _bar_in_crop(crop_box: BBox, bar_boxes: Sequence[BBox], origin) -> str:
+    """Return the bars that lie in a crop as one box in the crop's pixels, or ''."""
+    inside = [b for b in bar_boxes
+              if b[0] >= crop_box[0] and b[1] >= crop_box[1]
+              and b[2] <= crop_box[2] and b[3] <= crop_box[3]]
+    if not inside:
+        return ''
+    left, top = origin
+    return ' '.join(str(v) for v in (
+        min(b[0] for b in inside) - left, min(b[1] for b in inside) - top,
+        max(b[2] for b in inside) - left, max(b[3] for b in inside) - top))
 
 
 def _scale_bar_name(stem: str, index: int, total: int) -> str:
@@ -526,17 +548,18 @@ def write_metadata(
     whose artefacts are flagged. Returns the path of the written file.
     """
     scales_by_page = _scales_by_page(rows)
+    bar_boxes = _bar_boxes_by_scale(rows)
     path = os.path.join(output_dir, METADATA_FILENAME)
     fieldnames, existing = (
         _read_metadata(path) if os.path.isfile(path)
         else (list(METADATA_COLUMNS), [])
     )
-    for column in ('flag', 'ignore_box'):
+    for column in ('flag', 'ignore_box', 'scale_box'):
         if column not in fieldnames:
             fieldnames.append(column)
     new = {
         row.output_crop_id: _metadata_row(
-            row, scales_by_page.get(row.input_page_id, []), uncertain or set()
+            row, scales_by_page.get(row.input_page_id, []), uncertain or set(), bar_boxes
         )
         for row in rows if row.image_type == 'artefact'
     }
@@ -549,6 +572,12 @@ def write_metadata(
         "Then remove each flag.", written, path, flagged,
     )
     return path
+
+
+def _bar_boxes_by_scale(rows: Sequence[ManifestRow]) -> Dict[str, str]:
+    """Map each scale bar crop to the box of the bar in it."""
+    return {row.output_crop_id: row.scale_box for row in rows
+            if row.image_type == 'scale_bar' and row.scale_box}
 
 
 def _scales_by_page(rows: Sequence[ManifestRow]) -> Dict[str, List[str]]:
@@ -587,7 +616,8 @@ def _merge_metadata_rows(
 
 
 def _metadata_row(
-    row: ManifestRow, scales: Sequence[str], uncertain: Optional[set] = None
+    row: ManifestRow, scales: Sequence[str], uncertain: Optional[set] = None,
+    bar_boxes: Optional[Dict[str, str]] = None,
 ) -> Dict[str, str]:
     """Build one meta_data.csv row for an artefact crop."""
     flags = []
@@ -610,6 +640,7 @@ def _metadata_row(
         'scale': '',
         'flag': _FLAG_SEPARATOR.join(flags),
         'ignore_box': row.ignore_box,
+        'scale_box': (bar_boxes or {}).get(scale_id, ''),
     }
 
 

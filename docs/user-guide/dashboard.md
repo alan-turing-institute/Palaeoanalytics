@@ -22,7 +22,9 @@ There is one flag, `--explore`, with two uses:
 pylithics --data_dir ./assemblage --explore
 
 # Second use: open the dashboard for a previous analysis. No new
-# analysis. Give the folder that contains processed_metrics.csv.
+# analysis. Give the folder that contains processed_metrics.csv as the
+# value of --explore. Do not give --data_dir: with --data_dir, the
+# command does the analysis again.
 pylithics --explore ./assemblage/results
 pylithics --explore ./tanzania_run_2025
 ```
@@ -41,7 +43,7 @@ analysis first.
 
 ## Pages
 
-The dashboard has three pages. Select a page in the sidebar.
+The dashboard has four pages. Select a page in the sidebar.
 
 ### 1. Overview
 
@@ -99,6 +101,46 @@ One lithic. Select an image in the list to see:
 The labelled image and the Voronoi diagram are shown in a 700×700
 square, so the two panels always have the same size on the screen.
 The PNG files on the disk do not change.
+
+### 4. Review
+
+What to examine, and why. The page has one section for each Overview
+tile that shows `⚠ Review`. Each section has three parts:
+
+1. What the check means.
+2. What to do, as numbered steps.
+3. A table: the image, the item, the value that the check found, and
+   the reason in words, from the numbers of that row. For example: "Width
+   771 against the dorsal's 858, 10.1% apart. The tolerance is 10%."
+
+The checks with nothing to examine are in one line at the end. The same
+rows are in `results/review.csv`, which every analysis writes. See
+[Output Files](outputs.md) and the review checks in
+[Troubleshooting](troubleshooting.md#dashboard-review-checks).
+
+## Export the dashboard
+
+The `Export dashboard` control is in the sidebar, under the page list.
+It exports the full dashboard, not one page.
+
+1. Click `Prepare export`. The first time, this takes a few seconds.
+2. Click one of the three buttons. Each file has the name of the run,
+   which is the name of the project folder. For the project
+   `pylithics_test_lithics`:
+
+| Button | File | Contents |
+|---|---|---|
+| `CSV` | `pylithics_test_lithics_report.csv` | The Review rows: `check`, `image_id`, `item`, `value`, `reason`, `what_to_do`. |
+| `HTML` | `pylithics_test_lithics_report.html` | Overview, Distributions and Review in one file. The charts stay interactive. The file opens with no network. |
+| `PDF` | `pylithics_test_lithics_report.pdf` | The same contents. The charts are drawn again with Matplotlib from the same data. |
+
+If you give `--explore` a results folder that has a different name, the
+run name is the name of that folder.
+
+The report uses all the data. The filters of the Distributions page do
+not apply to it. The report has no page for each lithic: the analysis
+writes the labelled images to `results/`, and the Per-Lithic Detail page
+shows them.
 
 ## Operating systems
 
